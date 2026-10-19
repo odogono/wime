@@ -1,0 +1,19 @@
+{
+  "archive": "WarInMiddleEarth_v1.0_0968.lha",
+  "notes": [
+    "CSTR resources are exact resource payloads with a readable decode and raw byte hex.",
+    "Executable strings are heuristic printable runs from the main executable, not structured resources.",
+    "ReadMe, Hints, and Docs are archive/manual text, separated from in-game resource text."
+  ],
+  "outputs": {
+    "archive_text_json": "archive_text.json",
+    "executable_strings_json": "executable_strings.json",
+    "resources_json": "resources.json",
+    "text_markdown": "text_dump.md"
+  },
+  "summary": {
+    "archive_text_members": 3,
+    "cstr_resources": 61,
+    "executable_strings": 554
+  }
+}
