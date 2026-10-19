@@ -35,6 +35,14 @@ export {
   fullMapDots,
   type FullMapDot
 } from './full-map';
+export {
+  headingName,
+  MIRROR_HEADING,
+  MIRROR_ROW_LIMIT,
+  mirrorListing,
+  type MirrorListing,
+  type MirrorRow
+} from './mirror';
 export { createRng, nextRandom, type RngState } from './rng';
 export {
   forcesOf,
