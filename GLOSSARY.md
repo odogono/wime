@@ -97,6 +97,14 @@ _Avoid_: Trigger, stage, phase
 How fast game time passes in real time: Normal, Hasty or Very Hasty. Game Speed never changes the rules.
 _Avoid_: Difficulty, tempo
 
+**Galadriel's Mirror**:
+The window the eye opens on the Full Map Level, listing every Force on the move: Good Forces and where they are going on the left, Evil Forces on the right.
+_Avoid_: Status window, pool, overview list
+
+**Archive**:
+The single saved game, kept in one file and saved or restored through the scroll on the Full Map Level.
+_Avoid_: Save slot, save file
+
 ## Project
 
 **Reference Build**:

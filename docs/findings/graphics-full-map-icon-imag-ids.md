@@ -10,6 +10,7 @@ sources:
   - disasm:code+0x0d5d4
   - disasm:code+0x06362
   - disasm:code+0x039a6
+  - observed:full-map-at-start
 issue: 29
 ---
 
@@ -21,3 +22,5 @@ each ID to code+0x039a6, which loads an IMAG resource. The icon centres are
 (600, 10), (600, 24), (600, 42) and (600, 61) in the 640-column bitmap.
 Each decoded image has the matching shape. These are separate resources from
 the Campaign Level's smaller icons (`finding:graphics-campaign-icon-imag-ids`).
+
+Each call also passes a button code: 0xF2 for the eye, 0xF4 for the scroll, 0xF5 for the magnifying glass and 0xF3 for the hourglass. The column matches the one seen in play in FS-UAE, top to bottom.
