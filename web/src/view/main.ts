@@ -5,10 +5,20 @@ import {
   fullMapDots,
   giveOrder,
   mirrorListing,
+  restoreSave,
+  serialiseSave,
   tickSim,
   type Force,
   type SimState
 } from '../sim/index';
+import {
+  ARCHIVE_MESSAGES,
+  archiveButtonAt,
+  archiveMenu,
+  archiveMessage,
+  drawArchiveWindow,
+  type ArchiveWindow
+} from './archive-window';
 import {
   blackToTransparent,
   loadCampaignAssets,
@@ -117,6 +127,38 @@ const run = (assets: CampaignAssets, fullMap: FullMapLevel): void => {
   let zooming = false;
   let hiresPointer: Camera | null = null;
   let mirror: MirrorWindow | null = null;
+  let archive: ArchiveWindow | null = null;
+  // The single save slot (finding:ui-single-save-slot). Game Speed and
+  // the camera are not saved, and a restore stays on this Level.
+  const ARCHIVE_KEY = 'wime.archive';
+  const saveGame = (): ArchiveWindow => {
+    try {
+      localStorage.setItem(ARCHIVE_KEY, serialiseSave(sim));
+      return archiveMessage(ARCHIVE_MESSAGES.saved);
+    } catch {
+      return archiveMessage(ARCHIVE_MESSAGES.saveFailed);
+    }
+  };
+  const restoreGame = (): ArchiveWindow => {
+    const data = localStorage.getItem(ARCHIVE_KEY);
+    const result = data === null ? null : restoreSave(data, assets.tilemap);
+    if (!result || (!result.ok && result.reason === 'invalid')) {
+      return archiveMessage(ARCHIVE_MESSAGES.noArchive);
+    }
+    if (!result.ok) {
+      return archiveMessage(ARCHIVE_MESSAGES.otherVersion);
+    }
+    sim = result.state;
+    return archiveMessage(ARCHIVE_MESSAGES.restored);
+  };
+  // The Archive window, from the scroll or A (finding:ui-archive-window).
+  const openArchive = (): void => {
+    mirror = null;
+    speedWindow = null;
+    zooming = false;
+    canvas.style.cursor = 'default';
+    archive = archiveMenu();
+  };
   // Galadriel's Mirror, from the eye or S (docs/spec/full-map.md).
   const toggleMirror = (): void => {
     mirror = mirror
@@ -172,6 +214,7 @@ const run = (assets: CampaignAssets, fullMap: FullMapLevel): void => {
     level = 'full-map';
     zooming = false;
     mirror = null;
+    archive = null;
     speedWindow = null;
     infoWindow = null;
     drag = null;
@@ -196,6 +239,16 @@ const run = (assets: CampaignAssets, fullMap: FullMapLevel): void => {
 
   const handleFullMapPress = (event: PointerEvent): void => {
     const point = toHires(event);
+    // A press on a button acts on it; anywhere else clears the window.
+    if (archive) {
+      const button = archiveButtonAt(archive, point);
+      archive = button
+        ? button.choice === 'save'
+          ? saveGame()
+          : restoreGame()
+        : null;
+      return;
+    }
     // A press anywhere clears the Mirror.
     if (mirror) {
       mirror = null;
@@ -208,7 +261,9 @@ const run = (assets: CampaignAssets, fullMap: FullMapLevel): void => {
       return;
     }
     const icon = fullMapIconAt(fullMapPlacements, point);
-    if (icon?.icon.name === 'eye') {
+    if (icon?.icon.name === 'scroll') {
+      openArchive();
+    } else if (icon?.icon.name === 'eye') {
       zooming = false;
       canvas.style.cursor = 'default';
       toggleMirror();
@@ -417,6 +472,14 @@ const run = (assets: CampaignAssets, fullMap: FullMapLevel): void => {
     // glass waits for the Animation Level.
     const key = event.key.toLowerCase();
     if (level === 'full-map') {
+      if (archive) {
+        archive = null;
+        return;
+      }
+      if (key === 'a') {
+        openArchive();
+        return;
+      }
       if (key === 's') {
         speedWindow = null;
         zooming = false;
@@ -526,6 +589,9 @@ const run = (assets: CampaignAssets, fullMap: FullMapLevel): void => {
       }
       if (mirror) {
         drawMirrorWindow(screen.hires, mirror);
+      }
+      if (archive) {
+        drawArchiveWindow(screen.hires, archive);
       }
       if (speedWindow) {
         // Drawn at lo-res size: each of its pixels is two hi-res wide.

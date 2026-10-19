@@ -62,6 +62,13 @@ export {
   type Trigger
 } from './starting-state';
 export {
+  restoreSave,
+  SAVE_VERSION,
+  serialiseSave,
+  type RestoreResult,
+  type SavedState
+} from './save';
+export {
   createSim,
   deserializeSim,
   serializeSim,
