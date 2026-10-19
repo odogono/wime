@@ -5,7 +5,6 @@ import {
   fullMapDots,
   giveOrder,
   mirrorListing,
-  resolveFight,
   restoreSave,
   serialiseSave,
   tickSim,
@@ -40,6 +39,15 @@ import {
   type Camera,
   type IconPlacement
 } from './campaign-level';
+import {
+  cameraForFight,
+  combatHoldsTime,
+  drawCombatUi,
+  pressCombatUi,
+  startCombatUi,
+  stepCombatUi,
+  type CombatUi
+} from './combat-window';
 import {
   drawInfoWindow,
   forceWindowLines,
@@ -115,6 +123,9 @@ const iconAt = (
 // (finding:ui-campaign-level-display). The original's rate has not
 // been traced; this is provisional.
 const FLASH_INTERVAL_MS = 500;
+// The original picks some combat message wordings at random; the view
+// may, since the wording changes nothing in the sim.
+const choose = (n: number): number => Math.floor(Math.random() * n);
 // A press that moves no further than this is a click, not a drag.
 const CLICK_TOLERANCE_PX = 3;
 
@@ -194,6 +205,9 @@ const run = (assets: CampaignAssets, fullMap: FullMapLevel): void => {
   let speedWindow: SpeedWindow | null = null;
   let infoWindow: InfoWindow | null = null;
   let order: OrderState = IDLE_ORDER;
+  // The fight's announcement or combat window, while a fight is on
+  // (docs/spec/combat.md).
+  let combat: CombatUi | null = null;
   let lastTime = performance.now();
 
   // The pointer in native pixels; hi-res pixels are half as wide.
@@ -383,6 +397,28 @@ const run = (assets: CampaignAssets, fullMap: FullMapLevel): void => {
       return;
     }
     pointer = toNative(event);
+    // A fight's windows take every press while they hold the game.
+    if (combat && (combatHoldsTime(combat) || combat.kind === 'boxes')) {
+      const before = combat;
+      const result = pressCombatUi(combat, sim, pointer, performance.now());
+      sim = result.sim;
+      combat = result.ui;
+      // "Go there" brings the fight into view.
+      if (
+        before.kind === 'announcement' &&
+        combat?.kind === 'window' &&
+        sim.fight
+      ) {
+        camera = clampCamera(
+          cameraForFight(sim.fight.position, camera, {
+            height: viewHeightPx(assets.tilemap),
+            width: viewWidthPx(assets.tilemap)
+          }),
+          assets.tilemap
+        );
+      }
+      return;
+    }
     if (speedWindow) {
       pressSpeedWindow(pointer);
       return;
@@ -508,6 +544,10 @@ const run = (assets: CampaignAssets, fullMap: FullMapLevel): void => {
       }
       return;
     }
+    // Nothing else is open to the player while a fight holds the game.
+    if (combatHoldsTime(combat)) {
+      return;
+    }
     if (key === 'u') {
       goUp();
     } else if (event.key === 't' || event.key === 'T') {
@@ -553,7 +593,13 @@ const run = (assets: CampaignAssets, fullMap: FullMapLevel): void => {
     }
     // Hovering names the Place, Character or Unit under the pointer
     // in the same top-left window a click would open.
-    if (!infoWindow && !speedWindow && !drag && order.kind === 'idle') {
+    if (
+      !combat &&
+      !infoWindow &&
+      !speedWindow &&
+      !drag &&
+      order.kind === 'idle'
+    ) {
       const overIcons = pointer !== null && isOverIcons(pointer, placements);
       const target = overIcons ? null : targetAt(pointer, forces);
       if (target) {
@@ -565,6 +611,9 @@ const run = (assets: CampaignAssets, fullMap: FullMapLevel): void => {
     }
     if (speedWindow) {
       drawSpeedWindow(ctx, speedWindow, driver.speed, driver.paused);
+    }
+    if (combat) {
+      drawCombatUi(ctx, combat, sim);
     }
   };
 
@@ -605,13 +654,22 @@ const run = (assets: CampaignAssets, fullMap: FullMapLevel): void => {
       requestAnimationFrame(frame);
       return;
     }
-    for (let i = 0, ticks = driver.advance(elapsedMs); i < ticks; i++) {
+    if (combat) {
+      const result = stepCombatUi(combat, sim, now, choose);
+      sim = result.sim;
+      combat = result.ui;
+    }
+    // Game time stands still while a fight holds the game
+    // (finding:time-stops-during-a-fight); the ticks due are dropped.
+    const ticks = driver.advance(elapsedMs);
+    for (let i = 0; i < ticks && !combatHoldsTime(combat) && !sim.fight; i++) {
       sim = tickSim(sim);
-      // Until the combat window (#47), every fight goes as an
-      // unanswered announcement does: as if "Ignore it" was pressed
-      // (finding:combat-unanswered-announcement-ignores-the-fight).
       if (sim.fight) {
-        sim = resolveFight(sim);
+        combat = startCombatUi(sim, now);
+        speedWindow = null;
+        infoWindow = null;
+        drag = null;
+        setOrder(IDLE_ORDER);
       }
     }
     // Hovering the icon column does not scroll the map under it, and
