@@ -1,22 +1,25 @@
-import { afterAll, describe, expect, test } from 'bun:test';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-
+import { afterAll, describe, expect, test } from 'bun:test';
 import { PNG } from 'pngjs';
 
-import { DEFAULT_ARCHIVE, ExtractError, IndexedImage } from './extract-graphics';
 import {
-  buildTileAtlas,
-  buildTilemap,
   CAMPAIGN_MAP_HEIGHT,
   CAMPAIGN_MAP_STRIDE,
   CAMPAIGN_MAP_WIDTH,
+  TILE_ATLAS_COLUMNS,
+  buildTileAtlas,
+  buildTilemap,
   exportWebAssets,
   paletteToJson,
-  TILE_ATLAS_COLUMNS,
   type WebManifest
 } from './export-web';
+import {
+  DEFAULT_ARCHIVE,
+  ExtractError,
+  IndexedImage
+} from './extract-graphics';
 
 const solidTile = (value: number): IndexedImage => {
   const tile = new IndexedImage(16, 16);
@@ -50,12 +53,12 @@ test('tile map slices the width x height grid at the given stride', () => {
   );
 
   expect(tilemap).toEqual({
-    width: 2,
     height: 2,
+    indices: [1, 2, 3, 4],
     stride: 3,
-    tile_width: 16,
     tile_height: 16,
-    indices: [1, 2, 3, 4]
+    tile_width: 16,
+    width: 2
   });
 });
 
@@ -63,9 +66,9 @@ test('tile map rejects short data and a stride below the width', () => {
   expect(() => buildTilemap(Uint8Array.from([1, 2, 3]), 2, 2, 2)).toThrow(
     ExtractError
   );
-  expect(() =>
-    buildTilemap(Uint8Array.from([1, 2, 3, 4]), 2, 2, 1)
-  ).toThrow(ExtractError);
+  expect(() => buildTilemap(Uint8Array.from([1, 2, 3, 4]), 2, 2, 1)).toThrow(
+    ExtractError
+  );
 });
 
 test('palette JSON exports RGB triples and hex for the used colours', () => {
@@ -77,9 +80,9 @@ test('palette JSON exports RGB triples and hex for the used colours', () => {
   ]);
   expect(palette.hex).toEqual(['#000000', '#ff8011']);
   expect(palette.source).toEqual({
+    id: 1,
     resource_file: 'AMaps.res',
-    type: 'CHAR',
-    id: 1
+    type: 'CHAR'
   });
 });
 
@@ -87,7 +90,7 @@ test('palette JSON exports RGB triples and hex for the used colours', () => {
 // gitignored artifacts/ dir and is absent in CI; it skips there.
 describe.skipIf(!existsSync(DEFAULT_ARCHIVE))('web export', () => {
   const out = mkdtempSync(join(tmpdir(), 'wime-export-web-'));
-  afterAll(() => rmSync(out, { recursive: true, force: true }));
+  afterAll(() => rmSync(out, { force: true, recursive: true }));
 
   test('writes every web asset with a manifest entry on disk', () => {
     const manifest: WebManifest = exportWebAssets(DEFAULT_ARCHIVE, out);
@@ -97,9 +100,9 @@ describe.skipIf(!existsSync(DEFAULT_ARCHIVE))('web export', () => {
     // finding:data-formats-resource-files-and-sizes).
     expect(manifest.summary).toMatchObject({
       campaign_tiles: 320,
+      cstr_resources: 61,
       imag_decoded: 115,
-      imag_total: 115,
-      cstr_resources: 61
+      imag_total: 115
     });
     expect(manifest.skipped).toEqual([]);
     // Atlas, palette, tile map, atlas metadata, 115 graphics, text.
@@ -124,9 +127,9 @@ describe.skipIf(!existsSync(DEFAULT_ARCHIVE))('web export', () => {
       Math.ceil(320 / TILE_ATLAS_COLUMNS) * 16
     ]);
     expect(atlas.source).toEqual({
+      id: 1,
       resource_file: 'AMaps.res',
-      type: 'CHAR',
-      id: 1
+      type: 'CHAR'
     });
 
     const palette = JSON.parse(
@@ -143,10 +146,10 @@ describe.skipIf(!existsSync(DEFAULT_ARCHIVE))('web export', () => {
     const tilemap = JSON.parse(
       readFileSync(join(out, 'campaign/tilemap.json'), 'utf8')
     ) as {
-      width: number;
       height: number;
-      stride: number;
       indices: number[];
+      stride: number;
+      width: number;
     };
     expect(tilemap.width).toBe(CAMPAIGN_MAP_WIDTH);
     expect(tilemap.height).toBe(CAMPAIGN_MAP_HEIGHT);
@@ -158,22 +161,26 @@ describe.skipIf(!existsSync(DEFAULT_ARCHIVE))('web export', () => {
     expect(Math.max(...tilemap.indices)).toBeLessThan(256);
 
     const text = JSON.parse(readFileSync(join(out, 'text.json'), 'utf8')) as {
-      resources: { source_file: string; type: string; id: number; text: string }[];
+      resources: {
+        id: number;
+        source_file: string;
+        text: string;
+        type: string;
+      }[];
     };
     expect(text.resources).toHaveLength(61);
     expect(
-      text.resources.find(
-        r => r.source_file === 'AText.res' && r.id === 57
-      )!.text
+      text.resources.find(r => r.source_file === 'AText.res' && r.id === 57)!
+        .text
     ).toContain('Three Rings for the Elven-kings');
 
     // A known graphics asset keeps its source resource and dimensions.
     const imag100 = byPath.get('graphics/AMaps.res/IMAG_100.png')!;
     expect([imag100.width, imag100.height]).toEqual([80, 96]);
     expect(imag100.source).toEqual({
+      id: 100,
       resource_file: 'AMaps.res',
-      type: 'IMAG',
-      id: 100
+      type: 'IMAG'
     });
 
     // The manifest on disk is the manifest that was returned.

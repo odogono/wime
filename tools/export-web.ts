@@ -15,17 +15,17 @@ import { parseArgs } from 'node:util';
 import {
   AmigaOFSImage,
   DEFAULT_ARCHIVE,
-  decodeImagResource,
   ExtractError,
   IndexedImage,
+  RESOURCE_FILES,
+  decodeImagResource,
   loadLhaMember,
   paletteForResourceFile,
   parseResourceFork,
-  RESOURCE_FILES,
   safeName,
   stringifySortedJson
 } from './extract-graphics';
-import { decodeCstrPayload, TEXT_RESOURCE_FILES } from './extract-text';
+import { TEXT_RESOURCE_FILES, decodeCstrPayload } from './extract-text';
 import { loadCampaignMapAssets } from './render-campaign-map';
 
 export const WEB_ASSETS_DIR = 'web/public/assets';
@@ -38,29 +38,29 @@ export const CAMPAIGN_MAP_STRIDE = 160;
 export const TILE_ATLAS_COLUMNS = 32;
 
 export type AssetSource = {
+  id: number | null;
   resource_file: string;
   type: string;
-  id: number | null;
 };
 
 export type WebAsset = {
-  path: string;
-  kind: string;
-  width: number | null;
-  height: number | null;
-  source: AssetSource | null;
-  sources?: { resource_file: string; type: string; count: number }[];
   count?: number;
   depth?: number;
+  height: number | null;
+  kind: string;
   palette_source?: string;
+  path: string;
+  source: AssetSource | null;
+  sources?: { count: number; resource_file: string; type: string }[];
   warnings?: string[];
+  width: number | null;
 };
 
 export type WebManifest = {
   archive: string;
   assets: WebAsset[];
-  skipped: { source: AssetSource; warnings: string[] }[];
   notes: string[];
+  skipped: { source: AssetSource; warnings: string[] }[];
   summary: {
     assets: number;
     campaign_tiles: number;
@@ -72,12 +72,12 @@ export type WebManifest = {
 };
 
 export type Tilemap = {
-  width: number;
   height: number;
-  stride: number;
-  tile_width: number;
-  tile_height: number;
   indices: number[];
+  stride: number;
+  tile_height: number;
+  tile_width: number;
+  width: number;
 };
 
 // Lay the campaign tiles out in a regular grid with no labels or padding,
@@ -123,10 +123,14 @@ export const buildTilemap = (
   tileHeight: number = 16
 ): Tilemap => {
   if (width <= 0 || height <= 0) {
-    throw new ExtractError(`tile map dimensions must be positive: ${width}x${height}`);
+    throw new ExtractError(
+      `tile map dimensions must be positive: ${width}x${height}`
+    );
   }
   if (stride < width) {
-    throw new ExtractError(`tile map stride ${stride} is smaller than width ${width}`);
+    throw new ExtractError(
+      `tile map stride ${stride} is smaller than width ${width}`
+    );
   }
   const needed = stride * (height - 1) + width;
   if (mapIndices.length < needed) {
@@ -141,20 +145,20 @@ export const buildTilemap = (
     }
   }
   return {
-    width,
     height,
+    indices,
     stride,
-    tile_width: tileWidth,
     tile_height: tileHeight,
-    indices
+    tile_width: tileWidth,
+    width
   };
 };
 
 export type PaletteJson = {
-  source: AssetSource;
-  palette_source: string;
   colors: [number, number, number][];
   hex: string[];
+  palette_source: string;
+  source: AssetSource;
 };
 
 // The flat 256-entry RGB palette the tools use, cut down to the colours
@@ -172,25 +176,25 @@ export const paletteToJson = (
     ]);
   }
   return {
-    source: { resource_file: 'AMaps.res', type: 'CHAR', id: 1 },
-    palette_source: 'first 16 RGB4 words in CHAR resource',
     colors,
     hex: colors.map(
       ([r, g, b]) =>
         `#${[r, g, b].map(v => v.toString(16).padStart(2, '0')).join('')}`
-    )
+    ),
+    palette_source: 'first 16 RGB4 words in CHAR resource',
+    source: { id: 1, resource_file: 'AMaps.res', type: 'CHAR' }
   };
 };
 
 export type TextRecord = {
   disk: string;
-  source_member: string;
-  source_file: string;
-  type: string;
   id: number;
-  name: string | null;
   length: number;
+  name: string | null;
+  source_file: string;
+  source_member: string;
   text: string;
+  type: string;
   warnings: string[];
 };
 
@@ -206,13 +210,13 @@ export const collectCstrTexts = (archive: string): TextRecord[] => {
         const decoded = decodeCstrPayload(resource.data);
         records.push({
           disk: diskName,
-          source_member: memberName,
-          source_file: resourceName,
-          type: resource.typeCode,
           id: resource.resourceId,
-          name: resource.name,
           length: resource.data.length,
+          name: resource.name,
+          source_file: resourceName,
+          source_member: memberName,
           text: decoded.text,
+          type: resource.typeCode,
           warnings: decoded.warnings
         });
       }
@@ -246,26 +250,26 @@ export const exportWebAssets = (
   mkdirSync(join(outputDir, 'campaign'), { recursive: true });
   atlas.save(atlasPath);
   assets.push({
-    path: relativePosix(outputDir, atlasPath),
-    kind: 'tile-atlas',
-    width: atlas.width,
-    height: atlas.height,
-    source: { resource_file: 'AMaps.res', type: 'CHAR', id: 1 },
     count: campaign.tiles.length,
-    palette_source: 'first 16 RGB4 words in CHAR resource'
+    height: atlas.height,
+    kind: 'tile-atlas',
+    palette_source: 'first 16 RGB4 words in CHAR resource',
+    path: relativePosix(outputDir, atlasPath),
+    source: { id: 1, resource_file: 'AMaps.res', type: 'CHAR' },
+    width: atlas.width
   });
 
   const palette = paletteToJson(campaign.palette);
   const palettePath = join(outputDir, 'campaign', 'palette.json');
   writeJson(palettePath, palette);
   assets.push({
-    path: relativePosix(outputDir, palettePath),
-    kind: 'palette',
-    width: null,
-    height: null,
-    source: palette.source,
     count: palette.colors.length,
-    palette_source: palette.palette_source
+    height: null,
+    kind: 'palette',
+    palette_source: palette.palette_source,
+    path: relativePosix(outputDir, palettePath),
+    source: palette.source,
+    width: null
   });
 
   const tilemap = buildTilemap(
@@ -279,36 +283,36 @@ export const exportWebAssets = (
   const tilemapPath = join(outputDir, 'campaign', 'tilemap.json');
   writeJson(tilemapPath, {
     ...tilemap,
-    source: { resource_file: 'AMaps.res', type: 'MMAP', id: 1 }
+    source: { id: 1, resource_file: 'AMaps.res', type: 'MMAP' }
   });
   assets.push({
-    path: relativePosix(outputDir, tilemapPath),
-    kind: 'tilemap',
-    width: tilemap.width,
+    count: tilemap.indices.length,
     height: tilemap.height,
-    source: { resource_file: 'AMaps.res', type: 'MMAP', id: 1 },
-    count: tilemap.indices.length
+    kind: 'tilemap',
+    path: relativePosix(outputDir, tilemapPath),
+    source: { id: 1, resource_file: 'AMaps.res', type: 'MMAP' },
+    width: tilemap.width
   });
 
   const tilesMetaPath = join(outputDir, 'campaign', 'tiles.json');
   writeJson(tilesMetaPath, {
     atlas: 'tiles.png',
     columns: TILE_ATLAS_COLUMNS,
-    rows: Math.ceil(campaign.tiles.length / TILE_ATLAS_COLUMNS),
-    tile_count: campaign.tiles.length,
-    tile_width: tileWidth,
-    tile_height: tileHeight,
-    width: atlas.width,
     height: atlas.height,
-    source: { resource_file: 'AMaps.res', type: 'CHAR', id: 1 }
+    rows: Math.ceil(campaign.tiles.length / TILE_ATLAS_COLUMNS),
+    source: { id: 1, resource_file: 'AMaps.res', type: 'CHAR' },
+    tile_count: campaign.tiles.length,
+    tile_height: tileHeight,
+    tile_width: tileWidth,
+    width: atlas.width
   });
   assets.push({
-    path: relativePosix(outputDir, tilesMetaPath),
-    kind: 'tile-atlas-metadata',
-    width: atlas.width,
+    count: campaign.tiles.length,
     height: atlas.height,
-    source: { resource_file: 'AMaps.res', type: 'CHAR', id: 1 },
-    count: campaign.tiles.length
+    kind: 'tile-atlas-metadata',
+    path: relativePosix(outputDir, tilesMetaPath),
+    source: { id: 1, resource_file: 'AMaps.res', type: 'CHAR' },
+    width: atlas.width
   });
 
   // Every decoded IMAG bitmap. No Finding identifies individual IMAG
@@ -323,8 +327,7 @@ export const exportWebAssets = (
     const disk = new AmigaOFSImage(loadLhaMember(archive, memberName));
     for (const resourceName of resourceNames) {
       const fork = parseResourceFork(disk.readFile(resourceName));
-      const [paletteSource, imagPalette] =
-        paletteForResourceFile(resourceName);
+      const [paletteSource, imagPalette] = paletteForResourceFile(resourceName);
       for (const resource of fork.byType('IMAG')) {
         imagTotal += 1;
         try {
@@ -339,17 +342,17 @@ export const exportWebAssets = (
           imagDecoded += 1;
           warnings += decoded.warnings.length;
           const asset: WebAsset = {
-            path: relativePosix(outputDir, path),
-            kind: 'graphics',
-            width: decoded.width,
-            height: decoded.height,
-            source: {
-              resource_file: resourceName,
-              type: resource.typeCode,
-              id: resource.resourceId
-            },
             depth: decoded.depth,
-            palette_source: paletteSource
+            height: decoded.height,
+            kind: 'graphics',
+            palette_source: paletteSource,
+            path: relativePosix(outputDir, path),
+            source: {
+              id: resource.resourceId,
+              resource_file: resourceName,
+              type: resource.typeCode
+            },
+            width: decoded.width
           };
           if (decoded.warnings.length > 0) {
             asset.warnings = decoded.warnings;
@@ -359,13 +362,11 @@ export const exportWebAssets = (
           warnings += 1;
           skipped.push({
             source: {
+              id: resource.resourceId,
               resource_file: resourceName,
-              type: resource.typeCode,
-              id: resource.resourceId
+              type: resource.typeCode
             },
-            warnings: [
-              error instanceof Error ? error.message : String(error)
-            ]
+            warnings: [error instanceof Error ? error.message : String(error)]
           });
         }
       }
@@ -377,39 +378,38 @@ export const exportWebAssets = (
   const textPath = join(outputDir, 'text.json');
   writeJson(textPath, { resources: texts });
   const textSources = Object.values(
-    texts.reduce<Record<string, { resource_file: string; type: string; count: number }>>(
-      (byFile, record) => {
-        const entry = (byFile[record.source_file] ??= {
-          resource_file: record.source_file,
-          type: record.type,
-          count: 0
-        });
-        entry.count += 1;
-        return byFile;
-      },
-      {}
-    )
+    texts.reduce<
+      Record<string, { count: number; resource_file: string; type: string }>
+    >((byFile, record) => {
+      const entry = (byFile[record.source_file] ??= {
+        count: 0,
+        resource_file: record.source_file,
+        type: record.type
+      });
+      entry.count += 1;
+      return byFile;
+    }, {})
   ).sort((a, b) => (a.resource_file < b.resource_file ? -1 : 1));
   assets.push({
-    path: relativePosix(outputDir, textPath),
-    kind: 'text',
-    width: null,
+    count: texts.length,
     height: null,
+    kind: 'text',
+    path: relativePosix(outputDir, textPath),
     source: null,
     sources: textSources,
-    count: texts.length
+    width: null
   });
 
   assets.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
   const manifest: WebManifest = {
     archive,
     assets,
-    skipped,
     notes: [
       'Generated by tools/export-web.ts; do not edit or commit this directory.',
       'Campaign tiles come from AMaps.res CHAR 1 and the tile map from AMaps.res MMAP 1; only the 160x99 grid is exported, not the trailing MMAP bytes.',
       'No Finding identifies individual IMAG resources as the icon column, UI windows or the font yet, so every decoded IMAG is exported under graphics/ with its source resource.'
     ],
+    skipped,
     summary: {
       assets: assets.length,
       campaign_tiles: campaign.tiles.length,
@@ -424,10 +424,10 @@ export const exportWebAssets = (
 };
 
 export const main = (argv: string[] = process.argv.slice(2)): number => {
-  const { values, positionals } = parseArgs({
+  const { positionals, values } = parseArgs({
+    allowPositionals: true,
     args: argv,
-    options: { out: { type: 'string', default: WEB_ASSETS_DIR } },
-    allowPositionals: true
+    options: { out: { default: WEB_ASSETS_DIR, type: 'string' } }
   });
   const archive = positionals[0] ?? DEFAULT_ARCHIVE;
   const out = values.out ?? WEB_ASSETS_DIR;
