@@ -4,6 +4,7 @@
 // state.fight is set, and the view steps the rounds or resolves the
 // fight at once when the player ignores it.
 
+import { endingAfterFight, type Ending } from './endings';
 import { nextRandom, type RngState } from './rng';
 import {
   TILE_SIZE,
@@ -73,6 +74,8 @@ export interface Fight {
 }
 
 export interface CombatWorld {
+  // Set by the end of a fight that ends the game.
+  ending: Ending | null;
   fight: Fight | null;
   rng: RngState;
   roster: RosterEntry[];
@@ -613,7 +616,13 @@ export const finishFight = <T extends CombatWorld>(world: T): T => {
       position: top.position ? { ...top.position } : null
     };
   }
-  return { ...world, fight: null, roster, routes };
+  return {
+    ...world,
+    ending: world.ending ?? endingAfterFight(roster),
+    fight: null,
+    roster,
+    routes
+  };
 };
 
 // An ignored fight: every round on Engage, straight to the end

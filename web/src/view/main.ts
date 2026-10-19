@@ -49,6 +49,12 @@ import {
   type CombatUi
 } from './combat-window';
 import {
+  drawEndingScreen,
+  endingScreen,
+  turnEndingPage,
+  type EndingScreen
+} from './ending-screen';
+import {
   drawInfoWindow,
   forceWindowLines,
   layoutInfoWindow,
@@ -208,6 +214,8 @@ const run = (assets: CampaignAssets, fullMap: FullMapLevel): void => {
   // The fight's announcement or combat window, while a fight is on
   // (docs/spec/combat.md).
   let combat: CombatUi | null = null;
+  // The game's ending, once a fight has ended it.
+  let ending: EndingScreen | null = null;
   let lastTime = performance.now();
 
   // The pointer in native pixels; hi-res pixels are half as wide.
@@ -397,6 +405,10 @@ const run = (assets: CampaignAssets, fullMap: FullMapLevel): void => {
       return;
     }
     pointer = toNative(event);
+    if (ending) {
+      ending = turnEndingPage(ending);
+      return;
+    }
     // A fight's windows take every press while they hold the game.
     if (combat && (combatHoldsTime(combat) || combat.kind === 'boxes')) {
       const before = combat;
@@ -544,6 +556,10 @@ const run = (assets: CampaignAssets, fullMap: FullMapLevel): void => {
       }
       return;
     }
+    if (ending) {
+      ending = turnEndingPage(ending);
+      return;
+    }
     // Nothing else is open to the player while a fight holds the game.
     if (combatHoldsTime(combat)) {
       return;
@@ -658,6 +674,17 @@ const run = (assets: CampaignAssets, fullMap: FullMapLevel): void => {
       const result = stepCombatUi(combat, sim, now, choose);
       sim = result.sim;
       combat = result.ui;
+    }
+    // Once a fight has ended the game and its windows have closed, the
+    // ending takes the screen for good.
+    if (!ending && !combat && sim.ending) {
+      ending = endingScreen(sim.ending, assets.texts);
+    }
+    if (ending) {
+      drawEndingScreen(screen.buffer, ending);
+      screen.present();
+      requestAnimationFrame(frame);
+      return;
     }
     // Game time stands still while a fight holds the game
     // (finding:time-stops-during-a-fight); the ticks due are dropped.

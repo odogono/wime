@@ -147,6 +147,7 @@ const fakeAssets = (draws: DrawCall[]): CampaignAssets => {
     forceIcons: { height: 96, width: 80 } as HTMLCanvasElement,
     icons: [],
     startingState: null,
+    texts: new Map(),
     tilemap: {
       height: 2,
       indices: [0, 1, 2, 3, 3, 2],

@@ -58,6 +58,14 @@ export {
   type MirrorListing,
   type MirrorRow
 } from './mirror';
+export {
+  BARAD_DUR_GARRISON,
+  endingAfterFight,
+  fallenStrongholds,
+  STRONGHOLD_GARRISONS,
+  STRONGHOLDS_TO_LOSE,
+  type Ending
+} from './endings';
 export { createRng, nextRandom, type RngState } from './rng';
 export {
   forcesOf,
