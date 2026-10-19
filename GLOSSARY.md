@@ -92,3 +92,21 @@ _Avoid_: Script, AI path
 **Game Speed**:
 How fast game time passes in real time: Normal, Hasty or Very Hasty. Game Speed never changes the rules.
 _Avoid_: Difficulty, tempo
+
+## Project
+
+**Reference Build**:
+The release of the original game that settles questions of how it worked: the Amiga v1.0 release. Other versions may be consulted but are never authoritative.
+_Avoid_: Original, master copy
+
+**Finding**:
+A single recorded fact about how the original game worked, with its sources and how certain it is.
+_Avoid_: Note, discovery, research fact
+
+**Lesson**:
+A Finding about how the analysis itself went, such as a technique that worked or a dead end.
+_Avoid_: Retrospective, learning
+
+**Spec**:
+A statement of what the reimplementation must do, citing the Findings it rests on.
+_Avoid_: Requirement doc, design doc
