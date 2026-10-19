@@ -9,7 +9,7 @@ One of the three views onto the single game world. The player moves up and down 
 _Avoid_: Zoom, view mode, screen
 
 **Full Map Level**:
-The overview of the whole of Middle Earth, where Forces appear as dots: blue for Good, red for Evil.
+The overview of the whole of Middle Earth, where Forces appear as dots: blue for Good, red for Evil, green for Neutral.
 _Avoid_: Overview map, world map, strategic map
 
 **Campaign Level**:
@@ -31,7 +31,7 @@ An indivisible body of troops, such as Rohan cavalry, ranging from about a hundr
 _Avoid_: Army, troop, regiment
 
 **Force**:
-Anything that moves on the map as one group: one or more Characters and/or Units under a leader whom the others follow.
+Anything that moves on the map as one group: one or more Characters and/or Units under a leader whom the others follow. A Force splits when one of its Characters is given an Order; that Character's followers go with it. A Unit never splits.
 _Avoid_: Party, group, stack, army
 
 **Leader**:
@@ -88,6 +88,10 @@ _Avoid_: Key item, quest item
 **Default Orders**:
 The course of action each Character starts with, which the Character follows until given an Order.
 _Avoid_: Script, AI path
+
+**War Event**:
+One of the five turning points that set later stages of the war going, such as Saruman's army marching.
+_Avoid_: Trigger, stage, phase
 
 **Game Speed**:
 How fast game time passes in real time: Normal, Hasty or Very Hasty. Game Speed never changes the rules.
