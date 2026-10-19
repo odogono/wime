@@ -2,6 +2,12 @@
 // (finding:graphics-full-screen-art-is-320-by-200).
 export const NATIVE_WIDTH = 320;
 export const NATIVE_HEIGHT = 200;
+// The Full Map Level is drawn hi-res, 640 by 200 with half-width pixels,
+// in the same frame (finding:graphics-full-map-art-is-imag-2).
+export const HIRES_WIDTH = 640;
+
+// Which buffer a frame shows.
+export type Resolution = 'hires' | 'lores';
 
 export interface Fit {
   scale: number;
@@ -34,8 +40,11 @@ export const fitScale = (
 export interface Screen {
   // The native-resolution buffer everything is drawn into.
   buffer: CanvasRenderingContext2D;
-  // Copy the buffer to the visible canvas, integer-scaled and centred.
-  present(): void;
+  // The 640 by 200 buffer for the Full Map Level.
+  hires: CanvasRenderingContext2D;
+  // Copy a buffer to the visible canvas, integer-scaled and centred.
+  // Both fill the same frame, so a hi-res pixel is half as wide.
+  present(resolution?: Resolution): void;
   // Resize the visible canvas to the window, in device pixels.
   resize(): Fit;
 }
@@ -53,6 +62,10 @@ export const createScreen = (canvas: HTMLCanvasElement): Screen => {
   bufferCanvas.width = NATIVE_WIDTH;
   bufferCanvas.height = NATIVE_HEIGHT;
   const buffer = context2d(bufferCanvas);
+  const hiresCanvas = document.createElement('canvas');
+  hiresCanvas.width = HIRES_WIDTH;
+  hiresCanvas.height = NATIVE_HEIGHT;
+  const hires = context2d(hiresCanvas);
   const visible = context2d(canvas);
   let fit = fitScale(NATIVE_WIDTH, NATIVE_HEIGHT, NATIVE_WIDTH, NATIVE_HEIGHT);
 
@@ -64,13 +77,13 @@ export const createScreen = (canvas: HTMLCanvasElement): Screen => {
     return fit;
   };
 
-  const present = (): void => {
+  const present = (resolution: Resolution = 'lores'): void => {
     // Resizing a canvas resets its context state, so set this every time.
     visible.imageSmoothingEnabled = false;
     visible.fillStyle = '#000';
     visible.fillRect(0, 0, canvas.width, canvas.height);
     visible.drawImage(
-      bufferCanvas,
+      resolution === 'hires' ? hiresCanvas : bufferCanvas,
       fit.x,
       fit.y,
       NATIVE_WIDTH * fit.scale,
@@ -78,5 +91,5 @@ export const createScreen = (canvas: HTMLCanvasElement): Screen => {
     );
   };
 
-  return { buffer, present, resize };
+  return { buffer, hires, present, resize };
 };

@@ -28,6 +28,7 @@ import {
 import { EXECUTABLE_FILE, EXECUTABLE_MEMBER } from './extract-text';
 import {
   loadCampaignMapAssets,
+  paletteFromRgb4Words,
   renderRawMap,
   type CampaignMapAssets
 } from './render-campaign-map';
@@ -540,6 +541,22 @@ export const readStartingState = (
       ...bytes.subarray(TERRAIN_OFFSET, TERRAIN_OFFSET + TERRAIN_COUNT)
     ]
   };
+};
+
+// The Full Map Level's 16 RGB4 words, loaded when the Level opens
+// (finding:data-formats-full-map-palette).
+export const FULL_MAP_PALETTE_OFFSET = 0x4a_c8;
+
+// The Full Map Level palette as a flat RGB list padded to 256 colours,
+// ready for decodeImagResource.
+export const readFullMapPalette = (executable: Uint8Array): number[] => {
+  const data = parseHunkFile(executable).find(hunk => hunk.type === 'data');
+  if (!data) {
+    throw new ExtractError('executable has no data hunk');
+  }
+  return paletteFromRgb4Words(
+    data.data.subarray(FULL_MAP_PALETTE_OFFSET, FULL_MAP_PALETTE_OFFSET + 32)
+  );
 };
 
 export const loadExecutable = (archive: string): Uint8Array =>

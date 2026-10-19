@@ -29,6 +29,12 @@ export {
   type MovementWorld,
   type Tilemap
 } from './movement';
+export {
+  FULL_MAP_DOT_HEIGHT,
+  FULL_MAP_DOT_WIDTH,
+  fullMapDots,
+  type FullMapDot
+} from './full-map';
 export { createRng, nextRandom, type RngState } from './rng';
 export {
   forcesOf,
