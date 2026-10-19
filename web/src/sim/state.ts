@@ -1,5 +1,6 @@
 import { INITIAL_CLOCK, tickClock, type Clock } from './clock';
 import { findFight, startFight, type Fight } from './combat';
+import type { Ending } from './endings';
 import { sweepMovement, type Tilemap } from './movement';
 import { createRng, type RngState } from './rng';
 import {
@@ -17,6 +18,9 @@ import {
 // leader chains whenever they are needed (#9).
 export interface SimState {
   clock: Clock;
+  // How the game ended, or null while it goes on. Nothing moves once
+  // it has ended (docs/spec/combat.md, "Endings").
+  ending: Ending | null;
   // The fight under way, or null. Game time stands still while one is
   // (finding:time-stops-during-a-fight).
   fight: Fight | null;
@@ -52,6 +56,7 @@ export const createSim = (
   if (startingState === undefined) {
     return {
       clock: { ...INITIAL_CLOCK },
+      ending: null,
       fight: null,
       placeKinds: [],
       places: [],
@@ -74,6 +79,7 @@ export const createSim = (
       day: start.clock.day,
       quarterHour: start.clock.quarterHour
     },
+    ending: null,
     fight: null,
     placeKinds: start.placeKinds,
     places: start.places,
@@ -96,7 +102,7 @@ export const createSim = (
 // over; the next tick carries on from the following entry
 // (docs/spec/combat.md).
 export const tickSim = (state: SimState): SimState => {
-  if (state.fight) {
+  if (state.fight || state.ending) {
     return state;
   }
   const { stoppedAt, world } = sweepMovement(
@@ -132,6 +138,7 @@ export const deserializeSim = (text: string): SimState => {
   const legacy = parsed as Partial<SimState>;
   return {
     ...parsed,
+    ending: legacy.ending ?? null,
     fight: legacy.fight ?? null,
     roster: parsed.roster.map(entry => ({
       ...entry,

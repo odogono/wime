@@ -62,9 +62,26 @@ export interface CampaignAssets {
   // loads and checks it (loadStartingState in src/sim), so a bad asset
   // fails there with the sim's own error.
   startingState: unknown;
+  // The CSTR text resources, by "<resource file>#<id>", such as
+  // "BScene.res#50".
+  texts: Map<string, string>;
   tilemap: Tilemap;
   tiles: TilesMeta;
 }
+
+interface TextResources {
+  resources: { id: number; source_file: string; text: string }[];
+}
+
+export const textKey = (file: string, id: number): string => `${file}#${id}`;
+
+export const textsByKey = (resources: TextResources): Map<string, string> =>
+  new Map(
+    resources.resources.map(resource => [
+      textKey(resource.source_file, resource.id),
+      resource.text
+    ])
+  );
 
 export const FULL_MAP_ICON_NAMES = [
   'eye',
@@ -196,6 +213,7 @@ export const loadCampaignAssets = async (
     assetByKind(manifest, 'starting-state'),
     'starting state'
   );
+  const textAsset = requireAsset(assetByKind(manifest, 'text'), 'text');
   // AMaps.res IMAG 100 is the sheet of Campaign Level figures and
   // badges (finding:graphics-campaign-icon-sheet-is-imag-100).
   const forceIconsAsset = requireAsset(
@@ -203,13 +221,14 @@ export const loadCampaignAssets = async (
     'Campaign Level icon sheet (AMaps.res IMAG 100)'
   );
 
-  const [atlas, tilemap, tiles, startingState, forceIconSheet] =
+  const [atlas, tilemap, tiles, startingState, forceIconSheet, texts] =
     await Promise.all([
       loadImage(base + atlasAsset.path),
       fetchJson<Tilemap>(base + tilemapAsset.path),
       fetchJson<TilesMeta>(base + tilesAsset.path),
       fetchJson<unknown>(base + startingStateAsset.path),
-      loadImage(base + forceIconsAsset.path)
+      loadImage(base + forceIconsAsset.path),
+      fetchJson<TextResources>(base + textAsset.path)
     ]);
 
   const icons: CampaignIcon[] = [];
@@ -225,6 +244,7 @@ export const loadCampaignAssets = async (
     forceIcons: blackToTransparent(forceIconSheet),
     icons,
     startingState,
+    texts: textsByKey(texts),
     tilemap,
     tiles
   };
