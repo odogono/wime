@@ -15,41 +15,41 @@ export const fitScale = (
   availWidth: number,
   availHeight: number,
   nativeWidth: number,
-  nativeHeight: number,
+  nativeHeight: number
 ): Fit => {
   const scale = Math.max(
     1,
     Math.min(
       Math.floor(availWidth / nativeWidth),
-      Math.floor(availHeight / nativeHeight),
-    ),
+      Math.floor(availHeight / nativeHeight)
+    )
   );
   return {
     scale,
     x: Math.floor((availWidth - nativeWidth * scale) / 2),
-    y: Math.floor((availHeight - nativeHeight * scale) / 2),
+    y: Math.floor((availHeight - nativeHeight * scale) / 2)
   };
 };
 
 export interface Screen {
   // The native-resolution buffer everything is drawn into.
   buffer: CanvasRenderingContext2D;
-  // Resize the visible canvas to the window, in device pixels.
-  resize(): Fit;
   // Copy the buffer to the visible canvas, integer-scaled and centred.
   present(): void;
+  // Resize the visible canvas to the window, in device pixels.
+  resize(): Fit;
 }
 
 const context2d = (canvas: HTMLCanvasElement): CanvasRenderingContext2D => {
-  const ctx = canvas.getContext("2d");
+  const ctx = canvas.getContext('2d');
   if (!ctx) {
-    throw new Error("Canvas 2D is not available");
+    throw new Error('Canvas 2D is not available');
   }
   return ctx;
 };
 
 export const createScreen = (canvas: HTMLCanvasElement): Screen => {
-  const bufferCanvas = document.createElement("canvas");
+  const bufferCanvas = document.createElement('canvas');
   bufferCanvas.width = NATIVE_WIDTH;
   bufferCanvas.height = NATIVE_HEIGHT;
   const buffer = context2d(bufferCanvas);
@@ -67,16 +67,16 @@ export const createScreen = (canvas: HTMLCanvasElement): Screen => {
   const present = (): void => {
     // Resizing a canvas resets its context state, so set this every time.
     visible.imageSmoothingEnabled = false;
-    visible.fillStyle = "#000";
+    visible.fillStyle = '#000';
     visible.fillRect(0, 0, canvas.width, canvas.height);
     visible.drawImage(
       bufferCanvas,
       fit.x,
       fit.y,
       NATIVE_WIDTH * fit.scale,
-      NATIVE_HEIGHT * fit.scale,
+      NATIVE_HEIGHT * fit.scale
     );
   };
 
-  return { buffer, resize, present };
+  return { buffer, present, resize };
 };

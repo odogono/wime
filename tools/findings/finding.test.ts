@@ -5,10 +5,13 @@ import { parseFinding } from './finding';
 const text = (head: string, body = '**Hobbits are slow.** More.'): string =>
   `---\n${head}\n---\n${body}\n`;
 
-const VALID = 'kind: fact\ntopic: movement\nconfidence: documented\nsources:\n  - manual:pdf-p11\n  - observed:hobbiton-to-bree';
+const VALID =
+  'kind: fact\ntopic: movement\nconfidence: documented\nsources:\n  - manual:pdf-p11\n  - observed:hobbiton-to-bree';
 
 test('reads a finding', () => {
-  expect(parseFinding(text(`${VALID}\nissue: 5\nsupersedes: movement-old`))).toEqual({
+  expect(
+    parseFinding(text(`${VALID}\nissue: 5\nsupersedes: movement-old`))
+  ).toEqual({
     finding: {
       body: '**Hobbits are slow.** More.',
       confidence: 'documented',
@@ -30,7 +33,9 @@ test('needs the frontmatter', () => {
 
 test('rejects unknown values and missing sources', () => {
   expect(
-    parseFinding(text('kind: rumour\ntopic: weather\nconfidence: sure\nsources:'))
+    parseFinding(
+      text('kind: rumour\ntopic: weather\nconfidence: sure\nsources:')
+    )
   ).toEqual({
     errors: [
       'unknown kind "rumour"; use one of fact, lesson',
@@ -64,12 +69,12 @@ test('needs a bold headline', () => {
 });
 
 test('rejects unknown keys and stray list items', () => {
-  expect(
-    parseFinding(text(`  - manual:pdf-p1\n${VALID}\nauthor: me`))
-  ).toEqual({
-    errors: [
-      '"  - manual:pdf-p1" is a list item outside "sources"',
-      'unknown key "author"'
-    ]
-  });
+  expect(parseFinding(text(`  - manual:pdf-p1\n${VALID}\nauthor: me`))).toEqual(
+    {
+      errors: [
+        '"  - manual:pdf-p1" is a list item outside "sources"',
+        'unknown key "author"'
+      ]
+    }
+  );
 });

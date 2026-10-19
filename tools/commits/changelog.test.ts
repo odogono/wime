@@ -59,9 +59,9 @@ test('links a release to the compare view from the previous one', () => {
 });
 
 test('links the first release to its commits', () => {
-  expect(renderRelease('0.1.0', '2026-11-01', undefined, [entry({})])).toEndWith(
-    '[0.1.0]: https://github.com/odogono/wime/commits/v0.1.0\n'
-  );
+  expect(
+    renderRelease('0.1.0', '2026-11-01', undefined, [entry({})])
+  ).toEndWith('[0.1.0]: https://github.com/odogono/wime/commits/v0.1.0\n');
 });
 
 test('indexes releases newest first', () => {

@@ -1,11 +1,11 @@
-import { beforeAll, describe, expect, test } from 'bun:test';
 import { existsSync } from 'node:fs';
+import { beforeAll, describe, expect, test } from 'bun:test';
 
 import {
   AmigaOFSImage,
+  DEFAULT_ARCHIVE,
   decodeImagResource,
   defaultPalette,
-  DEFAULT_ARCHIVE,
   loadLhaMember,
   mapPalette,
   parseResourceFork,
@@ -61,7 +61,7 @@ test('decodes a styled CSTR payload', () => {
 });
 
 test('writes JSON the way Python json.dumps(sort_keys=True) did', () => {
-  expect(stringifySortedJson({ b: [1, { d: 'é', c: null }], a: 2 })).toBe(
+  expect(stringifySortedJson({ a: 2, b: [1, { c: null, d: 'é' }] })).toBe(
     '{\n  "a": 2,\n  "b": [\n    1,\n    {\n      "c": null,\n      "d": "\\u00e9"\n    }\n  ]\n}'
   );
 });
@@ -83,17 +83,17 @@ describe.skipIf(!existsSync(DEFAULT_ARCHIVE))('reference archive', () => {
 
   test('reconstructs the expected resource file sizes', () => {
     expect({
-      'AMaps.res': disk1.readFile('AMaps.res').length,
       'AAnims.res': disk1.readFile('AAnims.res').length,
-      'ATitle.res': disk1.readFile('ATitle.res').length,
+      'AMaps.res': disk1.readFile('AMaps.res').length,
       'AScene.res': disk1.readFile('AScene.res').length,
+      'ATitle.res': disk1.readFile('ATitle.res').length,
       'BScene.res': disk2.readFile('BScene.res').length
     }).toEqual({
-      'AMaps.res': 93390,
-      'AAnims.res': 95583,
-      'ATitle.res': 70729,
-      'AScene.res': 129250,
-      'BScene.res': 745052
+      'AAnims.res': 95_583,
+      'AMaps.res': 93_390,
+      'AScene.res': 129_250,
+      'ATitle.res': 70_729,
+      'BScene.res': 745_052
     });
   });
 
@@ -106,12 +106,12 @@ describe.skipIf(!existsSync(DEFAULT_ARCHIVE))('reference archive', () => {
       ...parseResourceFork(disk2.readFile('BScene.res')).resources
     ];
 
-    expect(resources.filter(resource => resource.typeCode === 'IMAG').length).toBe(
-      115
-    );
-    expect(resources.filter(resource => resource.typeCode === 'FRML').length).toBe(
-      19
-    );
+    expect(
+      resources.filter(resource => resource.typeCode === 'IMAG').length
+    ).toBe(115);
+    expect(
+      resources.filter(resource => resource.typeCode === 'FRML').length
+    ).toBe(19);
   });
 
   test('decodes a PackBits planar IMAG resource', () => {
@@ -140,7 +140,7 @@ describe.skipIf(!existsSync(DEFAULT_ARCHIVE))('reference archive', () => {
     const assets = loadCampaignMapAssets(DEFAULT_ARCHIVE);
 
     expect(assets.tiles.length).toBe(320);
-    expect(assets.mapIndices.length).toBe(16256);
+    expect(assets.mapIndices.length).toBe(16_256);
     expect(assets.tiles[33]!.size).toEqual([16, 16]);
     expect([...assets.mapIndices.subarray(0, 17)]).toEqual(Array(17).fill(0));
   });

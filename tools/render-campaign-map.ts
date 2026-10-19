@@ -11,10 +11,10 @@ import { parseArgs } from 'node:util';
 
 import {
   AmigaOFSImage,
-  beU16,
-  beU32,
   DEFAULT_ARCHIVE,
   IndexedImage,
+  beU16,
+  beU32,
   loadLhaMember,
   makeRgbaImage,
   parseResourceFork,
@@ -26,10 +26,10 @@ import {
 import { drawSheetLabel, type RgbaImage } from './sheet-font';
 
 export type CampaignMapAssets = {
-  tiles: IndexedImage[];
-  mapIndices: Uint8Array;
   charHeader: Uint8Array;
+  mapIndices: Uint8Array;
   palette: number[];
+  tiles: IndexedImage[];
 };
 
 export const loadCampaignMapAssets = (archive: string): CampaignMapAssets => {
@@ -40,17 +40,20 @@ export const loadCampaignMapAssets = (archive: string): CampaignMapAssets => {
   const charResource = resources.get('CHAR', 1).data;
   const mmapResource = resources.get('MMAP', 1).data;
 
-  const [charData] = unpackPackbits(charResource.subarray(4), beU32(charResource, 0));
+  const [charData] = unpackPackbits(
+    charResource.subarray(4),
+    beU32(charResource, 0)
+  );
   const [mapIndices] = unpackPackbits(
     mmapResource.subarray(4),
     beU32(mmapResource, 0)
   );
 
   return {
-    tiles: decodeCampaignTiles(charData),
-    mapIndices,
     charHeader: charData.subarray(0, 32),
-    palette: paletteFromRgb4Words(charData.subarray(0, 32))
+    mapIndices,
+    palette: paletteFromRgb4Words(charData.subarray(0, 32)),
+    tiles: decodeCampaignTiles(charData)
   };
 };
 
@@ -58,7 +61,11 @@ export const paletteFromRgb4Words = (data: Uint8Array): number[] => {
   const palette: number[] = [];
   for (let offset = 0; offset < Math.min(data.length, 32); offset += 2) {
     const value = beU16(data, offset);
-    palette.push(((value >> 8) & 0xf) * 17, ((value >> 4) & 0xf) * 17, (value & 0xf) * 17);
+    palette.push(
+      ((value >> 8) & 0xf) * 17,
+      ((value >> 4) & 0xf) * 17,
+      (value & 0xf) * 17
+    );
   }
   while (palette.length < 256 * 3) {
     palette.push(0, 0, 0);
@@ -118,7 +125,13 @@ export const renderTileSheet = (
     const x = (index % columns) * tileWidth;
     const y = Math.floor(index / columns) * (tileHeight + labelHeight);
     pasteRgba(sheet, tile.toRgba(), x, y);
-    drawSheetLabel(sheet, x + 1, y + tileHeight, String(index), [230, 230, 230]);
+    drawSheetLabel(
+      sheet,
+      x + 1,
+      y + tileHeight,
+      String(index),
+      [230, 230, 230]
+    );
   });
   return sheet;
 };
@@ -157,28 +170,28 @@ export const renderRawMap = (
 
 export type CampaignManifest = {
   archive: string;
-  source: string;
   char: {
     decompressed_size: number;
+    depth: number;
     header_hex: string;
     palette_source: string;
     tile_count: number;
     tile_size: number[];
-    depth: number;
   };
   mmap: {
     decompressed_size: number;
+    layout_status: string;
     map_grid_tiles: number[];
     map_size_pixels: number[];
-    viewport_size_pixels: number[];
     scroll_limits_pixels: number[];
-    layout_status: string;
+    viewport_size_pixels: number[];
   };
   outputs: {
     base_map: string;
     tile_sheet: string;
     top_left_view: string;
   };
+  source: string;
 };
 
 const spacedHex = (data: Uint8Array): string =>
@@ -197,49 +210,59 @@ export const renderCampaignOutputs = (
   const manifestPath = join(outputDir, 'campaign_map_manifest.json');
 
   writeRgbaPng(tileSheetPath, renderTileSheet(assets.tiles));
-  renderRawMap(assets.tiles, assets.mapIndices, assets.palette, 160, 99, 160).save(
-    baseMapPath
-  );
-  renderRawMap(assets.tiles, assets.mapIndices, assets.palette, 20, 12, 160).save(
-    topLeftViewPath
-  );
+  renderRawMap(
+    assets.tiles,
+    assets.mapIndices,
+    assets.palette,
+    160,
+    99,
+    160
+  ).save(baseMapPath);
+  renderRawMap(
+    assets.tiles,
+    assets.mapIndices,
+    assets.palette,
+    20,
+    12,
+    160
+  ).save(topLeftViewPath);
 
   const manifest: CampaignManifest = {
     archive,
-    source: 'AMaps.res',
     char: {
       decompressed_size: assets.charHeader.length + assets.tiles.length * 128,
+      depth: 4,
       header_hex: spacedHex(assets.charHeader),
       palette_source: 'first 16 RGB4 words in CHAR resource',
       tile_count: assets.tiles.length,
-      tile_size: [16, 16],
-      depth: 4
+      tile_size: [16, 16]
     },
     mmap: {
       decompressed_size: assets.mapIndices.length,
+      layout_status: 'solved: row-major 160x99 tile map',
       map_grid_tiles: [160, 99],
       map_size_pixels: [2560, 1584],
-      viewport_size_pixels: [320, 192],
       scroll_limits_pixels: [2240, 1392],
-      layout_status: 'solved: row-major 160x99 tile map'
+      viewport_size_pixels: [320, 192]
     },
     outputs: {
       base_map: basename(baseMapPath),
       tile_sheet: basename(tileSheetPath),
       top_left_view: basename(topLeftViewPath)
-    }
+    },
+    source: 'AMaps.res'
   };
   writeFileSync(manifestPath, stringifySortedJson(manifest), 'utf8');
   return manifest;
 };
 
 export const main = (argv: string[] = process.argv.slice(2)): number => {
-  const { values, positionals } = parseArgs({
+  const { positionals, values } = parseArgs({
+    allowPositionals: true,
     args: argv,
     options: {
-      out: { type: 'string', default: 'extracted_graphics/campaign_map' }
-    },
-    allowPositionals: true
+      out: { default: 'extracted_graphics/campaign_map', type: 'string' }
+    }
   });
   const archive = positionals[0] ?? DEFAULT_ARCHIVE;
   const out = values.out ?? 'extracted_graphics/campaign_map';
