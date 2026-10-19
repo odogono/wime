@@ -1,0 +1,173 @@
+# Instruction manual: rules and facts for the reimplementation
+
+Source: `artifacts/WarinMiddleEarth-InstructionManual.pdf`, the multi-platform Melbourne House manual (Amiga, Atari ST, IBM PC, Apple IIgs). It is a 25-page scan of two-page spreads with a noisy OCR text layer. Citations below are **PDF page numbers** (`pdf-pN`). When specs cite these facts, tag them `manual:pdf-pN`.
+
+These are paraphrased facts, not a transcription. For full text, `extracted_text/archive_text.json` has a typed-in copy of the manual (the `WarInMiddleEarth/Docs` member of the LHA), which is much cleaner than the PDF's OCR. It covers everything up to the end of the strategy section but leaves out the A–Z glossary (pdf-p14 to pdf-p23).
+
+The manual says it comes with a separate **box map with a grid reference system**, and that glossary entries for Places give grid references (pdf-p5, pdf-p14). Neither the map nor any grid references appear in this PDF. A scan of that map would give an independent check on Place coordinates recovered by RE.
+
+## Levels
+
+- **Full Map Level** (pdf-p3, pdf-p9): the whole playing area. Forces appear as dots: player-controlled in blinking blue, Evil in red, **neutral in green**. **Game time does not pass on this Level.** Icons: eye (status), scroll (archive), magnifying glass (down a Level), hourglass (Game Speed).
+- **Campaign Level** (pdf-p9, pdf-p10): the screen shows about 250 × 150 miles. The map scrolls when the pointer is at a screen edge, and stops when it moves away. All terrain is shown: woods, hills, rivers, towns. Characters appear as small figures. When Characters follow a Leader, only the Leader's figure is shown. Controllable Forces flash. Clicking a Character or Place opens a top-left window naming it. Some Evil Characters, most notably the **Nazgûl, can hide**: their symbol disappears from the map. Icons: eye, map (up), magnifying glass (down), hourglass, arrow (Orders).
+- **Animation Level** (pdf-p8, pdf-p10): a single place, with animated figures on digitised backgrounds. It is used for encounters, for combat involving Characters, and for objects. **The game starts on this Level**, with Frodo, Sam and Pippin walking through the Shire. Icons: eye, map (up), provisions (objects). Clicking a figure opens a window saying who it is and what it is doing.
+
+## Controls (pdf-p4, pdf-p8)
+
+The pointer is a blue gauntlet, and the icon column is at the top right. An icon either opens an option window or turns the pointer into the icon's shape so it can be placed on the map. When a decision window opens (e.g. two Characters meet), any half-finished command is cancelled.
+
+| Key | Icon | Action |
+|---|---|---|
+| A | Scroll | Archive (save/restore) |
+| G | Arrow | Movement Orders ("go to") |
+| M | Magnifying glass | Down a Level |
+| O | Provisions | Objects: put down / take / use |
+| S | Eye | Status |
+| T | Hourglass | Time (Game Speed) |
+| U | Map | Up a Level |
+| N / Y | Window option | No (continue on) / Yes (accept) |
+| P | — | Pause |
+| X | — | Quit (asks for confirmation) |
+| Q | — | Quiet (sound) on/off |
+
+## Time and Game Speed (pdf-p3, pdf-p9)
+
+- There are three speeds: Normal, Hasty and Very Hasty. Game Speed "controls the rate of all actions in the game".
+- The manual suggests Very Hasty at the start, slowing down later. Normal is needed during encounters, or speech disappears from the screen too fast to read.
+- The quest starts on **23 September** (Frodo's birthday). Gandalf has not turned up, so Frodo, Sam and Pippin set out without him (pdf-p8).
+- The manual refers to "many turns" when describing a siege (pdf-p13). This is loose wording in a real-time game.
+
+## Orders and movement (pdf-p3, pdf-p11)
+
+- Only active (flashing) Forces can be given Orders, and only on the Campaign Level.
+- **The player only picks a destination.** The Force moves "at its own rate", finding the best route around obstacles, and nothing can make it exceed its natural movement rate. **Hobbits are slower than Wizards or Nazgûl.**
+- To give an Order: select the arrow, then click a Force. A top-left window opens listing who is selected and where they are heading, with followers listed indented under the Character they follow. The arrow's shaft becomes the word "TO". Clicking a destination orders everyone in the Force.
+- To order only part of a Force, click a Character in the window. That Character **and all of its followers** take the Order.
+- Units can be brought together but never split (pdf-p8).
+- Every Character starts with a course of action (Default Orders) and follows it unless given an Order (pdf-p8).
+
+## Encounters and joining (pdf-p3, pdf-p11)
+
+- A friendly encounter opens a top-right window offering "Go There" (go to the Animation Level and hear advice) or continue on. Continuing on gives up whatever the traveller would have said.
+- When two Characters meet, the player chooses whether one follows the other. If yes, the two figures are replaced by the Leader's figure.
+- When a Force meets a **Commander**, the Commander offers their services, and the player chooses whether they follow.
+- Forces that pass each other carry on separately unless a Leader is present.
+- Some Characters (e.g. Tom Bombadil, Elrond) give aid and advice but never leave home (pdf-p8).
+
+## Combat (pdf-p3, pdf-p11, pdf-p12)
+
+- Meeting enemy Forces forces a fight. The player can ignore it and accept the result, or go there and influence it. If Characters (rather than only Units) are involved, the fight plays out on the Animation Level.
+- A **combat window** (top right) lists Good in one column and Evil in another. The example shows Gandalf, Aragorn, Frodo, Sam, Merry, Pippin and "20 Lt. Inf." against "Nazgul Lord", "2nd Nazgul" and "20 Orcs". This suggests Unit strengths are shown in hundreds.
+- Each friendly row has four options, and everyone starts on **Engage**:
+  - **Charge**: a major attack that gives a first-hit advantage. If you destroy your opponent, you take no losses; if you don't, both sides take heavier losses. Once combat is joined, Charge reverts to Engage.
+  - **Engage**: start or continue fighting.
+  - **Withdraw**: leave the melee but stay close by. If the other Characters are killed, the withdrawn ones are then attacked. Withdrawn Forces can rejoin later.
+  - **Retreat**: leave and try to escape, with no return. Characters who reach the screen edge cannot be killed. If their side wins, they walk back on. If not, they reappear on the Campaign Level at that point and continue with their orders. Anyone who was following a Leader **reverts to Default Orders**.
+- Character health is shown by name colour: black (hale), red (wounded), grey (dead). Units are not wounded; they lose members until wiped out, and then the name turns grey. A dead or destroyed row loses its option marker.
+- Combat continues until one side is all dead or retreated. Evil Units normally never retreat, though the more intelligent ones (e.g. Nazgûl) may.
+- **On victory**, if anyone died, the survivors gather round the corpse, and their objects can then be picked up with provisions. **On defeat**, those Characters and their possessions are lost for good.
+- **Defences**: attacking a fortress or other defended place costs the attacker more. Defending behind defences helps, **citadels** more so, and **walled cities** (e.g. Minas Tirith) most of all (pdf-p12). This applies to Evil strongholds too (pdf-p13).
+- **Characters who come back**: killing a Nazgûl only destroys its body, and it reappears later in Mordor. A Wizard who is killed may return in a more powerful form (pdf-p12).
+
+## The Ring and ending the game (pdf-p3, pdf-p12, pdf-p13)
+
+- **Win**: any Good Force under the player's control gets the Ring to Mt. Doom.
+- **Lose**: Evil Forces take the Ring to Barad-dûr. The game ends automatically in either case.
+- **Lose**: Evil appears to be winning the war, signalled by the loss of **any 3 of the 5 major Good strongholds: the Hornburg, Edoras, Minas Tirith, Lórien and Thranduil's Palace**.
+- If Frodo dies, a **new Ring-bearer is chosen**.
+- If the Nazgûl capture the Ring (by killing the Ring-bearer and all companions), they run for Barad-dûr **or Orthanc** (pdf-p12) and can be intercepted to win the Ring back. The game is lost when they reach Barad-dûr.
+- Random factors mean identical orders give different outcomes (pdf-p13). This is consistent with ADR-0002.
+
+## Mobilisation (pdf-p3, pdf-p12)
+
+Good nations will not commit their forces until shown a token, unless Evil attacks them first, in which case they defend themselves.
+
+| Token object | Present to | Mobilises |
+|---|---|---|
+| The Red Arrow | King Théoden at Edoras | Rohan (the Riders of the Mark) |
+| The Dwarven Ring | the Dwarves of Erebor | the Dwarves |
+| The Sceptre of Annúminas | the "King" of Gondor | Gondor |
+| The Silver Orb | King Thranduil | the Elves |
+
+The locations of the tokens are learned by talking to "the wise". Other useful objects include magic swords, mithril coats and healing herbs. Collect them early.
+
+## Objects (pdf-p4, pdf-p10)
+
+Objects can only be handled on the Animation Level, through provisions: **Put Down**, **Take** or **Use**. Each opens a list of what the Character carries or what is on the ground. "Nothing to take" and "not carrying anything" have their own messages. The Ring starts with Frodo.
+
+## Save, pause and quit (pdf-p9, pdf-p12)
+
+There is **one save slot**, and saving overwrites it. Saving and restoring are only possible from the Full Map Level (the scroll icon). P pauses; X quits after confirmation.
+
+## Unit badges on the Campaign Level (pdf-p9)
+
+A Unit's badge is a shield. The **weapon** shows the Unit type and the **shield design** shows where the Unit comes from. Most Units have a round shield; **elite** Units (e.g. the Gondor Tower Guard) have a heraldic shield.
+
+| Unit type | Weapon |
+|---|---|
+| Cavalry | horse's head |
+| Infantry | sword |
+| Light infantry | spear |
+| Dwarf | axe |
+| Elf | bow |
+| Trolls | club |
+| Orcs | scimitar |
+| Corsairs | scimitar |
+
+| Origin | Shield |
+|---|---|
+| Rohan | green, white horse |
+| Gondor (Minas Tirith) | blue, white tree |
+| Gondor (Dol Amroth) | blue, white tower |
+| Gondor (other) | plain blue |
+| Dale | plain aquamarine |
+| Erebor | plain aquamarine |
+| Iron Hills | plain dark green |
+| Elf or Ent | plain green |
+| Saruman | red, White Hand |
+| Mordor (Minas Morgul) | black, red lidless eye |
+| Harad | red, red lidless eye |
+| Easterlings | purple, red lidless eye |
+| Umbar | red, ship's sail |
+| Dunlendings | plain wooden |
+
+## Starting situation (pdf-p3, pdf-p8, pdf-p12)
+
+- The Fellowship starts as Frodo, Sam and Pippin, with the Ring. The first goal is Rivendell, along the Great East Road past Bree. The Nazgûl are heading for the Shire.
+- The Elves are in Lórien; the Dwarves are in the Iron Hills and the Lonely Mountain; the men of Gondor and Rohan are spread through their lands; the Rangers are in Bree. Several Units are gathered at Minas Tirith.
+- Saruman has an army of Orcs, Half-orcs and Dunlendings at Isengard/Orthanc, and the Gap of Rohan is dangerous.
+- The routes over the Misty Mountains are Goblin Town (which blocks the obvious pass east of Rivendell), Moria (overrun by Orcs, with a Balrog) or a high crossing.
+
+## Characters named in the manual (pdf-p14 to pdf-p23)
+
+These are useful for checking against the executable's roster strings. They are listed with each Character's role or home as the manual gives it.
+
+- **Fellowship / Good:** Frodo, Sam, Pippin and Merry (Buckland); Gandalf (may come back more powerful); Aragorn; Boromir; Legolas; Gimli (came from Erebor to Rivendell); Glorfindel (Rivendell); Elrond (stays at Rivendell).
+- **Advisors who stay at home:** Tom Bombadil (Old Forest), Elrond, and Galadriel and Celeborn (Lórien).
+- **Rohan:** Théoden (Edoras); Éomer; Éowyn (Théoden wants her to stay and rule Edoras); Théodred (leads the defenders of the Fords of Isen); Erkenbrand (Westfold); Elfhelm; Dernhelm (the muster at Edoras); Grimbold (named in the executable's strings).
+- **Gondor:** Denethor (Minas Tirith); Faramir (Rangers of Ithilien); Imrahil (Dol Amroth knights); Dervorin (men of Ethring); Duinhir (men of Lamedon, mustering at Erech); Hirluin (men of Pinnath Gelin); Golasgil (Anfalas).
+- **North:** Dáin (Erebor, a large Dwarf force); Brand (Dale); Thranduil (northern Mirkwood); Radagast; Treebeard/Fangorn; the Woses (may become allies).
+- **Evil:** Sauron (Barad-dûr); the Witch-King (Lord of the Nazgûl, at Minas Morgul, with his lieutenant Gothmog); the nine Nazgûl; Saruman (Orthanc); the Mouth of Sauron; Gollum; Shelob; the Balrog (Moria).
+
+## Places named in the manual (pdf-p14 to pdf-p23)
+
+Useful facts for map and Place data:
+
+- **The Last Bridge**: the only safe crossing of the Hoarwell, two-thirds of the way from Bree to Rivendell on the Great East Road.
+- **Sarn Ford**: a stepping-stone ford on the Brandywine, on the Shire's southern border.
+- **The Fords of Isen**: the only crossing of the Isen, held by Rohan before falling back to Helm's Deep.
+- **Goblin Town** blocks the obvious pass east of Rivendell.
+- **Moria** (Khazad-dûm; Hollin Gate in the west, Dimrill Dale in the east) is overrun by Orcs and holds the Balrog.
+- **Cirith Ungol** is "not well guarded".
+- **The Morannon** (the Black Gate) is in the north-west corner of Mordor, and **Carach Angren** is the second line of defence behind it.
+- **Cair Andros** is an island in the Anduin, held by Gondor.
+- **Osgiliath** is a ruin.
+- **Weathertop** is on the Great East Road.
+- **Erech** is a hill in western Gondor, the muster point for Lamedon.
+- Shire villages: Hobbiton (Bag End), Tuckborough, Waymeet and Michel Delving. Also Buckland and Bree with its villages.
+- Gondor: Minas Tirith (a walled city), Dol Amroth (a port), Pelargir (a port), Linhir and Ethring (towns), Calembel (a town), Lossarnach (a province) and Pinnath Gelin (hills).
+- Evil strongholds: Barad-dûr, Minas Morgul, Dol Guldur, Isengard/Orthanc and Umbar.
+
+## Races and creatures (pdf-p14 to pdf-p23)
+
+These hint at Unit and monster types: Orcs (also called Goblins or Uruk-hai), Half-orcs, Trolls and Olog-hai, Wargs (Orc cavalry), Wolves, Spiders, Wights (they fade in sunlight), Huorns, Ents, Woses, Corsairs, Wainriders, Variags (Khand), Haradrim/Southrons, Easterlings, Balchoth and Dunlendings.
