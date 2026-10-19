@@ -164,6 +164,20 @@ enters the round (finding:combat-no-place-or-terrain-modifier).
   stays. `provisional`: the original also plays scenes and music, and
   quits on the X key, which the port doesn't copy.
 
+## Defended Places
+
+- A Place gives no bonus to the fight at it, and no Place has an owner
+  or changes hands (finding:combat-no-place-or-terrain-modifier).
+- `provisional`: defence comes only from the Garrisons, the Units that
+  stand at a Place with no destination. Their starting fighting
+  strength is often higher than the same troops in the field: 3 or 4
+  for the Evil citadels' orcs against 2, and 4 for Minas Tirith's
+  tower guards against 2 for Gondor's infantry. A Garrison never
+  moves, so it never starts a fight, but it fights whoever walks into
+  it. The sim keeps the starting stats as they are and adds nothing
+  for the Place. (finding:places-defended-by-garrison-units,
+  finding:combat-defences)
+
 ## Left out
 
 - Objects of the dead and the Ring passing to a new bearer
