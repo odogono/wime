@@ -97,7 +97,7 @@ const requireAsset = (
 // The Campaign Level icons, top to bottom as the manual lists them
 // (finding:ui-campaign-level-display). The IMAG ids are identified in
 // finding:graphics-campaign-icon-imag-ids. The hourglass is wired to
-// Game Speed (#7); the arrow belongs to Orders (#10).
+// Game Speed (#7); the arrow is wired to Orders (#10).
 export const CAMPAIGN_ICONS: { id: number; name: string }[] = [
   { id: 26, name: 'eye' },
   { id: 30, name: 'map' },

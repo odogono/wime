@@ -1,6 +1,8 @@
 import { INITIAL_CLOCK, tickClock, type Clock } from './clock';
+import { tickMovement, type Tilemap } from './movement';
 import { createRng, type RngState } from './rng';
 import {
+  DEFAULT_SPEEDS,
   loadStartingState,
   type Place,
   type PlaceKind,
@@ -21,13 +23,25 @@ export interface SimState {
   ringBearer: number | null;
   rng: RngState;
   roster: RosterEntry[];
+  // Default Orders queues, popped on arrival
+  // (finding:movement-arrival-pops-next-route-stop).
+  routes: number[][];
+  speeds: { diagonal: number[]; straight: number[] };
+  terrainByTile: number[];
+  // The Campaign Level tile grid movement steers over, or null for a
+  // clock-only game with no map loaded.
+  tilemap: Tilemap | null;
 }
 
 // Start a game. With no starting state the world is empty and only the
 // clock runs, which is all the clock tests need; a real game passes
 // the parsed starting-state.json, whose clock is the opening date and
 // time (docs/spec/starting-state.md).
-export const createSim = (seed: number, startingState?: unknown): SimState => {
+export const createSim = (
+  seed: number,
+  startingState?: unknown,
+  tilemap?: Tilemap | null
+): SimState => {
   if (startingState === undefined) {
     return {
       clock: { ...INITIAL_CLOCK },
@@ -35,7 +49,14 @@ export const createSim = (seed: number, startingState?: unknown): SimState => {
       places: [],
       ringBearer: null,
       rng: createRng(seed),
-      roster: []
+      roster: [],
+      routes: [],
+      speeds: {
+        diagonal: [...DEFAULT_SPEEDS.diagonal],
+        straight: [...DEFAULT_SPEEDS.straight]
+      },
+      terrainByTile: [],
+      tilemap: tilemap ?? null
     };
   }
   const start = loadStartingState(startingState);
@@ -48,16 +69,22 @@ export const createSim = (seed: number, startingState?: unknown): SimState => {
     places: start.places,
     ringBearer: start.ringBearer,
     rng: createRng(seed),
-    roster: start.roster
+    roster: start.roster,
+    routes: start.routes,
+    speeds: start.speeds,
+    terrainByTile: start.terrainByTile,
+    tilemap: tilemap ?? null
   };
 };
 
-// One tick: the clock steps one quarter-hour. Movement and everything
-// else that happens per tick joins here as the slices land.
-export const tickSim = (state: SimState): SimState => ({
-  ...state,
-  clock: tickClock(state.clock)
-});
+// One tick: every Leader takes its movement step in roster order,
+// then the clock steps one quarter-hour, as the original advanced
+// it after the sweep reached entry 151
+// (finding:time-clock-advances-after-each-roster-sweep).
+export const tickSim = (state: SimState): SimState => {
+  const moved = tickMovement(state);
+  return { ...moved, clock: tickClock(moved.clock) };
+};
 
 export const serializeSim = (state: SimState): string => JSON.stringify(state);
 
@@ -73,5 +100,21 @@ export const deserializeSim = (text: string): SimState => {
   ) {
     throw new Error('Not a serialised SimState');
   }
-  return parsed;
+  // States serialised before movement landed have no route, speed,
+  // terrain or tilemap fields; fill them with the empty defaults.
+  const legacy = parsed as Partial<SimState>;
+  return {
+    ...parsed,
+    roster: parsed.roster.map(entry => ({
+      ...entry,
+      fraction: entry.fraction ?? 0
+    })),
+    routes: legacy.routes ?? [],
+    speeds: legacy.speeds ?? {
+      diagonal: [...DEFAULT_SPEEDS.diagonal],
+      straight: [...DEFAULT_SPEEDS.straight]
+    },
+    terrainByTile: legacy.terrainByTile ?? [],
+    tilemap: legacy.tilemap ?? null
+  };
 };

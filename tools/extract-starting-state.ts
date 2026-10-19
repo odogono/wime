@@ -152,6 +152,8 @@ export const OBJECT_COUNT = 17;
 export const MONTH_START_OFFSET = 0x42_30;
 export const MONTH_NAMES_OFFSET = 0x1d_66;
 export const SPEED_TABLE_OFFSET = 0x41_c4;
+export const TERRAIN_OFFSET = 0x42_42;
+export const TERRAIN_COUNT = 256;
 // The main loop moves roster entries 1 to 151
 // (finding:time-clock-advances-after-each-roster-sweep); the rest wait in
 // areas to be met in Encounters
@@ -187,6 +189,9 @@ export type RosterEntry = {
   facing: number;
   fighting: number;
   figure: number;
+  // The pixel-fraction byte (256ths; finding:movement-speed-classes).
+  // Null after entry 151, where the byte is the Encounter's first day.
+  fraction: number | null;
   health: number;
   icon: number;
   index: number;
@@ -265,6 +270,9 @@ export type StartingState = {
   routes: { index: number; places: number[] }[];
   source: { file: string; member: string };
   speeds: { diagonal: number[]; straight: number[] };
+  // One terrain percentage per map tile number
+  // (finding:movement-terrain-percent-scales-pace).
+  terrain_by_tile: number[];
 };
 
 const cString = (data: Uint8Array, offset: number): string => {
@@ -350,6 +358,7 @@ export const readStartingState = (
       facing: u8(base + 21),
       fighting: u8(base + 23),
       figure: u8(base + 20),
+      fraction: waits ? null : u8(base + 32),
       health: u16(base + 26),
       icon: u8(base + 18),
       index,
@@ -526,7 +535,10 @@ export const readStartingState = (
       straight: Array.from({ length: 6 }, (_, speed) =>
         u16(SPEED_TABLE_OFFSET + speed * 2)
       )
-    }
+    },
+    terrain_by_tile: [
+      ...bytes.subarray(TERRAIN_OFFSET, TERRAIN_OFFSET + TERRAIN_COUNT)
+    ]
   };
 };
 

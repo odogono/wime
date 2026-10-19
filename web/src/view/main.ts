@@ -2,6 +2,7 @@ import {
   createSim,
   forcesOnMap,
   formatClock,
+  giveOrder,
   tickSim,
   type Force,
   type SimState
@@ -27,6 +28,19 @@ import {
   layoutInfoWindow,
   type InfoWindow
 } from './force-window';
+import {
+  IDLE_ORDER,
+  drawOrderPointerTag,
+  drawOrderWindow,
+  isInOrderWindow,
+  layoutOrderWindow,
+  orderWindowOptionAt,
+  pickForceAt,
+  pickMember,
+  toggleOrder,
+  type OrderState,
+  type OrderWindow
+} from './order-window';
 import { createScreen, type Fit } from './screen';
 import {
   drawSpeedWindow,
@@ -76,7 +90,7 @@ const CLICK_TOLERANCE_PX = 3;
 const run = (assets: CampaignAssets): void => {
   const placements = iconPlacements(assets.icons);
   const driver = createTickDriver();
-  let sim: SimState = createSim(0x14_18, assets.startingState);
+  let sim: SimState = createSim(0x14_18, assets.startingState, assets.tilemap);
   // Open on the Ring-bearer's Force at Hobbiton, the one Force the
   // player commands at the start (docs/spec/starting-state.md). The
   // game itself opens on the Animation Level, which is not built yet.
@@ -97,6 +111,7 @@ const run = (assets: CampaignAssets): void => {
   let drag: { camera: Camera; pointer: Camera } | null = null;
   let speedWindow: SpeedWindow | null = null;
   let infoWindow: InfoWindow | null = null;
+  let order: OrderState = IDLE_ORDER;
   let lastTime = performance.now();
 
   const toNative = (event: PointerEvent): Camera => {
@@ -126,6 +141,47 @@ const run = (assets: CampaignAssets): void => {
       : null;
   };
 
+  // The Order window for the Force being ordered, rebuilt from the
+  // live roster each time so it tracks the Force while it moves.
+  const orderWindowFor = (): OrderWindow | null => {
+    const current = order;
+    if (current.kind !== 'pick-destination') {
+      return null;
+    }
+    const force = forcesOnMap(sim.roster).find(
+      candidate => candidate.leader.index === current.leaderIndex
+    );
+    return force ? layoutOrderWindow(force, sim.places) : null;
+  };
+
+  const setOrder = (next: OrderState): void => {
+    order = next;
+    canvas.style.cursor = order.kind === 'idle' ? 'grab' : 'crosshair';
+  };
+
+  // A press while an Order is being given (finding:ui-giving-an-order):
+  // pick the Force, pick a member in its window, or set the destination.
+  const handleOrderClick = (native: Camera): void => {
+    const window = orderWindowFor();
+    if (window && isInOrderWindow(window, native.x, native.y)) {
+      const option = orderWindowOptionAt(window, native.x, native.y);
+      if (option) {
+        setOrder(pickMember(order, option.memberIndex));
+      }
+      return;
+    }
+    const point = mapPoint(native);
+    if (!point) {
+      return;
+    }
+    if (order.kind === 'pick-force') {
+      setOrder(pickForceAt(order, forcesOnMap(sim.roster), point));
+    } else if (order.kind === 'pick-destination') {
+      sim = giveOrder(sim, order.selected, point);
+      setOrder(IDLE_ORDER);
+    }
+  };
+
   const toggleSpeedWindow = (): void => {
     if (speedWindow) {
       speedWindow = null;
@@ -153,13 +209,26 @@ const run = (assets: CampaignAssets): void => {
       speedWindow = null;
       return;
     }
+    const icon = iconAt(placements, pointer);
+    // The arrow starts or cancels an Order (#10).
+    if (icon?.icon.name === 'arrow') {
+      infoWindow = null;
+      setOrder(toggleOrder(order));
+      return;
+    }
+    // While an Order is being given, presses pick the Force, a
+    // member or the destination instead of panning the map; edge
+    // scrolling still reaches a distant destination.
+    if (order.kind !== 'idle' && !icon) {
+      handleOrderClick(pointer);
+      return;
+    }
     // A press anywhere clears an open window, as with the original's
     // status window (manual, pdf-p14).
     if (infoWindow) {
       infoWindow = null;
       return;
     }
-    const icon = iconAt(placements, pointer);
     if (icon?.icon.name === 'hourglass') {
       toggleSpeedWindow();
       return;
@@ -198,7 +267,7 @@ const run = (assets: CampaignAssets): void => {
       }
     }
     drag = null;
-    canvas.style.cursor = 'grab';
+    canvas.style.cursor = order.kind === 'idle' ? 'grab' : 'crosshair';
   };
   canvas.addEventListener('pointerup', endDrag);
   canvas.addEventListener('pointercancel', endDrag);
@@ -220,6 +289,7 @@ const run = (assets: CampaignAssets): void => {
     } else if (event.key === 'Escape') {
       speedWindow = null;
       infoWindow = null;
+      setOrder(IDLE_ORDER);
     }
   });
 
@@ -231,7 +301,7 @@ const run = (assets: CampaignAssets): void => {
     // The date line sits in the strip below the 192px map view
     // (provisional placement, docs/spec/time.md).
     ctx.fillText(formatClock(sim.clock), 2, 192);
-    if (driver.paused) {
+    if (driver.paused && order.kind === 'idle') {
       ctx.fillStyle = '#000';
       ctx.fillRect(8, 8, 118, 12);
       ctx.strokeStyle = '#fff';
@@ -239,9 +309,23 @@ const run = (assets: CampaignAssets): void => {
       ctx.fillStyle = '#fff';
       ctx.fillText('The Game is Paused.', 11, 10);
     }
+    if (order.kind === 'pick-force') {
+      drawInfoWindow(ctx, layoutInfoWindow(['Select a Force']));
+    }
+    if (order.kind === 'pick-destination') {
+      const window = orderWindowFor();
+      if (window) {
+        drawOrderWindow(ctx, window, order.selected);
+      } else {
+        setOrder(IDLE_ORDER);
+      }
+      if (pointer) {
+        drawOrderPointerTag(ctx, pointer);
+      }
+    }
     // Hovering names the Place, Character or Unit under the pointer
     // in the same top-left window a click would open.
-    if (!infoWindow && !speedWindow && !drag) {
+    if (!infoWindow && !speedWindow && !drag && order.kind === 'idle') {
       const overIcons = pointer !== null && isOverIcons(pointer, placements);
       const target = overIcons ? null : targetAt(pointer, forces);
       if (target) {
