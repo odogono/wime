@@ -2,6 +2,26 @@
 // the DOM, the canvas or the wall clock: it advances by a fixed tick, draws
 // from a seeded RNG and keeps all of its state serialisable. The Levels and
 // Game Speed live in view/, on top of it. src/sim/tsconfig.json enforces the
-// no-DOM rule.
+// no-DOM rule, and the ESLint config bans non-deterministic APIs here (#15).
 
-export {};
+export {
+  advanceClock,
+  calendarDate,
+  displayTime,
+  formatClock,
+  INITIAL_CLOCK,
+  QUARTER_HOURS_PER_DAY,
+  QUARTER_HOURS_PER_HOUR,
+  tickClock,
+  type CalendarDate,
+  type Clock,
+  type DisplayTime
+} from './clock';
+export { createRng, nextRandom, type RngState } from './rng';
+export {
+  createSim,
+  deserializeSim,
+  serializeSim,
+  tickSim,
+  type SimState
+} from './state';

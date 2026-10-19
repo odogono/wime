@@ -1,0 +1,69 @@
+# Time
+
+How game time passes: the clock, the calendar, the tick and Game Speed.
+Facts cite their Findings (ADR-0004); the time facts were recovered by
+the starting-state RE (#5, #21).
+
+## The clock
+
+- The clock is a day count and a quarter-hour count, 96 quarter-hours
+  a day. Each step adds one quarter-hour; after quarter-hour 95 the
+  count returns to 0 and the day count goes up by one. The game starts
+  on day 0 at quarter-hour 64.
+  (`finding:time-clock-counts-quarter-hours`)
+- One tick of the simulation is one quarter-hour: in the original the
+  clock steps after each full sweep of roster entries 1 to 151, when
+  a Game Speed counter allows.
+  (`finding:time-clock-advances-after-each-roster-sweep`) Our sim does
+  not reproduce the sweep order (ADR-0002); a tick is just the
+  quarter-hour step.
+- Once a day, at hour 8, the original runs daily checks.
+  (`finding:time-clock-counts-quarter-hours`) Nothing in slice 1 hooks
+  into this yet.
+
+## The calendar
+
+- Day 0 is 23 September 1418 s.r., Frodo's birthday, the day the quest
+  begins. (`finding:time-quest-starts-23-september`,
+  `finding:time-calendar-september-to-april`)
+- The calendar knows eight months, September to April. A table gives
+  the day count each month starts on: -22, 8, 38, 68, 100, 130, 160, 190. Every month has 30 days except December, which has 32. The
+  year shows as 1418 up to day 99 and 1419 from day 100, 1 January.
+  There is no month after April, so dates from day 220 on show as
+  April days past the 30th; we keep that behaviour.
+  (`finding:time-calendar-september-to-april`)
+
+## Displaying the time
+
+- The display hour is the quarter-hour count divided by 4, and it
+  names the hour after the one under way: hours 0-10 show as 1-11
+  a.m., 11 as 12 p.m., 12-22 as 1-11 p.m., 23 as 12 a.m. So the start,
+  quarter-hour 64 (hour 16), shows as "5 p.m.".
+  (`finding:time-clock-counts-quarter-hours`)
+- `provisional`: where the original draws the date on the Campaign
+  Level is unconfirmed. We draw it as one line in the 8-pixel strip
+  below the 320 by 192 map view, in the form
+  `23 September 1418 s.r. 5 p.m.`.
+
+## Game Speed and pausing
+
+Game Speed and pausing live in the view layer; the simulation has no
+knowledge of them (ADR-0002).
+
+- There are three Game Speeds: Normal, Hasty and Very Hasty. The
+  hourglass icon (or the T key) opens a window listing the speeds;
+  clicking one sets it and closes the window. The setting controls
+  the rate of all actions in the game.
+  (`finding:time-game-speed-settings`, `finding:ui-key-bindings`)
+- The P key pauses. (`finding:ui-key-bindings`) The original shows
+  "The Game is Paused." (`finding:executable-amiga-hunk-file`)
+- `provisional`: how the original maps each Game Speed to real time
+  (a frame counter against a limit) has not been traced.
+  (`finding:time-clock-advances-after-each-roster-sweep`) Until it is,
+  the tick driver uses 1, 2 and 4 ticks per second for Normal, Hasty
+  and Very Hasty — one game day in 96, 48 or 24 real seconds.
+- `provisional`: the speed window's layout and graphics are
+  unconfirmed. We draw a plain window under the icon column listing
+  the three speeds, marking the current one, with a Pause/Resume line.
+  Changing Game Speed changes only how fast ticks arrive, never what
+  a tick does.

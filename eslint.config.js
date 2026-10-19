@@ -45,5 +45,47 @@ export default [
     rules: {
       'no-console': 'off'
     }
+  },
+  {
+    // The sim is deterministic (ADR-0002, #15): no wall clock and no
+    // unseeded randomness. Use the tick and the seeded RNG instead.
+    files: ['web/src/sim/**/*.ts'],
+    ignores: ['**/*.test.ts'],
+    rules: {
+      'no-restricted-properties': [
+        'error',
+        {
+          message:
+            'The sim is deterministic: use the seeded RNG in web/src/sim/rng.ts.',
+          object: 'Math',
+          property: 'random'
+        },
+        {
+          message:
+            'The sim is deterministic: game time comes from the tick, not the wall clock.',
+          object: 'Date',
+          property: 'now'
+        },
+        {
+          message:
+            'The sim is deterministic: game time comes from the tick, not the wall clock.',
+          object: 'performance',
+          property: 'now'
+        }
+      ],
+      'no-restricted-syntax': [
+        'error',
+        {
+          message:
+            'The sim is deterministic: game time comes from the tick, not the wall clock.',
+          selector: "NewExpression[callee.name='Date']"
+        },
+        {
+          message:
+            'The sim is deterministic: game time comes from the tick, not the wall clock.',
+          selector: "CallExpression[callee.name='Date']"
+        }
+      ]
+    }
   }
 ];
