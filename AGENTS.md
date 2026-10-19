@@ -31,9 +31,9 @@ The original game files live in `artifacts/`, which is gitignored and never comm
 - `apple/`: Apple IIgs disk images (`.2mg`, `.po`), a secondary reference
 - `WarinMiddleEarth-InstructionManual.pdf`: the original manual, the source cited as `manual` in specs
 
-`artifacts/` exists only in the main checkout. In a worktree, the tools find it through `ARTIFACTS_DIR` in `tools/extract_graphics.py`. Never copy these files, or anything extracted from them, into tracked paths. Tool output goes to gitignored dirs (`extracted_graphics/`, `extracted_text/`) and is regenerated on demand.
+`artifacts/` exists only in the main checkout. In a worktree, the tools find it through `findArtifactsDir` in `tools/extract-graphics.ts`. Never copy these files, or anything extracted from them, into tracked paths. Tool output goes to gitignored dirs (`extracted_graphics/`, `extracted_text/`) and is regenerated on demand.
 
-The Python tools need `lha` on PATH (`brew install lhasa`) and Pillow.
+The extraction tools need `lha` on PATH (`brew install lhasa`).
 
 ## Tooling
 

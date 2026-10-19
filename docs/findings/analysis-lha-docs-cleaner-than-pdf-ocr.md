@@ -3,7 +3,7 @@ kind: lesson
 topic: analysis
 confidence: confirmed
 sources:
-  - tool:tools/extract_text.py#extract_text_archive
+  - tool:tools/extract-text.ts#extractTextArchive
   - manual:pdf-p14
 ---
 **The typed-in `Docs` file in the LHA archive is a much cleaner text of the manual than the PDF's OCR layer, but it stops before the A–Z glossary.**

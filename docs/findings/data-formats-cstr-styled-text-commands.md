@@ -3,7 +3,7 @@ kind: fact
 topic: data-formats
 confidence: provisional
 sources:
-  - tool:tools/extract_text.py#decode_cstr_payload
+  - tool:tools/extract-text.ts#decodeCstrPayload
   - resource:BScene.res#CSTR 56
 ---
 **A few long story texts are "styled" CSTR resources with a 4-byte header and inline command bytes; the tool's decoding of them is a heuristic, not a known format.**

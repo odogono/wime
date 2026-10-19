@@ -3,8 +3,8 @@ kind: fact
 topic: data-formats
 confidence: confirmed
 sources:
-  - tool:tools/render_campaign_map.py#render_raw_map
-  - tool:tools/render_campaign_map.py#render_campaign_outputs
+  - tool:tools/render-campaign-map.ts#renderRawMap
+  - tool:tools/render-campaign-map.ts#renderCampaignOutputs
   - resource:AMaps.res#MMAP 1
 ---
 **The Campaign Level terrain is a grid of one-byte tile numbers, 160 tiles wide and 99 high, stored row by row in AMaps.res as MMAP 1.**
