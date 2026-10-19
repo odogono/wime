@@ -182,8 +182,18 @@ const run = (assets: CampaignAssets, fullMap: FullMapLevel): void => {
 
   const handleFullMapPress = (event: PointerEvent): void => {
     const point = toHires(event);
+    // The Game Speed window is laid out in lo-res pixels, as on the
+    // Campaign Level, so a hi-res point is halved across.
+    if (speedWindow) {
+      pressSpeedWindow({ x: Math.floor(point.x / 2), y: point.y });
+      return;
+    }
     const icon = fullMapIconAt(fullMapPlacements, point);
-    if (icon?.icon.name === 'magnifying-glass') {
+    if (icon?.icon.name === 'hourglass') {
+      zooming = false;
+      canvas.style.cursor = 'default';
+      toggleSpeedWindow();
+    } else if (icon?.icon.name === 'magnifying-glass') {
       if (zooming) {
         zooming = false;
         canvas.style.cursor = 'default';
@@ -253,17 +263,38 @@ const run = (assets: CampaignAssets, fullMap: FullMapLevel): void => {
     }
   };
 
+  // The one Game Speed window, opened under the hourglass of either
+  // Level; the setting is shared (manual, pdf-p13).
   const toggleSpeedWindow = (): void => {
     if (speedWindow) {
       speedWindow = null;
       return;
     }
-    const hourglass = placements.find(p => p.icon.name === 'hourglass');
+    const hourglass =
+      level === 'full-map'
+        ? fullMapPlacements.find(p => p.icon.name === 'hourglass')
+        : placements.find(p => p.icon.name === 'hourglass');
     speedWindow = layoutSpeedWindow(
       318,
       hourglass ? hourglass.y + hourglass.icon.image.height + 2 : 2,
       driver.paused
     );
+  };
+
+  // A press while the Game Speed window is open picks an option, if
+  // any, and closes the window.
+  const pressSpeedWindow = (point: Camera): void => {
+    if (!speedWindow) {
+      return;
+    }
+    const option = speedWindowOptionAt(speedWindow, point.x, point.y);
+    if (option?.value === 'pause') {
+      driver.paused = !driver.paused;
+    } else if (option) {
+      driver.speed = option.value;
+      driver.paused = false;
+    }
+    speedWindow = null;
   };
 
   canvas.style.cursor = 'grab';
@@ -274,14 +305,7 @@ const run = (assets: CampaignAssets, fullMap: FullMapLevel): void => {
     }
     pointer = toNative(event);
     if (speedWindow) {
-      const option = speedWindowOptionAt(speedWindow, pointer.x, pointer.y);
-      if (option?.value === 'pause') {
-        driver.paused = !driver.paused;
-      } else if (option) {
-        driver.speed = option.value;
-        driver.paused = false;
-      }
-      speedWindow = null;
+      pressSpeedWindow(pointer);
       return;
     }
     const icon = iconAt(placements, pointer);
@@ -366,15 +390,20 @@ const run = (assets: CampaignAssets, fullMap: FullMapLevel): void => {
   window.addEventListener('keydown', event => {
     // The original's keys: U goes up a Level, M picks up the
     // magnifying glass, T opens the Game Speed window and P pauses
-    // (finding:ui-key-bindings). Game Speed on the Full Map Level is
-    // #34; the Campaign Level's magnifying glass waits for the
-    // Animation Level.
+    // (finding:ui-key-bindings). The Campaign Level's magnifying
+    // glass waits for the Animation Level.
     const key = event.key.toLowerCase();
     if (level === 'full-map') {
       if (key === 'm') {
+        speedWindow = null;
         startZoom();
+      } else if (key === 't') {
+        zooming = false;
+        canvas.style.cursor = 'default';
+        toggleSpeedWindow();
       } else if (key === 'escape') {
         zooming = false;
+        speedWindow = null;
         canvas.style.cursor = 'default';
       }
       return;
@@ -458,6 +487,13 @@ const run = (assets: CampaignAssets, fullMap: FullMapLevel): void => {
           hiresPointer.x - Math.floor(magnifier.image.width / 2),
           hiresPointer.y - Math.floor(magnifier.image.height / 2)
         );
+      }
+      if (speedWindow) {
+        // Drawn at lo-res size: each of its pixels is two hi-res wide.
+        screen.hires.save();
+        screen.hires.setTransform(2, 0, 0, 1, 0, 0);
+        drawSpeedWindow(screen.hires, speedWindow, driver.speed, driver.paused);
+        screen.hires.restore();
       }
       screen.present('hires');
       requestAnimationFrame(frame);
