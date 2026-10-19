@@ -3,6 +3,9 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "workspaces": [
+    "web"
+  ],
   "scripts": {
     "prepare": "git config core.hooksPath .githooks",
     "changelog": "bun tools/commits/changelog.ts",
@@ -12,8 +15,8 @@
     "extract-graphics": "bun tools/extract-graphics.ts",
     "extract-text": "bun tools/extract-text.ts",
     "render-campaign-map": "bun tools/render-campaign-map.ts",
-    "typecheck": "tsc --noEmit",
-    "test": "bun test tools",
+    "typecheck": "tsc --noEmit && bun run --cwd web typecheck",
+    "test": "bun test tools && bun run --cwd web test",
     "check": "bun run typecheck && bun run test && bun run findings:check"
   },
   "devDependencies": {
