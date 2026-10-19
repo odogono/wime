@@ -11,9 +11,9 @@ from pathlib import Path
 from typing import Iterable
 
 try:
-    from extract_graphics import AmigaOFSImage, load_lha_member, parse_resource_fork
+    from extract_graphics import DEFAULT_ARCHIVE, AmigaOFSImage, load_lha_member, parse_resource_fork
 except ModuleNotFoundError:
-    from tools.extract_graphics import AmigaOFSImage, load_lha_member, parse_resource_fork
+    from tools.extract_graphics import DEFAULT_ARCHIVE, AmigaOFSImage, load_lha_member, parse_resource_fork
 
 
 TEXT_RESOURCE_FILES = {
@@ -260,7 +260,13 @@ def extract_text_archive(archive: Path, output_dir: Path) -> dict:
 
 def build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("archive", type=Path, help="Path to WarInMiddleEarth_v1.0_0968.lha")
+    parser.add_argument(
+        "archive",
+        type=Path,
+        nargs="?",
+        default=DEFAULT_ARCHIVE,
+        help="Path to WarInMiddleEarth_v1.0_0968.lha (default: artifacts/amiga/)",
+    )
     parser.add_argument("--out", type=Path, default=Path("extracted_text"), help="Output directory")
     return parser
 

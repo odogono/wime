@@ -1,7 +1,7 @@
 import unittest
-from pathlib import Path
 
 from tools.extract_graphics import (
+    DEFAULT_ARCHIVE,
     AmigaOFSImage,
     decode_imag_resource,
     default_palette,
@@ -13,8 +13,7 @@ from tools.render_campaign_map import load_campaign_map_assets
 from tools.extract_text import decode_cstr_payload, extract_embedded_strings
 
 
-ROOT = Path(__file__).resolve().parents[1]
-ARCHIVE = ROOT / "WarInMiddleEarth_v1.0_0968.lha"
+ARCHIVE = DEFAULT_ARCHIVE
 
 
 class ExtractGraphicsTests(unittest.TestCase):

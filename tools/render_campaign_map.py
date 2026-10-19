@@ -13,6 +13,7 @@ from PIL import Image, ImageDraw
 
 try:
     from extract_graphics import (
+        DEFAULT_ARCHIVE,
         AmigaOFSImage,
         be_u16,
         be_u32,
@@ -22,6 +23,7 @@ try:
     )
 except ModuleNotFoundError:
     from tools.extract_graphics import (
+        DEFAULT_ARCHIVE,
         AmigaOFSImage,
         be_u16,
         be_u32,
@@ -176,7 +178,13 @@ def render_campaign_outputs(archive: Path, output_dir: Path) -> dict:
 
 def build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("archive", type=Path, help="Path to WarInMiddleEarth_v1.0_0968.lha")
+    parser.add_argument(
+        "archive",
+        type=Path,
+        nargs="?",
+        default=DEFAULT_ARCHIVE,
+        help="Path to WarInMiddleEarth_v1.0_0968.lha (default: artifacts/amiga/)",
+    )
     parser.add_argument(
         "--out",
         type=Path,
