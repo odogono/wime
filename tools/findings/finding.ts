@@ -7,7 +7,7 @@
 //   topic: movement
 //   confidence: confirmed
 //   sources:
-//     - disasm:0x01a2c4
+//     - disasm:code+0x01a2c4
 //     - observed:hobbiton-to-bree
 //   issue: 5
 //   supersedes: movement-hobbit-pace-guess

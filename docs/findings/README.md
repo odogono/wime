@@ -14,14 +14,14 @@ kind: fact
 topic: movement
 confidence: confirmed
 sources:
-  - disasm:0x01a2c4
+  - disasm:code+0x01a2c4
   - observed:hobbiton-to-bree
 issue: 10
 supersedes: movement-hobbit-pace-guess
 ---
 
 **Hobbits travel at half a Wizard's pace on open ground.** The rate table at
-0x01a2c4 gives ...
+code+0x01a2c4 gives ...
 ```
 
 - `kind`: `fact`, or `lesson` for something learned about doing the analysis. A Lesson's topic is `analysis`.
@@ -35,7 +35,7 @@ supersedes: movement-hobbit-pace-guess
   - `manual:pdf-p11`: a page of `artifacts/WarinMiddleEarth-InstructionManual.pdf`.
   - `observed:<scenario>`: a reference scenario played in vAmiga.
   - `resource:<file>#<type> <id>`: a resource in the Reference Build.
-  - `disasm:0x<address>`: an address in the Reference Build's executable.
+  - `disasm:code+0x<offset>` or `disasm:data+0x<offset>`: an offset into the code or data hunk of the Reference Build's executable ([docs/re](../re/README.md) explains the layout).
   - `strings:0x<offset>`: an offset in the executable's string scan.
   - `tool:<path>#<function>`: code in `tools/` that decodes it.
   - `iigs:<reference>`: the Apple IIgs version.
