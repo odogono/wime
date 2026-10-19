@@ -1,3 +1,7 @@
-/extracted_graphics
 /artifacts/
+/build/
+/extracted_graphics
+/extracted_text
+/node_modules/
 .DS_Store
+__pycache__/

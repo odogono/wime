@@ -36,13 +36,30 @@ _Avoid_: Party, group, stack, army
 
 **Leader**:
 The Character or Unit that the other members of a Force follow.
+_Avoid_: Commander
+
+**Ring-bearer**:
+The Character carrying the One Ring. If the Ring-bearer dies, another Character becomes Ring-bearer.
+_Avoid_: Ringbearer, carrier
 
 **Side**:
-One of the two opposing allegiances: Good (controlled by the player) or Evil.
+The allegiance of a Force: Good (controlled by the player), Evil, or Neutral (not yet committed to the war).
 _Avoid_: Team, player
 
 **Faction**:
 A distinct power within a Side, such as Sauron or Saruman on the Evil Side.
+
+**Nation**:
+The people a Unit comes from, shown by the design of its shield, such as Rohan, Gondor (Dol Amroth) or Dunland. A Nation is not the power that controls it; that is its Faction.
+_Avoid_: Country, origin, realm
+
+**Unit Type**:
+The kind of troops a Unit is made of, shown by the weapon on its shield, such as cavalry, infantry, light infantry or Orcs.
+_Avoid_: Class, troop type
+
+**Mobilisation**:
+A Neutral Nation committing its Forces to the Good Side, either when shown its Token or when attacked by Evil.
+_Avoid_: Activation, recruitment
 
 ## Map
 
@@ -50,11 +67,23 @@ A distinct power within a Side, such as Sauron or Saruman on the Evil Side.
 A named point on the map, such as Hobbiton or Cirith Ungol. Every Place has a kind, such as a small town, a ruin or a fortress.
 _Avoid_: Location, site, town
 
+**Stronghold**:
+One of the five major Good Places (the Hornburg, Edoras, Minas Tirith, Lórien and Thranduil's Palace). Losing any three loses the game.
+_Avoid_: Capital, base
+
 ## Play
 
 **Order**:
 An instruction given to a Force on the Campaign Level, such as moving to a destination or following a Leader.
 _Avoid_: Command, move
+
+**Encounter**:
+A meeting with another Character on the map, which the player may go to on the Animation Level or ignore.
+_Avoid_: Event, meeting
+
+**Token**:
+The object that mobilises a particular Nation when presented to its ruler, such as the Red Arrow for Rohan.
+_Avoid_: Key item, quest item
 
 **Default Orders**:
 The course of action each Character starts with, which the Character follows until given an Order.
@@ -63,3 +92,21 @@ _Avoid_: Script, AI path
 **Game Speed**:
 How fast game time passes in real time: Normal, Hasty or Very Hasty. Game Speed never changes the rules.
 _Avoid_: Difficulty, tempo
+
+## Project
+
+**Reference Build**:
+The release of the original game that settles questions of how it worked: the Amiga v1.0 release. Other versions may be consulted but are never authoritative.
+_Avoid_: Original, master copy
+
+**Finding**:
+A single recorded fact about how the original game worked, with its sources and how certain it is.
+_Avoid_: Note, discovery, research fact
+
+**Lesson**:
+A Finding about how the analysis itself went, such as a technique that worked or a dead end.
+_Avoid_: Retrospective, learning
+
+**Spec**:
+A statement of what the reimplementation must do, citing the Findings it rests on.
+_Avoid_: Requirement doc, design doc
