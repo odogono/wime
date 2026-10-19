@@ -14,6 +14,12 @@ export type SheetGlyph = {
 };
 
 export const SHEET_GLYPHS: Record<string, SheetGlyph> = {
+  '-': {
+    advance: 3,
+    offsetX: 0,
+    offsetY: 6,
+    rows: [[132, 192, 81]]
+  },
   '0': {
     advance: 6,
     offsetX: 0,
@@ -163,22 +169,14 @@ export const SHEET_GLYPHS: Record<string, SheetGlyph> = {
       [174, 80, 0, 133, 107],
       [36, 196, 199, 147, 2]
     ]
-  },
-  '-': {
-    advance: 3,
-    offsetX: 0,
-    offsetY: 6,
-    rows: [
-      [132, 192, 81]
-    ]
-  },
+  }
 };
 
 // An RGBA pixel buffer, row-major, four bytes per pixel.
 export type RgbaImage = {
-  width: number;
-  height: number;
   data: Uint8Array;
+  height: number;
+  width: number;
 };
 
 // Draws a sheet label the way Pillow's ImageDraw.text did: each glyph mask

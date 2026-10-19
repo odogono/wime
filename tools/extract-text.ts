@@ -54,7 +54,10 @@ export const decodeCstrPayload = (data: Uint8Array): DecodedText => {
       warnings.push(
         `skipped styled-text header 0x${declared.toString(16).padStart(4, '0')}`
       );
-      if (offset < data.length && (data[offset] === 0x0b || data[offset] === 0x5c)) {
+      if (
+        offset < data.length &&
+        (data[offset] === 0x0b || data[offset] === 0x5c)
+      ) {
         offset += 1;
         warnings.push('skipped styled-text leading control byte');
       }
@@ -72,8 +75,10 @@ export const decodeCstrPayload = (data: Uint8Array): DecodedText => {
     if (byte === 0xff && offset + 2 < data.length) {
       const repeated = data[offset + 1]!;
       if (repeated >= 32 && repeated <= 126) {
-        output.push(String.fromCharCode(repeated));
-        output.push(String.fromCharCode(repeated));
+        output.push(
+          String.fromCharCode(repeated),
+          String.fromCharCode(repeated)
+        );
         offset += 3;
         warnings.push('expanded 0xff doubled-character command');
         continue;
@@ -81,24 +86,24 @@ export const decodeCstrPayload = (data: Uint8Array): DecodedText => {
     }
 
     if (byte >= 0x80) {
-      if (
+      offset +=
         offset + 2 < data.length &&
         data[offset + 1] === 0x20 &&
         data[offset + 2]! < 0x80
-      ) {
-        offset += 3;
-      } else {
-        offset += 1;
-      }
+          ? 3
+          : 1;
       warnings.push('skipped styled-text command byte');
       continue;
     }
 
-    if (byte === 9 || byte === 10 || byte === 13 || (byte >= 32 && byte <= 126)) {
-      output.push(String.fromCharCode(byte));
-    } else if (
-      ![1, 2, 3, 4, 5, 6, 7, 8, 11, 12, 14, 15, 16].includes(byte)
+    if (
+      byte === 9 ||
+      byte === 10 ||
+      byte === 13 ||
+      (byte >= 32 && byte <= 126)
     ) {
+      output.push(String.fromCharCode(byte));
+    } else if (![1, 2, 3, 4, 5, 6, 7, 8, 11, 12, 14, 15, 16].includes(byte)) {
       warnings.push(
         `skipped control byte 0x${byte.toString(16).padStart(2, '0')}`
       );
@@ -252,7 +257,9 @@ export const looksLikeText = (value: string): boolean => {
       return true;
     }
     if (/^[A-Za-z]+$/.test(compact) && compact.length > 0) {
-      return isLowerText(compact) || isTitleText(compact) || isUpperText(compact);
+      return (
+        isLowerText(compact) || isTitleText(compact) || isUpperText(compact)
+      );
     }
     if (compact === '') {
       // Python: ''.isalpha() is False, so this falls through to False too.
@@ -268,9 +275,9 @@ export const looksLikeText = (value: string): boolean => {
 };
 
 export type EmbeddedString = {
+  length: number;
   offset: number;
   offset_hex: string;
-  length: number;
   text: string;
 };
 
@@ -280,7 +287,7 @@ export const extractEmbeddedStrings = (
 ): EmbeddedString[] => {
   const strings: EmbeddedString[] = [];
   const pattern = new RegExp(
-    `[A-Za-z][A-Za-z0-9 ,.;:!?'"()/:\\-]{${minLength - 1},}`,
+    String.raw`[A-Za-z][A-Za-z0-9 ,.;:!?'"()/:\-]{${minLength - 1},}`,
     'g'
   );
   // Latin-1 maps bytes to code points one to one, so match indices in the
@@ -291,9 +298,9 @@ export const extractEmbeddedStrings = (
     const stripped = matched.trim();
     if (looksLikeText(stripped)) {
       strings.push({
+        length: matched.length,
         offset: match.index,
         offset_hex: `0x${match.index.toString(16)}`,
-        length: matched.length,
         text: stripped
       });
     }
@@ -303,35 +310,35 @@ export const extractEmbeddedStrings = (
 
 type ResourceRecord = {
   disk: string;
-  source_member: string;
-  source_file: string;
-  type: string;
   id: number;
-  name: string | null;
   length: number;
-  text: string;
+  name: string | null;
   raw_hex: string;
+  source_file: string;
+  source_member: string;
+  text: string;
+  type: string;
   warnings: string[];
 };
 
 type ArchiveText =
   | { member: string; status: 'warning'; warning: string }
-  | { member: string; status: 'decoded'; length: number; text: string };
+  | { length: number; member: string; status: 'decoded'; text: string };
 
 export type TextManifest = {
   archive: string;
-  summary: {
-    cstr_resources: number;
-    executable_strings: number;
-    archive_text_members: number;
-  };
+  notes: string[];
   outputs: {
-    resources_json: string;
-    executable_strings_json: string;
     archive_text_json: string;
+    executable_strings_json: string;
+    resources_json: string;
     text_markdown: string;
   };
-  notes: string[];
+  summary: {
+    archive_text_members: number;
+    cstr_resources: number;
+    executable_strings: number;
+  };
 };
 
 const spacedHex = (data: Uint8Array): string =>
@@ -346,19 +353,22 @@ export const writeMarkdown = (
   outputPath: string
 ): void => {
   const lines = ['# War In Middle Earth Text Dump', ''];
-  lines.push('## CSTR Resources');
-  lines.push('');
+  lines.push('## CSTR Resources', '');
   for (const record of resourceRecords) {
-    lines.push(`### ${record.source_file} CSTR ${record.id}`);
-    lines.push('');
-    lines.push(record.text);
-    lines.push('');
+    lines.push(
+      `### ${record.source_file} CSTR ${record.id}`,
+      '',
+      record.text,
+      ''
+    );
   }
 
-  lines.push('## Executable Embedded Strings');
-  lines.push('');
-  lines.push('These are heuristic printable strings found in the main executable.');
-  lines.push('');
+  lines.push(
+    '## Executable Embedded Strings',
+    '',
+    'These are heuristic printable strings found in the main executable.',
+    ''
+  );
   for (const record of executableStrings) {
     lines.push(`- \`${record.offset_hex}\` ${record.text}`);
   }
@@ -383,14 +393,14 @@ export const extractTextArchive = (
         const decoded = decodeCstrPayload(resource.data);
         resourceRecords.push({
           disk: diskName,
-          source_member: memberName,
-          source_file: resourceName,
-          type: resource.typeCode,
           id: resource.resourceId,
-          name: resource.name,
           length: resource.data.length,
-          text: decoded.text,
+          name: resource.name,
           raw_hex: spacedHex(resource.data),
+          source_file: resourceName,
+          source_member: memberName,
+          text: decoded.text,
+          type: resource.typeCode,
           warnings: decoded.warnings
         });
       }
@@ -417,31 +427,31 @@ export const extractTextArchive = (
       continue;
     }
     archiveTexts.push({
+      length: payload.length,
       member,
       status: 'decoded',
-      length: payload.length,
       text: latin1Text(payload).replaceAll('\r\n', '\n').replaceAll('\r', '\n')
     });
   }
 
   const manifest: TextManifest = {
     archive,
-    summary: {
-      cstr_resources: resourceRecords.length,
-      executable_strings: executableStrings.length,
-      archive_text_members: archiveTexts.length
-    },
-    outputs: {
-      resources_json: 'resources.json',
-      executable_strings_json: 'executable_strings.json',
-      archive_text_json: 'archive_text.json',
-      text_markdown: 'text_dump.md'
-    },
     notes: [
       'CSTR resources are exact resource payloads with a readable decode and raw byte hex.',
       'Executable strings are heuristic printable runs from the main executable, not structured resources.',
       'ReadMe, Hints, and Docs are archive/manual text, separated from in-game resource text.'
-    ]
+    ],
+    outputs: {
+      archive_text_json: 'archive_text.json',
+      executable_strings_json: 'executable_strings.json',
+      resources_json: 'resources.json',
+      text_markdown: 'text_dump.md'
+    },
+    summary: {
+      archive_text_members: archiveTexts.length,
+      cstr_resources: resourceRecords.length,
+      executable_strings: executableStrings.length
+    }
   };
 
   writeFileSync(
@@ -464,15 +474,19 @@ export const extractTextArchive = (
     stringifySortedJson(manifest),
     'utf8'
   );
-  writeMarkdown(resourceRecords, executableStrings, join(outputDir, 'text_dump.md'));
+  writeMarkdown(
+    resourceRecords,
+    executableStrings,
+    join(outputDir, 'text_dump.md')
+  );
   return manifest;
 };
 
 export const main = (argv: string[] = process.argv.slice(2)): number => {
-  const { values, positionals } = parseArgs({
+  const { positionals, values } = parseArgs({
+    allowPositionals: true,
     args: argv,
-    options: { out: { type: 'string', default: 'extracted_text' } },
-    allowPositionals: true
+    options: { out: { default: 'extracted_text', type: 'string' } }
   });
   const archive = positionals[0] ?? DEFAULT_ARCHIVE;
   const out = values.out ?? 'extracted_text';

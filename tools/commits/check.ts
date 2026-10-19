@@ -70,11 +70,14 @@ const checkPullRequest = (): string[] => {
   const problems: string[] = [];
   if (
     subject.scope === 're' &&
-    !changedUnder(FINDINGS).some(path =>
-      /^docs\/findings\/[^/]+\.md$/.test(path) && !path.endsWith('/README.md')
+    !changedUnder(FINDINGS).some(
+      path =>
+        /^docs\/findings\/[^/]+\.md$/.test(path) && !path.endsWith('/README.md')
     )
   ) {
-    problems.push(`an re change needs a Finding added or changed under ${FINDINGS}`);
+    problems.push(
+      `an re change needs a Finding added or changed under ${FINDINGS}`
+    );
   }
   const fragments = [];
   for (const path of changed) {

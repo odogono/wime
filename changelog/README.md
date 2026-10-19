@@ -8,6 +8,7 @@ type: feat
 scope: sim
 section: added
 ---
+
 **Forces travel to the destination you give them.** They find their own route
 around terrain at the original's pace (#10).
 ```

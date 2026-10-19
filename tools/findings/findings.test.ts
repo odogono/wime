@@ -33,24 +33,44 @@ test('flags a missing, self or doubly superseded finding', () => {
 
 test('flags a Spec citing a missing finding', () => {
   expect(
-    crossCheck([entry({ slug: 'movement-x' })], [
-      {
-        path: 'docs/spec/movement.md',
-        text: 'Per finding:movement-x and finding:movement-y.'
-      }
-    ])
+    crossCheck(
+      [entry({ slug: 'movement-x' })],
+      [
+        {
+          path: 'docs/spec/movement.md',
+          text: 'Per finding:movement-x and finding:movement-y.'
+        }
+      ]
+    )
   ).toEqual([
-    'docs/spec/movement.md: cites finding:movement-y, which doesn\'t exist'
+    "docs/spec/movement.md: cites finding:movement-y, which doesn't exist"
   ]);
 });
 
 test('renders chapters in topic order, headlines footnoted, superseded last', () => {
   const document = renderDocument(
     [
-      entry({ body: '**Lesson.** L.', headline: 'Lesson.', kind: 'lesson', slug: 'analysis-l', topic: 'analysis' }),
-      entry({ body: '**Fast.** F.', headline: 'Fast.', slug: 'movement-fast', supersedes: 'movement-slow' }),
+      entry({
+        body: '**Lesson.** L.',
+        headline: 'Lesson.',
+        kind: 'lesson',
+        slug: 'analysis-l',
+        topic: 'analysis'
+      }),
+      entry({
+        body: '**Fast.** F.',
+        headline: 'Fast.',
+        slug: 'movement-fast',
+        supersedes: 'movement-slow'
+      }),
       entry({ body: '**Slow.** S.', headline: 'Slow.', slug: 'movement-slow' }),
-      entry({ body: '**Big.** B.', headline: 'Big.', slug: 'map-big', topic: 'map', issue: 5 })
+      entry({
+        body: '**Big.** B.',
+        headline: 'Big.',
+        issue: 5,
+        slug: 'map-big',
+        topic: 'map'
+      })
     ],
     { introduction: 'Intro.', movement: 'How Forces move.' }
   );

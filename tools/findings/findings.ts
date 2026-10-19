@@ -15,7 +15,13 @@ import {
 } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 
-import { SLUG, TOPICS, parseFinding, type Finding, type Topic } from './finding';
+import {
+  SLUG,
+  TOPICS,
+  parseFinding,
+  type Finding,
+  type Topic
+} from './finding';
 
 const ROOT = resolve(import.meta.dir, '../..');
 const DIR = join(ROOT, 'docs/findings');
@@ -24,7 +30,7 @@ const SPECS = join(ROOT, 'docs/spec');
 
 export type Entry = Finding & { slug: string };
 
-const CITATION = /\bfinding:(?<slug>[a-z\d]+(?:-[a-z\d]+)*)/g;
+const CITATION = /\bfinding:(?<slug>[\da-z]+(?:-[\da-z]+)*)/g;
 
 // Problems that span Findings: a `supersedes` naming a missing Finding or
 // itself, two Findings superseding the same one, and Specs citing a missing
@@ -117,7 +123,9 @@ export const renderDocument = (
       parts.push(intros[topic]!);
     }
     for (const entry of chapter) {
-      const replaced = entry.supersedes ? bySlug.get(entry.supersedes) : undefined;
+      const replaced = entry.supersedes
+        ? bySlug.get(entry.supersedes)
+        : undefined;
       parts.push(
         withFootnote(entry) +
           (replaced
@@ -152,11 +160,15 @@ const readEntries = (): { entries: Entry[]; problems: string[] } => {
     }
     const slug = name.slice(0, -3);
     if (!SLUG.test(slug)) {
-      problems.push(`docs/findings/${name}: the name must be a kebab-case slug`);
+      problems.push(
+        `docs/findings/${name}: the name must be a kebab-case slug`
+      );
     }
     const result = parseFinding(readFileSync(join(DIR, name), 'utf8'));
     if ('errors' in result) {
-      problems.push(...result.errors.map(error => `docs/findings/${name}: ${error}`));
+      problems.push(
+        ...result.errors.map(error => `docs/findings/${name}: ${error}`)
+      );
     } else {
       entries.push({ ...result.finding, slug });
     }
@@ -181,7 +193,9 @@ const readIntros = (): Partial<Record<Topic | 'introduction', string>> => {
   for (const name of ['introduction', ...TOPICS]) {
     const path = join(TOPIC_DIR, `${name}.md`);
     if (existsSync(path)) {
-      const text = readFileSync(path, 'utf8').replace(/^# .*\n+/, '').trim();
+      const text = readFileSync(path, 'utf8')
+        .replace(/^# .*\n+/, '')
+        .trim();
       if (text !== '') {
         intros[name as Topic | 'introduction'] = text;
       }
@@ -219,7 +233,9 @@ if (import.meta.main) {
       const path = resolve(out);
       mkdirSync(dirname(path), { recursive: true });
       writeFileSync(path, document);
-      console.log(`findings: wrote ${entries.length} findings to ${relative(ROOT, path)}`);
+      console.log(
+        `findings: wrote ${entries.length} findings to ${relative(ROOT, path)}`
+      );
     } else {
       process.stdout.write(document);
     }

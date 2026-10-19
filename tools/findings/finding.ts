@@ -70,15 +70,9 @@ export type Finding = {
 };
 
 const FRONTMATTER = /^---\n(?<head>[\S\s]*?)\n---\n(?<body>[\S\s]*)$/;
-const SCALARS = new Set([
-  'kind',
-  'topic',
-  'confidence',
-  'issue',
-  'supersedes'
-]);
+const SCALARS = new Set(['kind', 'topic', 'confidence', 'issue', 'supersedes']);
 const HEADLINE = /^\*\*(?<headline>[^*]+?)\*\*/;
-export const SLUG = /^[a-z\d]+(?:-[a-z\d]+)*$/;
+export const SLUG = /^[\da-z]+(?:-[\da-z]+)*$/;
 
 const oneOf = (
   errors: string[],

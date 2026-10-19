@@ -102,19 +102,13 @@ test('matches a fragment to the PR title by type, scope and breaking', () => {
   const feat = fragment(
     '---\ntype: feat\nscope: sim\nsection: added\n---\nAdd x.'
   );
-  expect(fragmentMatches(feat, subject('feat(sim): Add x'), false)).toBe(
-    true
-  );
+  expect(fragmentMatches(feat, subject('feat(sim): Add x'), false)).toBe(true);
   expect(fragmentMatches(feat, subject('feat(view): Add x'), false)).toBe(
     false
   );
   expect(fragmentMatches(feat, subject('feat: Add x'), false)).toBe(false);
-  expect(fragmentMatches(feat, subject('fix(sim): Fix x'), false)).toBe(
-    false
-  );
-  expect(fragmentMatches(feat, subject('feat(sim)!: Add x'), true)).toBe(
-    false
-  );
+  expect(fragmentMatches(feat, subject('fix(sim): Fix x'), false)).toBe(false);
+  expect(fragmentMatches(feat, subject('feat(sim)!: Add x'), true)).toBe(false);
 
   const breaking = fragment(
     '---\ntype: feat\nscope: view\nsection: changed\nbreaking: true\n---\nRename x.'

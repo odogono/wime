@@ -19,6 +19,7 @@ sources:
 issue: 10
 supersedes: movement-hobbit-pace-guess
 ---
+
 **Hobbits travel at half a Wizard's pace on open ground.** The rate table at
 0x01a2c4 gives ...
 ```

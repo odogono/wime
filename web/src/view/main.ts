@@ -1,9 +1,9 @@
-import { createScreen } from "./screen";
-import { drawTestPattern } from "./test-pattern";
+import { createScreen } from './screen';
+import { drawTestPattern } from './test-pattern';
 
-const canvas = document.querySelector<HTMLCanvasElement>("#screen");
+const canvas = document.querySelector<HTMLCanvasElement>('#screen');
 if (!canvas) {
-  throw new Error("No #screen canvas");
+  throw new Error('No #screen canvas');
 }
 const screen = createScreen(canvas);
 
@@ -13,5 +13,5 @@ const redraw = (): void => {
   screen.present();
 };
 
-window.addEventListener("resize", redraw);
+window.addEventListener('resize', redraw);
 redraw();

@@ -10,7 +10,6 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import { parseArgs } from 'node:util';
-
 import { PNG } from 'pngjs';
 
 import { drawSheetLabel, type RgbaImage } from './sheet-font';
@@ -106,9 +105,9 @@ export const stringifySortedJson = (value: unknown): string => {
     return entry;
   };
   const text = JSON.stringify(sorted(value), null, 2);
-  return text.replace(
+  return text.replaceAll(
     /[\u007f-\uffff]/g,
-    char => `\\u${char.charCodeAt(0).toString(16).padStart(4, '0')}`
+    char => String.raw`\u${char.charCodeAt(0).toString(16).padStart(4, '0')}`
   );
 };
 
@@ -236,12 +235,12 @@ export class AmigaOFSImage {
 }
 
 export type Resource = {
-  typeCode: string;
-  resourceId: number;
-  name: string | null;
   attributes: number;
-  dataOffset: number;
   data: Uint8Array;
+  dataOffset: number;
+  name: string | null;
+  resourceId: number;
+  typeCode: string;
 };
 
 export class ResourceFork {
@@ -253,7 +252,10 @@ export class ResourceFork {
 
   get(typeCode: string, resourceId: number): Resource {
     for (const resource of this.resources) {
-      if (resource.typeCode === typeCode && resource.resourceId === resourceId) {
+      if (
+        resource.typeCode === typeCode &&
+        resource.resourceId === resourceId
+      ) {
         return resource;
       }
     }
@@ -274,7 +276,10 @@ export const parseResourceFork = (data: Uint8Array): ResourceFork => {
   const mapOffset = beU32(data, 4);
   const dataLength = beU32(data, 8);
   const mapLength = beU32(data, 12);
-  if (dataOffset + dataLength > data.length || mapOffset + mapLength > data.length) {
+  if (
+    dataOffset + dataLength > data.length ||
+    mapOffset + mapLength > data.length
+  ) {
     throw new ExtractError('resource fork header points outside the file');
   }
 
@@ -291,7 +296,11 @@ export const parseResourceFork = (data: Uint8Array): ResourceFork => {
     const resourceCount = beU16(data, typeEntry + 4) + 1;
     const referenceListBase = typeListBase + beU16(data, typeEntry + 6);
 
-    for (let resourceIndex = 0; resourceIndex < resourceCount; resourceIndex++) {
+    for (
+      let resourceIndex = 0;
+      resourceIndex < resourceCount;
+      resourceIndex++
+    ) {
       const reference = referenceListBase + resourceIndex * 12;
       const resourceId = beS16(data, reference);
       const nameOffset = beS16(data, reference + 2);
@@ -317,12 +326,12 @@ export const parseResourceFork = (data: Uint8Array): ResourceFork => {
       }
 
       resources.push({
-        typeCode,
-        resourceId,
-        name,
         attributes,
+        data: data.subarray(payloadStart, payloadEnd),
         dataOffset: resourceDataOffset,
-        data: data.subarray(payloadStart, payloadEnd)
+        name,
+        resourceId,
+        typeCode
       });
     }
   }
@@ -412,7 +421,7 @@ export class IndexedImage {
       data[i * 4 + 2] = this.palette[paletteIndex + 2] ?? 0;
       data[i * 4 + 3] = 255;
     }
-    return { width: this.width, height: this.height, data };
+    return { data, height: this.height, width: this.width };
   }
 
   save(path: string): void {
@@ -421,7 +430,7 @@ export class IndexedImage {
 }
 
 export const writeRgbaPng = (path: string, image: RgbaImage): void => {
-  const png = new PNG({ width: image.width, height: image.height });
+  const png = new PNG({ height: image.height, width: image.width });
   png.data = Buffer.from(image.data);
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, PNG.sync.write(png));
@@ -439,7 +448,7 @@ export const makeRgbaImage = (
     data[i * 4 + 2] = fill[2];
     data[i * 4 + 3] = 255;
   }
-  return { width, height, data };
+  return { data, height, width };
 };
 
 export const pasteRgba = (
@@ -469,12 +478,12 @@ export const pasteRgba = (
 };
 
 export type DecodedBitmap = {
-  width: number;
-  height: number;
-  depth: number;
   decompressedSize: number;
+  depth: number;
+  height: number;
   pixelIndices: IndexedImage;
   warnings: string[];
+  width: number;
 };
 
 export const decodeImagResource = (
@@ -488,7 +497,7 @@ export const decodeImagResource = (
 
   let decompressed: Uint8Array;
   let expectedSize: number;
-  if (beU16(data, 0) === 0x0200) {
+  if (beU16(data, 0) === 0x02_00) {
     decompressed = data;
     expectedSize = data.length;
   } else {
@@ -508,8 +517,10 @@ export const decodeImagResource = (
     }
   }
 
-  if (beU16(decompressed, 0) !== 0x0200) {
-    throw new ExtractError('decompressed IMAG header does not start with 0x0200');
+  if (beU16(decompressed, 0) !== 0x02_00) {
+    throw new ExtractError(
+      'decompressed IMAG header does not start with 0x0200'
+    );
   }
 
   const depth = decompressed[5]!;
@@ -536,11 +547,7 @@ export const decodeImagResource = (
   }
 
   const bitmap = decompressed.subarray(28, expectedBitmapSize);
-  const image = new IndexedImage(
-    width,
-    height,
-    palette ?? defaultPalette()
-  );
+  const image = new IndexedImage(width, height, palette ?? defaultPalette());
 
   // The decompressed resources store rows as plane 0 row, plane 1 row, ...
   // for each scanline. This matches the way Amiga BitMap rows are commonly
@@ -561,12 +568,12 @@ export const decodeImagResource = (
   }
 
   return {
-    width,
-    height,
-    depth,
     decompressedSize: expectedSize,
+    depth,
+    height,
     pixelIndices: image,
-    warnings
+    warnings,
+    width
   };
 };
 
@@ -648,6 +655,14 @@ export const paletteForResourceFile = (
   return ['War In Middle Earth 32-colour art palette', defaultPalette()];
 };
 
+// Round to whichever neighbouring whole number scores lower on `key`, never
+// below 1.
+const roundAspect = (number: number, key: (n: number) => number): number => {
+  const floor = Math.floor(number);
+  const ceil = Math.ceil(number);
+  return Math.max(key(floor) <= key(ceil) ? floor : ceil, 1);
+};
+
 // Pillow's Image.thumbnail size choice: fit inside the box preserving
 // aspect ratio, rounding to whichever of floor/ceil keeps the aspect
 // closer, and never enlarging.
@@ -660,11 +675,6 @@ const thumbnailSize = (
   if (boxWidth >= width && boxHeight >= height) {
     return [width, height];
   }
-  const roundAspect = (number: number, key: (n: number) => number): number => {
-    const floor = Math.floor(number);
-    const ceil = Math.ceil(number);
-    return Math.max(key(floor) <= key(ceil) ? floor : ceil, 1);
-  };
   const aspect = width / height;
   if (boxWidth / boxHeight >= aspect) {
     return [
@@ -674,9 +684,8 @@ const thumbnailSize = (
   }
   return [
     boxWidth,
-    roundAspect(
-      boxWidth / aspect,
-      n => (n === 0 ? 0 : Math.abs(aspect - boxWidth / n))
+    roundAspect(boxWidth / aspect, n =>
+      n === 0 ? 0 : Math.abs(aspect - boxWidth / n)
     )
   ];
 };
@@ -716,7 +725,7 @@ const resizeNearestRgba = (
       data[targetIndex + 3] = image.data[sourceIndex + 3]!;
     }
   }
-  return { width, height, data };
+  return { data, height, width };
 };
 
 export const saveContactSheet = (
@@ -756,34 +765,40 @@ export const saveContactSheet = (
       previewHeight
     );
     pasteRgba(sheet, preview, x, y);
-    drawSheetLabel(sheet, x, y + thumbWidth, label.slice(0, 24), [230, 230, 230]);
+    drawSheetLabel(
+      sheet,
+      x,
+      y + thumbWidth,
+      label.slice(0, 24),
+      [230, 230, 230]
+    );
   });
 
   writeRgbaPng(outputPath, sheet);
 };
 
 type ResourceEntry = {
-  type: string;
-  id: number;
-  name: string | null;
-  length: number;
-  status: string;
-  warnings: string[];
-  output?: string;
-  width?: number;
-  height?: number;
-  depth?: number;
   decompressed_size?: number;
+  depth?: number;
+  height?: number;
+  id: number;
+  length: number;
+  name: string | null;
+  output?: string;
   palette_source?: string;
+  status: string;
+  type: string;
+  warnings: string[];
+  width?: number;
 };
 
 type FileManifest = {
   disk: string;
-  source_member: string;
-  resource_file: string;
-  size: number;
   palette_source: string;
+  resource_file: string;
   resources: ResourceEntry[];
+  size: number;
+  source_member: string;
 };
 
 export type GraphicsManifest = {
@@ -791,10 +806,10 @@ export type GraphicsManifest = {
   palette: { source: string; status: string };
   resource_files: FileManifest[];
   summary: {
-    imag_total: number;
-    imag_decoded: number;
-    frml_total: number;
     frml_decoded: number;
+    frml_total: number;
+    imag_decoded: number;
+    imag_total: number;
     warnings: number;
   };
 };
@@ -813,10 +828,10 @@ export const extractArchive = (
     },
     resource_files: [],
     summary: {
-      imag_total: 0,
-      imag_decoded: 0,
-      frml_total: 0,
       frml_decoded: 0,
+      frml_total: 0,
+      imag_decoded: 0,
+      imag_total: 0,
       warnings: 0
     }
   };
@@ -831,22 +846,22 @@ export const extractArchive = (
       const [paletteSource, palette] = paletteForResourceFile(resourceName);
       const fileManifest: FileManifest = {
         disk: diskName,
-        source_member: memberName,
-        resource_file: resourceName,
-        size: resourceData.length,
         palette_source: paletteSource,
-        resources: []
+        resource_file: resourceName,
+        resources: [],
+        size: resourceData.length,
+        source_member: memberName
       };
       const resourceOutputDir = join(outputDir, safeName(resourceName));
       const imagSheetInputs: [string, IndexedImage][] = [];
 
       for (const resource of resourceFork.resources) {
         const entry: ResourceEntry = {
-          type: resource.typeCode,
           id: resource.resourceId,
-          name: resource.name,
           length: resource.data.length,
+          name: resource.name,
           status: 'skipped',
+          type: resource.typeCode,
           warnings: []
         };
 
@@ -882,7 +897,10 @@ export const extractArchive = (
           entry.warnings.push(
             'FRML frame-list payloads were enumerated but their frame command format is not decoded yet'
           );
-        } else if (resource.typeCode === 'MMAP' || resource.typeCode === 'CHAR') {
+        } else if (
+          resource.typeCode === 'MMAP' ||
+          resource.typeCode === 'CHAR'
+        ) {
           entry.status = 'warning';
           entry.warnings.push(
             `${resource.typeCode} payload was enumerated but its map/character format is not decoded yet`
@@ -912,10 +930,10 @@ export const extractArchive = (
 };
 
 export const main = (argv: string[] = process.argv.slice(2)): number => {
-  const { values, positionals } = parseArgs({
+  const { positionals, values } = parseArgs({
+    allowPositionals: true,
     args: argv,
-    options: { out: { type: 'string', default: 'extracted_graphics' } },
-    allowPositionals: true
+    options: { out: { default: 'extracted_graphics', type: 'string' } }
   });
   const archive = positionals[0] ?? DEFAULT_ARCHIVE;
   const out = values.out ?? 'extracted_graphics';

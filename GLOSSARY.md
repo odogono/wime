@@ -1,6 +1,6 @@
 # War in Middle Earth
 
-A faithful browser reimplementation of the 1988 Melbourne House / Synergistic game *War in Middle Earth*, using the Amiga v1.0 release as the canonical reference.
+A faithful browser reimplementation of the 1988 Melbourne House / Synergistic game _War in Middle Earth_, using the Amiga v1.0 release as the canonical reference.
 
 ## Levels
 

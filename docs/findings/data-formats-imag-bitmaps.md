@@ -7,6 +7,7 @@ sources:
   - resource:AMaps.res#IMAG 100
   - resource:ATitle.res#IMAG 70
 ---
+
 **An IMAG resource is a planar bitmap with a 28-byte header, stored either raw or PackBits-compressed, with the bit planes interleaved row by row.**
 If the resource starts with the 16-bit value `0x0200` it is uncompressed. Otherwise its first four bytes are the unpacked size and PackBits data follows, which must unpack to something starting with `0x0200`. In the unpacked header, byte 5 is the depth (number of bit planes, 1 to 8), and the big-endian 16-bit values at offsets 20 and 22 are the width and height in pixels. The other header bytes are not yet understood.
 
