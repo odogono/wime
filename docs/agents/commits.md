@@ -1,6 +1,8 @@
 # Commits, the changelog and Findings
 
-PRs are squash-merged, so a PR's title becomes the commit on `main`. CI checks every PR title, requires a changelog fragment for the changes a player would want to hear about, and requires a Finding for analysis of the original game. A `commit-msg` hook checks local commits' format; `bun install` turns it on.
+PRs are squash-merged, so a PR's title becomes the commit on `main`. CI checks every PR title, requires a changelog fragment for the changes a player would want to hear about, and requires a Finding for analysis of the original game. A `commit-msg` hook checks local commits' format, and a `pre-commit` hook lints staged TypeScript and checks staged Findings; `bun install` turns both on.
+
+A PR stacked on another PR's branch conflicts once its base is squash-merged. Rebase it onto `main` straight away: `git rebase --onto origin/main <old-base-branch>`, then retarget the PR with `gh pr edit --base main`. To wait for CI, use `gh pr checks --watch`.
 
 ## Subject format
 
@@ -53,7 +55,7 @@ Versions are `0.x.y`: each roadmap milestone (#2) is a minor version, with patch
 
 ## Checking locally
 
-`bun run check` runs the typecheck, the tool tests and the Finding check. To check a PR the way CI does, run:
+`bun run check` runs every check CI runs (the `check` script in `package.json`). To check a PR the way CI does, run:
 
 ```sh
 PR_TITLE="feat(sim): Add x" BASE_REF=main bun tools/commits/check.ts pr

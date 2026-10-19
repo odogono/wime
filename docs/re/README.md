@@ -21,4 +21,12 @@ The code uses the Aztec C small-data model: register A4 holds the data hunk's ad
 
 ## Reproducing
 
-[`tools/extract-starting-state.ts`](../../tools/extract-starting-state.ts) parses the hunks (`parseHunkFile`) and reads every table below. For disassembly, any 68000 disassembler will do. The analysis for issue #5 used Capstone over the code hunk's contents, rewriting each `d(a4)` operand to its data offset so that table accesses could be searched for by address. Keep any such output in a gitignored directory. Never commit anything extracted from `artifacts/`.
+[`tools/extract-starting-state.ts`](../../tools/extract-starting-state.ts) parses the hunks (`parseHunkFile`) and reads every table below.
+
+`bun run disasm` writes `extracted_asm/code.asm` (gitignored), the whole code hunk disassembled with Capstone, one instruction per line:
+
+```text
+code+0x003a6  41ec9dea              lea.l -$6216(a4), a0  ; data+0x1de8 roster
+```
+
+Each `d(a4)` operand is annotated with the data offset it reaches, and every address named in [`labels.md`](labels.md) gets its label, so searching for an address finds every access to it: `rg 'data\+0x1de8' extracted_asm/code.asm`. Name new addresses in `labels.md` and rerun `bun run disasm` to see them in the listing. `extracted_asm/code.bin` and `data.bin` hold the raw hunk contents for hex dumps. Never commit anything extracted from `artifacts/`.
