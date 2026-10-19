@@ -14,6 +14,22 @@ from typing import Iterable
 from PIL import Image, ImageDraw
 
 
+def find_artifacts_dir() -> Path:
+    """Locate the untracked artifacts/ dir, falling back to the main checkout when run from a git worktree."""
+    root = Path(__file__).resolve().parents[1]
+    if (root / "artifacts").is_dir():
+        return root / "artifacts"
+    try:
+        common = subprocess.check_output(
+            ["git", "-C", str(root), "rev-parse", "--path-format=absolute", "--git-common-dir"], text=True
+        ).strip()
+    except (FileNotFoundError, subprocess.CalledProcessError):
+        return root / "artifacts"
+    return Path(common).parent / "artifacts"
+
+
+ARTIFACTS_DIR = find_artifacts_dir()
+DEFAULT_ARCHIVE = ARTIFACTS_DIR / "amiga" / "WarInMiddleEarth_v1.0_0968.lha"
 BLOCK_SIZE = 512
 RESOURCE_FILES = {
     "disk1": ("WarInMiddleEarth/data/Disk.1", ("AMaps.res", "AAnims.res", "ATitle.res", "AScene.res")),
@@ -60,7 +76,7 @@ def load_lha_member(archive: Path | str, member: str) -> bytes:
     try:
         return subprocess.check_output(["lha", "pq", str(archive), member])
     except FileNotFoundError as exc:
-        raise ExtractError("lha is required on PATH") from exc
+        raise ExtractError("lha is required on PATH (brew install lhasa)") from exc
     except subprocess.CalledProcessError as exc:
         raise ExtractError(f"failed to extract {member} from {archive}") from exc
 
@@ -517,7 +533,13 @@ def extract_archive(archive: Path, output_dir: Path) -> dict:
 
 def build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("archive", type=Path, help="Path to WarInMiddleEarth_v1.0_0968.lha")
+    parser.add_argument(
+        "archive",
+        type=Path,
+        nargs="?",
+        default=DEFAULT_ARCHIVE,
+        help="Path to WarInMiddleEarth_v1.0_0968.lha (default: artifacts/amiga/)",
+    )
     parser.add_argument("--out", type=Path, default=Path("extracted_graphics"), help="Output directory")
     return parser
 
