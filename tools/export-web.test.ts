@@ -124,7 +124,7 @@ describe.skipIf(!existsSync(DEFAULT_ARCHIVE))('web export', () => {
     });
     expect(manifest.skipped).toEqual([]);
     // Atlas, palette, tile map, atlas metadata, 115 graphics, text and
-    // the starting state, plus the provisional Full Map Level palette.
+    // the starting state, plus the Full Map Level palette.
     expect(manifest.assets.length).toBe(122);
     expect(manifest.summary.assets).toBe(manifest.assets.length);
 
@@ -148,30 +148,45 @@ describe.skipIf(!existsSync(DEFAULT_ARCHIVE))('web export', () => {
       source: { id: 2, resource_file: 'AMaps.res', type: 'IMAG' },
       width: 640
     });
-    expect(fullMap.palette_source).toContain('Provisional');
-    expect(fullMap.warnings?.join(' ')).toContain('palette');
+    expect(fullMap.palette_source).toContain('data+0x4ac8');
+    expect(fullMap.warnings).toBeUndefined();
 
     const fullMapPaletteAsset = byPath.get('full-map/palette.json')!;
     expect(fullMapPaletteAsset.kind).toBe('full-map-palette');
-    // The provisional colours are tool data, not read from IMAG or CHAR.
-    expect(fullMapPaletteAsset.source).toBeNull();
+    // The colours come from the executable's data hunk, not IMAG or CHAR
+    // (finding:data-formats-full-map-palette).
+    expect(fullMapPaletteAsset.source).toEqual({
+      id: null,
+      resource_file: 'WarInMiddleEarth',
+      type: 'HUNK'
+    });
     const fullMapPalette = JSON.parse(
       readFileSync(join(out, fullMapPaletteAsset.path), 'utf8')
     ) as PaletteJson;
-    expect(fullMapPalette.source).toBeNull();
+    expect(fullMapPalette.source).toEqual(fullMapPaletteAsset.source);
     expect(fullMap.palette_source).toBe(fullMapPalette.palette_source);
-    expect(fullMapPalette.warnings).toEqual(fullMapPaletteAsset.warnings);
+    expect(fullMapPalette.warnings).toBeUndefined();
     expect(fullMapPalette.colors).toHaveLength(16);
-    expect(fullMapPalette.hex[15]).toBe('#ffeeaa');
+    // Red, green, cyan and cream: the dot colours 10, 14, 12 and 15
+    // (finding:ui-full-map-dot-colours).
+    expect(fullMapPalette.hex[10]).toBe('#ff0000');
+    expect(fullMapPalette.hex[14]).toBe('#22ff33');
+    expect(fullMapPalette.hex[12]).toBe('#00ffff');
+    expect(fullMapPalette.hex[15]).toBe('#ffeebb');
 
-    // PNG pixels must use the exported palette, including all 16 colours.
+    // PNG pixels must use the exported palette: every colour but 13,
+    // magenta, which the map art never uses.
     const mapPng = PNG.sync.read(readFileSync(join(out, fullMap.path)));
     const colours = new Set<string>();
     for (let i = 0; i < mapPng.data.length; i += 4) {
       colours.add([...mapPng.data.subarray(i, i + 3)].join(','));
     }
     expect(colours).toEqual(
-      new Set(fullMapPalette.colors.map(rgb => rgb.join(',')))
+      new Set(
+        fullMapPalette.colors
+          .filter((_, index) => index !== 13)
+          .map(rgb => rgb.join(','))
+      )
     );
 
     const fullMapIcons = manifest.assets.filter(
@@ -203,7 +218,7 @@ describe.skipIf(!existsSync(DEFAULT_ARCHIVE))('web export', () => {
     ]);
     for (const icon of fullMapIcons) {
       expect(icon.palette_source).toBe(fullMap.palette_source);
-      expect(icon.warnings?.join(' ')).toContain('provisional');
+      expect(icon.warnings).toBeUndefined();
     }
 
     const atlas = byPath.get('campaign/tiles.png')!;

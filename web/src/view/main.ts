@@ -2,12 +2,18 @@ import {
   createSim,
   forcesOnMap,
   formatClock,
+  fullMapDots,
   giveOrder,
   tickSim,
   type Force,
   type SimState
 } from '../sim/index';
-import { loadCampaignAssets, type CampaignAssets } from './assets';
+import {
+  blackToTransparent,
+  loadCampaignAssets,
+  loadFullMapAssets,
+  type CampaignAssets
+} from './assets';
 import {
   clampCamera,
   dragCamera,
@@ -28,6 +34,11 @@ import {
   layoutInfoWindow,
   type InfoWindow
 } from './force-window';
+import {
+  BLINK_PHASE_MS,
+  drawFullMapLevel,
+  type FullMapLevel
+} from './full-map-level';
 import {
   IDLE_ORDER,
   drawOrderPointerTag,
@@ -87,7 +98,16 @@ const FLASH_INTERVAL_MS = 500;
 // A press that moves no further than this is a click, not a drag.
 const CLICK_TOLERANCE_PX = 3;
 
-const run = (assets: CampaignAssets): void => {
+// The Level on show. Moving between Levels comes with #31; until then
+// ?level=full-map opens on the Full Map Level.
+type Level = 'campaign' | 'full-map';
+const initialLevel = (): Level =>
+  new URLSearchParams(window.location.search).get('level') === 'full-map'
+    ? 'full-map'
+    : 'campaign';
+
+const run = (assets: CampaignAssets, fullMap: FullMapLevel): void => {
+  const level: Level = initialLevel();
   const placements = iconPlacements(assets.icons);
   const driver = createTickDriver();
   let sim: SimState = createSim(0x14_18, assets.startingState, assets.tilemap);
@@ -197,6 +217,9 @@ const run = (assets: CampaignAssets): void => {
 
   canvas.style.cursor = 'grab';
   canvas.addEventListener('pointerdown', event => {
+    if (level === 'full-map') {
+      return;
+    }
     pointer = toNative(event);
     if (speedWindow) {
       const option = speedWindowOptionAt(speedWindow, pointer.x, pointer.y);
@@ -343,6 +366,19 @@ const run = (assets: CampaignAssets): void => {
   const frame = (now: number): void => {
     const elapsedMs = Math.min(1000, now - lastTime);
     lastTime = now;
+    // Game time does not pass on the Full Map Level
+    // (finding:time-stops-on-full-map-level).
+    if (level === 'full-map') {
+      drawFullMapLevel(
+        screen.hires,
+        fullMap,
+        fullMapDots(sim.roster),
+        Math.floor(now / BLINK_PHASE_MS) % 2 === 0
+      );
+      screen.present('hires');
+      requestAnimationFrame(frame);
+      return;
+    }
     for (let i = 0, ticks = driver.advance(elapsedMs); i < ticks; i++) {
       sim = tickSim(sim);
     }
@@ -366,7 +402,19 @@ const run = (assets: CampaignAssets): void => {
 drawMessage(['Loading Campaign Level...']);
 
 try {
-  run(await loadCampaignAssets());
+  const [campaign, fullMap] = await Promise.all([
+    loadCampaignAssets(),
+    loadFullMapAssets()
+  ]);
+  run(campaign, {
+    ...fullMap,
+    // Their black backgrounds are masked out like the Campaign Level's
+    // icon sheet; how the original masked them is provisional.
+    icons: fullMap.icons.map(icon => ({
+      ...icon,
+      image: blackToTransparent(icon.image)
+    }))
+  });
 } catch (error) {
   drawMessage([
     'Campaign Level assets are missing.',
