@@ -3,7 +3,9 @@ import { describe, expect, test } from 'bun:test';
 import type { FullMapDot } from '../sim/index';
 import {
   DOT_COLOUR_INDEX,
+  campaignCameraFor,
   dotFills,
+  fullMapIconAt,
   fullMapIconPlacements,
   type FullMapIcon
 } from './full-map-level';
@@ -66,5 +68,44 @@ describe('dotFills', () => {
     expect(dotFills(dots, false).at(-1)?.colourIndex).toBe(
       DOT_COLOUR_INDEX.blinkOff
     );
+  });
+});
+
+describe('campaignCameraFor', () => {
+  // The 160 by 99 tile Campaign Level map, 16 pixel tiles.
+  const tilemap = {
+    height: 99,
+    indices: [],
+    stride: 160,
+    tile_height: 16,
+    tile_width: 16,
+    width: 160
+  };
+
+  test('centres the clicked spot on the Campaign Level', () => {
+    // Hobbiton's dot is at (304, 50); the view is 320 by 192.
+    expect(campaignCameraFor({ x: 304, y: 50 }, tilemap)).toEqual({
+      x: 1218 - 160,
+      y: 404 - 96
+    });
+  });
+
+  test('clamps to the edges of the map', () => {
+    expect(campaignCameraFor({ x: 0, y: 0 }, tilemap)).toEqual({ x: 0, y: 0 });
+    expect(campaignCameraFor({ x: 639, y: 199 }, tilemap)).toEqual({
+      x: 160 * 16 - 320,
+      y: 99 * 16 - 192
+    });
+  });
+});
+
+describe('fullMapIconAt', () => {
+  const placements = fullMapIconPlacements([icon('magnifying-glass', 31, 15)]);
+
+  test('finds the icon under a hi-res point', () => {
+    expect(fullMapIconAt(placements, { x: 600, y: 42 })?.icon.name).toBe(
+      'magnifying-glass'
+    );
+    expect(fullMapIconAt(placements, { x: 300, y: 42 })).toBeUndefined();
   });
 });
