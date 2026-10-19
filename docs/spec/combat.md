@@ -156,3 +156,36 @@ enters the round (finding:combat-no-place-or-terrain-modifier).
   (finding:objects-ring-put-on-when-wounded) and fights fought on the
   Animation Level: milestone 6.
 - Encounters and friendly meetings.
+
+## The announcement and the combat window
+
+These are the view's, on the Campaign Level (#47). Times are the
+original's 50 Hz frames.
+
+- When a fight starts, a window at (56, 5) names it: "<Place> is being
+  attacked by <enemy>." at a Place that announces attacks, otherwise
+  "<Leader> is attacked by <enemy>.", or "… are attacked by …" for a
+  Unit. A Unit is named with its head count. It offers "Go there" and
+  "Ignore it". Unanswered, it presses "Ignore it" after 720 frames.
+  (finding:ui-fight-announcement,
+  finding:combat-unanswered-announcement-ignores-the-fight)
+- "Ignore it" fights the fight out at once. A message box at (10, 5)
+  gives the result, then one box per dead Character: "has died in
+  combat.", or "has been driven from the field." for a Nazgûl. Each
+  stays 200 frames or until a press. Time runs again while the last
+  is up. (finding:combat-ignored-fight-resolved-at-once)
+- "Go there" brings the fight into view and opens the combat window
+  at (6, 0), 272 pixels wide. It shows the option headers, a row per
+  combat row, and one message line. The opening "<A> and <B> move
+  grimly into battle." is followed by a 300-frame pause for orders.
+  Each round's loss messages then stay at least 180 frames each, and
+  rounds with no losses run at once. The result stays 300 frames, then
+  the fight ends. (finding:ui-combat-window-layout,
+  finding:combat-round-pacing, finding:combat-casualty-messages)
+- A Good row's four buttons set its option. The marked button is its
+  option; a charged or gone row has none. Names are white when hale,
+  red when wounded and grey when dead or destroyed, standing in for
+  the original's black, red and grey (finding:combat-name-colours).
+- `provisional`: a fight whose Good side is only Characters is fought
+  in this window too, until the Animation Level exists
+  (finding:combat-where-a-fight-is-fought).
