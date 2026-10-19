@@ -12,6 +12,7 @@ export interface ManifestAsset {
   depth?: number;
   height: number | null;
   kind: string;
+  name?: string;
   palette_source?: string;
   path: string;
   source: AssetSource | null;
@@ -63,6 +64,30 @@ export interface CampaignAssets {
   startingState: unknown;
   tilemap: Tilemap;
   tiles: TilesMeta;
+}
+
+export const FULL_MAP_ICON_NAMES = [
+  'eye',
+  'scroll',
+  'magnifying-glass',
+  'hourglass'
+] as const;
+
+export interface FullMapPalette {
+  colors: [number, number, number][];
+  hex: string[];
+  palette_source: string;
+  source: AssetSource | null;
+  warnings?: string[];
+}
+
+export interface FullMapAssets {
+  icons: {
+    image: HTMLImageElement;
+    name: (typeof FULL_MAP_ICON_NAMES)[number];
+  }[];
+  map: HTMLImageElement;
+  palette: FullMapPalette;
 }
 
 export const assetByKind = (
@@ -203,4 +228,42 @@ export const loadCampaignAssets = async (
     tilemap,
     tiles
   };
+};
+
+// Full Map Level bitmaps retain their native hi-res dimensions. Their
+// names and paths come from the manifest, including shared provenance
+// and the explicitly provisional palette (issue #29).
+export const loadFullMapAssets = async (
+  base = '/assets/'
+): Promise<FullMapAssets> => {
+  const manifest = await fetchJson<Manifest>(`${base}manifest.json`);
+  const mapAsset = requireAsset(
+    assetByKind(manifest, 'full-map'),
+    'Full Map Level art'
+  );
+  const paletteAsset = requireAsset(
+    assetByKind(manifest, 'full-map-palette'),
+    'Full Map Level palette'
+  );
+  const iconAssets = FULL_MAP_ICON_NAMES.map(name => ({
+    asset: requireAsset(
+      manifest.assets.find(
+        asset => asset.kind === 'full-map-icon' && asset.name === name
+      ),
+      `Full Map Level ${name} icon`
+    ),
+    name
+  }));
+
+  const [map, palette, icons] = await Promise.all([
+    loadImage(base + mapAsset.path),
+    fetchJson<FullMapPalette>(base + paletteAsset.path),
+    Promise.all(
+      iconAssets.map(async ({ asset, name }) => ({
+        image: await loadImage(base + asset.path),
+        name
+      }))
+    )
+  ]);
+  return { icons, map, palette };
 };

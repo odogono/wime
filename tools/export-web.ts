@@ -46,6 +46,18 @@ export const CAMPAIGN_MAP_HEIGHT = 99;
 export const CAMPAIGN_MAP_STRIDE = 160;
 export const TILE_ATLAS_COLUMNS = 32;
 
+// finding:graphics-full-map-icon-imag-ids, in column order.
+const FULL_MAP_ICONS = new Map([
+  [32, 'eye'],
+  [35, 'scroll'],
+  [33, 'magnifying-glass'],
+  [34, 'hourglass']
+]);
+const FULL_MAP_PALETTE_SOURCE =
+  'Provisional hand-entered full-map palette (tools/extract-graphics.ts#mapPalette)';
+const FULL_MAP_PALETTE_WARNING =
+  'Full Map Level colours are provisional; the palette has not been recovered from the Reference Build (finding:data-formats-imag-palettes-not-located).';
+
 export type AssetSource = {
   id: number | null;
   resource_file: string;
@@ -57,6 +69,7 @@ export type WebAsset = {
   depth?: number;
   height: number | null;
   kind: string;
+  name?: string;
   palette_source?: string;
   path: string;
   source: AssetSource | null;
@@ -168,14 +181,19 @@ export type PaletteJson = {
   colors: [number, number, number][];
   hex: string[];
   palette_source: string;
-  source: AssetSource;
+  source: AssetSource | null;
+  warnings?: string[];
 };
 
-// The flat 256-entry RGB palette the tools use, cut down to the colours
-// the campaign tiles actually address (16 RGB4 words in CHAR 1).
+// Cut a flat RGB palette down to the colours the asset actually addresses.
+// The default provenance is the Campaign Level's 16 RGB4 words in CHAR 1.
 export const paletteToJson = (
   palette: number[],
-  colourCount: number = 16
+  colourCount: number = 16,
+  provenance: Omit<PaletteJson, 'colors' | 'hex'> = {
+    palette_source: 'first 16 RGB4 words in CHAR resource',
+    source: { id: 1, resource_file: 'AMaps.res', type: 'CHAR' }
+  }
 ): PaletteJson => {
   const colors: [number, number, number][] = [];
   for (let i = 0; i < colourCount; i++) {
@@ -186,13 +204,12 @@ export const paletteToJson = (
     ]);
   }
   return {
+    ...provenance,
     colors,
     hex: colors.map(
       ([r, g, b]) =>
         `#${[r, g, b].map(v => v.toString(16).padStart(2, '0')).join('')}`
-    ),
-    palette_source: 'first 16 RGB4 words in CHAR resource',
-    source: { id: 1, resource_file: 'AMaps.res', type: 'CHAR' }
+    )
   };
 };
 
@@ -269,6 +286,28 @@ export const exportWebAssets = (
     width: atlas.width
   });
 
+  // IMAG resources carry indices, not a palette. Keep the existing
+  // hand-entered full-map palette until RE recovers the original colours.
+  const [, fullMapColours] = paletteForResourceFile('AMaps.res');
+  const fullMapPalette = paletteToJson(fullMapColours, 16, {
+    palette_source: FULL_MAP_PALETTE_SOURCE,
+    source: null,
+    warnings: [FULL_MAP_PALETTE_WARNING]
+  });
+  const fullMapPalettePath = join(outputDir, 'full-map', 'palette.json');
+  writeJson(fullMapPalettePath, fullMapPalette);
+  assets.push({
+    count: fullMapPalette.colors.length,
+    height: null,
+    kind: 'full-map-palette',
+    palette_source: fullMapPalette.palette_source,
+    path: relativePosix(outputDir, fullMapPalettePath),
+    source: fullMapPalette.source,
+    warnings: [FULL_MAP_PALETTE_WARNING],
+    width: null
+  });
+  warnings += 1;
+
   const palette = paletteToJson(campaign.palette);
   const palettePath = join(outputDir, 'campaign', 'palette.json');
   writeJson(palettePath, palette);
@@ -342,10 +381,9 @@ export const exportWebAssets = (
     width: null
   });
 
-  // Every decoded IMAG bitmap. No Finding identifies individual IMAG
-  // resources as the icon column, a UI window or the font yet, so all of
-  // them are exported and the manifest records each source resource; the
-  // web build picks the ones it needs as they get identified.
+  // Every decoded IMAG bitmap, with the Full Map Level art and icons
+  // identified for the view. Keep their existing paths so source-based
+  // lookups continue to work without duplicating any PNGs.
   let imagTotal = 0;
   let imagDecoded = 0;
   for (const [, [memberName, resourceNames]] of Object.entries(
@@ -367,12 +405,29 @@ export const exportWebAssets = (
           );
           decoded.pixelIndices.save(path);
           imagDecoded += 1;
-          warnings += decoded.warnings.length;
+          const isFullMap =
+            resourceName === 'AMaps.res' && resource.resourceId === 2;
+          const iconName =
+            resourceName === 'AMaps.res'
+              ? FULL_MAP_ICONS.get(resource.resourceId)
+              : undefined;
+          const isFullMapAsset = isFullMap || iconName !== undefined;
+          const assetWarnings = [
+            ...decoded.warnings,
+            ...(isFullMapAsset ? [FULL_MAP_PALETTE_WARNING] : [])
+          ];
+          warnings += assetWarnings.length;
           const asset: WebAsset = {
             depth: decoded.depth,
             height: decoded.height,
-            kind: 'graphics',
-            palette_source: paletteSource,
+            kind: isFullMap
+              ? 'full-map'
+              : iconName
+                ? 'full-map-icon'
+                : 'graphics',
+            palette_source: isFullMapAsset
+              ? FULL_MAP_PALETTE_SOURCE
+              : paletteSource,
             path: relativePosix(outputDir, path),
             source: {
               id: resource.resourceId,
@@ -381,8 +436,11 @@ export const exportWebAssets = (
             },
             width: decoded.width
           };
-          if (decoded.warnings.length > 0) {
-            asset.warnings = decoded.warnings;
+          if (iconName) {
+            asset.name = iconName;
+          }
+          if (assetWarnings.length > 0) {
+            asset.warnings = assetWarnings;
           }
           assets.push(asset);
         } catch (error) {
@@ -435,7 +493,8 @@ export const exportWebAssets = (
       'Generated by tools/export-web.ts; do not edit or commit this directory.',
       'Campaign tiles come from AMaps.res CHAR 1 and the tile map from AMaps.res MMAP 1; only the 160x99 grid is exported, not the trailing MMAP bytes.',
       'starting-state.json holds the opening roster, Places, Forces, routes, objects and clock, read from the data hunk of the WarInMiddleEarth executable.',
-      'No Finding identifies individual IMAG resources as the icon column, UI windows or the font yet, so every decoded IMAG is exported under graphics/ with its source resource.'
+      'Full Map Level art is AMaps.res IMAG 2 (640x200, 4 planes); its eye, scroll, magnifying glass and hourglass are IMAG 32, 35, 33 and 34. Their full-map palette is hand-entered and provisional; full-map/palette.json records its colours and provenance.',
+      'Every decoded IMAG is exported under graphics/ with its source resource, including bitmaps whose purpose is still unidentified.'
     ],
     skipped,
     summary: {
