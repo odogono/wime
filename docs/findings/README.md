@@ -6,7 +6,7 @@ Findings are never deleted. When new evidence overturns one, a new Finding `supe
 
 ## The file
 
-`docs/findings/<slug>.md`, where the slug is the Finding's permanent ID. Start it with the topic, such as `movement-hobbit-pace.md`. Never rename a Finding once merged, since Specs cite it.
+`docs/findings/<slug>.md`, where the slug is the Finding's permanent ID. Start it with the topic, such as `movement-hobbit-pace.md`. Never rename a Finding once merged, since Specs cite it. Name the slug and the text with the terms in [`GLOSSARY.md`](../../GLOSSARY.md); if a concept has no term yet, add it to the glossary first, since renaming later means rewriting every Finding that uses it.
 
 ```md
 ---
@@ -32,7 +32,7 @@ code+0x01a2c4 gives ...
   - `observed`: seen in play.
   - `confirmed`: shown in the code or data.
 - `sources`: one or more, as `kind:reference`:
-  - `manual:pdf-p11`: a page of `artifacts/WarinMiddleEarth-InstructionManual.pdf`.
+  - `manual:pdf-p11`: a page of `artifacts/WarinMiddleEarth-InstructionManual.pdf`. `bun run extract-manual` writes its text, marked by page, and page images to `extracted_text/`.
   - `observed:<scenario>`: a reference scenario played in vAmiga.
   - `resource:<file>#<type> <id>`: a resource in the Reference Build.
   - `disasm:code+0x<offset>` or `disasm:data+0x<offset>`: an offset into the code or data hunk of the Reference Build's executable ([docs/re](../re/README.md) explains the layout).
@@ -50,4 +50,4 @@ The text opens with a bold headline sentence stating the fact, then explains it 
 
 ## Checks
 
-`bun run findings:check`, part of `bun run check`, validates every Finding, every `supersedes`, and every `finding:<slug>` cited in `docs/spec/`. CI requires a PR scoped `re` to add or change a Finding ([commit conventions](../agents/commits.md)).
+`bun run findings:check`, part of `bun run check`, validates every Finding, every `supersedes`, and every `finding:<slug>` cited in `docs/spec/`. The pre-commit hook runs it whenever a commit touches `docs/findings/`. CI requires a PR scoped `re` to add or change a Finding ([commit conventions](../agents/commits.md)).

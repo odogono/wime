@@ -2,6 +2,7 @@
 /build/
 /extracted_graphics
 /extracted_text
+/extracted_asm
 /node_modules/
 /web/public/assets/
 .DS_Store

@@ -10,6 +10,7 @@ export default [
       'artifacts/*',
       'build/*',
       'extracted_graphics/*',
+      'extracted_asm/*',
       'extracted_text/*'
     ]
   },
