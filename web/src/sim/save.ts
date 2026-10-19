@@ -7,7 +7,7 @@ import type { SimState } from './state';
 // is no migration before 1.0. Bump SAVE_VERSION by hand whenever the
 // saved state's shape changes; save.test.ts pins the shape of each
 // version and fails if it changes without a bump.
-export const SAVE_VERSION = 1;
+export const SAVE_VERSION = 2;
 
 export type SavedState = Omit<SimState, 'tilemap'>;
 

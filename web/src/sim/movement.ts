@@ -250,22 +250,44 @@ const tickEntry = (world: MovementWorld, entry: RosterEntry): RosterEntry => {
   return stepped;
 };
 
-// Move every ticked Leader once, in roster order. The clock is the
-// caller's job (tickSim advances it after the sweep, as the
-// original did after entry 151).
-export const tickMovement = <T extends MovementWorld>(world: T): T => {
-  const next: MovementWorld = {
+// Move ticked Leaders in roster order from entry `from`. After each
+// step that moves an entry, `afterStep` may stop the sweep there, as
+// a fight does (docs/spec/combat.md); the sweep then reports where it
+// stopped so the caller can carry on from the next entry later.
+export const sweepMovement = <T extends MovementWorld>(
+  world: T,
+  from: number,
+  afterStep?: (world: T, index: number) => T | null
+): { stoppedAt: number | null; world: T } => {
+  const next = {
     ...world,
     roster: [...world.roster],
     routes: world.routes.map(route => [...route])
-  };
-  for (let i = 0; i < next.roster.length; i++) {
+  } as T;
+  for (let i = from; i < next.roster.length; i++) {
     const entry = next.roster[i]!;
-    // Keep positions fresh for arrival's route handling.
-    next.roster[i] = tickEntry(next, entry);
+    const stepped = tickEntry(next, entry);
+    next.roster[i] = stepped;
+    const moved =
+      stepped.position !== null &&
+      entry.position !== null &&
+      (stepped.position.x !== entry.position.x ||
+        stepped.position.y !== entry.position.y);
+    if (moved && afterStep) {
+      const stopped = afterStep(next, i);
+      if (stopped) {
+        return { stoppedAt: i, world: stopped };
+      }
+    }
   }
-  return next as T;
+  return { stoppedAt: null, world: next };
 };
+
+// Move every ticked Leader once, in roster order. The clock is the
+// caller's job (tickSim advances it after the sweep, as the
+// original did after entry 151).
+export const tickMovement = <T extends MovementWorld>(world: T): T =>
+  sweepMovement(world, 0).world;
 
 // Where an Order click sends a Force: a Place's own position when
 // the click is in its tile
