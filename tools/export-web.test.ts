@@ -13,6 +13,7 @@ import {
   buildTilemap,
   exportWebAssets,
   paletteToJson,
+  type PaletteJson,
   type WebManifest
 } from './export-web';
 import {
@@ -86,6 +87,22 @@ test('palette JSON exports RGB triples and hex for the used colours', () => {
   });
 });
 
+test('a provisional palette retains tool provenance without claiming a resource source', () => {
+  const palette = paletteToJson([255, 238, 170], 1, {
+    palette_source: 'Provisional hand-entered full-map palette',
+    source: null,
+    warnings: ['Colours are provisional.']
+  });
+
+  expect(palette).toEqual({
+    colors: [[255, 238, 170]],
+    hex: ['#ffeeaa'],
+    palette_source: 'Provisional hand-entered full-map palette',
+    source: null,
+    warnings: ['Colours are provisional.']
+  });
+});
+
 // The export test reads the Reference Build, which lives in the
 // gitignored artifacts/ dir and is absent in CI; it skips there.
 describe.skipIf(!existsSync(DEFAULT_ARCHIVE))('web export', () => {
@@ -107,8 +124,8 @@ describe.skipIf(!existsSync(DEFAULT_ARCHIVE))('web export', () => {
     });
     expect(manifest.skipped).toEqual([]);
     // Atlas, palette, tile map, atlas metadata, 115 graphics, text and
-    // the starting state.
-    expect(manifest.assets.length).toBe(121);
+    // the starting state, plus the provisional Full Map Level palette.
+    expect(manifest.assets.length).toBe(122);
     expect(manifest.summary.assets).toBe(manifest.assets.length);
 
     for (const asset of manifest.assets) {
@@ -122,6 +139,72 @@ describe.skipIf(!existsSync(DEFAULT_ARCHIVE))('web export', () => {
     }
 
     const byPath = new Map(manifest.assets.map(asset => [asset.path, asset]));
+
+    const fullMap = byPath.get('graphics/AMaps.res/IMAG_2.png')!;
+    expect(fullMap).toMatchObject({
+      depth: 4,
+      height: 200,
+      kind: 'full-map',
+      source: { id: 2, resource_file: 'AMaps.res', type: 'IMAG' },
+      width: 640
+    });
+    expect(fullMap.palette_source).toContain('Provisional');
+    expect(fullMap.warnings?.join(' ')).toContain('palette');
+
+    const fullMapPaletteAsset = byPath.get('full-map/palette.json')!;
+    expect(fullMapPaletteAsset.kind).toBe('full-map-palette');
+    // The provisional colours are tool data, not read from IMAG or CHAR.
+    expect(fullMapPaletteAsset.source).toBeNull();
+    const fullMapPalette = JSON.parse(
+      readFileSync(join(out, fullMapPaletteAsset.path), 'utf8')
+    ) as PaletteJson;
+    expect(fullMapPalette.source).toBeNull();
+    expect(fullMap.palette_source).toBe(fullMapPalette.palette_source);
+    expect(fullMapPalette.warnings).toEqual(fullMapPaletteAsset.warnings);
+    expect(fullMapPalette.colors).toHaveLength(16);
+    expect(fullMapPalette.hex[15]).toBe('#ffeeaa');
+
+    // PNG pixels must use the exported palette, including all 16 colours.
+    const mapPng = PNG.sync.read(readFileSync(join(out, fullMap.path)));
+    const colours = new Set<string>();
+    for (let i = 0; i < mapPng.data.length; i += 4) {
+      colours.add([...mapPng.data.subarray(i, i + 3)].join(','));
+    }
+    expect(colours).toEqual(
+      new Set(fullMapPalette.colors.map(rgb => rgb.join(',')))
+    );
+
+    const fullMapIcons = manifest.assets.filter(
+      asset => asset.kind === 'full-map-icon'
+    );
+    expect(fullMapIcons).toHaveLength(4);
+    expect(
+      fullMapIcons.map(asset => [
+        asset.name,
+        asset.source,
+        asset.width,
+        asset.height
+      ])
+    ).toEqual([
+      ['eye', { id: 32, resource_file: 'AMaps.res', type: 'IMAG' }, 40, 10],
+      [
+        'magnifying-glass',
+        { id: 33, resource_file: 'AMaps.res', type: 'IMAG' },
+        31,
+        15
+      ],
+      [
+        'hourglass',
+        { id: 34, resource_file: 'AMaps.res', type: 'IMAG' },
+        22,
+        14
+      ],
+      ['scroll', { id: 35, resource_file: 'AMaps.res', type: 'IMAG' }, 35, 16]
+    ]);
+    for (const icon of fullMapIcons) {
+      expect(icon.palette_source).toBe(fullMap.palette_source);
+      expect(icon.warnings?.join(' ')).toContain('provisional');
+    }
 
     const atlas = byPath.get('campaign/tiles.png')!;
     expect([atlas.width, atlas.height]).toEqual([
