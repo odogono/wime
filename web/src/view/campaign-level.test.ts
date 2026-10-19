@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 
+import type { Force, Place, PlaceKind, RosterEntry } from '../sim/index';
 import {
   assetByKind,
   assetBySource,
@@ -12,7 +13,10 @@ import {
   dragCamera,
   drawCampaignLevel,
   edgeScrollDirection,
+  forceAtPoint,
+  hoverTargetAt,
   iconPlacements,
+  iconSourceRect,
   maxCamera,
   stepCamera
 } from './campaign-level';
@@ -139,7 +143,10 @@ const fakeAssets = (draws: DrawCall[]): CampaignAssets => {
   void draws;
   return {
     atlas,
+    // The real IMAG 100 sheet is 80 by 96 (finding:data-formats-imag-bitmaps).
+    forceIcons: { height: 96, width: 80 } as HTMLCanvasElement,
     icons: [],
+    startingState: null,
     tilemap: {
       height: 2,
       indices: [0, 1, 2, 3, 3, 2],
@@ -216,6 +223,143 @@ describe('rendering', () => {
       [297, 2],
       [297, 16]
     ]);
+  });
+});
+
+const fakeEntry = (over: Partial<RosterEntry>): RosterEntry =>
+  ({
+    allegiance: 99,
+    icon: 0x02,
+    index: 1,
+    isUnit: false,
+    name: 'FRODO',
+    position: { x: 640, y: 368 },
+    strength: 1,
+    ...over
+  }) as RosterEntry;
+
+const fakeForce = (over: Partial<Force> = {}): Force => {
+  const leader = over.leader ?? fakeEntry({});
+  return {
+    active: true,
+    leader,
+    members: [leader],
+    onMap: true,
+    position: leader.position ?? { x: 640, y: 368 },
+    ...over
+  };
+};
+
+describe('force icons', () => {
+  test('the icon byte picks a 16x16 cell of IMAG 100 by nibbles', () => {
+    // finding:graphics-campaign-icon-sheet-is-imag-100: high nibble is
+    // the column, low nibble the row. Frodo is 0x02, Rohan cavalry
+    // 0x20 and Mordor Orcs 0x44 (docs/spec/starting-state.md).
+    expect(iconSourceRect(0x02)).toEqual({ x: 0, y: 32 });
+    expect(iconSourceRect(0x20)).toEqual({ x: 32, y: 0 });
+    expect(iconSourceRect(0x44)).toEqual({ x: 64, y: 64 });
+  });
+
+  test('a Force is blitted as its Leader icon at its map position', () => {
+    const draws: DrawCall[] = [];
+    const assets = fakeAssets(draws);
+    assets.tilemap = realTilemap(Array.from({ length: 160 * 99 }, () => 0));
+    const force = fakeForce();
+    drawCampaignLevel(fakeContext(draws), assets, { x: 480, y: 272 }, [force]);
+    // After the 21x13 tile blits: Frodo's cell at (640,368)-(480,272).
+    expect(draws.at(-1)).toEqual([0, 32, 16, 16, 160, 96, 16, 16]);
+  });
+
+  test('active Forces flash off; the rest stay drawn', () => {
+    const draws: DrawCall[] = [];
+    const assets = fakeAssets(draws);
+    assets.tilemap = realTilemap(Array.from({ length: 160 * 99 }, () => 0));
+    const active = fakeForce();
+    const evil = fakeForce({
+      active: false,
+      leader: fakeEntry({
+        allegiance: 0,
+        icon: 0x44,
+        index: 5,
+        isUnit: true,
+        name: 'orcs',
+        position: { x: 656, y: 368 }
+      }),
+      position: { x: 656, y: 368 }
+    });
+    drawCampaignLevel(
+      fakeContext(draws),
+      assets,
+      { x: 480, y: 272 },
+      [active, evil],
+      false
+    );
+    // Only the Evil badge is blitted in the off half of the flash.
+    expect(draws.slice(21 * 13)).toEqual([[64, 64, 16, 16, 176, 96, 16, 16]]);
+  });
+
+  test('Forces outside the viewport are not blitted', () => {
+    const draws: DrawCall[] = [];
+    const assets = fakeAssets(draws);
+    assets.tilemap = realTilemap(Array.from({ length: 160 * 99 }, () => 0));
+    drawCampaignLevel(fakeContext(draws), assets, { x: 0, y: 0 }, [
+      fakeForce()
+    ]);
+    expect(draws).toHaveLength(21 * 13);
+  });
+});
+
+describe('picking', () => {
+  const forces = [
+    fakeForce(),
+    fakeForce({
+      leader: fakeEntry({ index: 9, name: 'the NAZGUL LORD' }),
+      position: { x: 640, y: 368 }
+    })
+  ];
+
+  test('the last drawn Force wins where icons overlap', () => {
+    expect(forceAtPoint(forces, { x: 647, y: 375 })?.leader.name).toBe(
+      'the NAZGUL LORD'
+    );
+    expect(forceAtPoint(forces, { x: 639, y: 368 })).toBeNull();
+    expect(forceAtPoint(forces, { x: 656, y: 368 })).toBeNull();
+  });
+
+  test('hover names a Force, then a named Place, then a tile kind', () => {
+    const places: Place[] = [
+      {
+        announcesAttacks: false,
+        gridByte: 50,
+        gridReference: 'B3',
+        index: 2,
+        name: 'HOBBITON',
+        position: { x: 640, y: 368 },
+        tile: { x: 40, y: 23 },
+        tileKind: null
+      }
+    ];
+    const placeKinds: PlaceKind[] = [
+      { index: 70, name: 'a small town', tile: 46 }
+    ];
+    const indices = Array.from({ length: 160 * 99 }, () => 0);
+    indices[23 * 160 + 41] = 46; // the tile east of Hobbiton
+    const tilemap = realTilemap(indices);
+
+    // Frodo stands on Hobbiton's tile: the Force is named, not the Place.
+    expect(
+      hoverTargetAt(forces, places, placeKinds, tilemap, { x: 640, y: 368 })
+        ?.name
+    ).toBe('the NAZGUL LORD');
+    expect(
+      hoverTargetAt([], places, placeKinds, tilemap, { x: 640, y: 368 })?.name
+    ).toBe('HOBBITON');
+    expect(
+      hoverTargetAt([], places, placeKinds, tilemap, { x: 656, y: 368 })?.name
+    ).toBe('a small town');
+    expect(
+      hoverTargetAt([], places, placeKinds, tilemap, { x: 0, y: 0 })
+    ).toBeNull();
   });
 });
 

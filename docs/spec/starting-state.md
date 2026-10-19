@@ -27,7 +27,7 @@ The roster is a list of 195 entries, numbered 1 to 195 as in the original, becau
 - health and maximum health (finding:forces-health) and fighting strength.
 - allegiance: 0 Evil, 1 Good but not mobilised, 99 mobilised (finding:mobilisation-allegiance-byte).
 - leader (finding:forces-leader-byte-forms-forces), Default Orders route (finding:ai-default-orders-are-place-queues) and trigger (finding:ai-trigger-conditions).
-- objects carried (finding:objects-carried-as-a-bitmask), Campaign Level icon (finding:graphics-campaign-icon-index) and Animation Level figure.
+- objects carried (finding:objects-carried-as-a-bitmask), Campaign Level icon (finding:graphics-campaign-icon-index, finding:graphics-campaign-icon-sheet-is-imag-100) and Animation Level figure.
 
 Only entries 1 to 151 take part in the main loop. Entries 152 to 195 are Encounter figures: instead of a position and destination they have an area, a chance out of 100 and a first day, and they never move (finding:forces-encounter-figures-wait-in-areas).
 
@@ -68,7 +68,7 @@ These facts are provisional or not yet recovered, and the simulation should trea
 - Bree's position is one tile west of its town graphic on the map (finding:map-positions-are-campaign-pixels); whether the game uses it as is has not been observed.
 - How Game Speed sets the real time per quarter-hour has not been traced (finding:time-clock-advances-after-each-roster-sweep, finding:time-game-speed-settings).
 - Allegiance values other than 0, 1 and 99 (Boromir 70, Gollum 40, Glorfindel 4, the advisors 3, the Ents 2) have no settled meaning (finding:mobilisation-allegiance-byte).
-- Which picture each Campaign icon and Animation figure number selects has not been matched to the extracted graphics (finding:graphics-campaign-icon-index).
+- Which picture each Animation Level figure number selects has not been matched to the extracted graphics. The Campaign Level icons are matched (finding:graphics-campaign-icon-sheet-is-imag-100), but how the original masks an icon onto the map, and the rate at which active Forces flash, have not been traced.
 - Other code may trigger entries directly, for example Gandalf at the Council of Elrond; this has not been traced (finding:ai-trigger-conditions).
 
 ## Places at the start
