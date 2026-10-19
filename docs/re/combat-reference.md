@@ -1,0 +1,27 @@
+# Combat reference scenarios
+
+The `observed:combat-…` scenarios in the Findings are these fights, played in FS-UAE 3.2 on the Reference Build (issue #45). Each is a set-up from the start of the game: Forces are moved by writing to emulated memory, and the fight is left to the game.
+
+## Setting up
+
+1. Boot the WHDLoad install from `artifacts/amiga/WarInMiddleEarth_v1.0_0968.lha` on an A500+ with Kickstart 2.04, 1 MB chip and 4 MB fast memory, with the console debugger on.
+2. Click through the title screens to the Animation Level at Hobbiton, and press U once for the Campaign Level.
+3. Enter the debugger (F12+D). The data hunk loaded at 0x390E8 and the code hunk at 0x1D0C8. Check this each boot: the speed table at data+0x41c4 should read `0000 0150 0174`. Roster entry i is then at 0x3AED0 + 38 × i.
+4. Write the set-up with `W <address> <values>`, save the data hunk with `S <file> 390e8 5a04`, and decode the roster from the dump. A breakpoint at code+0x0f812 (0x2C8DA) stops the emulator as an announcement appears (finding:analysis-breakpoint-beats-the-announcement-timeout).
+
+A fight starts only when the moving Leader steps onto a tile origin within 7 pixels of the other (finding:combat-fight-starts-when-evil-meets-non-evil). Each set-up therefore puts the mover one pixel short of the other's tile origin, or the other on the mover's next tile origin. Mouse clicks and key presses have to be posted to FS-UAE as CGEvents.
+
+The blows depend on the frame each round runs on (finding:combat-rolls-mix-in-the-frame-counter), so the outcomes below are single samples. A reimplementation should be checked against their distribution, not their exact numbers.
+
+## Scenarios
+
+| Scenario                    | Set-up                                                                                                                                                                                           | Answer                              | Outcome                                                                                                                                                                                                             |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `combat-calembel-ignored`   | Day 0. Gondor infantry, entry 73 (1,000, fighting strength 2), woken at (1296, 1167) heading for Calembel (1296, 1168). Orcs, entry 141 (500, 2), put at (1296, 1168), heading for (1296, 1200). | None; it timed out after about 14 s | "CALEMBEL is being attacked by 500 orcs.", then "The good forces are victorious!" in a message box. Infantry 1,000 → 864; orcs destroyed.                                                                           |
+| `combat-east-emnet-ignored` | Day 0. Orcs, entry 142 (500, 2), put at (1360, 959) heading for (1360, 1000). Éomer, entry 13, waiting at East Emnet (1360, 960).                                                                | Timed out                           | "EOMER is attacked by 500 orcs.", then "The forces of EVIL have won." Éomer dead, with his health still recorded as 5; orcs 500 → 444.                                                                              |
+| `combat-faramir-go-there`   | Day 1. Faramir, entry 15, and the 200 Rangers following him moved to (1360, 992). Orcs, entry 142 (444 left), at (1360, 985) heading for (1360, 1000).                                           | "Go there"                          | Fought in the combat window on the Campaign Level; the clock stayed at 5 a.m. throughout. Rangers destroyed, then "FARAMIR is struck down by a frenzied attack!" and "The forces of EVIL have won." Orcs 444 → 178. |
+| `combat-eomer-dies-ignored` | Day 1. Éomer revived (strength 1, awake) at (1360, 1007), heading for (1360, 1040). Orcs, entry 142 (178), resting at (1360, 1008).                                                              | Timed out                           | "EOMER is attacked by 178 orcs.", then "The forces of EVIL have won." and "EOMER has died in combat.". Éomer's health went 5 → 1 before he died; the orcs 178 → 165, and moving again.                              |
+
+The announcement and window texts are quoted in the Findings that cite each scenario.
+
+Keep the captures and memory dumps in a gitignored directory such as `build/fs-uae/`; they are extracted from the original and are never committed.

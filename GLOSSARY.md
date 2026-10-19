@@ -71,6 +71,10 @@ _Avoid_: Location, site, town
 One of the five major Good Places (the Hornburg, Edoras, Minas Tirith, Lórien and Thranduil's Palace). Losing any three loses the game.
 _Avoid_: Capital, base
 
+**Garrison**:
+A Unit that stands at a Place with no destination and never moves until triggered, defending it. Each Stronghold has one, and the Stronghold falls when its Garrison is destroyed.
+_Avoid_: Defenders, guard, fort troops
+
 ## Play
 
 **Order**:

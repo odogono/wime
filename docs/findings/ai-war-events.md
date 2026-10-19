@@ -24,4 +24,4 @@ The daily check at hour 8 sets them in this order:
 - Bit 6 is set once bit 7 is set (code+0x0e170).
 - Bit 7 is set on day 169 (10 March), with the message "The Dark Lord's armies march forth!" (code+0x0e190).
 
-Bit 7 can also be set sooner: by a random chance after a vision in the Palantír (code+0x07136), and in the battle code (code+0x0efec), which has not been traced. At the start the mask is 0x05 and every event day is 0.
+Bit 7 can also be set sooner: by a random chance after a vision in the Palantír (code+0x07136), and when a non-Evil Leader reaches the approaches to Mordor (code+0x0efec; finding:ai-good-force-near-mordor-starts-the-war). At the start the mask is 0x05 and every event day is 0.
