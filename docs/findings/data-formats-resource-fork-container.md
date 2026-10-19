@@ -3,7 +3,7 @@ kind: fact
 topic: data-formats
 confidence: confirmed
 sources:
-  - tool:tools/extract_graphics.py#parse_resource_fork
+  - tool:tools/extract-graphics.ts#parseResourceFork
 ---
 **Each `.res` file is a resource fork in the classic Macintosh layout: a 16-byte header, a data area, and a resource map that lists resources by four-character type and 16-bit ID.**
 All numbers are big-endian. The header holds four 32-bit values: data area offset, map offset, data area length and map length. In the map, the 16-bit value at map offset +24 is the offset of the type list and the one at +26 is the offset of the name list, both counted from the start of the map.

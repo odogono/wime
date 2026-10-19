@@ -3,8 +3,8 @@ kind: fact
 topic: data-formats
 confidence: confirmed
 sources:
-  - tool:tools/render_campaign_map.py#decode_campaign_tiles
-  - tool:tools/render_campaign_map.py#load_campaign_map_assets
+  - tool:tools/render-campaign-map.ts#decodeCampaignTiles
+  - tool:tools/render-campaign-map.ts#loadCampaignMapAssets
   - resource:AMaps.res#CHAR 1
 ---
 **The Campaign Level map is built from 320 tiles of 16 by 16 pixels in 16 colours, stored in AMaps.res as CHAR 1.**

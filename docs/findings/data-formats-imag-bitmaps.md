@@ -3,7 +3,7 @@ kind: fact
 topic: data-formats
 confidence: confirmed
 sources:
-  - tool:tools/extract_graphics.py#decode_imag_resource
+  - tool:tools/extract-graphics.ts#decodeImagResource
   - resource:AMaps.res#IMAG 100
   - resource:ATitle.res#IMAG 70
 ---

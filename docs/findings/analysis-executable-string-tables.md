@@ -7,7 +7,7 @@ sources:
   - strings:0x9478
   - strings:0x9a7d
   - strings:0x9dbf
-  - tool:tools/extract_text.py#extract_embedded_strings
+  - tool:tools/extract-text.ts#extractEmbeddedStrings
 issue: 5
 ---
 **A printable-string scan of the executable finds the Character rosters, Unit Types and Place names laid out in order in its data, which points to where the starting-state tables live.**

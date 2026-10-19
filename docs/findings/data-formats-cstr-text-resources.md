@@ -3,7 +3,7 @@ kind: fact
 topic: data-formats
 confidence: confirmed
 sources:
-  - tool:tools/extract_text.py#decode_cstr_payload
+  - tool:tools/extract-text.ts#decodeCstrPayload
   - resource:AText.res#CSTR 57
   - resource:BScene.res#CSTR 56
 ---

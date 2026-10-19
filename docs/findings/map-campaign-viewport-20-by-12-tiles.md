@@ -3,7 +3,7 @@ kind: fact
 topic: map
 confidence: provisional
 sources:
-  - tool:tools/render_campaign_map.py#render_campaign_outputs
+  - tool:tools/render-campaign-map.ts#renderCampaignOutputs
   - manual:pdf-p9
 ---
 **The Campaign Level probably shows 20 by 12 tiles (320 by 192 pixels) at a time, so one tile covers about 12.5 miles.**
