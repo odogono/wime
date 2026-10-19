@@ -8,13 +8,19 @@ Names given to addresses in the Reference Build's executable during analysis ([a
 | -------------- | -------------------- | ---------------------------------------------------------------------------------------- |
 | `code+0x00000` | `entry`              | `jmp code+0x1afb0`                                                                       |
 | `code+0x00396` | `figureStep`         | works out the next tile for the watched Character's facing                               |
+| `code+0x04528` | `describeEntry`      | one status row: "is going to", "heading", "following", "at", "resting."                  |
+| `code+0x04dde` | `listForcesNear`     | Good and Evil lists near (x, y); (0, 0) lists every moving Leader                        |
 | `code+0x06b5c` | `pickUpObject`       | takes an object from the placement table into the object word                            |
 | `code+0x06e9c` | `heal`               | sets health to maximum, "… feels much better."                                           |
 | `code+0x070bc` | `palantirVision`     | "Looking deep into the crystal, … sees a vision:"; may set war event bit 7               |
+| `code+0x07dc4` | `galadrielsMirror`   | the Full Map eye: "In the still surface of the pool…"                                    |
+| `code+0x07eb0` | `archiveWindow`      | "Would you like to..." restore or save                                                   |
 | `code+0x08be0` | `saveGame`           | writes `data+0x1de8–0x3e71` to `A:ARCHIVE.DAT`                                           |
 | `code+0x08d12` | `restoreGame`        | reads it back and restores the name pointers                                             |
 | `code+0x0d26c` | `drawCampaignForces` | draws each awake leader's icon; blinks the player's                                      |
+| `code+0x0d452` | `drawFullMap`        | blits AMaps IMAG 2, then the dots                                                        |
 | `code+0x0d4c2` | `drawFullMapDots`    | one dot per awake leader at (x/4, y/8)                                                   |
+| `code+0x0d5d4` | `enterFullMap`       | places the Full Map icons and loads its palette                                          |
 | `code+0x0d718` | `blinkFullMapDots`   | loop that blinks the player's dots on the Full Map Level                                 |
 | `code+0x0d894` | `hourlyUpdate`       | draws the date and, at hour 8, runs the daily checks                                     |
 | `code+0x0da6c` | `councilOfElrond`    | Ring-bearer's Force and Gandalf at Rivendell; moves the calendar on                      |
@@ -66,8 +72,13 @@ Names given to addresses in the Reference Build's executable during analysis ([a
 | `data+0x4230` | `monthStart`           | 8 words                                         |
 | `data+0x4242` | `terrainByTile`        | 256 bytes                                       |
 | `data+0x4342` | `objects`              | 17 × 8                                          |
+| `data+0x4ac8` | `fullMapPalette`       | 16 RGB4 words                                   |
 | `data+0x4f40` | `blinkPhase`           | toggles each frame                              |
 | `data+0x4fec` | `frameCounter`         | compared with `data+0x08c2` before a clock step |
 | `data+0x5020` | `iconSheet`            | Campaign icon bitmap                            |
+| `data+0x548a` | `listEntries`          | roster index per row of `listForcesNear`        |
+| `data+0x54ee` | `listStrengths`        | summed strength per row                         |
 | `data+0x5555` | `mode`                 | 1, 2 or 3; probably the current Level           |
+| `data+0x555b` | `goodRows`             | byte, rows in the Good column                   |
+| `data+0x555c` | `evilRows`             | byte, rows in the Evil column                   |
 | `data+0x56b3` | `tickEntry`            | roster entry the tick is on, 1–151              |
