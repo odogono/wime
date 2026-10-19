@@ -14,6 +14,7 @@
     "findings:check": "bun tools/findings/findings.ts check",
     "extract-graphics": "bun tools/extract-graphics.ts",
     "extract-text": "bun tools/extract-text.ts",
+    "extract-starting-state": "bun tools/extract-starting-state.ts",
     "render-campaign-map": "bun tools/render-campaign-map.ts",
     "export:web": "bun tools/export-web.ts",
     "typecheck": "tsc --noEmit && bun run --cwd web typecheck",

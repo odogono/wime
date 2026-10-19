@@ -102,11 +102,13 @@ describe.skipIf(!existsSync(DEFAULT_ARCHIVE))('web export', () => {
       campaign_tiles: 320,
       cstr_resources: 61,
       imag_decoded: 115,
-      imag_total: 115
+      imag_total: 115,
+      roster_entries: 196
     });
     expect(manifest.skipped).toEqual([]);
-    // Atlas, palette, tile map, atlas metadata, 115 graphics, text.
-    expect(manifest.assets.length).toBe(120);
+    // Atlas, palette, tile map, atlas metadata, 115 graphics, text and
+    // the starting state.
+    expect(manifest.assets.length).toBe(121);
     expect(manifest.summary.assets).toBe(manifest.assets.length);
 
     for (const asset of manifest.assets) {
@@ -181,6 +183,12 @@ describe.skipIf(!existsSync(DEFAULT_ARCHIVE))('web export', () => {
       id: 100,
       resource_file: 'AMaps.res',
       type: 'IMAG'
+    });
+
+    expect(byPath.get('starting-state.json')!.source).toEqual({
+      id: null,
+      resource_file: 'WarInMiddleEarth',
+      type: 'HUNK'
     });
 
     // The manifest on disk is the manifest that was returned.
