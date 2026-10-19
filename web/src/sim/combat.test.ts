@@ -470,3 +470,74 @@ describe('reference fights', () => {
     expect(result.high).toBeGreaterThanOrEqual(13);
   });
 });
+
+// The roster's strengths after the same fight, fought at a Place.
+const strengthsAfterFightAt = (position: Point): number[] =>
+  resolveFight(
+    fought(
+      world(
+        [
+          unit(73, 'infantry', 3000, { position }),
+          unit(144, 'orcs', 1000, { ...EVIL, position })
+        ],
+        7
+      ),
+      73
+    )
+  ).roster.map(entry => entry.strength);
+
+const MORANNON = { x: 1744, y: 1008 };
+
+// What a 3,000-strong attacker loses, on average, against 1,000 orcs
+// of a given fighting strength.
+const attackerLoss = (fighting: number): number => {
+  let lost = 0;
+  for (let seed = 1; seed <= 200; seed++) {
+    const after = resolveFight(
+      fought(
+        world(
+          [
+            unit(73, 'infantry', 3000, { position: MORANNON }),
+            unit(144, 'orcs', 1000, {
+              ...EVIL,
+              fighting,
+              position: MORANNON
+            })
+          ],
+          seed
+        ),
+        73
+      )
+    );
+    lost += 3000 - after.roster[73]!.strength;
+  }
+  return lost / 200;
+};
+
+// Defended Places are defended only by their Garrisons' stats
+// (finding:places-defended-by-garrison-units,
+// finding:combat-no-place-or-terrain-modifier).
+describe('garrisons', () => {
+  test("a Garrison's fighting strength makes an assault cost more than on troops in the field", () => {
+    // The Morannon's orcs fight at 3, orcs in the field at 2.
+    expect(attackerLoss(3)).toBeGreaterThan(attackerLoss(2) * 1.2);
+  });
+
+  test('a Garrison never starts a fight, though it stands next to the enemy', () => {
+    let sim = world([
+      unit(73, 'infantry', 3000, { position: { x: 1744, y: 1012 } }),
+      unit(144, 'orcs', 10_000, { ...EVIL, position: MORANNON })
+    ]);
+    for (let i = 0; i < 20; i++) {
+      sim = tickSim(sim);
+    }
+    expect(sim.fight).toBeNull();
+    expect(sim.roster[144]!.position).toEqual(MORANNON);
+  });
+
+  test('the same fight costs the same wherever it is fought', () => {
+    expect(strengthsAfterFightAt(MORANNON)).toEqual(
+      strengthsAfterFightAt(CALEMBEL)
+    );
+  });
+});
