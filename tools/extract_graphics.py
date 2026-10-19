@@ -76,7 +76,7 @@ def load_lha_member(archive: Path | str, member: str) -> bytes:
     try:
         return subprocess.check_output(["lha", "pq", str(archive), member])
     except FileNotFoundError as exc:
-        raise ExtractError("lha is required on PATH") from exc
+        raise ExtractError("lha is required on PATH (brew install lhasa)") from exc
     except subprocess.CalledProcessError as exc:
         raise ExtractError(f"failed to extract {member} from {archive}") from exc
 

@@ -25,4 +25,4 @@ The original game files live in `artifacts/`, which is gitignored and never comm
 
 `artifacts/` exists only in the main checkout. In a worktree, the tools find it through `ARTIFACTS_DIR` in `tools/extract_graphics.py`. Never copy these files, or anything extracted from them, into tracked paths.
 
-The Python tools need `lha` on PATH (`brew install lha`) and Pillow.
+The Python tools need `lha` on PATH (`brew install lhasa`) and Pillow.
