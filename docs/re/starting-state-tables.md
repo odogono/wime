@@ -14,7 +14,10 @@ The starting state is the initialised data hunk as loaded: no code builds it at 
 | `0x3e72–0x412d` | named Places 0–69 (0 is empty)                                         | 70 × 10     |
 | `0x412e–0x41c3` | generic Place kinds 70–84                                              | 15 × 10     |
 | `0x41c4–0x41db` | speed table                                                            | 2 × 6 words |
+| `0x41dc–0x41fb` | one-pixel movement steps by facing, dx then dy                         | 2 × 8 words |
 | `0x41fc–0x421b` | facing steps, dx then dy                                               | 2 × 8 words |
+| `0x421c–0x4226` | desired facing by sign toward destination (indexed from `0x421d`)      | 11 bytes    |
+| `0x4227–0x422e` | steering weights by angular distance from the desired facing           | 8 bytes     |
 | `0x4230–0x423f` | first day of each month                                                | 8 words     |
 | `0x4242–0x4341` | per-tile terrain value, indexed by tile                                | 256 bytes   |
 | `0x4342–0x43c9` | objects                                                                | 17 × 8      |

@@ -56,8 +56,12 @@ Names given to addresses in the Reference Build's executable during analysis ([a
 | `data+0x3e6a` | `ringBearer`           | byte; also base of `eventDay[bit]`              |
 | `data+0x3e72` | `places`               | 85 × 10                                         |
 | `data+0x41c4` | `speedTable`           | 2 × 6 words                                     |
+| `data+0x41dc` | `stepDx`               | 8 words, one-pixel steps by facing              |
+| `data+0x41ec` | `stepDy`               | 8 words, one-pixel steps by facing              |
 | `data+0x41fc` | `facingDx`             | 8 words                                         |
 | `data+0x420c` | `facingDy`             | 8 words                                         |
+| `data+0x421c` | `facingBySign`         | 11 bytes, indexed -1..9 from `data+0x421d`      |
+| `data+0x4227` | `steeringWeights`      | 8 bytes, 100 69 39 19 9 19 39 69                |
 | `data+0x422f` | `passedCopyProtection` | byte                                            |
 | `data+0x4230` | `monthStart`           | 8 words                                         |
 | `data+0x4242` | `terrainByTile`        | 256 bytes                                       |

@@ -34,6 +34,9 @@ export interface RosterEntry {
   facing: number;
   fighting: number;
   figure: number;
+  // Sub-pixel movement carry in 256ths of a pixel
+  // (finding:movement-speed-classes). Always 0 at the start.
+  fraction: number;
   health: number;
   icon: number;
   index: number;
@@ -87,7 +90,22 @@ export interface StartingState {
   places: Place[];
   ringBearer: number;
   roster: RosterEntry[];
+  // Default Orders queues by route row, as Place indexes
+  // (finding:ai-default-orders-are-place-queues).
+  routes: number[][];
+  // Pace in 256ths of a pixel per step by speed class
+  // (finding:movement-speed-classes).
+  speeds: { diagonal: number[]; straight: number[] };
+  // Terrain percentage by map tile number
+  // (finding:movement-terrain-percent-scales-pace).
+  terrainByTile: number[];
 }
+
+// The speed table, used when a starting state does not carry it.
+export const DEFAULT_SPEEDS = {
+  diagonal: [0, 238, 262, 292, 326, 362],
+  straight: [0, 336, 372, 414, 460, 512]
+};
 
 export interface Force {
   // The player can control an active Force, and its icon flashes
@@ -170,6 +188,12 @@ const loadRosterEntry = (value: unknown, index: number): RosterEntry => {
     facing: num(value.facing, `${what}.facing`),
     fighting: num(value.fighting, `${what}.fighting`),
     figure: num(value.figure, `${what}.figure`),
+    fraction:
+      typeof value.fraction === 'number'
+        ? value.fraction
+        : value.fraction === null || value.fraction === undefined
+          ? 0
+          : fail(`${what}.fraction is not a number`),
     health: num(value.health, `${what}.health`),
     icon: num(value.icon, `${what}.icon`),
     index: num(value.index, `${what}.index`),
@@ -261,7 +285,36 @@ export const loadStartingState = (json: unknown): StartingState => {
     }),
     places: json.places.map(loadPlace),
     ringBearer: num(events.ring_bearer, 'events.ring_bearer'),
-    roster: json.roster.map(loadRosterEntry)
+    roster: json.roster.map(loadRosterEntry),
+    routes: Array.isArray(json.routes)
+      ? json.routes.map((route, i) =>
+          isRecord(route) && Array.isArray(route.places)
+            ? route.places.map((place, j) =>
+                num(place, `routes[${i}].places[${j}]`)
+              )
+            : fail(`routes[${i}] is not an object with places`)
+        )
+      : [],
+    speeds: isRecord(json.speeds)
+      ? {
+          diagonal: Array.isArray(json.speeds.diagonal)
+            ? json.speeds.diagonal.map((v, i) =>
+                num(v, `speeds.diagonal[${i}]`)
+              )
+            : fail('speeds.diagonal is not an array'),
+          straight: Array.isArray(json.speeds.straight)
+            ? json.speeds.straight.map((v, i) =>
+                num(v, `speeds.straight[${i}]`)
+              )
+            : fail('speeds.straight is not an array')
+        }
+      : {
+          diagonal: [...DEFAULT_SPEEDS.diagonal],
+          straight: [...DEFAULT_SPEEDS.straight]
+        },
+    terrainByTile: Array.isArray(json.terrain_by_tile)
+      ? json.terrain_by_tile.map((v, i) => num(v, `terrain_by_tile[${i}]`))
+      : []
   };
 };
 

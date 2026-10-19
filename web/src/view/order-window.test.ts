@@ -1,0 +1,122 @@
+import { describe, expect, test } from 'bun:test';
+
+import type { Force, Place, RosterEntry } from '../sim/index';
+import {
+  IDLE_ORDER,
+  isInOrderWindow,
+  layoutOrderWindow,
+  orderWindowOptionAt,
+  pickForceAt,
+  pickMember,
+  toggleOrder
+} from './order-window';
+
+const entry = (over: Partial<RosterEntry>): RosterEntry =>
+  ({
+    destination: null,
+    index: 0,
+    isUnit: false,
+    name: '',
+    strength: 1,
+    ...over
+  }) as RosterEntry;
+
+const frodo = entry({
+  destination: { x: 784, y: 384 },
+  index: 7,
+  name: 'FRODO'
+});
+const force: Force = {
+  active: true,
+  leader: frodo,
+  members: [
+    frodo,
+    entry({ index: 8, name: 'SAM' }),
+    entry({ index: 14, isUnit: true, name: 'cavalry', strength: 120 })
+  ],
+  onMap: true,
+  position: { x: 640, y: 368 }
+};
+const places: Place[] = [
+  {
+    announcesAttacks: false,
+    gridByte: 50,
+    gridReference: 'B3',
+    index: 16,
+    name: 'BREE',
+    position: { x: 784, y: 384 },
+    tile: { x: 49, y: 24 },
+    tileKind: null
+  }
+];
+
+describe('order flow', () => {
+  test('the arrow starts picking a Force and cancels an Order in progress', () => {
+    expect(toggleOrder(IDLE_ORDER)).toEqual({ kind: 'pick-force' });
+    expect(toggleOrder({ kind: 'pick-force' })).toEqual({ kind: 'idle' });
+    expect(
+      toggleOrder({ kind: 'pick-destination', leaderIndex: 7, selected: 7 })
+    ).toEqual({ kind: 'idle' });
+  });
+
+  test('clicking an active Force moves to picking its destination', () => {
+    expect(
+      pickForceAt({ kind: 'pick-force' }, [force], { x: 645, y: 370 })
+    ).toEqual({
+      kind: 'pick-destination',
+      leaderIndex: 7,
+      selected: 7
+    });
+  });
+
+  test('clicking empty map or an inactive Force keeps picking', () => {
+    expect(
+      pickForceAt({ kind: 'pick-force' }, [force], { x: 0, y: 0 })
+    ).toEqual({
+      kind: 'pick-force'
+    });
+    const evil = { ...force, active: false };
+    expect(
+      pickForceAt({ kind: 'pick-force' }, [evil], { x: 645, y: 370 })
+    ).toEqual({
+      kind: 'pick-force'
+    });
+  });
+
+  test('clicking a member name selects that member for the Order', () => {
+    const state = {
+      kind: 'pick-destination',
+      leaderIndex: 7,
+      selected: 7
+    } as const;
+    expect(pickMember(state, 8)).toEqual({ ...state, selected: 8 });
+    expect(pickMember(IDLE_ORDER, 8)).toEqual(IDLE_ORDER);
+  });
+});
+
+describe('order window', () => {
+  test('lists members with the Leader heading, one option per member', () => {
+    const window = layoutOrderWindow(force, places);
+    expect(window.x).toBe(2);
+    expect(window.y).toBe(2);
+    expect(window.options.map(option => option.label)).toEqual([
+      'FRODO -> BREE',
+      '  SAM',
+      '  cavalry (120)'
+    ]);
+    expect(window.options.map(option => option.memberIndex)).toEqual([
+      7, 8, 14
+    ]);
+  });
+
+  test('options hit-test by line, and the window bounds its lines', () => {
+    const window = layoutOrderWindow(force, places);
+    const sam = window.options[1]!;
+    expect(orderWindowOptionAt(window, sam.x + 1, sam.y + 1)?.memberIndex).toBe(
+      8
+    );
+    expect(orderWindowOptionAt(window, 300, 190)).toBeUndefined();
+    expect(isInOrderWindow(window, window.x + 1, window.y + 1)).toBe(true);
+    expect(isInOrderWindow(window, 300, 190)).toBe(false);
+  });
+});

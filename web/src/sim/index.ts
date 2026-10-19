@@ -17,6 +17,18 @@ export {
   type Clock,
   type DisplayTime
 } from './clock';
+export {
+  canOrder,
+  desiredFacing,
+  destinationForClick,
+  giveOrder,
+  paceFor,
+  terrainAt,
+  tickMovement,
+  tileNumberAt,
+  type MovementWorld,
+  type Tilemap
+} from './movement';
 export { createRng, nextRandom, type RngState } from './rng';
 export {
   forcesOf,

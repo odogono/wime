@@ -28,6 +28,23 @@ under a position is (x ÷ 16, y ÷ 16)
   (`finding:movement-destination-snaps-to-place`)
 - `observed`: on arrival the destination clears to (0, 0) and the
   Force stays where it stopped.
+- On arrival the entry turns resting and takes the next stop off its
+  Default Orders route; the destination only clears when that route
+  is empty (`finding:movement-arrival-pops-next-route-stop`).
+  Arrival is tested exactly on the destination pixel at a tile
+  origin, so a destination that is not tile-aligned can never be
+  arrived at.
+- Ordering part of a Force: clicking a Character in the Order
+  window gives the Order to that Character and all of its
+  followers, splitting them off from the rest of the Force
+  (`finding:movement-ordering-part-of-a-force`). The split-off
+  member becomes a Leader at the Force's position; entries whose
+  leader chain runs through it go with it. `provisional`: we allow
+  ordering a Unit member the same way, and a click that is not on a
+  Place's tile sets the destination to that tile's origin; neither
+  has been observed. Giving an Order sets the ordered entry moving
+  (state 1) even if it was resting; if its stamina is 0 it rests
+  again on the next tick.
 
 ## Pace
 
@@ -41,14 +58,20 @@ under a position is (x ÷ 16, y ÷ 16)
   (class 3) south along the Ithilien track at x = 1648 (tile 104),
   with diagonal movement at 2.28 px/tick Manhattan for class 3.
   Tolerance ±0.15 px/tick on sampled segments.
-- `observed`: off road and track tiles, pace is about 1 px/tick,
-  on diagonals about 1 px/tick per axis: Frodo's Force heading south
-  from Hobbiton to the road (tile 62), Éomer's cavalry (class 4)
-  west across the plain (tile 33), and Faramir's first leg through
-  the woods of North Ithilien (tiles 229, 247) all show this. Which
-  tiles count as road or track, and whether other terrain has its
-  own pace, is not yet recovered.
-  (`finding:movement-terrain-limits-pace`)
+- Every tile has a terrain value from 5 to 100, and the step's pace
+  is the speed-class pace times that value over 100, read at the
+  tile under the entry's centre (position + 8). The table is
+  exported with the starting state (`terrain_by_tile`). Roads and
+  tracks (tiles 104, 105 and their neighbours) are among the 44
+  tiles rated 100; plain (33) and the Ithilien woods (229, 247)
+  are rated 60, so Éomer's class-4 pace there is
+  460 × 60 ⁄ 100 ⁄ 256 ≈ 1.08 px/tick. No tile is rated 0.
+  (`finding:movement-terrain-percent-scales-pace`) The
+  `observed` paces below fit this: about 1 px/tick off road was
+  the 60% rate sampled over mixed segments.
+- A step that would move 2 pixels moves only 1 when that pixel
+  lands exactly on a tile origin
+  (`finding:movement-step-moves-to-tile-origin`).
 - `observed`: a mixed Force moves at its leader's pace, not the
   slowest member's. Faramir (class 3) leading his Rangers (entry 16,
   class 2) covered the second leg to Osgiliath in 31 steps, which
@@ -80,13 +103,27 @@ under a position is (x ÷ 16, y ÷ 16)
 
 ## Rivers and route-finding
 
-- `observed`: river tiles are impassable away from crossings, and
-  the route-finder does not search far for one. Éomer, ordered from
-  East Emnet to Edoras, reached the west bank of the Entwash at
-  x = 1328, walked north along it to about (1328, 945), then
-  returned south-east to about (1341, 960) and west again, looping
-  for four days without arriving. His destination stayed set the
-  whole time. (`finding:movement-rivers-block-route-finding`)
+- Steering happens only at tile origins. The entry computes a
+  desired facing toward its destination (an axis only counts when
+  twice its distance beats the other axis), then scores the eight
+  neighbouring tiles as terrain value × a facing weight (100, 69,
+  39, 19, 9 by angular distance from desired), with a reverse
+  step's score divided by 8 — only for current facings 0–3, a
+  quirk of the original comparison. One time in ten it takes the
+  desired facing directly if the next tile's terrain is at least 10. There is no search beyond the neighbouring tiles
+  (`finding:movement-greedy-tile-steering`).
+- `observed`: a Force whose way is blocked by low-rated river
+  tiles walks the bank and loops, keeping its Order. Éomer,
+  ordered from East Emnet to Edoras, reached the west bank of the
+  Entwash at x = 1328, walked north along it to about (1328, 945),
+  then returned south-east to about (1341, 960) and west again,
+  looping for four days without arriving. This is the greedy
+  steering above: no tile is impassable in the code, but a river
+  tile ahead scores under the bank tiles to either side. Our
+  seeded RNG is not the original's (ADR-0002), so a run may
+  eventually blunder across where the observed run did not; the
+  scenario's expected result is the looping, not a guarantee.
+  (`finding:movement-greedy-tile-steering`)
 
 ## Reference scenarios
 
@@ -118,11 +155,15 @@ destination (784, 384), Bree's Place position.
 
 The Force follows the road east at y = 384 at 1.31 px/tick. It does
 not reach Bree: in both runs a Nazgûl attack during the second rest
-ends the journey 60 pixels short. Uninterrupted, the same timings
-put arrival around day 2, quarter-hour 55 (25 September, about
-2 p.m. on the display), tolerance ±8 quarter-hours. A headless test
-should assert the rests and pace rather than the arrival, since the
-Nazgûl are part of the starting state.
+ends the journey 60 pixels short. The order was given after one
+tick of Frodo's starting walk south, which had spent 1 stamina and
+carried a fraction of 80/256; starting a headless run from that
+state reproduces both rest positions exactly. Uninterrupted, the
+remaining 60 pixels need some 46 steps, more than Frodo's 40
+stamina, so a third rest intervenes and arrival falls on day 3,
+not day 2 as first extrapolated from the samples. A headless test
+should assert the rests and pace rather than the arrival, since
+the Nazgûl are part of the starting state.
 
 ### S2. Faramir and his Rangers, North Ithilien → Osgiliath
 
@@ -178,6 +219,11 @@ road and track tiles.
 | Éomer diagonal on plain         | 33            | 4     | about 2.0 Manhattan (1.0/axis)  |
 | Éomer at the Entwash            | 228, 244, 247 | 4     | does not cross                  |
 
-Tolerances: ±0.15 px/tick per segment. A headless test can assert
-the row for its tile and class once the tile-to-terrain table is
-recovered; until then these rows are the recorded reference values.
+Tolerances: ±0.15 px/tick per segment. The tile-to-terrain table
+is now recovered (`finding:movement-terrain-percent-scales-pace`):
+rows above are the speed-table pace times terrain ⁄ 100 (62, 105,
+104 and 120 are rated 100; 33, 229 and 247 are rated 60), sampled
+over segments that sometimes cross into neighbouring tiles, which
+is why the sampled diagonal paces sit between the pure per-tile
+values. A headless test asserts each row on a uniform tile of
+that rating.
