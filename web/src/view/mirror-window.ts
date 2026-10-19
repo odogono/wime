@@ -37,7 +37,7 @@ export const layoutMirrorWindow = (listing: MirrorListing): MirrorWindow => {
   };
 };
 
-const drawText = (
+export const drawHiresText = (
   ctx: CanvasRenderingContext2D,
   text: string,
   x: number,
@@ -67,11 +67,11 @@ export const drawMirrorWindow = (
   ctx.font = '8px monospace';
   ctx.textBaseline = 'top';
   ctx.fillStyle = '#ff0';
-  drawText(ctx, MIRROR_HEADING, window.x + GOOD_X, window.y + PADDING);
+  drawHiresText(ctx, MIRROR_HEADING, window.x + GOOD_X, window.y + PADDING);
   ctx.fillStyle = '#fff';
   const top = window.y + PADDING + HEADING_HEIGHT;
   window.listing.good.forEach((row, i) => {
-    drawText(
+    drawHiresText(
       ctx,
       row.text,
       window.x + GOOD_X + (row.follower ? FOLLOWER_INDENT : 0),
@@ -79,6 +79,6 @@ export const drawMirrorWindow = (
     );
   });
   window.listing.evil.forEach((name, i) => {
-    drawText(ctx, name, window.x + EVIL_X, top + i * ROW_HEIGHT);
+    drawHiresText(ctx, name, window.x + EVIL_X, top + i * ROW_HEIGHT);
   });
 };
