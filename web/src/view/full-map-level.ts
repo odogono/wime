@@ -3,7 +3,13 @@ import {
   FULL_MAP_DOT_WIDTH,
   type FullMapDot
 } from '../sim/index';
-import type { FULL_MAP_ICON_NAMES, FullMapPalette } from './assets';
+import type { FULL_MAP_ICON_NAMES, FullMapPalette, Tilemap } from './assets';
+import {
+  clampCamera,
+  viewHeightPx,
+  viewWidthPx,
+  type Camera
+} from './campaign-level';
 
 export type FullMapIconName = (typeof FULL_MAP_ICON_NAMES)[number];
 
@@ -100,3 +106,32 @@ export const drawFullMapLevel = (
     ctx.drawImage(icon.image, x, y);
   }
 };
+
+// The Full Map icon under a hi-res point, if any.
+export const fullMapIconAt = (
+  placements: FullMapIconPlacement[],
+  point: { x: number; y: number }
+): FullMapIconPlacement | undefined =>
+  placements.find(
+    ({ icon, x, y }) =>
+      point.x >= x &&
+      point.x < x + icon.image.width &&
+      point.y >= y &&
+      point.y < y + icon.image.height
+  );
+
+// The Campaign Level camera that centres a clicked Full Map point,
+// clamped to the map's edges (manual, pdf-p13). A Full Map pixel is 4
+// Campaign Level pixels across and 8 down
+// (finding:ui-full-map-dots-for-awake-leaders).
+export const campaignCameraFor = (
+  point: { x: number; y: number },
+  tilemap: Tilemap
+): Camera =>
+  clampCamera(
+    {
+      x: point.x * 4 + 2 - viewWidthPx(tilemap) / 2,
+      y: point.y * 8 + 4 - viewHeightPx(tilemap) / 2
+    },
+    tilemap
+  );

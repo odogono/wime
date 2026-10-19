@@ -36,7 +36,10 @@ import {
 } from './force-window';
 import {
   BLINK_PHASE_MS,
+  campaignCameraFor,
   drawFullMapLevel,
+  fullMapIconAt,
+  fullMapIconPlacements,
   type FullMapLevel
 } from './full-map-level';
 import {
@@ -98,16 +101,19 @@ const FLASH_INTERVAL_MS = 500;
 // A press that moves no further than this is a click, not a drag.
 const CLICK_TOLERANCE_PX = 3;
 
-// The Level on show. Moving between Levels comes with #31; until then
-// ?level=full-map opens on the Full Map Level.
+// The Level on show; the game opens on the Campaign Level.
 type Level = 'campaign' | 'full-map';
-const initialLevel = (): Level =>
-  new URLSearchParams(window.location.search).get('level') === 'full-map'
-    ? 'full-map'
-    : 'campaign';
 
 const run = (assets: CampaignAssets, fullMap: FullMapLevel): void => {
-  const level: Level = initialLevel();
+  let level: Level = 'campaign';
+  // On the Full Map Level, whether the pointer is the magnifying glass,
+  // waiting for a click on the map to go down to (manual, pdf-p9).
+  let zooming = false;
+  let hiresPointer: Camera | null = null;
+  const fullMapPlacements = fullMapIconPlacements(fullMap.icons);
+  const magnifier = fullMap.icons.find(
+    icon => icon.name === 'magnifying-glass'
+  );
   const placements = iconPlacements(assets.icons);
   const driver = createTickDriver();
   let sim: SimState = createSim(0x14_18, assets.startingState, assets.tilemap);
@@ -134,14 +140,59 @@ const run = (assets: CampaignAssets, fullMap: FullMapLevel): void => {
   let order: OrderState = IDLE_ORDER;
   let lastTime = performance.now();
 
-  const toNative = (event: PointerEvent): Camera => {
+  // The pointer in native pixels; hi-res pixels are half as wide.
+  const toNative = (event: PointerEvent, xScale = 1): Camera => {
     const rect = canvas.getBoundingClientRect();
     const deviceX = (event.clientX - rect.left) * (canvas.width / rect.width);
     const deviceY = (event.clientY - rect.top) * (canvas.height / rect.height);
     return {
-      x: Math.floor((deviceX - fit.x) / fit.scale),
+      x: Math.floor(((deviceX - fit.x) * xScale) / fit.scale),
       y: Math.floor((deviceY - fit.y) / fit.scale)
     };
+  };
+  const toHires = (event: PointerEvent): Camera => toNative(event, 2);
+
+  // Up to the Full Map Level (manual, pdf-p3). Any half-given Order or
+  // open window is dropped, as when a decision window opens
+  // (finding:ui-pointer-and-icon-column).
+  const goUp = (): void => {
+    level = 'full-map';
+    zooming = false;
+    speedWindow = null;
+    infoWindow = null;
+    drag = null;
+    pointer = null;
+    setOrder(IDLE_ORDER);
+    canvas.style.cursor = 'default';
+  };
+
+  const startZoom = (): void => {
+    zooming = true;
+    canvas.style.cursor = magnifier ? 'none' : 'zoom-in';
+  };
+
+  // Down to the Campaign Level, centred on the clicked spot.
+  const goDown = (point: Camera): void => {
+    camera = campaignCameraFor(point, assets.tilemap);
+    level = 'campaign';
+    zooming = false;
+    hiresPointer = null;
+    setOrder(IDLE_ORDER);
+  };
+
+  const handleFullMapPress = (event: PointerEvent): void => {
+    const point = toHires(event);
+    const icon = fullMapIconAt(fullMapPlacements, point);
+    if (icon?.icon.name === 'magnifying-glass') {
+      if (zooming) {
+        zooming = false;
+        canvas.style.cursor = 'default';
+      } else {
+        startZoom();
+      }
+    } else if (zooming && !icon) {
+      goDown(point);
+    }
   };
 
   // The map point under the pointer, or null outside the map view.
@@ -218,6 +269,7 @@ const run = (assets: CampaignAssets, fullMap: FullMapLevel): void => {
   canvas.style.cursor = 'grab';
   canvas.addEventListener('pointerdown', event => {
     if (level === 'full-map') {
+      handleFullMapPress(event);
       return;
     }
     pointer = toNative(event);
@@ -233,6 +285,10 @@ const run = (assets: CampaignAssets, fullMap: FullMapLevel): void => {
       return;
     }
     const icon = iconAt(placements, pointer);
+    if (icon?.icon.name === 'map') {
+      goUp();
+      return;
+    }
     // The arrow starts or cancels an Order (#10).
     if (icon?.icon.name === 'arrow') {
       infoWindow = null;
@@ -264,6 +320,10 @@ const run = (assets: CampaignAssets, fullMap: FullMapLevel): void => {
     }
   });
   canvas.addEventListener('pointermove', event => {
+    if (level === 'full-map') {
+      hiresPointer = toHires(event);
+      return;
+    }
     pointer = toNative(event);
     if (drag) {
       camera = dragCamera(drag.camera, drag.pointer, pointer, assets.tilemap);
@@ -295,6 +355,7 @@ const run = (assets: CampaignAssets, fullMap: FullMapLevel): void => {
   canvas.addEventListener('pointerup', endDrag);
   canvas.addEventListener('pointercancel', endDrag);
   canvas.addEventListener('pointerleave', () => {
+    hiresPointer = null;
     if (!drag) {
       pointer = null;
     }
@@ -303,9 +364,24 @@ const run = (assets: CampaignAssets, fullMap: FullMapLevel): void => {
     fit = screen.resize();
   });
   window.addEventListener('keydown', event => {
-    // The original's keys: T opens the Game Speed window, P pauses
-    // (finding:ui-key-bindings).
-    if (event.key === 't' || event.key === 'T') {
+    // The original's keys: U goes up a Level, M picks up the
+    // magnifying glass, T opens the Game Speed window and P pauses
+    // (finding:ui-key-bindings). Game Speed on the Full Map Level is
+    // #34; the Campaign Level's magnifying glass waits for the
+    // Animation Level.
+    const key = event.key.toLowerCase();
+    if (level === 'full-map') {
+      if (key === 'm') {
+        startZoom();
+      } else if (key === 'escape') {
+        zooming = false;
+        canvas.style.cursor = 'default';
+      }
+      return;
+    }
+    if (key === 'u') {
+      goUp();
+    } else if (event.key === 't' || event.key === 'T') {
       toggleSpeedWindow();
     } else if (event.key === 'p' || event.key === 'P') {
       driver.paused = !driver.paused;
@@ -375,6 +451,14 @@ const run = (assets: CampaignAssets, fullMap: FullMapLevel): void => {
         fullMapDots(sim.roster),
         Math.floor(now / BLINK_PHASE_MS) % 2 === 0
       );
+      // The pointer becomes the magnifying glass, centred on the spot.
+      if (zooming && magnifier && hiresPointer) {
+        screen.hires.drawImage(
+          magnifier.image,
+          hiresPointer.x - Math.floor(magnifier.image.width / 2),
+          hiresPointer.y - Math.floor(magnifier.image.height / 2)
+        );
+      }
       screen.present('hires');
       requestAnimationFrame(frame);
       return;
