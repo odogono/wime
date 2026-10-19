@@ -1,5 +1,6 @@
 import { INITIAL_CLOCK, tickClock, type Clock } from './clock';
-import { tickMovement, type Tilemap } from './movement';
+import { findFight, startFight, type Fight } from './combat';
+import { sweepMovement, type Tilemap } from './movement';
 import { createRng, type RngState } from './rng';
 import {
   DEFAULT_SPEEDS,
@@ -16,6 +17,9 @@ import {
 // leader chains whenever they are needed (#9).
 export interface SimState {
   clock: Clock;
+  // The fight under way, or null. Game time stands still while one is
+  // (finding:time-stops-during-a-fight).
+  fight: Fight | null;
   placeKinds: PlaceKind[];
   places: Place[];
   // The roster index of the Ring-bearer, or null before the starting
@@ -27,6 +31,9 @@ export interface SimState {
   // (finding:movement-arrival-pops-next-route-stop).
   routes: number[][];
   speeds: { diagonal: number[]; straight: number[] };
+  // The roster entry the next tick's sweep starts from: 0, or the
+  // entry after the one whose step started a fight.
+  sweepFrom: number;
   terrainByTile: number[];
   // The Campaign Level tile grid movement steers over, or null for a
   // clock-only game with no map loaded.
@@ -45,6 +52,7 @@ export const createSim = (
   if (startingState === undefined) {
     return {
       clock: { ...INITIAL_CLOCK },
+      fight: null,
       placeKinds: [],
       places: [],
       ringBearer: null,
@@ -55,6 +63,7 @@ export const createSim = (
         diagonal: [...DEFAULT_SPEEDS.diagonal],
         straight: [...DEFAULT_SPEEDS.straight]
       },
+      sweepFrom: 0,
       terrainByTile: [],
       tilemap: tilemap ?? null
     };
@@ -65,6 +74,7 @@ export const createSim = (
       day: start.clock.day,
       quarterHour: start.clock.quarterHour
     },
+    fight: null,
     placeKinds: start.placeKinds,
     places: start.places,
     ringBearer: start.ringBearer,
@@ -72,6 +82,7 @@ export const createSim = (
     roster: start.roster,
     routes: start.routes,
     speeds: start.speeds,
+    sweepFrom: 0,
     terrainByTile: start.terrainByTile,
     tilemap: tilemap ?? null
   };
@@ -80,10 +91,26 @@ export const createSim = (
 // One tick: every Leader takes its movement step in roster order,
 // then the clock steps one quarter-hour, as the original advanced
 // it after the sweep reached entry 151
-// (finding:time-clock-advances-after-each-roster-sweep).
+// (finding:time-clock-advances-after-each-roster-sweep). A step that
+// starts a fight stops the sweep and the clock until the fight is
+// over; the next tick carries on from the following entry
+// (docs/spec/combat.md).
 export const tickSim = (state: SimState): SimState => {
-  const moved = tickMovement(state);
-  return { ...moved, clock: tickClock(moved.clock) };
+  if (state.fight) {
+    return state;
+  }
+  const { stoppedAt, world } = sweepMovement(
+    state,
+    state.sweepFrom,
+    (moved, index) => {
+      const fight = findFight(moved, index);
+      return fight ? startFight(moved, fight) : null;
+    }
+  );
+  if (stoppedAt !== null) {
+    return { ...world, sweepFrom: stoppedAt + 1 };
+  }
+  return { ...world, clock: tickClock(world.clock), sweepFrom: 0 };
 };
 
 export const serializeSim = (state: SimState): string => JSON.stringify(state);
@@ -105,6 +132,7 @@ export const deserializeSim = (text: string): SimState => {
   const legacy = parsed as Partial<SimState>;
   return {
     ...parsed,
+    fight: legacy.fight ?? null,
     roster: parsed.roster.map(entry => ({
       ...entry,
       fraction: entry.fraction ?? 0
@@ -114,6 +142,7 @@ export const deserializeSim = (text: string): SimState => {
       diagonal: [...DEFAULT_SPEEDS.diagonal],
       straight: [...DEFAULT_SPEEDS.straight]
     },
+    sweepFrom: legacy.sweepFrom ?? 0,
     terrainByTile: legacy.terrainByTile ?? [],
     tilemap: legacy.tilemap ?? null
   };

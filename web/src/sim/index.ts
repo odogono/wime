@@ -18,11 +18,26 @@ export {
   type DisplayTime
 } from './clock';
 export {
+  combatRows,
+  fightRound,
+  findFight,
+  finishFight,
+  resolveFight,
+  setCombatOption,
+  startFight,
+  type CombatEvent,
+  type CombatOption,
+  type CombatRow,
+  type CombatSide,
+  type Fight
+} from './combat';
+export {
   canOrder,
   desiredFacing,
   destinationForClick,
   giveOrder,
   paceFor,
+  sweepMovement,
   terrainAt,
   tickMovement,
   tileNumberAt,

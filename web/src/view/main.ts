@@ -5,6 +5,7 @@ import {
   fullMapDots,
   giveOrder,
   mirrorListing,
+  resolveFight,
   restoreSave,
   serialiseSave,
   tickSim,
@@ -606,6 +607,12 @@ const run = (assets: CampaignAssets, fullMap: FullMapLevel): void => {
     }
     for (let i = 0, ticks = driver.advance(elapsedMs); i < ticks; i++) {
       sim = tickSim(sim);
+      // Until the combat window (#47), every fight goes as an
+      // unanswered announcement does: as if "Ignore it" was pressed
+      // (finding:combat-unanswered-announcement-ignores-the-fight).
+      if (sim.fight) {
+        sim = resolveFight(sim);
+      }
     }
     // Hovering the icon column does not scroll the map under it, and
     // dragging pans instead of edge scrolling.
