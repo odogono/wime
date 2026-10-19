@@ -19,6 +19,23 @@ export {
 } from './clock';
 export { createRng, nextRandom, type RngState } from './rng';
 export {
+  forcesOf,
+  forcesOnMap,
+  loadStartingState,
+  placeAt,
+  placeKindForTile,
+  TILE_SIZE,
+  tileOf,
+  topLeader,
+  type Force,
+  type Place,
+  type PlaceKind,
+  type Point,
+  type RosterEntry,
+  type StartingState,
+  type Trigger
+} from './starting-state';
+export {
   createSim,
   deserializeSim,
   serializeSim,

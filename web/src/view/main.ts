@@ -1,15 +1,32 @@
-import { createSim, formatClock, tickSim, type SimState } from '../sim/index';
+import {
+  createSim,
+  forcesOnMap,
+  formatClock,
+  tickSim,
+  type Force,
+  type SimState
+} from '../sim/index';
 import { loadCampaignAssets, type CampaignAssets } from './assets';
 import {
+  clampCamera,
   dragCamera,
   drawCampaignLevel,
   edgeScrollDirection,
+  hoverTargetAt,
   iconPlacements,
   isOverIcons,
   stepCamera,
+  viewHeightPx,
+  viewWidthPx,
   type Camera,
   type IconPlacement
 } from './campaign-level';
+import {
+  drawInfoWindow,
+  forceWindowLines,
+  layoutInfoWindow,
+  type InfoWindow
+} from './force-window';
 import { createScreen, type Fit } from './screen';
 import {
   drawSpeedWindow,
@@ -49,15 +66,37 @@ const iconAt = (
       pointer.y < y + icon.image.height
   );
 
+// How long an active Force's icon stays in each half of its flash
+// (finding:ui-campaign-level-display). The original's rate has not
+// been traced; this is provisional.
+const FLASH_INTERVAL_MS = 500;
+// A press that moves no further than this is a click, not a drag.
+const CLICK_TOLERANCE_PX = 3;
+
 const run = (assets: CampaignAssets): void => {
   const placements = iconPlacements(assets.icons);
   const driver = createTickDriver();
-  let sim: SimState = createSim(0x14_18);
-  let camera: Camera = { x: 0, y: 0 };
+  let sim: SimState = createSim(0x14_18, assets.startingState);
+  // Open on the Ring-bearer's Force at Hobbiton, the one Force the
+  // player commands at the start (docs/spec/starting-state.md). The
+  // game itself opens on the Animation Level, which is not built yet.
+  const opening = forcesOnMap(sim.roster).find(
+    force => force.leader.index === sim.ringBearer
+  );
+  let camera: Camera = opening
+    ? clampCamera(
+        {
+          x: opening.position.x + 8 - viewWidthPx(assets.tilemap) / 2,
+          y: opening.position.y + 8 - viewHeightPx(assets.tilemap) / 2
+        },
+        assets.tilemap
+      )
+    : { x: 0, y: 0 };
   let fit: Fit = screen.resize();
   let pointer: Camera | null = null;
   let drag: { camera: Camera; pointer: Camera } | null = null;
   let speedWindow: SpeedWindow | null = null;
+  let infoWindow: InfoWindow | null = null;
   let lastTime = performance.now();
 
   const toNative = (event: PointerEvent): Camera => {
@@ -68,6 +107,23 @@ const run = (assets: CampaignAssets): void => {
       x: Math.floor((deviceX - fit.x) / fit.scale),
       y: Math.floor((deviceY - fit.y) / fit.scale)
     };
+  };
+
+  // The map point under the pointer, or null outside the map view.
+  const mapPoint = (native: Camera | null): Camera | null =>
+    native &&
+    native.x >= 0 &&
+    native.x < viewWidthPx(assets.tilemap) &&
+    native.y >= 0 &&
+    native.y < viewHeightPx(assets.tilemap)
+      ? { x: native.x + camera.x, y: native.y + camera.y }
+      : null;
+
+  const targetAt = (native: Camera | null, forces: Force[]) => {
+    const point = mapPoint(native);
+    return point
+      ? hoverTargetAt(forces, sim.places, sim.placeKinds, assets.tilemap, point)
+      : null;
   };
 
   const toggleSpeedWindow = (): void => {
@@ -97,6 +153,12 @@ const run = (assets: CampaignAssets): void => {
       speedWindow = null;
       return;
     }
+    // A press anywhere clears an open window, as with the original's
+    // status window (manual, pdf-p14).
+    if (infoWindow) {
+      infoWindow = null;
+      return;
+    }
     const icon = iconAt(placements, pointer);
     if (icon?.icon.name === 'hourglass') {
       toggleSpeedWindow();
@@ -115,7 +177,26 @@ const run = (assets: CampaignAssets): void => {
       camera = dragCamera(drag.camera, drag.pointer, pointer, assets.tilemap);
     }
   });
-  const endDrag = (): void => {
+  const endDrag = (event: PointerEvent): void => {
+    if (drag) {
+      const released = toNative(event);
+      const moved = Math.max(
+        Math.abs(released.x - drag.pointer.x),
+        Math.abs(released.y - drag.pointer.y)
+      );
+      // A press that did not pan is a click: it opens the window at
+      // the top left naming what was clicked (manual, pdf-p16).
+      if (moved <= CLICK_TOLERANCE_PX) {
+        camera = drag.camera;
+        const target = targetAt(released, forcesOnMap(sim.roster));
+        infoWindow =
+          target?.kind === 'force'
+            ? layoutInfoWindow(forceWindowLines(target.force))
+            : target
+              ? layoutInfoWindow([target.name])
+              : null;
+      }
+    }
     drag = null;
     canvas.style.cursor = 'grab';
   };
@@ -138,10 +219,11 @@ const run = (assets: CampaignAssets): void => {
       driver.paused = !driver.paused;
     } else if (event.key === 'Escape') {
       speedWindow = null;
+      infoWindow = null;
     }
   });
 
-  const drawOverlay = (): void => {
+  const drawOverlay = (forces: Force[]): void => {
     const ctx = screen.buffer;
     ctx.font = '8px monospace';
     ctx.textBaseline = 'top';
@@ -156,6 +238,18 @@ const run = (assets: CampaignAssets): void => {
       ctx.strokeRect(8.5, 8.5, 117, 11);
       ctx.fillStyle = '#fff';
       ctx.fillText('The Game is Paused.', 11, 10);
+    }
+    // Hovering names the Place, Character or Unit under the pointer
+    // in the same top-left window a click would open.
+    if (!infoWindow && !speedWindow && !drag) {
+      const overIcons = pointer !== null && isOverIcons(pointer, placements);
+      const target = overIcons ? null : targetAt(pointer, forces);
+      if (target) {
+        drawInfoWindow(ctx, layoutInfoWindow([target.name]));
+      }
+    }
+    if (infoWindow) {
+      drawInfoWindow(ctx, infoWindow);
     }
     if (speedWindow) {
       drawSpeedWindow(ctx, speedWindow, driver.speed, driver.paused);
@@ -175,8 +269,10 @@ const run = (assets: CampaignAssets): void => {
         ? { x: 0, y: 0 }
         : edgeScrollDirection(pointer, assets.tilemap);
     camera = stepCamera(camera, direction, elapsedMs / 1000, assets.tilemap);
-    drawCampaignLevel(screen.buffer, assets, camera);
-    drawOverlay();
+    const forces = forcesOnMap(sim.roster);
+    const flashOn = Math.floor(now / FLASH_INTERVAL_MS) % 2 === 0;
+    drawCampaignLevel(screen.buffer, assets, camera, forces, flashOn);
+    drawOverlay(forces);
     screen.present();
     requestAnimationFrame(frame);
   };

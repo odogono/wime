@@ -1,3 +1,12 @@
+import {
+  placeAt,
+  placeKindForTile,
+  tileOf,
+  type Force,
+  type Place,
+  type PlaceKind,
+  type Point
+} from '../sim/index';
 import type { CampaignAssets, CampaignIcon, Tilemap } from './assets';
 import { NATIVE_HEIGHT, NATIVE_WIDTH } from './screen';
 
@@ -131,15 +140,89 @@ export const isOverIcons = (
       pointer.y < y + icon.image.height
   );
 
+// A Force is drawn as one 16 by 16 icon: its Leader's figure, or a
+// Unit's badge (finding:ui-campaign-level-display).
+export const FORCE_ICON_SIZE = 16;
+
+// Where a roster entry's icon sits in the icon sheet (AMaps.res
+// IMAG 100): the byte's high four bits are the sheet column and the
+// low four bits the row, each cell 16 by 16
+// (finding:graphics-campaign-icon-sheet-is-imag-100). The runtime
+// sheet the original copies from is laid out transposed
+// (finding:graphics-campaign-icon-index); the picture is the same.
+export const iconSourceRect = (icon: number): Point => ({
+  x: (icon >> 4) * FORCE_ICON_SIZE,
+  y: (icon & 0xf) * FORCE_ICON_SIZE
+});
+
+// The Force whose icon covers a map point, if any. Forces are drawn in
+// roster order, so where icons overlap the last drawn is the one the
+// player sees and picks.
+export const forceAtPoint = (forces: Force[], point: Point): Force | null => {
+  for (let i = forces.length - 1; i >= 0; i--) {
+    const force = forces[i]!;
+    if (
+      point.x >= force.position.x &&
+      point.x < force.position.x + FORCE_ICON_SIZE &&
+      point.y >= force.position.y &&
+      point.y < force.position.y + FORCE_ICON_SIZE
+    ) {
+      return force;
+    }
+  }
+  return null;
+};
+
+export type HoverTarget =
+  | { force: Force; kind: 'force'; name: string }
+  | { kind: 'place'; name: string };
+
+// What the pointer is over at a map point: a Force's Leader first,
+// then a named Place on that tile, then the generic kind of the tile
+// itself (finding:places-kinds-matched-by-map-tile).
+export const hoverTargetAt = (
+  forces: Force[],
+  places: Place[],
+  placeKinds: PlaceKind[],
+  tilemap: Tilemap,
+  point: Point
+): HoverTarget | null => {
+  const force = forceAtPoint(forces, point);
+  if (force) {
+    return { force, kind: 'force', name: force.leader.name };
+  }
+  const place = placeAt(places, point);
+  if (place) {
+    return { kind: 'place', name: place.name };
+  }
+  const tile = tileOf(point);
+  const tileNumber =
+    tile.x >= 0 && tile.y >= 0
+      ? tilemap.indices[tile.y * tilemap.width + tile.x]
+      : undefined;
+  const kind =
+    tileNumber === undefined ? null : placeKindForTile(placeKinds, tileNumber);
+  return kind ? { kind: 'place', name: kind } : null;
+};
+
 // Draw the Campaign Level into the native buffer. Tile blits are 1:1
 // integer copies from the atlas, so a tile-aligned camera reproduces
 // tools/render-campaign-map.ts output pixel-for-pixel for the same region.
+//
+// Each Force on the map is drawn as its Leader's icon at the Force's
+// position, as the original copies the icon there
+// (finding:graphics-campaign-icon-index). Active Forces flash
+// (finding:ui-campaign-level-display): they are skipped while
+// flashOn is false, which the caller toggles in real time. The flash
+// rate of the original has not been traced.
 export const drawCampaignLevel = (
   ctx: CanvasRenderingContext2D,
   assets: CampaignAssets,
-  cameraIn: Camera
+  cameraIn: Camera,
+  forces: Force[] = [],
+  flashOn = true
 ): void => {
-  const { atlas, icons, tilemap, tiles } = assets;
+  const { atlas, forceIcons, icons, tilemap, tiles } = assets;
   const camera = clampCamera(cameraIn, tilemap);
   const { tile_height: tileHeight, tile_width: tileWidth } = tilemap;
 
@@ -178,6 +261,40 @@ export const drawCampaignLevel = (
         tileHeight
       );
     }
+  }
+
+  for (const force of forces) {
+    if (force.active && !flashOn) {
+      continue;
+    }
+    const x = force.position.x - camera.x;
+    const y = force.position.y - camera.y;
+    if (
+      x <= -FORCE_ICON_SIZE ||
+      y <= -FORCE_ICON_SIZE ||
+      x >= viewWidthPx(tilemap) ||
+      y >= viewHeightPx(tilemap)
+    ) {
+      continue;
+    }
+    const source = iconSourceRect(force.leader.icon);
+    if (
+      source.x + FORCE_ICON_SIZE > forceIcons.width ||
+      source.y + FORCE_ICON_SIZE > forceIcons.height
+    ) {
+      continue;
+    }
+    ctx.drawImage(
+      forceIcons,
+      source.x,
+      source.y,
+      FORCE_ICON_SIZE,
+      FORCE_ICON_SIZE,
+      x,
+      y,
+      FORCE_ICON_SIZE,
+      FORCE_ICON_SIZE
+    );
   }
 
   for (const { icon, x, y } of iconPlacements(icons)) {
