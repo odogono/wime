@@ -4,6 +4,7 @@ import {
   formatClock,
   fullMapDots,
   giveOrder,
+  mirrorListing,
   tickSim,
   type Force,
   type SimState
@@ -42,6 +43,11 @@ import {
   fullMapIconPlacements,
   type FullMapLevel
 } from './full-map-level';
+import {
+  drawMirrorWindow,
+  layoutMirrorWindow,
+  type MirrorWindow
+} from './mirror-window';
 import {
   IDLE_ORDER,
   drawOrderPointerTag,
@@ -110,6 +116,13 @@ const run = (assets: CampaignAssets, fullMap: FullMapLevel): void => {
   // waiting for a click on the map to go down to (manual, pdf-p9).
   let zooming = false;
   let hiresPointer: Camera | null = null;
+  let mirror: MirrorWindow | null = null;
+  // Galadriel's Mirror, from the eye or S (docs/spec/full-map.md).
+  const toggleMirror = (): void => {
+    mirror = mirror
+      ? null
+      : layoutMirrorWindow(mirrorListing(sim.roster, sim.places));
+  };
   const fullMapPlacements = fullMapIconPlacements(fullMap.icons);
   const magnifier = fullMap.icons.find(
     icon => icon.name === 'magnifying-glass'
@@ -158,6 +171,7 @@ const run = (assets: CampaignAssets, fullMap: FullMapLevel): void => {
   const goUp = (): void => {
     level = 'full-map';
     zooming = false;
+    mirror = null;
     speedWindow = null;
     infoWindow = null;
     drag = null;
@@ -182,6 +196,11 @@ const run = (assets: CampaignAssets, fullMap: FullMapLevel): void => {
 
   const handleFullMapPress = (event: PointerEvent): void => {
     const point = toHires(event);
+    // A press anywhere clears the Mirror.
+    if (mirror) {
+      mirror = null;
+      return;
+    }
     // The Game Speed window is laid out in lo-res pixels, as on the
     // Campaign Level, so a hi-res point is halved across.
     if (speedWindow) {
@@ -189,7 +208,11 @@ const run = (assets: CampaignAssets, fullMap: FullMapLevel): void => {
       return;
     }
     const icon = fullMapIconAt(fullMapPlacements, point);
-    if (icon?.icon.name === 'hourglass') {
+    if (icon?.icon.name === 'eye') {
+      zooming = false;
+      canvas.style.cursor = 'default';
+      toggleMirror();
+    } else if (icon?.icon.name === 'hourglass') {
       zooming = false;
       canvas.style.cursor = 'default';
       toggleSpeedWindow();
@@ -394,6 +417,19 @@ const run = (assets: CampaignAssets, fullMap: FullMapLevel): void => {
     // glass waits for the Animation Level.
     const key = event.key.toLowerCase();
     if (level === 'full-map') {
+      if (key === 's') {
+        speedWindow = null;
+        zooming = false;
+        canvas.style.cursor = 'default';
+        toggleMirror();
+        return;
+      }
+      if (mirror) {
+        mirror = null;
+        if (key !== 'escape') {
+          return;
+        }
+      }
       if (key === 'm') {
         speedWindow = null;
         startZoom();
@@ -487,6 +523,9 @@ const run = (assets: CampaignAssets, fullMap: FullMapLevel): void => {
           hiresPointer.x - Math.floor(magnifier.image.width / 2),
           hiresPointer.y - Math.floor(magnifier.image.height / 2)
         );
+      }
+      if (mirror) {
+        drawMirrorWindow(screen.hires, mirror);
       }
       if (speedWindow) {
         // Drawn at lo-res size: each of its pixels is two hi-res wide.
