@@ -3,6 +3,7 @@
 /extracted_graphics
 /extracted_text
 /node_modules/
+/web/public/assets/
 .DS_Store
 /web/dist/
 .eslintcache

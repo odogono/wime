@@ -15,6 +15,7 @@
     "extract-graphics": "bun tools/extract-graphics.ts",
     "extract-text": "bun tools/extract-text.ts",
     "render-campaign-map": "bun tools/render-campaign-map.ts",
+    "export:web": "bun tools/export-web.ts",
     "typecheck": "tsc --noEmit && bun run --cwd web typecheck",
     "test": "bun test tools && bun run --cwd web test",
     "lint": "eslint --cache .",
