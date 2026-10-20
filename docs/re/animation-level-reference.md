@@ -23,3 +23,9 @@ Not yet traced:
 - How 4-plane figure sets are coloured per Character.
 - Where the battle lines (data+0x5568, data+0x556a) and the start lines (data+0x5564, data+0x5566) are set: code+0x0a316 and code+0x0a936.
 - What the eye (button 0xf0) and sack (0xf9) icons open.
+
+## Encounters (issue #81)
+
+The Encounter Findings rest on the code alone. A first attempt to play `encounter-bombadil` (Frodo, entry 7, put at (736, 416) moving east onto Tom Bombadil's tile at (752, 416), with the clock limit at 16 frames) was cut short when the 3rd Nazgûl attacked Frodo first ("FRODO is attacked by the 3rd NAZGUL.", with "Go there" and "Ignore it"). To play it, first move the Nazgûl (entries 51 to 59) away or put them to sleep.
+
+Still to capture: an advisor's talk window answered, declined and timed out; a talk on the Animation Level; an anonymous figure passing by; an Evil Encounter fought on the Animation Level.
