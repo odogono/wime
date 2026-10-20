@@ -427,6 +427,18 @@ export class IndexedImage {
   save(path: string): void {
     writeRgbaPng(path, this.toRgba());
   }
+
+  // Save with one palette index fully transparent, for art drawn over
+  // other art.
+  saveWithClearColour(path: string, clear: number): void {
+    const image = this.toRgba();
+    this.indices.forEach((index, i) => {
+      if (index === clear) {
+        image.data[i * 4 + 3] = 0;
+      }
+    });
+    writeRgbaPng(path, image);
+  }
 }
 
 export const writeRgbaPng = (path: string, image: RgbaImage): void => {

@@ -5,6 +5,11 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { PNG } from 'pngjs';
 
 import {
+  buildFigureSheet,
+  type AnimationTables,
+  type FigureSet
+} from './export-animation-level';
+import {
   CAMPAIGN_MAP_HEIGHT,
   CAMPAIGN_MAP_STRIDE,
   CAMPAIGN_MAP_WIDTH,
@@ -103,6 +108,34 @@ test('a provisional palette retains tool provenance without claiming a resource 
   });
 });
 
+const solidFrame = (width: number, value: number) => {
+  const image = new IndexedImage(width, 2);
+  image.indices.fill(value);
+  image.setPixel(0, 0, 0);
+  return image;
+};
+
+test('a figure sheet lays frames side by side, 4-plane sets in colours 16 to 31', () => {
+  const frames = [
+    { hotX: 1, hotY: 2, image: solidFrame(3, 5) },
+    { hotX: 0, hotY: 1, image: solidFrame(2, 1) }
+  ];
+  const { frames: placed, sheet } = buildFigureSheet(frames, 4, []);
+
+  expect(sheet.size).toEqual([5, 2]);
+  expect(placed).toEqual([
+    { height: 2, hot_x: 1, hot_y: 2, width: 3, x: 0 },
+    { height: 2, hot_x: 0, hot_y: 1, width: 2, x: 3 }
+  ]);
+  // Colour 0 stays clear; the rest move up by 16.
+  expect([
+    sheet.getPixel(0, 0),
+    sheet.getPixel(1, 0),
+    sheet.getPixel(4, 1)
+  ]).toEqual([0, 21, 17]);
+  expect(buildFigureSheet(frames, 5, []).sheet.getPixel(1, 0)).toBe(5);
+});
+
 // The export test reads the Reference Build, which lives in the
 // gitignored artifacts/ dir and is absent in CI; it skips there.
 describe.skipIf(!existsSync(DEFAULT_ARCHIVE))('web export', () => {
@@ -125,8 +158,9 @@ describe.skipIf(!existsSync(DEFAULT_ARCHIVE))('web export', () => {
     expect(manifest.skipped).toEqual([]);
     // Atlas, palette, tile map, atlas metadata, 115 graphics, text and
     // the starting state, plus the Full Map Level palette and the window
-    // frame tiles in each Level's palette.
-    expect(manifest.assets.length).toBe(124);
+    // frame tiles in each Level's palette, and the Animation Level's
+    // palette, tables, figure index, 3 icons, frame and 19 figure sets.
+    expect(manifest.assets.length).toBe(124 + 26);
     expect(manifest.summary.assets).toBe(manifest.assets.length);
 
     for (const asset of manifest.assets) {
@@ -233,6 +267,47 @@ describe.skipIf(!existsSync(DEFAULT_ARCHIVE))('web export', () => {
       });
       expect([frame.width, frame.height, frame.depth]).toEqual([16, 96, 4]);
     }
+
+    // The Animation Level (docs/spec/animation-level.md).
+    const figureSets = manifest.assets.filter(
+      asset => asset.kind === 'animation-figures'
+    );
+    expect(figureSets).toHaveLength(19);
+    const animationPalette = JSON.parse(
+      readFileSync(join(out, 'animation/palette.json'), 'utf8')
+    ) as { hex: string[] };
+    expect(animationPalette.hex).toHaveLength(32);
+    expect(animationPalette.hex.slice(0, 3)).toEqual([
+      '#000000',
+      '#ddccaa',
+      '#22aaee'
+    ]);
+    const tables = JSON.parse(
+      readFileSync(join(out, 'animation/tables.json'), 'utf8')
+    ) as AnimationTables;
+    expect(tables.scene_words).toHaveLength(256);
+    expect(tables.scenery_lists).toHaveLength(18);
+    expect(tables.scenery_lists[0]).toEqual([
+      { choices: [-9045], optional: false, parallax: 75 },
+      { choices: [-3059], optional: false, parallax: 75 }
+    ]);
+    expect(tables.foreground_lists[0]).toHaveLength(15);
+    expect(tables.sky_colours).toEqual([
+      4, 4, 10, 11, 12, 12, 12, 12, 11, 10, 4, 4
+    ]);
+    expect(tables.sky_colours_dark).toEqual([16, 4, 5, 5, 4, 16]);
+    expect(tables.figure_scripts).toHaveLength(20);
+    expect(tables.figure_scripts[0]).toHaveLength(0xfc);
+    const figures = JSON.parse(
+      readFileSync(join(out, 'animation/figures.json'), 'utf8')
+    ) as { figures: FigureSet[] };
+    const ent = figures.figures.find(set => set.id === 7)!;
+    expect([ent.resource_file, ent.depth, ent.frames.length]).toEqual([
+      'AAnims.res',
+      5,
+      10
+    ]);
+    expect(ent.frames[0]).toMatchObject({ height: 87, width: 56, x: 0 });
 
     const atlas = byPath.get('campaign/tiles.png')!;
     expect([atlas.width, atlas.height]).toEqual([
