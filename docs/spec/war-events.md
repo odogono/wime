@@ -5,7 +5,7 @@ are set. Facts cite their Findings (ADR-0004), recovered from the
 Reference Build for #57. The reference scenarios are in
 `docs/re/war-events-reference.md`. The triggers that wake Forces (#59),
 the presentation of the announcements (#60) and the movement tripwires
-(#49) add their own sections.
+(#49) have their own sections below.
 
 ## State
 
@@ -124,3 +124,26 @@ When an entry's trigger is met (finding:ai-trigger-what-waking-changes):
 - The two Gandalfs are entries 1 and 2. Entry 2, waiting at Lórien for
   event 1, wakes at the 8 a.m. check after entry 1 is killed.
   (finding:ai-second-gandalf-wakes-when-the-first-sleeps)
+
+## Tripwires
+
+(finding:mobilisation-tripwires-follow-arrival)
+
+- After a Leader's movement step lands it on a tile origin, and after
+  any arrival at its destination, and before the search for a fight,
+  two tripwires are tested:
+  - An Evil Leader (allegiance 0) on the Isen Ford, (1104, 928), sets
+    events 3 and 5. (finding:mobilisation-evil-at-the-fords-of-isen)
+  - A non-Evil Leader on any tile origin with x at least 1664 and y at
+    least 1008 sets event 7.
+    (finding:ai-good-force-near-mordor-starts-the-war)
+- Each event is set once with the current day, through the same step
+  as the daily check, and nothing is announced. Only Leaders move, so
+  followers never set them.
+- What follows comes from the rules above. Gondor's event 3 entries
+  wake in the same sweep if they come after the Leader in roster
+  order, otherwise in the next sweep. The Rohan musters wait for the
+  next 8 a.m. Event 7 brings events 3, 4 and 6, with Saruman's
+  announcement, at the next 8 a.m. check, and day 169 is then silent.
+- Being attacked never mobilises a Force or its Nation.
+  (finding:mobilisation-attack-does-not-mobilise)

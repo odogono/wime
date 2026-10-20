@@ -107,3 +107,31 @@ export const dailyWarEvents = (
   }
   return { announcements, events: next };
 };
+
+// The movement tripwires (finding:mobilisation-tripwires-follow-arrival):
+// a Leader landing on a tile origin sets events silently, only once.
+// An Evil Leader on the Isen Ford sets events 3 and 5
+// (finding:mobilisation-evil-at-the-fords-of-isen); a non-Evil Leader at
+// or beyond (1664, 1008) sets event 7
+// (finding:ai-good-force-near-mordor-starts-the-war).
+export const ISEN_FORD = { x: 1104, y: 928 };
+export const MORDOR_APPROACHES = { x: 1664, y: 1008 };
+
+export const tripwires = (
+  events: WarEvents,
+  leader: RosterEntry,
+  day: number
+): WarEvents => {
+  const at = leader.position;
+  if (at === null || at.x % 16 !== 0 || at.y % 16 !== 0) {
+    return events;
+  }
+  if (leader.allegiance === 0) {
+    return at.x === ISEN_FORD.x && at.y === ISEN_FORD.y
+      ? setWarEvent(setWarEvent(events, 3, day), 5, day)
+      : events;
+  }
+  return at.x >= MORDOR_APPROACHES.x && at.y >= MORDOR_APPROACHES.y
+    ? setWarEvent(events, 7, day)
+    : events;
+};
