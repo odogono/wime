@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, test } from 'bun:test';
 
 import { resolveFight } from './combat';
+import { answerMeeting } from './meetings';
 import { createSim, tickSim, type SimState } from './state';
 
 // The Isen Ford and Mordor tripwires (docs/spec/war-events.md,
@@ -84,10 +85,21 @@ const world = (
     )
   });
 
+// One tick, letting any meeting time out to "Continue on" as an
+// unanswered window does (finding:forces-follow-and-continue-on); the
+// held sweep then finishes the tick.
+const tick = (state: SimState): SimState => {
+  let next = tickSim(state);
+  while (next.meeting) {
+    next = tickSim(answerMeeting(next, 'continue-on').world);
+  }
+  return next;
+};
+
 const ticks = (state: SimState, n: number): SimState => {
   let next = state;
   for (let i = 0; i < n; i++) {
-    next = tickSim(next);
+    next = tick(next);
   }
   return next;
 };
@@ -246,7 +258,7 @@ describe.skipIf(!existsSync(startingStatePath) || !existsSync(tilemapPath))(
       const landed = tickSim(before);
       expect(landed.fight).not.toBeNull();
       expect(landed.warEvents.mask).toBe(0x2d);
-      const sweeps = tickSim(tickSim(resolveFight(landed)));
+      const sweeps = tick(tick(resolveFight(landed)));
       expect(sweeps.warEvents.mask).toBe(0x2d);
       expect(consumed(before, sweeps)).toEqual([
         32, 42, 45, 47, 49, 51, 54, 69, 70, 71, 72, 73, 74, 75, 76, 77
