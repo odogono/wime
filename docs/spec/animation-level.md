@@ -77,7 +77,22 @@ talks and fights shown here are in `docs/spec/encounters.md`.
   (finding:data-formats-frml-frame-lists)
 - Figures are moved by their set's script: frames, steps, waits,
   random jumps, facing and events.
-  (finding:graphics-figure-animation-scripts)
+  (finding:graphics-spell-flash)
+- Event 0x10 spawns a set-18 flash at the caster's current position:
+  entry 0x0a from its right edge when unmirrored, entry 0x17 from its
+  left edge when mirrored, with the launch hot spot 20 pixels below
+  its top (50 for an unmirrored Balrog). The flash faces the opposite
+  way to its caster, has depth 150 and uses its original colours.
+  Its script moves it six pixels per frame toward the opposite battle
+  line, cycling through frames 1, 2, 3 and 0; frame 4 bursts there,
+  then event 0x0e moves it offscreen. Each cast removes set-18 flashes
+  past x 320 and moves its own battle line as in the Finding. These
+  figures belong entirely to the view, including during a fight.
+  (finding:graphics-spell-flash)
+- During a fight each figure's frame delay moves one step toward its
+  speed on every frame, without the laggard adjustment used while the
+  Force walks; a new flash starts with delay 10.
+  (finding:graphics-spell-flash)
 - Figures use roster byte 19 as their colour selector. A nonzero
   selector maps four source bitplanes into the five screen bitplanes;
   zero copies five planes unchanged. Source colour 0 stays clear.

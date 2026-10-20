@@ -515,6 +515,36 @@ describe('fights on the Animation Level', () => {
     expect(sim.fight!.round).toBe(0);
   });
 
+  test('flashes keep their script positions through combat and are left behind after it', () => {
+    const sim = characterFight();
+    const spellWorld = {
+      ...battleWorld,
+      script: (id: number) => (id === 18 ? [0, 0x60] : [0, 0, 0x90, 0x60])
+    };
+    const initial = spawnBattle(sim, spellWorld, first, 0);
+    // Keep every launch onscreen so subsequent casts retain the flashes.
+    initial.stage.figures = initial.stage.figures.map(figure => ({
+      ...figure,
+      x: 100
+    }));
+    const after = stepBattle(initial, sim.fight!, 1000);
+    const count = initial.stage.figures.length;
+    expect(after.phase).toBe('fighting');
+    expect(after.stage.figures).toHaveLength(count * 2);
+    const flashes = after.stage.figures.slice(count);
+    expect(flashes.every(figure => figure.frml === 18)).toBe(true);
+    const later = stepBattle(after, sim.fight!, 1010);
+    expect(later.stage.figures.slice(count).map(figure => figure.x)).toEqual(
+      flashes.map(figure => figure.x)
+    );
+    expect(
+      walkAfterBattle(later, sim.fight!, 1020).figures.map(
+        figure => figure.owner
+      )
+    ).toEqual([7, 8, 10]);
+    expect(sim).toEqual(characterFight());
+  });
+
   test('charges move further forward than engaging and leave the sim untouched', () => {
     const sim = characterFight();
     const initial = spawnBattle(sim, battleWorld, first, 0);

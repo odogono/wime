@@ -5,6 +5,7 @@ import {
   newFigure,
   startScript,
   stepFigure,
+  type Figure,
   type ScriptWorld
 } from './figure-script';
 
@@ -68,5 +69,69 @@ describe('a figure script', () => {
     expect(stepFigure(newFigure(w, 0, 1, 0, 0, 150, 7), w, 0).next).toBe(
       STOPPED
     );
+  });
+
+  test.each([
+    {
+      flipped: false,
+      frml: 4,
+      launchX: 61,
+      launchY: 177,
+      line: 'line1',
+      value: 61
+    },
+    {
+      flipped: true,
+      frml: 4,
+      launchX: 51,
+      launchY: 177,
+      line: 'line2',
+      value: 21
+    },
+    {
+      flipped: false,
+      frml: 12,
+      launchX: 61,
+      launchY: 207,
+      line: 'line1',
+      value: 61
+    },
+    {
+      flipped: true,
+      frml: 12,
+      launchX: 51,
+      launchY: 177,
+      line: 'line2',
+      value: 21
+    }
+  ])('event 0x10 launches from set $frml, flipped $flipped', scenario => {
+    const casts: { flash: Figure; line: string; x: number }[] = [];
+    const w = world([0, 0x43, 0x90, 0], {
+      castSpell: (flash, line, x) => casts.push({ flash, line, x })
+    });
+    // The event uses movement and facing from this interpretation, even
+    // before the caster's next frame commits its position.
+    const caster = newFigure(w, scenario.frml, 1, 50, 165, 150, 7);
+    // Make both cases move right by three pixels before the event.
+    w.script = frml =>
+      frml === 18 ? [0] : [0, scenario.flipped ? 0x23 : 0x43, 0x90, 0];
+    const after = stepFigure({ ...caster, flipped: scenario.flipped }, w, 100);
+    expect(after.spells).toBe(1);
+    expect(casts).toHaveLength(1);
+    expect(casts[0]).toMatchObject({
+      flash: {
+        depth: 150,
+        flipped: !scenario.flipped,
+        frame: 0,
+        frml: 18,
+        owner: 0,
+        pc: (scenario.flipped ? 0x17 : 0x0a) - 1,
+        x: scenario.launchX - FRAMES[0]!.hot_x,
+        y: scenario.launchY - FRAMES[0]!.hot_y
+      },
+      line: scenario.line,
+      x: scenario.value
+    });
+    expect(caster.spells).toBeUndefined();
   });
 });
