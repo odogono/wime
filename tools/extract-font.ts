@@ -58,45 +58,42 @@ export type DiskFont = {
   strike: Uint8Array[];
 };
 
-// Parse a disk font's size file (the load file under FONTS:<name>/).
-export const parseDiskFont = (file: Uint8Array, name: string): DiskFont => {
-  const hunk = parseHunkFile(file)[0];
-  if (!hunk) {
-    throw new ExtractError(`${name} has no hunks`);
-  }
-  const data = hunk.data;
-  if (beU16(data, DFH_OFFSET + 14) !== DFH_ID) {
-    throw new ExtractError(`${name} is not a disk font (no DFH_ID)`);
-  }
-  const tf = TEXT_FONT_OFFSET;
+// Parse a TextFont at offset tf in data. Its pointers are turned into
+// offsets in data by toOffset: a disk font's are relative to its hunk, a
+// ROM font's are absolute addresses in the ROM.
+const parseTextFont = (
+  data: Uint8Array,
+  tf: number,
+  toOffset: (pointer: number) => number,
+  name: string,
+  source: string
+): DiskFont => {
   const height = beU16(data, tf + 20);
   const flags = data[tf + 23]!;
   const xSize = beU16(data, tf + 24);
   const baseline = beU16(data, tf + 26);
   const loChar = data[tf + 32]!;
   const hiChar = data[tf + 33]!;
-  const charData = beU32(data, tf + 34);
+  const charData = toOffset(beU32(data, tf + 34));
   const modulo = beU16(data, tf + 38);
-  const charLoc = beU32(data, tf + 40);
-  const charSpace = beU32(data, tf + 44);
-  const charKern = beU32(data, tf + 48);
+  const charLoc = toOffset(beU32(data, tf + 40));
+  const spacePointer = beU32(data, tf + 44);
+  const kernPointer = beU32(data, tf + 48);
   const proportional = (flags & 0x20) !== 0;
 
   // hiChar - loChar + 1 glyphs, then the "not defined" glyph.
   const count = hiChar - loChar + 2;
   const glyphs: FontGlyph[] = Array.from({ length: count }, (_, i) => {
     const location = beU32(data, charLoc + i * 4);
-    const x = location >>> 16;
-    const width = location & 0xff_ff;
     return {
       code: i < count - 1 ? loChar + i : null,
-      kern: charKern === 0 ? 0 : beS16(data, charKern + i * 2),
+      kern: kernPointer === 0 ? 0 : beS16(data, toOffset(kernPointer) + i * 2),
       space:
-        proportional && charSpace !== 0
-          ? beS16(data, charSpace + i * 2)
+        proportional && spacePointer !== 0
+          ? beS16(data, toOffset(spacePointer) + i * 2)
           : xSize,
-      width,
-      x
+      width: location & 0xff_ff,
+      x: location >>> 16
     };
   });
 
@@ -118,11 +115,55 @@ export const parseDiskFont = (file: Uint8Array, name: string): DiskFont => {
       hiChar,
       loChar,
       name,
-      source: `FONTS:${name} on Disk.1`,
+      source,
       strikeWidth
     },
     strike
   };
+};
+
+// Parse a disk font's size file (the load file under FONTS:<name>/).
+export const parseDiskFont = (file: Uint8Array, name: string): DiskFont => {
+  const hunk = parseHunkFile(file)[0];
+  if (!hunk) {
+    throw new ExtractError(`${name} has no hunks`);
+  }
+  if (beU16(hunk.data, DFH_OFFSET + 14) !== DFH_ID) {
+    throw new ExtractError(`${name} is not a disk font (no DFH_ID)`);
+  }
+  return parseTextFont(
+    hunk.data,
+    TEXT_FONT_OFFSET,
+    pointer => pointer,
+    name,
+    `FONTS:${name} on Disk.1`
+  );
+};
+
+// topaz/8 in a Kickstart ROM (finding:ui-text-font-lord-10). Kickstart 1.3
+// leaves the TextFont's name unset, so it is found by its shape: 8 by 8,
+// baseline 6, characters 32 to 255, flags ROMFONT and DESIGNED.
+export const parseRomTopaz = (rom: Uint8Array, source: string): DiskFont => {
+  const base = rom.length === 0x4_00_00 ? 0xfc_00_00 : 0xf8_00_00;
+  for (let tf = 0; tf + 52 < rom.length; tf += 2) {
+    if (
+      beU16(rom, tf + 20) === 8 &&
+      rom[tf + 23] === 0x41 &&
+      beU16(rom, tf + 24) === 8 &&
+      beU16(rom, tf + 26) === 6 &&
+      rom[tf + 32] === 32 &&
+      rom[tf + 33] === 255
+    ) {
+      return parseTextFont(
+        rom,
+        tf,
+        pointer => pointer - base,
+        'topaz/8',
+        source
+      );
+    }
+  }
+  throw new ExtractError(`no topaz/8 TextFont in ${source}`);
 };
 
 export const loadLordFont = (archive: string): DiskFont => {

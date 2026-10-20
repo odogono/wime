@@ -11,8 +11,8 @@ import {
 // column at x 412, with 9 pixels a row
 // (finding:ui-galadriels-mirror-lists-forces-on-the-move). It is
 // framed as every window is, its tiles at hi-res pixel size
-// (finding:ui-window-box-geometry). The original letters it in topaz/8
-// (finding:ui-text-font-lord-10); the port's lettering is provisional.
+// (finding:ui-window-box-geometry), and lettered in topaz/8 when it was
+// exported (finding:ui-full-map-topaz-is-kickstart-1-3).
 
 export interface MirrorWindow {
   height: number;
@@ -25,6 +25,9 @@ export interface MirrorWindow {
 const ROW_HEIGHT = 9;
 const PADDING = 8;
 const GOOD_X = 10;
+// The heading is the box's own text, at (20, 8) in colour 8
+// (finding:ui-galadriels-mirror-heading).
+const HEADING_X = 20;
 const FOLLOWER_INDENT = 6;
 const EVIL_X = 412;
 
@@ -52,9 +55,9 @@ export const drawMirrorWindow = (
     ctx,
     style,
     MIRROR_HEADING,
-    window.x + GOOD_X,
+    window.x + HEADING_X,
     window.y + PADDING,
-    style.colours.red
+    style.colours.blue
   );
   const top = window.y + PADDING + ROW_HEIGHT;
   window.listing.good.forEach((row, i) => {

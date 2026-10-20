@@ -4,8 +4,8 @@
 // only the metrics, so they run headless; drawing needs the sheet.
 //
 // The original letters the hi-res Full Map Level in the ROM font topaz/8,
-// which is not on the game's disks. provisional: the port draws lord/10
-// there at double width, about as wide as topaz's 8 hi-res pixels.
+// which `bun run export:web` takes from a Kickstart 1.3 ROM when there is
+// one (see hiresWindowText in window-frame.ts).
 
 export interface FontGlyph {
   // The character code, or null for the "not defined" glyph.

@@ -1,7 +1,7 @@
-import { measureLines } from './font';
 import {
   drawWindowFrame,
   hiresWindowText,
+  measureHiresLines,
   type WindowStyle
 } from './window-frame';
 
@@ -11,8 +11,8 @@ import {
 // asks "Would you like to..." with two buttons; choosing one answers
 // with a message, and a press anywhere clears it. The box is the
 // original's, framed as every window is (finding:ui-window-frame-tiles);
-// the buttons are provisional, and so is its lettering, which the
-// original draws in topaz/8 (finding:ui-text-font-lord-10).
+// the buttons are provisional. It is lettered in topaz/8 when it was
+// exported (finding:ui-full-map-topaz-is-kickstart-1-3).
 
 export type ArchiveChoice = 'restore' | 'save';
 
@@ -110,7 +110,7 @@ export const drawArchiveWindow = (
   if (window.kind === 'message') {
     const width = Math.max(
       WIDTH,
-      INSET_X * 2 + 2 * measureLines(style.font.metrics, window.lines)
+      INSET_X * 2 + measureHiresLines(style, window.lines)
     );
     const box = drawWindowFrame(ctx, style, {
       height: INSET_Y * 2 + window.lines.length * ROW_HEIGHT,

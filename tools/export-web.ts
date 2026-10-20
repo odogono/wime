@@ -8,12 +8,17 @@
 // web/public/assets/ by default (gitignored: tool output is never committed,
 // see AGENTS.md). The browser only ever loads these exported PNG/JSON
 // assets; it never parses Amiga formats (ADR-0001, ADR-0003).
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import { parseArgs } from 'node:util';
 
 import { exportAnimationLevel } from './export-animation-level';
-import { fontSheet, loadLordFont } from './extract-font';
+import {
+  fontSheet,
+  loadLordFont,
+  parseRomTopaz,
+  type DiskFont
+} from './extract-font';
 import {
   AmigaOFSImage,
   DEFAULT_ARCHIVE,
@@ -39,6 +44,7 @@ import {
   TEXT_RESOURCE_FILES,
   decodeCstrPayload
 } from './extract-text';
+import { KICK13, fsUaeDir } from './fs-uae/setup';
 import { loadCampaignMapAssets } from './render-campaign-map';
 
 export const WEB_ASSETS_DIR = 'web/public/assets';
@@ -543,36 +549,57 @@ export const exportWebAssets = (
     }
   }
 
-  // The text font, lord/10 from Disk 1 (finding:ui-text-font-lord-10): the
-  // strike as a white glyph sheet and its tables as metrics JSON.
-  const font = loadLordFont(archive);
-  const fontSheetPath = join(outputDir, 'fonts', 'lord-10.png');
-  writeRgbaPng(fontSheetPath, fontSheet(font));
-  const fontMetricsPath = join(outputDir, 'fonts', 'lord-10.json');
-  writeJson(fontMetricsPath, font.metrics);
-  const fontSource: AssetSource = {
-    id: null,
-    resource_file: 'FONTS:lord/10',
-    type: 'font'
-  };
-  assets.push(
+  // The text fonts (finding:ui-text-font-lord-10): lord/10 from Disk 1,
+  // and topaz/8 for the Full Map Level from the Kickstart 1.3 ROM the
+  // game runs on, when one is at hand. Each is its strike as a white
+  // glyph sheet and its tables as metrics JSON.
+  const fonts: { font: DiskFont; name: string; source: AssetSource }[] = [
     {
-      height: font.metrics.height,
-      kind: 'font-sheet',
+      font: loadLordFont(archive),
       name: 'lord-10',
-      path: relativePosix(outputDir, fontSheetPath),
-      source: fontSource,
-      width: font.metrics.strikeWidth
-    },
-    {
-      height: null,
-      kind: 'font-metrics',
-      name: 'lord-10',
-      path: relativePosix(outputDir, fontMetricsPath),
-      source: fontSource,
-      width: null
+      source: { id: null, resource_file: 'FONTS:lord/10', type: 'font' }
     }
-  );
+  ];
+  const rom = join(fsUaeDir, KICK13);
+  if (existsSync(rom)) {
+    fonts.push({
+      font: parseRomTopaz(new Uint8Array(readFileSync(rom)), KICK13),
+      name: 'topaz-8',
+      source: { id: null, resource_file: 'Kickstart 1.3 ROM', type: 'font' }
+    });
+  } else {
+    warnings += 1;
+    skipped.push({
+      source: { id: null, resource_file: 'Kickstart 1.3 ROM', type: 'font' },
+      warnings: [
+        `no ${rom} (set FS_UAE_DIR): the Full Map Level falls back to lord/10`
+      ]
+    });
+  }
+  for (const { font, name, source } of fonts) {
+    const sheetPath = join(outputDir, 'fonts', `${name}.png`);
+    writeRgbaPng(sheetPath, fontSheet(font));
+    const metricsPath = join(outputDir, 'fonts', `${name}.json`);
+    writeJson(metricsPath, font.metrics);
+    assets.push(
+      {
+        height: font.metrics.height,
+        kind: 'font-sheet',
+        name,
+        path: relativePosix(outputDir, sheetPath),
+        source,
+        width: font.metrics.strikeWidth
+      },
+      {
+        height: null,
+        kind: 'font-metrics',
+        name,
+        path: relativePosix(outputDir, metricsPath),
+        source,
+        width: null
+      }
+    );
+  }
 
   // CSTR text resources as JSON.
   const texts = collectCstrTexts(archive);
@@ -611,7 +638,7 @@ export const exportWebAssets = (
       'starting-state.json holds the opening roster, Places, Forces, routes, objects and clock, read from the data hunk of the WarInMiddleEarth executable.',
       'Full Map Level art is AMaps.res IMAG 2 (640x200, 4 planes); its eye, scroll, magnifying glass and hourglass are IMAG 32, 35, 33 and 34. They are coloured with the Full Map Level palette from the executable data hunk; full-map/palette.json records its colours and provenance.',
       'animation/ holds the Animation Level: its 32-colour palette, each FRML figure set as a sheet with figures.json giving every frame and hot spot (colour variants stacked in rows selected by figures.json), the icons, the window frame (AMaps.res IMAG 12) and tables.json, the scene and script tables of the data hunk. Its scenery strips are the AScene.res and BScene.res bitmaps under graphics/.',
-      'fonts/ holds the text font lord/10 from Disk 1: lord-10.png is its strike, set bits white, and lord-10.json the glyph locations, advances and kerning.',
+      'fonts/ holds the text fonts: lord/10 from Disk 1, and topaz/8 from the Kickstart 1.3 ROM when FS_UAE_DIR has one. Each .png is a strike, set bits white, and each .json its glyph locations, advances and kerning.',
       'Every decoded IMAG is exported under graphics/ with its source resource, including bitmaps whose purpose is still unidentified.'
     ],
     skipped,

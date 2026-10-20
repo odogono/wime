@@ -49,6 +49,9 @@ The listing is a pure function of the simulation state (ADR-0002); the
 window's frame and layout are the view's. The original letters the Full
 Map Level's windows in the ROM font topaz/8, and every other window in
 the disk font lord/10 (`finding:ui-text-font-lord-10`,
-`finding:data-formats-lord-font-metrics`). topaz/8 is not on the game's
-disks, so the port draws lord/10 there at double width; this is
-provisional.
+`finding:data-formats-lord-font-metrics`). The Mirror's heading is
+colour 8, blue, 20 hi-res pixels into the box (`finding:ui-galadriels-mirror-heading`).
+topaz/8 is not on the game's disks: the port takes it from a Kickstart
+1.3 ROM, the version the game runs on
+(`finding:ui-full-map-topaz-is-kickstart-1-3`), when `export:web` finds
+one, and otherwise draws lord/10 there at double width.

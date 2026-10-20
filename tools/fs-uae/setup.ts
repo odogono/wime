@@ -23,14 +23,14 @@ import { DEFAULT_ARCHIVE } from '../extract-graphics';
 
 export const BUILD_DIR = resolve(import.meta.dir, '../../build/fs-uae');
 
-const fsUaeDir =
+export const fsUaeDir =
   process.env.FS_UAE_DIR ?? join(homedir(), 'games/amiga/FS-UAE');
 
 // FS-UAE's download cache names files by SHA-1.
 const WHDLOAD = 'Cache/Downloads/d6b/d6b706bfbfe637bd98cd657114eea630b7d2dcc7';
 const KICK13_RTB =
   'Cache/Downloads/209/209c109855f94c935439b60950d049527d2f2484';
-const KICK13 =
+export const KICK13 =
   'Kickstarts/Kickstart-v1.3-rev34.5-1987-Commodore-A500-A1000-A2000-CDTV.rom';
 const KICK204 =
   'Kickstarts/Kickstart-v2.04-rev37.175-1991-Commodore-A500plus.rom';
