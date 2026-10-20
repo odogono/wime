@@ -17,15 +17,19 @@
     "extract-starting-state": "bun tools/extract-starting-state.ts",
     "extract-manual": "bun tools/extract-manual.ts",
     "disasm": "bun tools/disasm.ts",
+    "asm": "bun tools/asm.ts",
     "render-campaign-map": "bun tools/render-campaign-map.ts",
     "export:web": "bun tools/export-web.ts",
+    "extract-all": "bun tools/extract-all.ts",
+    "fs-uae:setup": "bun tools/fs-uae/setup.ts",
+    "dev": "bun run --cwd web dev",
     "typecheck": "tsc --noEmit && bun run --cwd web typecheck",
     "test": "bun test tools && bun run --cwd web test",
     "lint": "eslint --cache .",
     "lint:fix": "eslint --fix .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "check": "bun run typecheck && bun run lint && bun run format:check && bun run test && bun run findings:check"
+    "check": "bun tools/preflight.ts && bun run typecheck && bun run lint && bun run format:check && bun run test && bun run findings:check"
   },
   "devDependencies": {
     "@alexaltea/capstone-js": "^5.0.9",

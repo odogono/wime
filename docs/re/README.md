@@ -2,6 +2,7 @@
 
 Working notes on the Reference Build's executable, `WarInMiddleEarth` on Disk 1 of `artifacts/amiga/WarInMiddleEarth_v1.0_0968.lha`. These notes record layouts and addresses for the next person at the disassembler. What they show about how the game worked is recorded as Findings in [`docs/findings/`](../findings/README.md). Specs cite the Findings, not these notes.
 
+- [`fs-uae.md`](fs-uae.md): booting the original in FS-UAE and reading its memory, which every reference below relies on.
 - [`starting-state-tables.md`](starting-state-tables.md): the data hunk tables that hold the starting state, field by field.
 - [`labels.md`](labels.md): named addresses in the code and data hunks.
 - [`full-map-reference.md`](full-map-reference.md): how the Full Map Level reference captures were made.
@@ -34,4 +35,8 @@ The code uses the Aztec C small-data model: register A4 holds the data hunk's ad
 code+0x003a6  41ec9dea              lea.l -$6216(a4), a0  ; data+0x1de8 roster
 ```
 
-Each `d(a4)` operand is annotated with the data offset it reaches, and every address named in [`labels.md`](labels.md) gets its label, so searching for an address finds every access to it: `rg 'data\+0x1de8' extracted_asm/code.asm`. Name new addresses in `labels.md` and rerun `bun run disasm` to see them in the listing. `extracted_asm/code.bin` and `data.bin` hold the raw hunk contents for hex dumps. Never commit anything extracted from `artifacts/`.
+Each `d(a4)` operand is annotated with the data offset it reaches, and every address named in [`labels.md`](labels.md) gets its label, so searching for an address finds every access to it: `rg 'data\+0x1de8' extracted_asm/code.asm`. Name new addresses in `labels.md` and rerun `bun run disasm` to see them in the listing. A call through the jump table also names the routine it reaches (`; data+0x0252 jt_mulu32 -> code+0x1bb76 mulu32`).
+
+Read a routine with `bun run asm <address|label> [lines]`, for example `bun run asm pickUpObject 80` or `bun run asm 6a00`. The address need not start an instruction, so it works where an exact-match range such as `awk '/^code\+0x06a00/,…/'` prints nothing or runs to the end of the file. To find where a subsystem lives, start from the [code ranges in `labels.md`](labels.md#subsystems).
+
+`extracted_asm/code.bin` and `data.bin` hold the raw hunk contents for hex dumps. Never commit anything extracted from `artifacts/`.

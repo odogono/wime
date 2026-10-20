@@ -205,6 +205,17 @@ const CLICK_TOLERANCE_PX = 3;
 // (finding:ui-game-starts-on-animation-level).
 type Level = 'animation' | 'campaign' | 'full-map';
 
+// `run` holds the whole view's state and handlers, in this order; search for
+// the name to jump to a part:
+// - state: `level` through `lastTime`, one `let` per open window or Level
+// - the Animation Level: `goDownToAnimation`, `startAnimationFight`,
+//   `beginTalk`, `handleAnimationPress`
+// - the Full Map Level: `goUp`, `goDown`, `handleFullMapPress`
+// - the Campaign Level and Orders: `mapPoint`, `handleOrderClick`
+// - the Game Speed window: `toggleSpeedWindow`, `pressSpeedWindow`
+// - pointer and key handlers: `addEventListener` calls, `endDrag`
+// - drawing: `drawOverlay`, then `frame`, the per-frame loop that ticks the
+//   sim and opens fights, meetings and messages
 const run = (
   assets: CampaignAssets,
   fullMap: FullMapLevel,
