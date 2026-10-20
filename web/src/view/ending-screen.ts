@@ -1,18 +1,18 @@
 import type { Ending } from '../sim/index';
 import { textKey } from './assets';
 
-// The texts the game ends with (docs/spec/combat.md, "Endings"): the
-// losing ending for three fallen Strongholds shows BScene CSTR 50, then
-// the common closing texts 51 and 52; the winning ending shows 53 to 55,
-// as the Ring reaching Mount Doom does
-// (finding:places-stronghold-falls-with-its-garrison,
-// finding:places-destroying-barad-dur-garrison-wins). Each page waits
+// The texts the game ends with (docs/spec/winning-and-losing.md): the
+// losing endings show BScene CSTR 49 for the Ring at Barad-dûr or 50
+// for three fallen Strongholds, then the common closing texts 51 and
+// 52; both winning endings show 53 to 55 (finding:ui-ending-pages). Each page waits
 // for a press; the last stays. The original's scenes and music behind
 // them wait for the Animation Level.
 
 export const ENDING_PAGES: Record<Ending, number[]> = {
+  'lost-barad-dur': [49, 51, 52],
   'lost-strongholds': [50, 51, 52],
-  'won-barad-dur': [53, 54, 55]
+  'won-barad-dur': [53, 54, 55],
+  'won-mount-doom': [53, 54, 55]
 };
 
 export interface EndingScreen {

@@ -23,6 +23,7 @@ import {
   type Meeting
 } from './meetings';
 import { dropObjects } from './objects';
+import { passRingAfterFight } from './ring';
 import { nextRandom, type RngState } from './rng';
 import {
   TILE_SIZE,
@@ -101,6 +102,10 @@ export interface CombatWorld {
   // Where the dead leave what they carried
   // (finding:objects-dead-drop-their-objects).
   objectPlacements: (ObjectPlacement | null)[];
+  // Where the Ring's passing leaves its messages, and who bears it
+  // (docs/spec/winning-and-losing.md).
+  passings: Passing[];
+  ringBearer: number | null;
   rng: RngState;
   roster: RosterEntry[];
   routes: number[][];
@@ -742,13 +747,17 @@ export const finishFight = <T extends CombatWorld>(world: T): T => {
       position: top.position ? { ...top.position } : null
     };
   }
-  return {
+  const passed = passRingAfterFight({
     ...world,
-    ending: world.ending ?? endingAfterFight(roster),
-    fight: null,
     objectPlacements,
-    roster: restoreEncounterHealth(roster),
+    roster,
     routes
+  });
+  return {
+    ...passed,
+    ending: world.ending ?? endingAfterFight(passed.roster),
+    fight: null,
+    roster: restoreEncounterHealth(passed.roster)
   };
 };
 

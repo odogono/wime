@@ -1,10 +1,16 @@
-import { INITIAL_CLOCK, tickClock, type Clock } from './clock';
+import {
+  INITIAL_CLOCK,
+  QUARTER_HOURS_PER_HOUR,
+  tickClock,
+  type Clock
+} from './clock';
 import { findMatch, startFight, type Fight } from './combat';
 import { councilDue, holdCouncil, type CouncilMessage } from './council';
 import type { Passing } from './encounters';
 import type { Ending } from './endings';
 import { startMeeting, type Meeting } from './meetings';
 import { sweepMovement, type Tilemap } from './movement';
+import { ringAtBaradDur, ringAtMountDoom } from './ring';
 import { createRng, type RngState } from './rng';
 import {
   DEFAULT_SPEEDS,
@@ -173,6 +179,10 @@ export const tickSim = (state: SimState): SimState => {
         moved.roster[index]!,
         moved.clock.day
       );
+      const lost = ringAtBaradDur(moved.roster[index]!);
+      if (lost) {
+        return { ...moved, ending: lost };
+      }
       const match = findMatch(moved, index);
       if (!match) {
         return null;
@@ -191,8 +201,18 @@ export const tickSim = (state: SimState): SimState => {
     return { ...world, sweepFrom: stoppedAt + 1 };
   }
   const stepped = { ...world, clock: tickClock(world.clock), sweepFrom: 0 };
-  return dailyChecks(councilDue(stepped) ? holdCouncil(stepped) : stepped);
+  const council = councilDue(stepped) ? holdCouncil(stepped) : stepped;
+  const won = onTheHour(council)
+    ? ringAtMountDoom(council.roster, council.ringBearer)
+    : null;
+  return won ? { ...council, ending: won } : dailyChecks(council);
 };
+
+// The hourly tests on the Campaign Level, after the Council's
+// (finding:objects-ring-at-mount-doom-checked-hourly).
+const onTheHour = (state: SimState): boolean =>
+  state.watching === null &&
+  state.clock.quarterHour % QUARTER_HOURS_PER_HOUR === 0;
 
 const dailyChecks = (state: SimState): SimState => {
   if (!isDailyCheck(state.clock)) {

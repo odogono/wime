@@ -238,8 +238,10 @@ describe('dropping on death', () => {
     const next = finishFight(dead);
     expect(next.roster[7]?.state).toBe(0);
     expect(next.roster[7]?.objects).toEqual([0, 4]);
+    // The Ring is then taken from the ground even with no winner left
+    // to carry it (finding:objects-ring-taken-by-last-awake-winner).
     expect(next.objectPlacements.slice(0, 2)).toEqual([
-      { object: 0, position: HERE },
+      null,
       { object: 4, position: HERE }
     ]);
   });

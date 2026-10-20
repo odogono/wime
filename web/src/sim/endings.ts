@@ -8,8 +8,9 @@
 import type { RosterEntry } from './starting-state';
 
 // 'lost-strongholds' and 'won-barad-dur' are the two endings a fight
-// can bring; the Ring's endings come with the objects milestone.
-export type Ending = 'lost-strongholds' | 'won-barad-dur';
+// can bring; the Ring brings the other two (ring.ts).
+export type Ending =
+  'lost-barad-dur' | 'lost-strongholds' | 'won-barad-dur' | 'won-mount-doom';
 
 // The Garrison of each Stronghold: Minas Tirith, Lórien, Thranduil's
 // Palace, Edoras and the Hornburg.
