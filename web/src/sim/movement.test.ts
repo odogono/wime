@@ -394,8 +394,8 @@ describe('S3: Éomer does not reach Edoras', () => {
 const orderWorld = (): SimState =>
   makeSim({
     entries: [
-      entry({ index: 1, name: 'A', position: { x: 160, y: 160 } }),
-      entry({ index: 2, leader: 1, name: 'B' }),
+      entry({ facing: 3, index: 1, name: 'A', position: { x: 160, y: 160 } }),
+      entry({ index: 2, leader: 1, name: 'B', route: 1 }),
       entry({ index: 3, leader: 2, name: 'C' }),
       entry({ index: 4, leader: 1, name: 'D' }),
       entry({
@@ -409,24 +409,36 @@ const orderWorld = (): SimState =>
         name: 'ASLEEP',
         position: { x: 480, y: 160 },
         state: 0
+      }),
+      entry({
+        index: 7,
+        is_unit: true,
+        leader: 1,
+        name: 'UNIT',
+        starting_strength: 300,
+        strength: 300
       })
     ],
     places: [place(1, 'HOME', 160, 160), place(2, 'AWAY', 640, 320)],
+    routes: [[], [2, 1]],
     terrainByTile: { 1: 100 },
     tileAt: () => 1
   });
 
 describe('orders', () => {
   test('ordering a member splits it and its followers off', () => {
-    // finding:movement-ordering-part-of-a-force
+    // finding:forces-ordering-a-follower-splits-it
     const sim = giveOrder(orderWorld(), 2, { x: 645, y: 325 });
     expect(sim.roster[2]!.leader).toBeNull();
     expect(sim.roster[2]!.position).toEqual({ x: 160, y: 160 });
+    expect(sim.roster[2]!.facing).toBe(3);
     expect(sim.roster[2]!.destination).toEqual({ x: 640, y: 320 });
+    expect(sim.roster[2]!.state).toBe(1);
+    expect(sim.routes[1]).toEqual([]);
     const forces = forcesOf(sim.roster);
     expect(
       forces.map(force => force.members.map(member => member.index))
-    ).toContainEqual([1, 4]);
+    ).toContainEqual([1, 4, 7]);
     expect(
       forces.map(force => force.members.map(member => member.index))
     ).toContainEqual([2, 3]);
@@ -436,10 +448,18 @@ describe('orders', () => {
     const sim = giveOrder(orderWorld(), 1, { x: 501, y: 207 });
     expect(sim.roster[1]!.destination).toEqual({ x: 496, y: 192 });
     expect(sim.roster[1]!.leader).toBeNull();
-    expect(destinationForClick(sim.places, { x: 645, y: 325 })).toEqual({
+    expect(destinationForClick({ x: 645, y: 325 })).toEqual({
       x: 640,
       y: 320
     });
+  });
+
+  test('a Unit that follows someone cannot be ordered on its own', () => {
+    // finding:forces-ordering-a-follower-splits-it
+    const sim = orderWorld();
+    expect(canOrder(sim, 7)).toBe(false);
+    expect(giveOrder(sim, 7, { x: 640, y: 320 })).toBe(sim);
+    expect(canOrder(sim, 2)).toBe(true);
   });
 
   test('only active, awake Forces take Orders', () => {
