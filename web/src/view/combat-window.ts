@@ -38,6 +38,9 @@ export const MESSAGE_MS = 180 * FRAME_MS;
 export const RESULT_MS = 300 * FRAME_MS;
 // How long each message box of an ignored fight stays up.
 export const BOX_MS = 200 * FRAME_MS;
+// `provisional`: how long a round with no messages stays up on the
+// Animation Level (docs/spec/encounters.md).
+export const ANIMATION_ROUND_MS = 800;
 
 export const GOOD_WON = 'The good forces are victorious!';
 export const EVIL_WON = 'The forces of EVIL have won.';
@@ -228,7 +231,7 @@ const ignore = (
   };
 };
 
-const goThere = (sim: SimState, now: number): CombatUi => {
+export const openCombatWindow = (sim: SimState, now: number): CombatUi => {
   const fight = sim.fight!;
   const good = fight.rows.find(row => row.side === 'good');
   const evil = fight.rows.find(row => row.side === 'evil');
@@ -251,7 +254,8 @@ export const stepCombatUi = (
   ui: CombatUi,
   sim: SimState,
   now: number,
-  choose: Choose
+  choose: Choose,
+  roundMs = 0
 ): { sim: SimState; ui: CombatUi | null } => {
   if (ui.kind === 'announcement') {
     return now >= ui.deadline ? ignore(sim, now) : { sim, ui };
@@ -309,6 +313,10 @@ export const stepCombatUi = (
         pending,
         until: Math.max(window.until, now) + MESSAGE_MS
       };
+    } else if (roundMs > 0) {
+      // The Animation Level must show each round, including a round
+      // without a casualty message. This changes presentation only.
+      window = { ...window, until: now + roundMs };
     }
   }
   return { sim: next, ui: window };
@@ -408,7 +416,7 @@ export const pressCombatUi = (
     }
     return button.choice === 'ignore-it'
       ? ignore(sim, now)
-      : { sim, ui: goThere(sim, now) };
+      : { sim, ui: openCombatWindow(sim, now) };
   }
   if (ui.kind === 'window' && sim.fight) {
     const hit = optionAt(sim.fight, point);
@@ -458,7 +466,8 @@ export const drawCombatUi = (
   ctx: CanvasRenderingContext2D,
   style: WindowStyle,
   ui: CombatUi,
-  sim: SimState
+  sim: SimState,
+  messageOnly = false
 ): void => {
   const { colours } = style;
   ctx.strokeStyle = colours.text;
@@ -478,8 +487,8 @@ export const drawCombatUi = (
     }
     return;
   }
-  if (ui.kind === 'boxes') {
-    const text = ui.boxes[0]!;
+  if (ui.kind === 'boxes' || (messageOnly && ui.kind === 'window')) {
+    const text = ui.kind === 'boxes' ? ui.boxes[0]! : ui.message;
     const box = drawWindowFrame(ctx, style, {
       height: 24,
       width: Math.max(160, text.length * 5 + 20),

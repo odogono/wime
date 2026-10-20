@@ -5,7 +5,7 @@ import type { Clock } from './clock';
 import type { CombatEvent, CombatRow, Fight } from './combat';
 import type { CouncilMessage } from './council';
 import type { Passing } from './encounters';
-import type { Meeting } from './meetings';
+import { answerMeeting, type Meeting } from './meetings';
 import { giveOrder } from './movement';
 import { SAVE_VERSION, restoreSave, serialiseSave } from './save';
 import type { Place, PlaceKind, Point, RosterEntry } from './starting-state';
@@ -138,6 +138,11 @@ const PINNED_SHAPES: Record<number, string> = {
 
 const tilemap = { height: 1, indices: [0], width: 1 };
 
+// Encounters can stop this journey for a talk. Model the view's
+// default answer so the continuation actually advances time.
+const playTick = (state: SimState): SimState =>
+  tickSim(state.meeting ? answerMeeting(state, 'continue-on').world : state);
+
 describe('save', () => {
   test('the saved shape matches the one pinned for SAVE_VERSION', () => {
     expect(shapeOf(SHAPE)).toBe(PINNED_SHAPES[SAVE_VERSION]!);
@@ -181,12 +186,12 @@ describe('save', () => {
       const frodo = sim.roster.find(entry => entry.name === 'FRODO')!;
       sim = giveOrder(sim, frodo.index, { x: 1500, y: 450 });
       for (let i = 0; i < 50; i++) {
-        sim = tickSim(sim);
+        sim = playTick(sim);
       }
       const saved = serialiseSave(sim);
       let played = sim;
       for (let i = 0; i < 200; i++) {
-        played = tickSim(played);
+        played = playTick(played);
       }
       expect(played).not.toEqual(sim);
       const restored = restoreSave(saved, sim.tilemap);
@@ -196,7 +201,7 @@ describe('save', () => {
       }
       let replayed = restored.state;
       for (let i = 0; i < 200; i++) {
-        replayed = tickSim(replayed);
+        replayed = playTick(replayed);
       }
       expect(replayed).toEqual(played);
     }

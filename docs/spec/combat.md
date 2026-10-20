@@ -183,8 +183,7 @@ enters the round (finding:combat-no-place-or-terrain-modifier).
   (finding:objects-dead-drop-their-objects,
   finding:objects-ring-passes-after-a-fight): milestone 7.
 - The Ring put on when its bearer is wounded
-  (finding:objects-ring-put-on-when-wounded) and fights fought on the
-  Animation Level: milestone 6.
+  (finding:objects-ring-put-on-when-wounded): milestone 6.
 - Encounters (meetings are in docs/spec/forces.md).
 
 ## The announcement and the combat window
@@ -216,6 +215,7 @@ original's 50 Hz frames.
   option; a charged or gone row has none. Names are white when hale,
   red when wounded and grey when dead or destroyed, standing in for
   the original's black, red and grey (finding:combat-name-colours).
-- `provisional`: a fight whose Good side is only Characters is fought
-  in this window too, until the Animation Level exists
-  (finding:combat-where-a-fight-is-fought).
+- A fight with no Unit on the Good side that involves the watched
+  Character is shown on the Animation Level, with the same rows,
+  options, messages and rounds (finding:combat-where-a-fight-is-fought).
+  See `docs/spec/encounters.md`, "Fights on the Animation Level".

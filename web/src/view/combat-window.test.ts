@@ -1,7 +1,20 @@
 import { describe, expect, test } from 'bun:test';
 
-import { createSim, findFight, startFight, type SimState } from '../sim/index';
 import {
+  createSim,
+  findFight,
+  setCombatOption,
+  startFight,
+  type SimState
+} from '../sim/index';
+import {
+  fightOnAnimationLevel,
+  spawnBattle,
+  stepBattle,
+  walkAfterBattle
+} from './animation-combat';
+import {
+  ANIMATION_ROUND_MS,
   ANNOUNCEMENT_BUTTONS,
   ANNOUNCEMENT_MS,
   EVIL_WON,
@@ -11,6 +24,7 @@ import {
   casualtyMessage,
   combatHoldsTime,
   layoutCombatWindow,
+  openCombatWindow,
   optionAt,
   pressCombatUi,
   rowLabel,
@@ -18,6 +32,7 @@ import {
   stepCombatUi,
   type CombatUi
 } from './combat-window';
+import type { ScriptWorld } from './figure-script';
 
 // The fights of docs/re/combat-reference.md, on synthetic rosters with
 // the entries at their real indices, as in the sim's combat tests.
@@ -378,5 +393,128 @@ describe('loss messages', () => {
         first
       )
     ).toBe('FARAMIR is struck a grave wound!');
+  });
+});
+
+// A small looping walking script keeps presentation tests independent
+// of the extracted, gitignored assets.
+const battleWorld: Omit<ScriptWorld, 'laggardLine'> = {
+  frames: () => [{ height: 20, hot_x: 0, hot_y: 20, width: 12 }],
+  line1: 1000,
+  line2: 1000,
+  random: n => n - 1,
+  script: () => [0, 0, 0x42, 0, 0xa0, 2]
+};
+
+const characterFight = (seed = 1): SimState =>
+  fight(
+    [
+      character(7, 'FRODO', { position: EAST_EMNET }),
+      character(8, 'SAM', { leader: 7 }),
+      character(10, 'PIPPIN', { leader: 7 }),
+      unit(142, 'orcs', 30, { ...EVIL, position: EAST_EMNET })
+    ],
+    7,
+    seed
+  );
+
+describe('fights on the Animation Level', () => {
+  test('routes by every member of the Good side, including followers', () => {
+    expect(fightOnAnimationLevel(eomer())).toBe(true);
+    expect(fightOnAnimationLevel(characterFight())).toBe(true);
+    expect(fightOnAnimationLevel(faramir())).toBe(false);
+    expect(fightOnAnimationLevel(calembel())).toBe(false);
+    expect(fightOnAnimationLevel(createSim(1))).toBe(false);
+  });
+
+  test('places both sides and walks to the two battle lines before fighting', () => {
+    const sim = characterFight();
+    const initial = spawnBattle(sim, battleWorld, first, 100);
+    const good = initial.stage.figures.filter(
+      (_, i) => sim.fight!.rows[initial.rows[i]!]!.side === 'good'
+    );
+    const rightmost = Math.max(...good.map(figure => figure.x));
+    expect(initial.world.line1).toBe(rightmost + 25);
+    expect(initial.world.line2).toBe(rightmost + 85);
+    expect(initial.phase).toBe('approach');
+    const atLines = stepBattle(initial, sim.fight!, 10_000);
+    expect(atLines.phase).toBe('fighting');
+    expect(atLines.stage.figures.map(figure => figure.x)).toEqual(
+      atLines.homes
+    );
+    expect(atLines.stage.figures.at(-1)!.flipped).toBe(true);
+    const balrog = spawnBattle(
+      { ...sim, fight: { ...sim.fight!, evil: 183 } },
+      battleWorld,
+      first,
+      100
+    );
+    expect(balrog.world.line2).toBe(rightmost + 100);
+  });
+
+  test('falls scale with row losses and only living Good figures walk on', () => {
+    const sim = characterFight();
+    const initial = spawnBattle(sim, battleWorld, first, 0);
+    const atLines = stepBattle(initial, sim.fight!, 1000);
+    const rows = sim.fight!.rows.map(row => ({
+      ...row,
+      strength: row.side === 'evil' ? 15 : row.entries[0] === 8 ? 0 : 1
+    }));
+    const after = stepBattle(atLines, { ...sim.fight!, round: 1, rows }, 1050);
+    expect(after.fallen.filter(Boolean)).toHaveLength(6); // 5 of 10 orcs and Sam
+    const walking = walkAfterBattle(after, { ...sim.fight!, rows }, 1060);
+    expect(walking.figures.map(figure => figure.owner)).toEqual([7, 10]);
+    expect(
+      walking.figures.every(figure => !figure.flipped && figure.next === 1060)
+    ).toBe(true);
+    expect(sim.fight!.round).toBe(0);
+  });
+
+  test('charges move further forward than engaging and leave the sim untouched', () => {
+    const sim = characterFight();
+    const initial = spawnBattle(sim, battleWorld, first, 0);
+    const ready = stepBattle(initial, sim.fight!, 1000);
+    const engaged = { ...sim.fight!, round: 1 };
+    const charging = {
+      ...engaged,
+      rows: engaged.rows.map(row => ({ ...row, option: 'charge' as const }))
+    };
+    const a = stepBattle(ready, engaged, 1010);
+    const b = stepBattle(ready, charging, 1010);
+    expect(b.stage.figures[0]!.x).toBeGreaterThan(a.stage.figures[0]!.x);
+    expect(sim.fight!.round).toBe(0);
+  });
+
+  test('matches the combat window for the same seeds and orders, regardless of visual randomness', () => {
+    for (let seed = 1; seed <= 20; seed++) {
+      const start = characterFight(seed);
+      // Exercise the same player orders in both presentations.
+      const ordered = setCombatOption(
+        setCombatOption(start, 0, 'charge'),
+        1,
+        'withdraw'
+      );
+      const expected = runWindow(ordered, openCombatWindow(ordered, 0)).sim;
+      let actual = ordered;
+      let ui: CombatUi | null = openCombatWindow(ordered, 0);
+      let battle = spawnBattle(actual, battleWorld, n => seed % n, 0);
+      battle = stepBattle(battle, actual.fight!, 1000);
+      for (let now = 0; ui && now < 3_600_000; now += 20) {
+        const result = stepCombatUi(
+          ui,
+          actual,
+          now,
+          n => seed % n,
+          ANIMATION_ROUND_MS
+        );
+        actual = result.sim;
+        ui = result.ui;
+        if (actual.fight) {
+          battle = stepBattle(battle, actual.fight, 1000 + now / 20);
+        }
+      }
+      expect(actual.fight).toBeNull();
+      expect(actual).toEqual(expected);
+    }
   });
 });
