@@ -24,11 +24,8 @@ export const MEETING_WINDOW_MS = MEETING_TIMEOUT_FRAMES * FRAME_MS;
 export const NOTICE_MS = 200 * FRAME_MS;
 export const GOLLUM_SNEAKS_AWAY = 'GOLLUM quietly sneaks away.';
 
-// "Go there" opens the Animation Level, which is not built yet.
-export type MeetingChoice = MeetingAnswer | 'go-there';
-
 export interface MeetingButton extends Box {
-  choice: MeetingChoice;
+  choice: MeetingAnswer;
   label: string;
 }
 
@@ -61,7 +58,7 @@ const capitalise = (text: string): string =>
   text.charAt(0).toUpperCase() + text.slice(1);
 
 // A Unit is named with its head count and takes the plural verb.
-const named = (entry: RosterEntry): string =>
+export const named = (entry: RosterEntry): string =>
   entry.isUnit ? `${entry.strength} ${entry.name}` : entry.name;
 
 // The window's lines: "<A> meets <B>.", then what B offers. A plain
@@ -87,7 +84,7 @@ export const meetingLines = (sim: SimState, meeting: Meeting): string[] => {
 const button = (
   box: Box,
   x: number,
-  choice: MeetingChoice,
+  choice: MeetingAnswer,
   label: string
 ): MeetingButton => ({
   choice,
@@ -130,17 +127,14 @@ export const openMeetingUi = (sim: SimState, now: number): MeetingUi | null => {
   };
 };
 
-// Answer the meeting. "Go there" answers as "Continue on" until the
-// Animation Level is built. Gollum sneaking away leaves a notice.
+// Answer the meeting. The caller handles the Level change for "Go
+// there". Gollum sneaking away leaves a notice.
 const answer = (
   sim: SimState,
-  choice: MeetingChoice,
+  choice: MeetingAnswer,
   now: number
 ): { sim: SimState; ui: MeetingUi | null } => {
-  const result = answerMeeting(
-    sim,
-    choice === 'follow' ? 'follow' : 'continue-on'
-  );
+  const result = answerMeeting(sim, choice);
   return {
     sim: result.world,
     ui: result.gollumSneaksAway
@@ -175,7 +169,7 @@ export const pressMeetingUi = (
   sim: SimState,
   point: { x: number; y: number },
   now: number
-): { choice: MeetingChoice | null; sim: SimState; ui: MeetingUi | null } => {
+): { choice: MeetingAnswer | null; sim: SimState; ui: MeetingUi | null } => {
   if (ui.kind === 'notice') {
     return { choice: null, sim, ui };
   }

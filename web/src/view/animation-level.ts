@@ -170,7 +170,8 @@ export const figureCount = (strength: number, figure: number): number => {
 // Place the party's figures in a column reaching left from x -10, each
 // a random 0 to 29 pixels further (75 for riders and Ents), in rows
 // two pixels apart, and set them walking (code+0x0b0de). Members whose
-// figure is a still picture are left out until talks are built.
+// figure is a still picture are left out of the walking party; talks
+// draw them as pictures.
 export const spawnParty = (
   members: StageMember[],
   world: Omit<ScriptWorld, 'laggardLine'>,

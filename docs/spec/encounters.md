@@ -60,6 +60,12 @@ in `docs/spec/combat.md`.
   a parting with a proverb or a further tip and a farewell.
 - Talking changes no game state. Which tips have been given is the
   view's, not the sim's, and is not saved.
+- `provisional`: the view holds game time during a talk. The arrival
+  box lasts four seconds, and each advice box at least four seconds
+  (longer for longer text); a click, Space or Enter advances it. The
+  advisor's approach and the party's placement are provisional. Once
+  all twenty tips are spent, proverbs fill the remaining advice boxes.
+  CSTR 8, also a parting prefix, shares the same once-per-session rule.
 
 ## Passing by
 
@@ -68,6 +74,8 @@ in `docs/spec/combat.md`.
   (finding:forces-anonymous-encounters-pass-by)
 - `provisional`: what the scouts' challenge does on the Campaign Level
   is not known; it does nothing here.
+- `provisional`: pass-by messages last four seconds and wait behind
+  talks and decision windows, and while the Full Map Level is shown.
 
 ## Joining
 

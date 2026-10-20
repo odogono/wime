@@ -63,7 +63,7 @@ const entry = (
 const meeting = (entries: RosterEntry[], pending: Meeting): SimState => {
   const sim = createSim(1);
   const roster = Array.from(
-    { length: 152 },
+    { length: 196 },
     (_, index) =>
       entries.find(candidate => candidate.index === index) ??
       entry(index, '', { position: null, state: 0 })
@@ -213,6 +213,40 @@ describe('meeting window', () => {
     const answered = stepMeetingUi(ui, charactersMeet, MEETING_WINDOW_MS);
     expect(meetingHoldsTime(answered.ui)).toBe(false);
     expect(tickSim(answered.sim).clock).not.toEqual(charactersMeet.clock);
+  });
+
+  test('an Encounter invitation holds the mover, and both choices and the default release it', () => {
+    const sim = meeting(
+      [
+        entry(7, 'FRODO'),
+        entry(153, 'TOM BOMBADIL', {
+          allegiance: 3,
+          figure: 82,
+          position: null,
+          state: 0
+        })
+      ],
+      { a: 7, b: 153, kind: 'talk' }
+    );
+    expect(sim.roster[7]!.state).toBe(2);
+    expect(sim.roster[153]!.state).toBe(0);
+    expect(tickSim(sim)).toBe(sim);
+    const ui = window(sim, 100);
+    expect(ui.lines).toEqual([
+      'FRODO meets TOM BOMBADIL.',
+      'TOM BOMBADIL invites FRODO to pause and talk.'
+    ]);
+    const results = [
+      pressMeetingUi(ui, sim, centre(ui, 'Go there'), 200),
+      pressMeetingUi(ui, sim, centre(ui, 'Continue on'), 200),
+      stepMeetingUi(ui, sim, 100 + MEETING_WINDOW_MS)
+    ];
+    for (const result of results) {
+      expect(result.ui).toBeNull();
+      expect(result.sim.meeting).toBeNull();
+      expect(result.sim.roster[7]!.state).toBe(1);
+      expect(result.sim.roster[153]).toEqual(sim.roster[153]!);
+    }
   });
 
   test("Gollum sneaking away leaves a notice that doesn't hold time", () => {

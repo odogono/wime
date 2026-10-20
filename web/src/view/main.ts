@@ -1,4 +1,5 @@
 import {
+  answerMeeting,
   createSim,
   forcesOnMap,
   formatClock,
@@ -10,6 +11,7 @@ import {
   tickSim,
   watchEntry,
   type Force,
+  type Meeting,
   type SimState
 } from '../sim/index';
 import {
@@ -81,6 +83,14 @@ import {
   type CouncilMessageWindow
 } from './council-message';
 import {
+  advanceEncounterTalk,
+  drawEncounterNotice,
+  drawEncounterTalk,
+  startEncounterTalk,
+  stepEncounterTalk,
+  type EncounterTalk
+} from './encounter-talk';
+import {
   drawEndingScreen,
   endingScreen,
   turnEndingPage,
@@ -126,6 +136,7 @@ import {
   type OrderState,
   type OrderWindow
 } from './order-window';
+import { stepPassingMessage, type PassingMessage } from './passing-message';
 import { createScreen, type Fit } from './screen';
 import { placeScenery } from './special-scenery';
 import {
@@ -181,6 +192,12 @@ const FLASH_INTERVAL_MS = 500;
 const choose = (n: number): number => Math.floor(Math.random() * n);
 // Script times are in the original's vertical blanks, 50 a second.
 const vblankAt = (ms: number): number => Math.floor((ms * 50) / 1000);
+
+// Restart the party's figures from now once a talk no longer holds them.
+const resumeStage = (stage: Stage, now: number): Stage => ({
+  ...stage,
+  figures: stage.figures.map(figure => ({ ...figure, next: vblankAt(now) }))
+});
 // A press that moves no further than this is a click, not a drag.
 const CLICK_TOLERANCE_PX = 3;
 
@@ -236,6 +253,8 @@ const run = (
     // A restored meeting or Council gets a fresh window.
     meetingUi = null;
     councilWindow = null;
+    passingMessage = null;
+    talk = null;
     return archiveMessage(ARCHIVE_MESSAGES.restored);
   };
   // The Archive window, from the scroll or A (finding:ui-archive-window).
@@ -258,12 +277,6 @@ const run = (
   );
   const placements = iconPlacements(assets.icons);
   const driver = createTickDriver();
-  // provisional: Encounters passed by are not shown yet (#89), so the
-  // view drops them as they come.
-  const tick = (state: SimState): SimState => {
-    const next = tickSim(state);
-    return next.passings.length ? { ...next, passings: [] } : next;
-  };
   let sim: SimState = createSim(0x14_18, assets.startingState, assets.tilemap);
   // Open on the Ring-bearer's Force at Hobbiton, the one Force the
   // player commands at the start (docs/spec/starting-state.md). The
@@ -307,6 +320,10 @@ const run = (
   // The Council of Elrond's message, while it holds the game
   // (docs/spec/council-of-elrond.md).
   let councilWindow: CouncilMessageWindow | null = null;
+  let talk: EncounterTalk | null = null;
+  let passingMessage: PassingMessage | null = null;
+  // Deliberately survives Archive restores, and is never saved.
+  const givenTips = new Set<number>();
   // The game's ending, once a fight has ended it.
   let ending: EndingScreen | null = null;
   let lastTime = performance.now();
@@ -390,6 +407,7 @@ const run = (
   // Up from the Animation Level to the Campaign Level, centred on the
   // watched Character.
   const goUpFromAnimation = (): void => {
+    talk = null;
     const position = sim.roster[watched]?.position;
     if (position) {
       camera = clampCamera(
@@ -405,11 +423,36 @@ const run = (
     setOrder(IDLE_ORDER);
   };
 
+  const beginTalk = (meeting: Meeting, now: number): void => {
+    talk = startEncounterTalk(
+      sim.roster[meeting.a]!,
+      sim.roster[meeting.b]!,
+      stage,
+      figureWorld,
+      assets.texts,
+      givenTips,
+      choose,
+      now
+    );
+    stage = talk.party;
+  };
+
+  const advanceTalk = (now: number): void => {
+    if (talk) {
+      talk = advanceEncounterTalk(talk, now);
+      if (!talk) {
+        stage = resumeStage(stage, now);
+      }
+    }
+  };
+
   const handleAnimationPress = (event: PointerEvent): void => {
     const icon = animationIconAt(animation.icons, toNative(event));
     // provisional: the eye and the sack open nothing yet.
     if (icon?.name === 'map') {
       goUpFromAnimation();
+    } else if (talk) {
+      advanceTalk(performance.now());
     }
   };
 
@@ -646,21 +689,15 @@ const run = (
         pointer,
         performance.now()
       );
-      // provisional: "Go there" brings the meeting into view, as the
-      // Animation Level it opens is not built yet.
       const meeting = sim.meeting;
-      const position = meeting && sim.roster[meeting.a]?.position;
-      if (result.choice === 'go-there' && position) {
-        camera = clampCamera(
-          cameraForFight(position, camera, {
-            height: viewHeightPx(assets.tilemap),
-            width: viewWidthPx(assets.tilemap)
-          }),
-          assets.tilemap
-        );
-      }
       sim = result.sim;
       meetingUi = result.ui;
+      if (result.choice === 'go-there' && meeting) {
+        goDownToAnimation(meeting.a);
+        if (meeting.kind === 'talk') {
+          beginTalk(meeting, performance.now());
+        }
+      }
       return;
     }
     if (speedWindow) {
@@ -780,6 +817,8 @@ const run = (
         goUpFromAnimation();
       } else if (key === 'p') {
         driver.paused = !driver.paused;
+      } else if (key === ' ' || key === 'enter') {
+        advanceTalk(performance.now());
       }
       return;
     }
@@ -821,6 +860,11 @@ const run = (
     }
     if (ending) {
       ending = turnEndingPage(ending);
+      return;
+    }
+    // Nothing else is open to the player while a fight or meeting holds
+    // the game.
+    if (combatHoldsTime(combat) || meetingHoldsTime(meetingUi) || sim.meeting) {
       return;
     }
     if (key === 'u') {
@@ -903,6 +947,8 @@ const run = (
       drawMeetingUi(ctx, assets.window, meetingUi);
     } else if (councilWindow) {
       drawCouncilMessage(ctx, assets.window, councilWindow);
+    } else if (passingMessage) {
+      drawEncounterNotice(ctx, assets.window, passingMessage.text);
     } else if (warMessage) {
       drawWarEventMessage(ctx, assets.window, warMessage);
     }
@@ -911,6 +957,22 @@ const run = (
   const frame = (now: number): void => {
     const elapsedMs = Math.min(1000, now - lastTime);
     lastTime = now;
+    // Notices wait on the Full Map Level and behind decision windows.
+    ({ message: passingMessage, sim } = stepPassingMessage(
+      passingMessage,
+      sim,
+      now,
+      level !== 'full-map' &&
+        !combat &&
+        !sim.fight &&
+        !meetingUi &&
+        !sim.meeting &&
+        !councilWindow &&
+        !sim.council &&
+        !talk &&
+        !ending &&
+        !sim.ending
+    ));
     // Game time does not pass on the Full Map Level
     // (finding:time-stops-on-full-map-level).
     if (level === 'full-map') {
@@ -959,9 +1021,16 @@ const run = (
       return;
     }
     if (level === 'animation') {
+      // Talks hold the view's clock. Meetings of the watched Character
+      // with an advisor start here without the Campaign Level's choice.
       const due = driver.advance(elapsedMs);
-      for (let i = 0; i < due && !sim.fight && !sim.meeting; i++) {
-        sim = tick(sim);
+      for (let i = 0; i < due && !talk && !sim.fight && !sim.meeting; i++) {
+        sim = tickSim(sim);
+      }
+      if (sim.meeting?.kind === 'talk' && sim.meeting.a === watched) {
+        const meeting = sim.meeting;
+        sim = answerMeeting(sim, 'go-there').world;
+        beginTalk(meeting, now);
       }
       if (sim.fight && !battle) {
         const watchingFight = sim.fight.rows.some(
@@ -973,7 +1042,12 @@ const run = (
           goUpFromAnimation();
         }
       }
-      if (battle && sim.fight && combat) {
+      if (talk) {
+        talk = stepEncounterTalk(talk, figureWorld, now);
+        if (!talk) {
+          stage = resumeStage(stage, now);
+        }
+      } else if (battle && sim.fight && combat) {
         const previousPhase = battle.phase;
         battle = stepBattle(battle, sim.fight, vblankAt(now));
         if (battle.phase === 'fighting') {
@@ -1006,6 +1080,7 @@ const run = (
           sim.council ||
           sim.ending ||
           (!battle &&
+            !talk &&
             (walkedOff(stage) ||
               stage.figures.length === 0 ||
               sim.roster[watched]!.strength === 0))
@@ -1015,8 +1090,17 @@ const run = (
           screen.buffer.drawImage(scene, 0, 0);
           if (battle) {
             drawBattle(screen.buffer, animation, battle);
+          } else if (talk) {
+            drawEncounterTalk(screen.buffer, animation, talk);
           } else {
             drawFigures(screen.buffer, animation, stage);
+            if (passingMessage) {
+              drawEncounterNotice(
+                screen.buffer,
+                animation.window,
+                passingMessage.text
+              );
+            }
           }
           drawAnimationIcons(screen.buffer, animation.icons);
           if (combat) {
@@ -1094,7 +1178,7 @@ const run = (
       !sim.council;
       i++
     ) {
-      sim = tick(sim);
+      sim = tickSim(sim);
       if (sim.fight) {
         combat = startCombatUi(sim, now);
         speedWindow = null;
@@ -1109,7 +1193,7 @@ const run = (
       warMessage,
       sim,
       now,
-      !combat && !meetingUi && !councilWindow
+      !combat && !meetingUi && !councilWindow && !passingMessage
     ));
     // Hovering the icon column does not scroll the map under it, and
     // dragging pans instead of edge scrolling.

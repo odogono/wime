@@ -355,6 +355,7 @@ export interface AnimationAssets {
   // Scenery strips by IMAG id, colour 0 clear.
   strips: Map<number, CanvasImageSource & { height: number; width: number }>;
   tables: AnimationTables;
+  window: WindowStyle;
 }
 
 interface FiguresJson {
@@ -375,10 +376,11 @@ export const loadAnimationAssets = async (
       manifest.assets.find(asset => asset.path === `animation/${name}`),
       `Animation Level ${name}`
     ).path;
-  const [palette, tables, figures] = await Promise.all([
+  const [palette, tables, figures, frame] = await Promise.all([
     fetchJson<{ hex: string[] }>(animationPath('palette.json')),
     fetchJson<AnimationTables>(animationPath('tables.json')),
-    fetchJson<FiguresJson>(animationPath('figures.json'))
+    fetchJson<FiguresJson>(animationPath('figures.json')),
+    loadImage(animationPath('window-frame.png'))
   ]);
   const stripAssets = manifest.assets.filter(
     asset =>
@@ -420,6 +422,7 @@ export const loadAnimationAssets = async (
     icons,
     palette: palette.hex,
     strips: new Map(strips),
-    tables
+    tables,
+    window: windowStyle(frame, palette.hex)
   };
 };
