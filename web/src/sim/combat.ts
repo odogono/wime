@@ -5,6 +5,7 @@
 // fight at once when the player ignores it.
 
 import { endingAfterFight, type Ending } from './endings';
+import { meetingBetween, type Meeting } from './meetings';
 import { nextRandom, type RngState } from './rng';
 import {
   TILE_SIZE,
@@ -204,15 +205,18 @@ export const combatRows = (
 const tileAligned = (point: Point): boolean =>
   point.x % TILE_SIZE === 0 && point.y % TILE_SIZE === 0;
 
+export type Match = { fight: Fight } | { meeting: Meeting };
+
 // After a Leader's step lands on a tile origin: the first Leader it
-// meets, and whether that starts a fight
-// (finding:combat-fight-starts-when-evil-meets-non-evil). Returns the
-// new fight, or null for no fight; either way draws from the world's
-// RNG only when an enemy is met.
-export const findFight = (
+// runs into, and whether that is a fight
+// (finding:combat-fight-starts-when-evil-meets-non-evil) or a meeting
+// (finding:forces-meeting-of-non-evil-leaders). A friendly match that
+// is not a meeting is passed by and the search goes on. Draws from the
+// world's RNG only when an enemy is met.
+export const findMatch = (
   world: CombatWorld,
   moverIndex: number
-): Fight | null => {
+): Match | null => {
   const mover = world.roster[moverIndex];
   if (!mover?.position || !tileAligned(mover.position)) {
     return null;
@@ -230,8 +234,10 @@ export const findFight = (
       continue;
     }
     if ((mover.allegiance === 0) === (other.allegiance === 0)) {
-      // A friendly meeting in the original; not modelled yet
-      // (docs/spec/combat.md).
+      const meeting = meetingBetween(mover, other);
+      if (meeting) {
+        return { meeting };
+      }
       continue;
     }
     const [good, evil] =
@@ -248,16 +254,27 @@ export const findFight = (
       return null;
     }
     return {
-      events: [],
-      evil: evil.index,
-      good: good.index,
-      position: { ...good.position! },
-      round: 0,
-      rows: combatRows(world.roster, good.position!),
-      winner: null
+      fight: {
+        events: [],
+        evil: evil.index,
+        good: good.index,
+        position: { ...good.position! },
+        round: 0,
+        rows: combatRows(world.roster, good.position!),
+        winner: null
+      }
     };
   }
   return null;
+};
+
+// The fight a Leader's step starts, if it starts one.
+export const findFight = (
+  world: CombatWorld,
+  moverIndex: number
+): Fight | null => {
+  const match = findMatch(world, moverIndex);
+  return match && 'fight' in match ? match.fight : null;
 };
 
 // Start a fight: both parties stop until it is over.

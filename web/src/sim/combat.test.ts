@@ -284,7 +284,8 @@ describe('rounds', () => {
         unit(74, 'cavalry', 500, { position: CALEMBEL }),
         unit(141, 'orcs', 100, { ...EVIL, position: CALEMBEL })
       ]),
-      73
+      // The orcs step: infantry stepping would meet the cavalry first.
+      141
     );
     const withdrawn = setCombatOption(sim, 1, 'withdraw');
     expect(withdrawn.fight!.rows[1]!.option).toBe('withdraw');
@@ -316,7 +317,8 @@ describe('rounds', () => {
         unit(74, 'cavalry', 500, { position: CALEMBEL }),
         unit(141, 'orcs', 100, { ...EVIL, position: CALEMBEL })
       ]),
-      73
+      // The orcs step: infantry stepping would meet the cavalry first.
+      141
     );
     sim = setCombatOption(sim, 0, 'retreat');
     expect(sim.fight!.rows[0]!.option).toBe('retreat');

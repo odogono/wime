@@ -21,6 +21,7 @@ export {
   combatRows,
   fightRound,
   findFight,
+  findMatch,
   finishFight,
   resolveFight,
   setCombatOption,
@@ -29,8 +30,18 @@ export {
   type CombatOption,
   type CombatRow,
   type CombatSide,
-  type Fight
+  type Fight,
+  type Match
 } from './combat';
+export {
+  answerMeeting,
+  MEETING_TIMEOUT_FRAMES,
+  meetingBetween,
+  startMeeting,
+  type Meeting,
+  type MeetingAnswer,
+  type MeetingKind
+} from './meetings';
 export {
   canOrder,
   desiredFacing,
