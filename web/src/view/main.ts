@@ -155,7 +155,7 @@ import {
   expired as provisionsExpired,
   type ProvisionsWindow
 } from './provisions-window';
-import { createScreen, type Fit } from './screen';
+import { NATIVE_HEIGHT, NATIVE_WIDTH, createScreen, type Fit } from './screen';
 import { placeScenery } from './special-scenery';
 import {
   drawSpeedWindow,
@@ -996,11 +996,29 @@ const run = (
     }
   });
 
+  // The top of the date line's strip (finding:ui-date-line).
+  const DATE_LINE_Y = 192;
   const drawOverlay = (forces: Force[]): void => {
     const ctx = screen.buffer;
-    // The date line sits in the strip below the 192px map view
-    // (provisional placement and colour, docs/spec/time.md).
-    drawText(ctx, assets.window.font, formatClock(sim.clock), 2, 192, '#fff');
+    // The date line: colour 3 on a parchment strip, colour 15, across
+    // the 8 rows below the 192px map view (finding:ui-date-line). The
+    // strip cuts off the bottom of the lettering, as in the original.
+    const { fill, line } = assets.window.colours;
+    ctx.fillStyle = fill;
+    ctx.fillRect(0, DATE_LINE_Y, NATIVE_WIDTH, NATIVE_HEIGHT - DATE_LINE_Y);
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, DATE_LINE_Y, NATIVE_WIDTH, NATIVE_HEIGHT - DATE_LINE_Y);
+    ctx.clip();
+    drawText(
+      ctx,
+      assets.window.font,
+      formatClock(sim.clock),
+      10,
+      DATE_LINE_Y,
+      line
+    );
+    ctx.restore();
     if (driver.paused && order.kind === 'idle') {
       const box = drawWindowFrame(ctx, assets.window, {
         height: 24,

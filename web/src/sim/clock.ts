@@ -88,5 +88,5 @@ export const displayTime = (quarterHour: number): DisplayTime => {
 export const formatClock = (clock: Clock): string => {
   const date = calendarDate(clock.day);
   const time = displayTime(clock.quarterHour);
-  return `${date.dayOfMonth} ${date.month} ${date.year} s.r. ${time.hour} ${time.meridiem}`;
+  return `${time.hour} ${time.meridiem}  ${date.month} ${date.dayOfMonth},  ${date.year} s.r.`;
 };
