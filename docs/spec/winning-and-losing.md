@@ -123,6 +123,10 @@ Build for #103. Carrying, taking and dropping objects in general is in
     facing left, a wizard, a man, two hobbits and a man. The original's
     dwarf, the first of the row, is never drawn, and the port does not
     draw it either.
+  - Winning figures use colour selectors 4, 12, 2, 5, 6, 14, 3, 11,
+    24 from the left, including the invisible dwarf. Losing figures use
+    selector 0, except the hooded row uses 1. Both use the ordinary
+    Animation Level colour mapping. (finding:graphics-figure-colour-selectors)
 - The scene shows alone for 300 frames, 6 seconds, or until a key is
   pressed. Then each page is shown in a message box at (30, 10), 240 by 80. The first two pages each stay until a key is pressed or 21
   seconds pass; the last page stays and ignores every other key and

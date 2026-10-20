@@ -6,6 +6,7 @@ import { PNG } from 'pngjs';
 
 import {
   buildFigureSheet,
+  figureColour,
   type AnimationTables,
   type FigureSet
 } from './export-animation-level';
@@ -134,6 +135,53 @@ test('a figure sheet lays frames side by side, 4-plane sets in colours 16 to 31'
     sheet.getPixel(4, 1)
   ]).toEqual([0, 21, 17]);
   expect(buildFigureSheet(frames, 5, []).sheet.getPixel(1, 0)).toBe(5);
+});
+
+// Selector words traced in finding:graphics-figure-colour-selectors.
+// These are complete colour ramps, independent of the plane-routing code.
+const ramp = (word: number) =>
+  Array.from({ length: 16 }, (_, i) => figureColour(i, word));
+
+test('figure colour selectors reproduce the wizard and the two winning men', () => {
+  expect(ramp(0x56_88)).toEqual([
+    0, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31
+  ]);
+  expect(ramp(0x3a_50)).toEqual([
+    0, 9, 12, 13, 10, 11, 14, 15, 24, 25, 28, 29, 26, 27, 30, 31
+  ]);
+  expect(ramp(0x2a_58)).toEqual([
+    0, 9, 12, 13, 24, 25, 28, 29, 10, 11, 14, 15, 26, 27, 30, 31
+  ]);
+  expect(ramp(0x14_e8)).toEqual([
+    0, 3, 18, 19, 10, 11, 26, 27, 6, 7, 22, 23, 14, 15, 30, 31
+  ]);
+});
+
+test('a figure sheet keeps transparent pixels and stacks each colour variant below the frames', () => {
+  const image = new IndexedImage(16, 1);
+  image.indices.set(Array.from({ length: 16 }, (_, i) => i));
+  const { colour_rows, sheet } = buildFigureSheet(
+    [{ hotX: 0, hotY: 0, image }],
+    4,
+    [],
+    new Map([
+      [6, 0x3a_50],
+      [14, 0x2a_58],
+      [24, 0x14_e8]
+    ])
+  );
+  expect(colour_rows).toEqual({ 0: 0, 14: 2, 24: 3, 6: 1 });
+  expect(sheet.size).toEqual([16, 4]);
+  expect([
+    sheet.getPixel(0, 1),
+    sheet.getPixel(0, 2),
+    sheet.getPixel(0, 3)
+  ]).toEqual([0, 0, 0]);
+  expect([
+    sheet.getPixel(6, 1),
+    sheet.getPixel(6, 2),
+    sheet.getPixel(6, 3)
+  ]).toEqual([14, 28, 26]);
 });
 
 // The export test reads the Reference Build, which lives in the
@@ -296,11 +344,24 @@ describe.skipIf(!existsSync(DEFAULT_ARCHIVE))('web export', () => {
       4, 4, 10, 11, 12, 12, 12, 12, 11, 10, 4, 4
     ]);
     expect(tables.sky_colours_dark).toEqual([16, 4, 5, 5, 4, 16]);
+    expect(tables.figure_colours).toHaveLength(196);
+    // Gandalf, Aragorn and Boromir on the Animation Level.
+    expect([1, 5, 6].map(i => tables.figure_colours[i])).toEqual([4, 14, 24]);
     expect(tables.figure_scripts).toHaveLength(20);
     expect(tables.figure_scripts[0]).toHaveLength(0xfc);
     const figures = JSON.parse(
       readFileSync(join(out, 'animation/figures.json'), 'utf8')
     ) as { figures: FigureSet[] };
+    for (const [id, selectors] of [
+      [4, [4, 6]],
+      [2, [14, 24]],
+      [8, [1]]
+    ] as const) {
+      const set = figures.figures.find(set => set.id === id)!;
+      expect(selectors.every(selector => set.colour_rows[selector]! > 0)).toBe(
+        true
+      );
+    }
     const ent = figures.figures.find(set => set.id === 7)!;
     expect([ent.resource_file, ent.depth, ent.frames.length]).toEqual([
       'AAnims.res',

@@ -20,3 +20,19 @@ The `observed:ending-…` scenarios in the Findings are these runs, made in FS-U
 On every ending the first two boxes close by themselves after about 21 seconds, or at once on a key such as space. The last box ignores space, return, letters and clicks; X quits the game to the AmigaDOS prompt.
 
 Keep the dumps and screenshots in a gitignored directory such as `build/fs-uae/`; they are taken from the original and are never committed.
+
+## Figure colour comparison (#119)
+
+`observed:ending-figure-colours` repeats the Mount Doom win above. Stop at
+`winGame`, then at code+0x03042 (0x2010a) after the nine figure copies,
+and continue to let the display refresh. `build/fs-uae/win-colours.png`
+is the reference capture from this worktree. The wizard is blue and grey,
+the first FRML 2 figure blue and orange with a beard, and the rightmost
+FRML 2 figure blond with a blue cloak. The selector table is data+0x0955;
+the plane-routing words are data+0x4bc8
+(finding:graphics-figure-colour-selectors).
+
+The port's exported sheets and `drawEndingFigures` were compared in the
+browser with the winning and losing end pages. Use the same hour and
+facing and allow for the view's random position jitter. Figure colours
+match the reference captures.

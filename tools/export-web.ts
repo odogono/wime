@@ -577,7 +577,7 @@ export const exportWebAssets = (
       'Campaign tiles come from AMaps.res CHAR 1 and the tile map from AMaps.res MMAP 1; only the 160x99 grid is exported, not the trailing MMAP bytes.',
       'starting-state.json holds the opening roster, Places, Forces, routes, objects and clock, read from the data hunk of the WarInMiddleEarth executable.',
       'Full Map Level art is AMaps.res IMAG 2 (640x200, 4 planes); its eye, scroll, magnifying glass and hourglass are IMAG 32, 35, 33 and 34. They are coloured with the Full Map Level palette from the executable data hunk; full-map/palette.json records its colours and provenance.',
-      'animation/ holds the Animation Level: its 32-colour palette, each FRML figure set as a sheet with figures.json giving every frame and hot spot (4-plane sets in colours 16 to 31), the icons, the window frame (AMaps.res IMAG 12) and tables.json, the scene and script tables of the data hunk. Its scenery strips are the AScene.res and BScene.res bitmaps under graphics/.',
+      'animation/ holds the Animation Level: its 32-colour palette, each FRML figure set as a sheet with figures.json giving every frame and hot spot (colour variants stacked in rows selected by figures.json), the icons, the window frame (AMaps.res IMAG 12) and tables.json, the scene and script tables of the data hunk. Its scenery strips are the AScene.res and BScene.res bitmaps under graphics/.',
       'Every decoded IMAG is exported under graphics/ with its source resource, including bitmaps whose purpose is still unidentified.'
     ],
     skipped,

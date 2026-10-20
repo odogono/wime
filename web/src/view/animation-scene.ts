@@ -14,6 +14,7 @@ export interface SceneryGroup {
 
 // The data hunk's scene tables, as exported to animation/tables.json.
 export interface AnimationTables {
+  figure_colours: number[];
   figure_scripts: number[][];
   foreground_lists: number[][];
   foreground_offsets: number[];

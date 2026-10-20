@@ -336,6 +336,7 @@ export interface FigureFrame {
 }
 
 export interface FigureSetAsset {
+  colour_rows: Record<number, number>;
   depth: number;
   frames: FigureFrame[];
   id: number;
@@ -363,7 +364,13 @@ export interface AnimationAssets {
 }
 
 interface FiguresJson {
-  figures: { depth: number; frames: FigureFrame[]; id: number; path: string }[];
+  figures: {
+    colour_rows: Record<number, number>;
+    depth: number;
+    frames: FigureFrame[];
+    id: number;
+    path: string;
+  }[];
   icons: { button: number; imag: number; name: string; x: number; y: number }[];
 }
 
@@ -396,6 +403,7 @@ export const loadAnimationAssets = async (
   const [sets, icons, strips] = await Promise.all([
     Promise.all(
       figures.figures.map(async set => ({
+        colour_rows: set.colour_rows,
         depth: set.depth,
         frames: set.frames,
         id: set.id,

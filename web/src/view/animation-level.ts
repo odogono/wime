@@ -276,7 +276,9 @@ export const drawFigures = (
     ctx.drawImage(
       set.sheet,
       frame.x,
-      0,
+      // Colour selection is shared with the ending picture
+      // (finding:graphics-figure-colour-selectors).
+      set.colour_rows[assets.tables.figure_colours[figure.owner] ?? 0] ?? 0,
       frame.width,
       frame.height,
       0,

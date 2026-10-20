@@ -78,6 +78,7 @@ talks and fights shown here are in `docs/spec/encounters.md`.
 - Figures are moved by their set's script: frames, steps, waits,
   random jumps, facing and events.
   (finding:graphics-figure-animation-scripts)
-- `provisional`: the 4-plane sets are drawn in colours 16 to 31; the
-  per-Character recolouring is not traced, so all Characters of a set
-  look alike. (finding:graphics-four-plane-figures-use-upper-colours)
+- Figures use roster byte 19 as their colour selector. A nonzero
+  selector maps four source bitplanes into the five screen bitplanes;
+  zero copies five planes unchanged. Source colour 0 stays clear.
+  (finding:graphics-figure-colour-selectors)

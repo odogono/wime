@@ -20,7 +20,6 @@ Not yet traced:
 
 - The per-Place special scenery switch on bits 10–15 of the scene word (code+0x00d3c, switch at code+0x01f0e).
 - Figure script events other than 1, 2, 0xf, 0x10 and 0x11, and jump condition 0x18.
-- How 4-plane figure sets are coloured per Character.
 - Where the battle lines (data+0x5568, data+0x556a) and the start lines (data+0x5564, data+0x5566) are set: code+0x0a316 and code+0x0a936.
 - What the eye (button 0xf0) and sack (0xf9) icons open.
 
@@ -29,3 +28,5 @@ Not yet traced:
 The Encounter Findings rest on the code alone. A first attempt to play `encounter-bombadil` (Frodo, entry 7, put at (736, 416) moving east onto Tom Bombadil's tile at (752, 416), with the clock limit at 16 frames) was cut short when the 3rd Nazgûl attacked Frodo first ("FRODO is attacked by the 3rd NAZGUL.", with "Go there" and "Ignore it"). To play it, first move the Nazgûl (entries 79 to 87) away or put them to sleep.
 
 Still to capture: an advisor's talk window answered, declined and timed out; a talk on the Animation Level; an anonymous figure passing by; an Evil Encounter fought on the Animation Level.
+
+Figure colours are now traced in finding:graphics-figure-colour-selectors (#119).
