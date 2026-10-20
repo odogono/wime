@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 
 import { EFFECT, PIECE } from './music';
-import { QUIET, soundCues, type SoundView } from './sound-cues';
+import { QUIET, figureEffects, soundCues, type SoundView } from './sound-cues';
 
 const view = (changes: Partial<SoundView>): SoundView => ({
   ...QUIET,
@@ -59,7 +59,7 @@ describe('sound cues', () => {
     ).toEqual([{ kind: 'stop' }, { entry: PIECE.ultVict, kind: 'play' }]);
   });
 
-  // finding:sound-effects
+  // finding:sound-fight-effects
   test('a bell rings as a message box opens', () => {
     expect(soundCues(QUIET, view({ boxes: ['info:FRODO'] }))).toEqual([
       { effect: EFFECT.bell, kind: 'effect' }
@@ -67,5 +67,27 @@ describe('sound cues', () => {
     expect(
       soundCues(view({ boxes: ['info:FRODO'] }), view({ boxes: [] }))
     ).toEqual([]);
+  });
+});
+
+// finding:sound-fight-effects
+const figure = (frame: number, spells = 0) => ({ frame, spells });
+
+describe('fight effects', () => {
+  test('a figure turning to frame 9 or 11 plays Whoosh or Sword', () => {
+    expect(
+      figureEffects([figure(8), figure(1)], [figure(9), figure(1)], () => 0)
+    ).toEqual([EFFECT.whoosh]);
+    expect(figureEffects([figure(10)], [figure(11)], () => 1)).toEqual([
+      EFFECT.sword
+    ]);
+    // Still on the frame: nothing more.
+    expect(figureEffects([figure(9)], [figure(9)], () => 0)).toEqual([]);
+  });
+
+  test('a spell plays Magic', () => {
+    expect(figureEffects([figure(2)], [figure(2, 1)], () => 0)).toEqual([
+      EFFECT.magic
+    ]);
   });
 });
