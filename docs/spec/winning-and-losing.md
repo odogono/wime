@@ -113,15 +113,21 @@ Build for #103. Carrying, taking and dropping objects in general is in
   | the Ring at Mount Doom   | 53, 54, 55 | "SO ENDS THE WAR IN MIDDLE EARTH."       |
   | Barad-dûr's Garrison     | 53, 54, 55 | "SO ENDS THE WAR IN MIDDLE EARTH."       |
 
-- The first two pages each stay until a key is pressed or 21 seconds
-  pass; the last page stays and ignores every other key and click.
-  (finding:ui-ending-pages)
-- The pages are shown over a closing scene on the Animation Level: for
-  a loss, the view on Mount Doom with a hooded figure, an orc with a
-  shield, a balrog and a troll; for a win, the view on Hobbiton with a
-  man with a sword, a wizard, a dwarf and an elf archer.
-  `provisional`: how the scene's figures move is not traced.
-  (finding:ui-ending-pages)
+- The pages are shown over a closing scene: the Animation Level's
+  scenery on Mount Doom for a loss, or on Hobbiton for a win, at the
+  current hour, with figures drawn on it once. Nothing in it moves.
+  (finding:ui-ending-scenes-are-still-pictures)
+  - **Lost:** four rows of orcs with shields, two trolls and a balrog
+    among them, and a row of nine hooded figures in front.
+  - **Won:** the Fellowship in a row: a hobbit, an elf, a hobbit, then,
+    facing left, a wizard, a man, two hobbits and a man. The original's
+    dwarf, the first of the row, is never drawn, and the port does not
+    draw it either.
+- The scene shows alone for 300 frames, 6 seconds, or until a key is
+  pressed. Then each page is shown in a message box at (30, 10), 240 by 80. The first two pages each stay until a key is pressed or 21
+  seconds pass; the last page stays and ignores every other key and
+  click. (finding:ui-ending-pages,
+  finding:ui-ending-scenes-are-still-pictures)
 - The original then quits when X is pressed. The port instead stays on
   the last page; a new game is the view's to offer.
   (finding:ui-ending-pages)

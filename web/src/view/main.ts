@@ -91,8 +91,15 @@ import {
   type EncounterTalk
 } from './encounter-talk';
 import {
+  ENDING_VIEW,
+  drawEndingFigures,
+  endingFigures,
+  isWon
+} from './ending-scene';
+import {
   drawEndingScreen,
   endingScreen,
+  stepEndingScreen,
   turnEndingPage,
   type EndingScreen
 } from './ending-screen';
@@ -415,6 +422,30 @@ const run = (
     canvas.style.cursor = 'default';
   };
 
+  // The ending's still picture: the Animation Level's scene on Mount
+  // Doom or Hobbiton, built for the empty roster entry 0, with its
+  // figures copied on once (finding:ui-ending-scenes-are-still-pictures).
+  const startEnding = (now: number): void => {
+    const end = sim.ending!;
+    buildScene(
+      scene,
+      animation,
+      assets.tilemap,
+      {
+        facing: sim.roster[0]?.facing ?? 0,
+        position: ENDING_VIEW[isWon(end) ? 'won' : 'lost']
+      },
+      sim.clock.quarterHour,
+      choose,
+      placeScenery
+    );
+    const ctx = scene.getContext('2d');
+    if (ctx) {
+      drawEndingFigures(ctx, animation.figures, endingFigures(end, choose));
+    }
+    ending = endingScreen(end, assets.texts, now);
+  };
+
   const startAnimationFight = (now: number, attacked = false): void => {
     const fight = sim.fight!;
     if (level !== 'animation') {
@@ -695,7 +726,7 @@ const run = (
   canvas.style.cursor = 'grab';
   canvas.addEventListener('pointerdown', event => {
     if (ending) {
-      ending = turnEndingPage(ending);
+      ending = turnEndingPage(ending, performance.now());
       return;
     }
     // The Council's message cannot be dismissed, and nothing else
@@ -929,7 +960,7 @@ const run = (
       return;
     }
     if (ending) {
-      ending = turnEndingPage(ending);
+      ending = turnEndingPage(ending, performance.now());
       return;
     }
     // Nothing else is open to the player while a fight or meeting holds
@@ -1253,10 +1284,11 @@ const run = (
     // Once a fight has ended the game and its windows have closed, the
     // ending takes the screen for good.
     if (!ending && !combat && sim.ending) {
-      ending = endingScreen(sim.ending, assets.texts);
+      startEnding(now);
     }
     if (ending) {
-      drawEndingScreen(screen.buffer, ending);
+      ending = stepEndingScreen(ending, now);
+      drawEndingScreen(screen.buffer, animation.window, scene, ending);
       screen.present();
       requestAnimationFrame(frame);
       return;
