@@ -95,6 +95,20 @@ export {
   createSim,
   deserializeSim,
   serializeSim,
+  takeAnnouncements,
   tickSim,
   type SimState
 } from './state';
+export {
+  DAILY_CHECK_HOUR,
+  DARK_LORD_MARCHES_DAY,
+  dailyWarEvents,
+  hasWarEvent,
+  INITIAL_WAR_EVENTS,
+  isDailyCheck,
+  SARUMAN_MARCHES_DAY,
+  setWarEvent,
+  WAR_EVENT_MESSAGES,
+  type WarEventAnnouncement,
+  type WarEvents
+} from './war-events';
