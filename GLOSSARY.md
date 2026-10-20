@@ -58,7 +58,7 @@ The kind of troops a Unit is made of, shown by the weapon on its shield, such as
 _Avoid_: Class, troop type
 
 **Mobilisation**:
-A Neutral Nation committing its Forces to the Good Side, either when shown its Token or when attacked by Evil.
+A Neutral Nation committing its Forces to the Good Side and the player's command, when shown its Token or when a War Event or the approach of the Ring-bearer or Gandalf sets them going. Being attacked never mobilises a Force.
 _Avoid_: Activation, recruitment
 
 ## Map

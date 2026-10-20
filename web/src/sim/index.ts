@@ -100,6 +100,15 @@ export {
   type SimState
 } from './state';
 export {
+  GANDALF_REACH,
+  GANDALFS,
+  RING_BEARER_REACH,
+  trigger,
+  triggerMet,
+  wakeEntry,
+  type WakeWorld
+} from './wake';
+export {
   DAILY_CHECK_HOUR,
   DARK_LORD_MARCHES_DAY,
   dailyWarEvents,

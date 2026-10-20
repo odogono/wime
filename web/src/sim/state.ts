@@ -10,6 +10,7 @@ import {
   type PlaceKind,
   type RosterEntry
 } from './starting-state';
+import { wakeEntry } from './wake';
 import {
   INITIAL_WAR_EVENTS,
   dailyWarEvents,
@@ -128,7 +129,8 @@ export const tickSim = (state: SimState): SimState => {
     (moved, index) => {
       const fight = findFight(moved, index);
       return fight ? startFight(moved, fight) : null;
-    }
+    },
+    wakeEntry
   );
   if (stoppedAt !== null) {
     return { ...world, sweepFrom: stoppedAt + 1 };
