@@ -4,12 +4,13 @@
 // player answers it, or the view answers "Continue on" for them when
 // its window times out.
 
+import { isEncounter } from './encounters';
 import { topLeader, type RosterEntry } from './starting-state';
 
 // Allegiance above this joins Forces; 3 is an advisor's, 1 and 2 an
 // unmobilised Leader's (finding:forces-meeting-of-non-evil-leaders).
-const MOBILISED_ABOVE = 3;
-const ADVISOR = 3;
+export const MOBILISED_ABOVE = 3;
+export const ADVISOR = 3;
 
 const GOLLUM = 78;
 // The Animation figure byte of a Wizard
@@ -33,8 +34,10 @@ export interface Meeting {
 
 // "Continue on" is the default, given when the window times out
 // (finding:ui-meeting-window). "Go there", offered by the talk and plain
-// windows, opens the Animation Level, which the sim doesn't model yet.
-export type MeetingAnswer = 'continue-on' | 'follow';
+// windows, sets both off again as "Continue on" does: the view watches
+// A on the Animation Level for the talk, which changes no game state
+// (docs/spec/encounters.md).
+export type MeetingAnswer = 'continue-on' | 'follow' | 'go-there';
 
 export interface MeetingWorld {
   meeting: Meeting | null;
@@ -66,20 +69,25 @@ export const meetingBetween = (
   return { a: a.index, b: b.index, kind };
 };
 
+// Set the parties' states. An Encounter figure never moves, so it is
+// left as it is.
 const setState = (
   roster: RosterEntry[],
   meeting: Meeting,
   state: number
 ): RosterEntry[] =>
   roster.map(entry =>
-    entry.index === meeting.a || entry.index === meeting.b
+    (entry.index === meeting.a || entry.index === meeting.b) &&
+    !isEncounter(entry.index)
       ? { ...entry, state }
       : entry
   );
 
-// Open the meeting's window. Offering to follow stops both Leaders
-// while it is up; the other kinds leave them as they were
-// (finding:ui-meeting-window).
+// Open the meeting's window. Offering to follow, or an Encounter's
+// invitation to talk, stops the parties while it is up
+// (finding:ui-meeting-window, finding:ui-encounter-talk-window); a
+// Leader's invitation to talk or a plain meeting leaves them as they
+// were.
 export const startMeeting = <T extends MeetingWorld>(
   world: T,
   meeting: Meeting
@@ -87,7 +95,7 @@ export const startMeeting = <T extends MeetingWorld>(
   ...world,
   meeting,
   roster:
-    meeting.kind === 'follow'
+    meeting.kind === 'follow' || isEncounter(meeting.b)
       ? setState(world.roster, meeting, 2)
       : world.roster
 });
@@ -113,7 +121,7 @@ const gollumSneaksAway = (roster: RosterEntry[]): boolean => {
   return true;
 };
 
-// Answer the meeting. Either answer sets both Leaders off again
+// Answer the meeting. Every answer sets both Leaders off again
 // (state 1); Follow also makes A follow B, keeping A's own position,
 // destination and route (finding:forces-follow-and-continue-on).
 // gollumSneaksAway tells the view to show "GOLLUM quietly sneaks
@@ -127,7 +135,7 @@ export const answerMeeting = <T extends MeetingWorld>(
     return { gollumSneaksAway: false, world };
   }
   const roster = setState(world.roster, meeting, 1);
-  if (answer === 'continue-on' || meeting.kind !== 'follow') {
+  if (answer !== 'follow' || meeting.kind !== 'follow') {
     return {
       gollumSneaksAway: false,
       world: { ...world, meeting: null, roster }
