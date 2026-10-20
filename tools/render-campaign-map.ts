@@ -57,9 +57,16 @@ export const loadCampaignMapAssets = (archive: string): CampaignMapAssets => {
   };
 };
 
-export const paletteFromRgb4Words = (data: Uint8Array): number[] => {
+export const paletteFromRgb4Words = (
+  data: Uint8Array,
+  colours: number = 16
+): number[] => {
   const palette: number[] = [];
-  for (let offset = 0; offset < Math.min(data.length, 32); offset += 2) {
+  for (
+    let offset = 0;
+    offset < Math.min(data.length, colours * 2);
+    offset += 2
+  ) {
     const value = beU16(data, offset);
     palette.push(
       ((value >> 8) & 0xf) * 17,

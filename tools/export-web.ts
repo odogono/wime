@@ -12,6 +12,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import { parseArgs } from 'node:util';
 
+import { exportAnimationLevel } from './export-animation-level';
 import {
   AmigaOFSImage,
   DEFAULT_ARCHIVE,
@@ -56,6 +57,9 @@ const FULL_MAP_ICONS = new Map([
 ]);
 const FULL_MAP_PALETTE_SOURCE =
   'Full Map Level RGB4 words at data+0x4ac8 in the executable (finding:data-formats-full-map-palette)';
+
+const ANIMATION_PALETTE_SOURCE =
+  'Animation Level RGB4 words at data+0x4b48 in the executable (finding:graphics-animation-level-palette)';
 
 // The tiles every window's frame is built from, 16 by 8 pixels each
 // (finding:ui-window-frame-tiles).
@@ -417,6 +421,28 @@ export const exportWebAssets = (
     width: null
   });
 
+  // The Animation Level's palette, figure sets, icons, frame and scene
+  // tables (docs/spec/animation-level.md).
+  const animation = exportAnimationLevel(archive, executable, outputDir);
+  for (const file of animation.files) {
+    const figure = animation.figures.find(
+      set => `animation/${set.path}` === file.path
+    );
+    assets.push({
+      ...(figure && { count: figure.frames.length, depth: figure.depth }),
+      height: file.height,
+      kind: figure ? 'animation-figures' : 'animation',
+      palette_source: ANIMATION_PALETTE_SOURCE,
+      path: file.path,
+      source: figure
+        ? { id: figure.id, resource_file: figure.resource_file, type: 'FRML' }
+        : file.imag === undefined
+          ? executableSource
+          : { id: file.imag, resource_file: 'AMaps.res', type: 'IMAG' },
+      width: file.width
+    });
+  }
+
   // Every decoded IMAG bitmap, with the Full Map Level art and icons
   // identified for the view. Keep their existing paths so source-based
   // lookups continue to work without duplicating any PNGs.
@@ -551,6 +577,7 @@ export const exportWebAssets = (
       'Campaign tiles come from AMaps.res CHAR 1 and the tile map from AMaps.res MMAP 1; only the 160x99 grid is exported, not the trailing MMAP bytes.',
       'starting-state.json holds the opening roster, Places, Forces, routes, objects and clock, read from the data hunk of the WarInMiddleEarth executable.',
       'Full Map Level art is AMaps.res IMAG 2 (640x200, 4 planes); its eye, scroll, magnifying glass and hourglass are IMAG 32, 35, 33 and 34. They are coloured with the Full Map Level palette from the executable data hunk; full-map/palette.json records its colours and provenance.',
+      'animation/ holds the Animation Level: its 32-colour palette, each FRML figure set as a sheet with figures.json giving every frame and hot spot (4-plane sets in colours 16 to 31), the icons, the window frame (AMaps.res IMAG 12) and tables.json, the scene and script tables of the data hunk. Its scenery strips are the AScene.res and BScene.res bitmaps under graphics/.',
       'Every decoded IMAG is exported under graphics/ with its source resource, including bitmaps whose purpose is still unidentified.'
     ],
     skipped,
