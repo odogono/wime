@@ -300,8 +300,11 @@ describe('the combat window', () => {
       0
     ).ui!;
     // Charge for the Rangers, the second Good row.
-    const point = { x: 6 + 18 + 5, y: 16 + 9 + 3 };
+    const point = { x: 8 + 18 + 5, y: 16 + 9 + 3 };
     expect(optionAt(sim.fight!, point)).toEqual({ option: 'charge', row: 1 });
+    // The window asks for x 6 and is drawn at 8, its buttons with it.
+    expect(optionAt(sim.fight!, { ...point, x: 8 + 18 })).not.toBeNull();
+    expect(optionAt(sim.fight!, { ...point, x: 8 + 17 })).toBeNull();
     const after = pressCombatUi(ui, sim, point, 10);
     expect(after.sim.fight!.rows[1]!.option).toBe('charge');
   });

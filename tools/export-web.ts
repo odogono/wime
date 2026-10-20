@@ -57,6 +57,10 @@ const FULL_MAP_ICONS = new Map([
 const FULL_MAP_PALETTE_SOURCE =
   'Full Map Level RGB4 words at data+0x4ac8 in the executable (finding:data-formats-full-map-palette)';
 
+// The tiles every window's frame is built from, 16 by 8 pixels each
+// (finding:ui-window-frame-tiles).
+const WINDOW_FRAME_IMAG = 13;
+
 export type AssetSource = {
   id: number | null;
   resource_file: string;
@@ -259,6 +263,39 @@ const writeJson = (path: string, value: unknown): void => {
   writeFileSync(path, stringifySortedJson(value), 'utf8');
 };
 
+// The window frame tiles carry palette indices like every IMAG, and a
+// window takes the colours of the Level it opens on, so the sheet is
+// exported once per Level's palette.
+const exportWindowFrames = (
+  data: Uint8Array,
+  outputDir: string,
+  levels: {
+    colours: number[];
+    dir: string;
+    kind: string;
+    paletteSource: string;
+  }[]
+): WebAsset[] =>
+  levels.map(({ colours, dir, kind, paletteSource }) => {
+    const decoded = decodeImagResource(data, colours);
+    const path = join(outputDir, dir, 'window-frame.png');
+    mkdirSync(join(outputDir, dir), { recursive: true });
+    decoded.pixelIndices.save(path);
+    return {
+      depth: decoded.depth,
+      height: decoded.height,
+      kind,
+      palette_source: paletteSource,
+      path: relativePosix(outputDir, path),
+      source: {
+        id: WINDOW_FRAME_IMAG,
+        resource_file: 'AMaps.res',
+        type: 'IMAG'
+      },
+      width: decoded.width
+    };
+  });
+
 export const exportWebAssets = (
   archive: string,
   outputDir: string
@@ -442,6 +479,27 @@ export const exportWebAssets = (
             asset.warnings = assetWarnings;
           }
           assets.push(asset);
+          if (
+            resourceName === 'AMaps.res' &&
+            resource.resourceId === WINDOW_FRAME_IMAG
+          ) {
+            assets.push(
+              ...exportWindowFrames(resource.data, outputDir, [
+                {
+                  colours: campaign.palette,
+                  dir: 'campaign',
+                  kind: 'window-frame',
+                  paletteSource: 'first 16 RGB4 words in CHAR resource'
+                },
+                {
+                  colours: fullMapColours,
+                  dir: 'full-map',
+                  kind: 'full-map-window-frame',
+                  paletteSource: FULL_MAP_PALETTE_SOURCE
+                }
+              ])
+            );
+          }
         } catch (error) {
           warnings += 1;
           skipped.push({

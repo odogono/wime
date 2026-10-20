@@ -107,6 +107,7 @@ import {
   stepWarEventMessage,
   type WarEventMessage
 } from './war-event-message';
+import { drawWindowFrame, windowStyle } from './window-frame';
 
 const canvas = document.querySelector<HTMLCanvasElement>('#screen');
 if (!canvas) {
@@ -635,25 +636,26 @@ const run = (assets: CampaignAssets, fullMap: FullMapLevel): void => {
     // (provisional placement, docs/spec/time.md).
     ctx.fillText(formatClock(sim.clock), 2, 192);
     if (driver.paused && order.kind === 'idle') {
-      ctx.fillStyle = '#000';
-      ctx.fillRect(8, 8, 118, 12);
-      ctx.strokeStyle = '#fff';
-      ctx.strokeRect(8.5, 8.5, 117, 11);
-      ctx.fillStyle = '#fff';
-      ctx.fillText('The Game is Paused.', 11, 10);
+      const box = drawWindowFrame(ctx, assets.window, {
+        height: 24,
+        width: 128,
+        x: 8,
+        y: 8
+      });
+      ctx.fillText('The Game is Paused.', box.x + 10, box.y + 8);
     }
     if (order.kind === 'pick-force') {
-      drawInfoWindow(ctx, layoutInfoWindow(['Select a Force']));
+      drawInfoWindow(ctx, assets.window, layoutInfoWindow(['Select a Force']));
     }
     if (order.kind === 'pick-destination') {
       const window = orderWindowFor();
       if (window) {
-        drawOrderWindow(ctx, window, order.selected);
+        drawOrderWindow(ctx, assets.window, window, order.selected);
       } else {
         setOrder(IDLE_ORDER);
       }
       if (pointer) {
-        drawOrderPointerTag(ctx, pointer);
+        drawOrderPointerTag(ctx, assets.window, pointer);
       }
     }
     // Hovering names the Place, Character or Unit under the pointer
@@ -668,21 +670,27 @@ const run = (assets: CampaignAssets, fullMap: FullMapLevel): void => {
       const overIcons = pointer !== null && isOverIcons(pointer, placements);
       const target = overIcons ? null : targetAt(pointer, forces);
       if (target) {
-        drawInfoWindow(ctx, layoutInfoWindow([target.name]));
+        drawInfoWindow(ctx, assets.window, layoutInfoWindow([target.name]));
       }
     }
     if (infoWindow) {
-      drawInfoWindow(ctx, infoWindow);
+      drawInfoWindow(ctx, assets.window, infoWindow);
     }
     if (speedWindow) {
-      drawSpeedWindow(ctx, speedWindow, driver.speed, driver.paused);
+      drawSpeedWindow(
+        ctx,
+        assets.window,
+        speedWindow,
+        driver.speed,
+        driver.paused
+      );
     }
     if (combat) {
-      drawCombatUi(ctx, combat, sim);
+      drawCombatUi(ctx, assets.window, combat, sim);
     } else if (meetingUi) {
-      drawMeetingUi(ctx, meetingUi);
+      drawMeetingUi(ctx, assets.window, meetingUi);
     } else if (warMessage) {
-      drawWarEventMessage(ctx, warMessage);
+      drawWarEventMessage(ctx, assets.window, warMessage);
     }
   };
 
@@ -714,16 +722,22 @@ const run = (assets: CampaignAssets, fullMap: FullMapLevel): void => {
         );
       }
       if (mirror) {
-        drawMirrorWindow(screen.hires, mirror);
+        drawMirrorWindow(screen.hires, fullMap.window, mirror);
       }
       if (archive) {
-        drawArchiveWindow(screen.hires, archive);
+        drawArchiveWindow(screen.hires, fullMap.window, archive);
       }
       if (speedWindow) {
         // Drawn at lo-res size: each of its pixels is two hi-res wide.
         screen.hires.save();
         screen.hires.setTransform(2, 0, 0, 1, 0, 0);
-        drawSpeedWindow(screen.hires, speedWindow, driver.speed, driver.paused);
+        drawSpeedWindow(
+          screen.hires,
+          fullMap.window,
+          speedWindow,
+          driver.speed,
+          driver.paused
+        );
         screen.hires.restore();
       }
       screen.present('hires');
@@ -809,6 +823,10 @@ try {
   ]);
   run(campaign, {
     ...fullMap,
+    window: windowStyle(
+      blackToTransparent(fullMap.windowFrame),
+      fullMap.palette.hex
+    ),
     // Their black backgrounds are masked out like the Campaign Level's
     // icon sheet; how the original masked them is provisional.
     icons: fullMap.icons.map(icon => ({

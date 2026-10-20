@@ -9,6 +9,12 @@ import {
   type RosterEntry,
   type SimState
 } from '../sim/index';
+import {
+  drawWindowFrame,
+  frameBox,
+  type Box,
+  type WindowStyle
+} from './window-frame';
 
 // The fight's announcement and the combat window on the Campaign Level
 // (docs/spec/combat.md; #47). The sim stops while state.fight is set;
@@ -16,8 +22,8 @@ import {
 // It is a pure state machine over real time in milliseconds, so main.ts
 // only feeds it the clock and presses. Positions are the original's,
 // in lo-res pixels (finding:ui-fight-announcement,
-// finding:ui-combat-window-layout); the frame, colours and lettering
-// follow the other windows' provisional style.
+// finding:ui-combat-window-layout), and so are the frame and colours
+// (finding:ui-window-frame-tiles); the lettering is provisional.
 
 // The original counts 50 Hz frames.
 const FRAME_MS = 20;
@@ -35,13 +41,6 @@ export const BOX_MS = 200 * FRAME_MS;
 
 export const GOOD_WON = 'The good forces are victorious!';
 export const EVIL_WON = 'The forces of EVIL have won.';
-
-export interface Box {
-  height: number;
-  width: number;
-  x: number;
-  y: number;
-}
 
 export interface Button extends Box {
   choice: 'go-there' | 'ignore-it';
@@ -320,10 +319,13 @@ export const stepCombatUi = (
 export const combatHoldsTime = (ui: CombatUi | null): boolean =>
   ui !== null && !(ui.kind === 'boxes' && ui.boxes.length === 1);
 
-// The combat window's geometry (finding:ui-combat-window-layout).
+// The combat window's geometry (finding:ui-combat-window-layout). The
+// box asks for x 6, which the original moves to 8, and the contents
+// are placed from there (finding:ui-window-box-geometry).
 export const WINDOW_X = 6;
 export const WINDOW_Y = 0;
 export const WINDOW_WIDTH = 272;
+const LEFT = frameBox({ height: 0, width: 0, x: WINDOW_X, y: WINDOW_Y }).x;
 const OPTION_XS = [18, 47, 76, 105];
 const OPTION_WIDTH = 12;
 const OPTION_HEIGHT = 7;
@@ -377,7 +379,7 @@ export const optionAt = (
       const box = {
         height: OPTION_HEIGHT,
         width: OPTION_WIDTH,
-        x: WINDOW_X + OPTION_XS[k]!,
+        x: LEFT + OPTION_XS[k]!,
         y
       };
       if (inBox(box, point)) {
@@ -439,40 +441,32 @@ export const cameraForFight = (
     ? camera
     : { x: (position.x - 0x90) & ~15, y: (position.y - 0x70) & ~15 };
 
-const COLOURS = {
-  dead: '#888',
-  evil: '#f55',
-  good: '#59f',
-  hale: '#fff',
-  wounded: '#f55'
-};
-
-const frame = (ctx: CanvasRenderingContext2D, box: Box): void => {
-  ctx.fillStyle = '#000';
-  ctx.fillRect(box.x, box.y, box.width, box.height);
-  ctx.strokeStyle = '#fff';
-  ctx.lineWidth = 1;
-  ctx.strokeRect(box.x + 0.5, box.y + 0.5, box.width - 1, box.height - 1);
-  ctx.font = '8px monospace';
-  ctx.textBaseline = 'top';
-};
-
-const nameColour = (row: CombatRow, entry: RosterEntry): string => {
+const nameColour = (
+  style: WindowStyle,
+  row: CombatRow,
+  entry: RosterEntry
+): string => {
   if (row.strength === 0 || entry.health === 0) {
-    return COLOURS.dead;
+    return style.colours.grey;
   }
-  return entry.health < entry.maxHealth ? COLOURS.wounded : COLOURS.hale;
+  return entry.health < entry.maxHealth
+    ? style.colours.red
+    : style.colours.text;
 };
 
 export const drawCombatUi = (
   ctx: CanvasRenderingContext2D,
+  style: WindowStyle,
   ui: CombatUi,
   sim: SimState
 ): void => {
+  const { colours } = style;
+  ctx.strokeStyle = colours.text;
+  ctx.lineWidth = 1;
   if (ui.kind === 'announcement') {
-    frame(ctx, ANNOUNCEMENT_BOX);
-    ctx.fillStyle = '#fff';
-    ctx.fillText(ui.text, ANNOUNCEMENT_BOX.x + 10, ANNOUNCEMENT_BOX.y + 8, 206);
+    const box = drawWindowFrame(ctx, style, ANNOUNCEMENT_BOX);
+    ctx.fillText(ui.text, box.x + 10, box.y + 8, 206);
+    ctx.strokeStyle = colours.text;
     for (const button of ANNOUNCEMENT_BUTTONS) {
       ctx.strokeRect(
         button.x + 0.5,
@@ -486,19 +480,18 @@ export const drawCombatUi = (
   }
   if (ui.kind === 'boxes') {
     const text = ui.boxes[0]!;
-    const box = {
+    const box = drawWindowFrame(ctx, style, {
       height: 24,
       width: Math.max(160, text.length * 5 + 20),
       x: 10,
       y: 5
-    };
-    frame(ctx, box);
+    });
     ctx.fillStyle =
       text === GOOD_WON
-        ? COLOURS.good
+        ? colours.blue
         : text === EVIL_WON
-          ? COLOURS.evil
-          : '#fff';
+          ? colours.red
+          : colours.text;
     ctx.fillText(text, box.x + 10, box.y + 8, box.width - 20);
     return;
   }
@@ -507,19 +500,20 @@ export const drawCombatUi = (
     return;
   }
   const layout = layoutCombatWindow(fight);
-  frame(ctx, {
+  drawWindowFrame(ctx, style, {
     height: layout.height,
     width: WINDOW_WIDTH,
     x: WINDOW_X,
     y: WINDOW_Y
   });
-  ctx.fillStyle = COLOURS.good;
+  ctx.fillStyle = colours.blue;
   OPTION_LABELS.forEach((label, k) => {
-    ctx.fillText(label, WINDOW_X + OPTION_XS[k]! - 5, WINDOW_Y + 6, 25);
+    ctx.fillText(label, LEFT + OPTION_XS[k]! - 5, WINDOW_Y + 6, 25);
   });
-  ctx.fillText('--Good----------', WINDOW_X + GOOD_NAME_X, WINDOW_Y + 6, 66);
-  ctx.fillStyle = COLOURS.evil;
-  ctx.fillText('--Evil---------', WINDOW_X + EVIL_NAME_X - 1, WINDOW_Y + 6, 66);
+  ctx.fillText('--Good----------', LEFT + GOOD_NAME_X, WINDOW_Y + 6, 66);
+  ctx.fillStyle = colours.red;
+  ctx.fillText('--Evil---------', LEFT + EVIL_NAME_X - 1, WINDOW_Y + 6, 66);
+  ctx.strokeStyle = colours.text;
   let goodRow = 0;
   let evilRow = 0;
   for (const row of fight.rows) {
@@ -528,29 +522,28 @@ export const drawCombatUi = (
     const index = good ? goodRow++ : evilRow++;
     const y = WINDOW_Y + FIRST_ROW_Y + index * layout.lineHeight;
     if (good) {
-      ctx.strokeStyle = '#fff';
       OPTIONS.forEach((option, k) => {
-        const x = WINDOW_X + OPTION_XS[k]!;
+        const x = LEFT + OPTION_XS[k]!;
         ctx.strokeRect(x + 0.5, y + 0.5, OPTION_WIDTH - 1, OPTION_HEIGHT - 1);
         // A row in the round after a Charge, or gone, has no marker.
         if (row.option === option) {
-          ctx.fillStyle = '#fff';
+          ctx.fillStyle = colours.text;
           ctx.fillRect(x + 2, y + 2, OPTION_WIDTH - 4, OPTION_HEIGHT - 4);
         }
       });
     }
-    ctx.fillStyle = nameColour(row, entry);
+    ctx.fillStyle = nameColour(style, row, entry);
     const x =
-      WINDOW_X +
+      LEFT +
       (good ? GOOD_NAME_X : EVIL_NAME_X) +
       (row.follower ? FOLLOWER_INDENT : 0);
     ctx.fillText(rowLabel(entry.name, row.strength), x, y - 1, 66);
   }
   ctx.fillStyle =
     ui.messageColour === 'good'
-      ? COLOURS.good
+      ? colours.blue
       : ui.messageColour === 'evil'
-        ? COLOURS.evil
-        : '#fff';
-  ctx.fillText(ui.message, WINDOW_X + 24, WINDOW_Y + layout.messageY, 230);
+        ? colours.red
+        : colours.text;
+  ctx.fillText(ui.message, LEFT + 24, WINDOW_Y + layout.messageY, 230);
 };

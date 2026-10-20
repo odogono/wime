@@ -97,8 +97,8 @@ describe('order flow', () => {
 describe('order window', () => {
   test('lists members with the Leader heading, one option per member', () => {
     const window = layoutOrderWindow(force, places);
-    expect(window.x).toBe(2);
-    expect(window.y).toBe(2);
+    expect(window.x).toBe(8);
+    expect(window.y).toBe(8);
     expect(window.options.map(option => option.label)).toEqual([
       'FRODO -> BREE',
       '  SAM',

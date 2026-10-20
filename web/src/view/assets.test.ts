@@ -39,7 +39,8 @@ const manifest: Manifest = {
     asset('full-map-icon', 'icons/down.png', 'magnifying-glass'),
     asset('full-map', 'middle-earth.png'),
     asset('full-map-icon', 'icons/status.png', 'eye'),
-    asset('full-map-icon', 'icons/archive.png', 'scroll')
+    asset('full-map-icon', 'icons/archive.png', 'scroll'),
+    asset('full-map-window-frame', 'frame.png')
   ]
 };
 
@@ -85,6 +86,7 @@ test('Full Map Level loads manifest paths, column order and palette provenance',
   ]);
   expect(loadedImages).toEqual([
     '/custom/middle-earth.png',
+    '/custom/frame.png',
     '/custom/icons/status.png',
     '/custom/icons/archive.png',
     '/custom/icons/down.png',
