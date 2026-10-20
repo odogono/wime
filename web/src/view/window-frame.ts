@@ -1,7 +1,7 @@
 // Every window is framed as the original frames its message box
 // (finding:ui-window-frame-tiles): a parchment fill in colour 15 inside
 // a ring of 16 by 8 pixel edge tiles, picked at random from AMaps.res
-// IMAG 13. Colour 0 is clear, so the ragged edge shows what is behind.
+// IMAG 13, or colour 1 inside IMAG 12 on the Animation Level. Colour 0 is clear, so the ragged edge shows what is behind.
 // The box is first fitted to the tiles (finding:ui-window-box-geometry).
 
 export interface Box {
@@ -17,11 +17,12 @@ export interface WindowStyle {
   colours: {
     // Colour 8: the Good side's header.
     blue: string;
-    // Colour 15: the parchment.
+    // Colour 15, or 1 on the Animation Level: the parchment.
     fill: string;
     // Colour 1: the dead and destroyed.
     grey: string;
-    // Colour 3: the line along a plain edge piece.
+    // Colour 3, or 27 on the Animation Level: the line along a plain
+    // edge piece.
     line: string;
     // Colour 10: the Evil side and the wounded.
     red: string;
@@ -31,9 +32,20 @@ export interface WindowStyle {
   tiles: CanvasImageSource;
 }
 
+// The palette entries a Level paints the parchment and its plain edge
+// line in (finding:ui-window-frame-tiles).
+export interface Parchment {
+  fill: number;
+  line: number;
+}
+
+export const MAP_PARCHMENT: Parchment = { fill: 15, line: 3 };
+export const ANIMATION_PARCHMENT: Parchment = { fill: 1, line: 27 };
+
 export const windowStyle = (
   tiles: CanvasImageSource,
-  palette: readonly string[]
+  palette: readonly string[],
+  parchment: Parchment = MAP_PARCHMENT
 ): WindowStyle => {
   const colour = (index: number): string => {
     const hex = palette[index];
@@ -45,9 +57,9 @@ export const windowStyle = (
   return {
     colours: {
       blue: colour(8),
-      fill: colour(15),
+      fill: colour(parchment.fill),
       grey: colour(1),
-      line: colour(3),
+      line: colour(parchment.line),
       red: colour(10),
       text: colour(5)
     },
