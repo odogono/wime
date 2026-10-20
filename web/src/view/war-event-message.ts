@@ -3,6 +3,7 @@ import {
   takeAnnouncement,
   type SimState
 } from '../sim/index';
+import { drawWindowFrame, type WindowStyle } from './window-frame';
 
 // The War Event announcements on the Campaign Level
 // (docs/spec/war-events.md, "Announcements on screen";
@@ -67,16 +68,10 @@ export const stepWarEventMessage = (
 
 export const drawWarEventMessage = (
   ctx: CanvasRenderingContext2D,
+  style: WindowStyle,
   message: WarEventMessage
 ): void => {
-  const box = WAR_EVENT_BOXES[message.event];
-  ctx.fillStyle = '#000';
-  ctx.fillRect(box.x, box.y, box.width, box.height);
-  ctx.strokeStyle = '#fff';
-  ctx.lineWidth = 1;
-  ctx.strokeRect(box.x + 0.5, box.y + 0.5, box.width - 1, box.height - 1);
-  ctx.font = '8px monospace';
-  ctx.textBaseline = 'top';
-  ctx.fillStyle = '#fff';
-  ctx.fillText(message.text, box.x + 6, box.y + 8, box.width - 12);
+  const box = drawWindowFrame(ctx, style, WAR_EVENT_BOXES[message.event]);
+  // The original's message box writes its text 10 pixels in and 8 down.
+  ctx.fillText(message.text, box.x + 10, box.y + 8, box.width - 20);
 };

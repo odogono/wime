@@ -102,6 +102,9 @@ Names given to addresses in the Reference Build's executable during analysis ([a
 | `data+0x4fec` | `frameCounter`         | compared with `data+0x08c2` before a clock step                         |
 | `data+0x4fee` | `vblankCount`          | word, 50 Hz                                                             |
 | `data+0x4ff0` | `fightState`           | 1 Go there, 2 fight on the Animation Level, 3 Ignore it; 4–7 meetings   |
+| `data+0x5014` | `frameTiles5`          | handle to AMaps.res IMAG 12, the 5-plane window frame tiles             |
+| `data+0x5018` | `frameTiles`           | handle to AMaps.res IMAG 13, the window frame tiles                     |
+| `data+0x501c` | `boxBitmap`            | the open message box's bitmap                                           |
 | `data+0x5020` | `iconSheet`            | Campaign icon bitmap                                                    |
 | `data+0x5032` | `messageDeadline`      | vblankCount at which the message box expires                            |
 | `data+0x548a` | `listEntries`          | roster index per row of `listForcesNear`                                |

@@ -6,14 +6,16 @@ import {
   type RosterEntry,
   type SimState
 } from '../sim/index';
+import { drawWindowFrame, type Box, type WindowStyle } from './window-frame';
 
 // The meeting window on the Campaign Level (docs/spec/forces.md,
 // "The meeting window"; finding:ui-meeting-window). The sim stops while
 // state.meeting is set; this module words the window, answers it on a
 // press or, after 720 frames, with its default, "Continue on". A pure
 // state machine over real time in milliseconds, like the combat
-// windows. Positions are the original's, in lo-res pixels; the frame,
-// colours and lettering follow the other windows' provisional style.
+// windows. Positions are the original's, in lo-res pixels, and the
+// frame is the original's (finding:ui-window-frame-tiles); the
+// lettering is provisional.
 
 const FRAME_MS = 20;
 export const MEETING_WINDOW_MS = MEETING_TIMEOUT_FRAMES * FRAME_MS;
@@ -21,13 +23,6 @@ export const MEETING_WINDOW_MS = MEETING_TIMEOUT_FRAMES * FRAME_MS;
 // the War Event announcements (finding:ui-war-event-messages).
 export const NOTICE_MS = 200 * FRAME_MS;
 export const GOLLUM_SNEAKS_AWAY = 'GOLLUM quietly sneaks away.';
-
-export interface Box {
-  height: number;
-  width: number;
-  x: number;
-  y: number;
-}
 
 // "Go there" opens the Animation Level, which is not built yet.
 export type MeetingChoice = MeetingAnswer | 'go-there';
@@ -196,33 +191,22 @@ export const pressMeetingUi = (
 export const meetingHoldsTime = (ui: MeetingUi | null): boolean =>
   ui?.kind === 'window';
 
-const frame = (ctx: CanvasRenderingContext2D, box: Box): void => {
-  ctx.fillStyle = '#000';
-  ctx.fillRect(box.x, box.y, box.width, box.height);
-  ctx.strokeStyle = '#fff';
-  ctx.lineWidth = 1;
-  ctx.strokeRect(box.x + 0.5, box.y + 0.5, box.width - 1, box.height - 1);
-  ctx.font = '8px monospace';
-  ctx.textBaseline = 'top';
-  ctx.fillStyle = '#fff';
-};
-
 export const drawMeetingUi = (
   ctx: CanvasRenderingContext2D,
+  style: WindowStyle,
   ui: MeetingUi
 ): void => {
   if (ui.kind === 'notice') {
-    const box = {
+    const box = drawWindowFrame(ctx, style, {
       height: 24,
-      width: ui.text.length * CHAR_WIDTH + 12,
+      width: ui.text.length * CHAR_WIDTH + 20,
       x: 10,
       y: 5
-    };
-    frame(ctx, box);
-    ctx.fillText(ui.text, box.x + 6, box.y + 8, box.width - 12);
+    });
+    ctx.fillText(ui.text, box.x + TEXT_X, box.y + 8, box.width - 2 * TEXT_X);
     return;
   }
-  frame(ctx, ui.box);
+  drawWindowFrame(ctx, style, ui.box);
   ui.lines.forEach((line, i) =>
     ctx.fillText(
       line,
@@ -231,6 +215,8 @@ export const drawMeetingUi = (
       ui.box.width - 2 * TEXT_X
     )
   );
+  ctx.strokeStyle = style.colours.text;
+  ctx.lineWidth = 1;
   for (const candidate of ui.buttons) {
     ctx.strokeRect(
       candidate.x + 0.5,

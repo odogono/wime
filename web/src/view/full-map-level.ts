@@ -10,6 +10,7 @@ import {
   viewWidthPx,
   type Camera
 } from './campaign-level';
+import type { WindowStyle } from './window-frame';
 
 export type FullMapIconName = (typeof FULL_MAP_ICON_NAMES)[number];
 
@@ -22,6 +23,7 @@ export interface FullMapLevel {
   icons: FullMapIcon[];
   map: CanvasImageSource;
   palette: FullMapPalette;
+  window: WindowStyle;
 }
 
 export interface FullMapIconPlacement {

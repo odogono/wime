@@ -1,11 +1,13 @@
 import { drawHiresText } from './mirror-window';
+import { drawWindowFrame, type WindowStyle } from './window-frame';
 
 // The Archive window the Full Map Level's scroll opens
 // (finding:ui-archive-window), drawn into the 640 by 200 hi-res buffer
 // at the top right, beside the icon column, as in the original. It
 // asks "Would you like to..." with two buttons; choosing one answers
-// with a message, and a press anywhere clears it. The frame and
-// lettering are provisional, as for the other windows.
+// with a message, and a press anywhere clears it. The box is the
+// original's, framed as every window is (finding:ui-window-frame-tiles);
+// the buttons and lettering are provisional.
 
 export type ArchiveChoice = 'restore' | 'save';
 
@@ -43,16 +45,22 @@ export const ARCHIVE_MESSAGES = {
   ]
 } as const;
 
-// The menu's right edge, and its width; a message window grows to its
-// longest line, about 8 hi-res pixels a character, from the same edge.
-const RIGHT = 592;
-const WIDTH = 220;
-const X = RIGHT - WIDTH;
-const Y = 4;
+// The original opens the menu at (168, 5), 112 wide and 53 deep
+// (code+0x07eb8); on the Full Map Level x and width are doubled
+// (finding:ui-window-box-geometry). Its text is 20 hi-res pixels in
+// and 8 down. A message window grows to its longest line, about 8
+// hi-res pixels a character, from the same right edge.
+const X = 336;
+const Y = 5;
+const WIDTH = 224;
+const HEIGHT = 53;
+const RIGHT = X + WIDTH;
 const CHAR_WIDTH = 8;
-const PADDING = 6;
+const INSET_X = 20;
+const INSET_Y = 8;
 const ROW_HEIGHT = 9;
-const BUTTON_HEIGHT = 13;
+const BUTTON_HEIGHT = 11;
+const BUTTON_GAP = 3;
 
 export const ARCHIVE_HEADING = 'Would you like to...';
 
@@ -65,8 +73,8 @@ export const archiveMenu = (): ArchiveWindow => ({
     height: BUTTON_HEIGHT,
     label,
     width: 168,
-    x: X + PADDING,
-    y: Y + PADDING + ROW_HEIGHT + 4 + i * (BUTTON_HEIGHT + 4)
+    x: X + INSET_X,
+    y: Y + INSET_Y + ROW_HEIGHT + 4 + i * (BUTTON_HEIGHT + BUTTON_GAP)
   })),
   kind: 'menu'
 });
@@ -90,42 +98,38 @@ export const archiveButtonAt = (
       )
     : undefined;
 
-const windowHeight = (window: ArchiveWindow): number =>
-  window.kind === 'menu'
-    ? PADDING * 2 + ROW_HEIGHT + 4 + window.buttons.length * (BUTTON_HEIGHT + 4)
-    : PADDING * 2 + window.lines.length * ROW_HEIGHT;
-
 export const drawArchiveWindow = (
   ctx: CanvasRenderingContext2D,
+  style: WindowStyle,
   window: ArchiveWindow
 ): void => {
-  const height = windowHeight(window);
-  const width =
-    window.kind === 'message'
-      ? Math.max(
-          WIDTH,
-          PADDING * 2 +
-            CHAR_WIDTH * Math.max(...window.lines.map(l => l.length))
-        )
-      : WIDTH;
-  const x = RIGHT - width;
-  ctx.fillStyle = '#000';
-  ctx.fillRect(x, Y, width, height);
-  ctx.strokeStyle = '#fff';
-  ctx.lineWidth = 1;
-  ctx.strokeRect(x + 0.5, Y + 0.5, width - 1, height - 1);
-  ctx.font = '8px monospace';
-  ctx.textBaseline = 'top';
   if (window.kind === 'message') {
-    ctx.fillStyle = '#fff';
+    const width = Math.max(
+      WIDTH,
+      INSET_X * 2 + CHAR_WIDTH * Math.max(...window.lines.map(l => l.length))
+    );
+    const box = drawWindowFrame(ctx, style, {
+      height: INSET_Y * 2 + window.lines.length * ROW_HEIGHT,
+      width,
+      x: RIGHT - width,
+      y: Y
+    });
     window.lines.forEach((line, i) => {
-      drawHiresText(ctx, line, x + PADDING, Y + PADDING + i * ROW_HEIGHT);
+      drawHiresText(
+        ctx,
+        line,
+        box.x + INSET_X,
+        box.y + INSET_Y + i * ROW_HEIGHT
+      );
     });
     return;
   }
-  ctx.fillStyle = '#ff0';
-  drawHiresText(ctx, ARCHIVE_HEADING, X + PADDING, Y + PADDING);
-  ctx.fillStyle = '#fff';
+  drawWindowFrame(ctx, style, { height: HEIGHT, width: WIDTH, x: X, y: Y });
+  ctx.fillStyle = style.colours.red;
+  drawHiresText(ctx, ARCHIVE_HEADING, X + INSET_X, Y + INSET_Y);
+  ctx.fillStyle = style.colours.text;
+  ctx.strokeStyle = style.colours.text;
+  ctx.lineWidth = 1;
   for (const button of window.buttons) {
     ctx.strokeRect(
       button.x + 0.5,
@@ -133,6 +137,6 @@ export const drawArchiveWindow = (
       button.width - 1,
       button.height - 1
     );
-    drawHiresText(ctx, button.label, button.x + 3, button.y + 3);
+    drawHiresText(ctx, button.label, button.x + 3, button.y + 2);
   }
 };

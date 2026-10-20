@@ -1,3 +1,5 @@
+import { windowStyle, type WindowStyle } from './window-frame';
+
 // Loads the assets exported by `bun run export:web` (#3). The view layer
 // finds every asset through the manifest (issue #8 acceptance): the only
 // path named here is the manifest itself, under Vite's public dir.
@@ -67,6 +69,9 @@ export interface CampaignAssets {
   texts: Map<string, string>;
   tilemap: Tilemap;
   tiles: TilesMeta;
+  // How windows look on the Campaign Level
+  // (finding:ui-window-frame-tiles).
+  window: WindowStyle;
 }
 
 interface TextResources {
@@ -105,6 +110,9 @@ export interface FullMapAssets {
   }[];
   map: HTMLImageElement;
   palette: FullMapPalette;
+  // The window frame tiles in the Full Map Level palette
+  // (finding:ui-window-frame-tiles), colour 0 still black.
+  windowFrame: HTMLImageElement;
 }
 
 export const assetByKind = (
@@ -214,6 +222,14 @@ export const loadCampaignAssets = async (
     'starting state'
   );
   const textAsset = requireAsset(assetByKind(manifest, 'text'), 'text');
+  const paletteAsset = requireAsset(
+    assetByKind(manifest, 'palette'),
+    'Campaign Level palette'
+  );
+  const frameAsset = requireAsset(
+    assetByKind(manifest, 'window-frame'),
+    'window frame tiles'
+  );
   // AMaps.res IMAG 100 is the sheet of Campaign Level figures and
   // badges (finding:graphics-campaign-icon-sheet-is-imag-100).
   const forceIconsAsset = requireAsset(
@@ -221,15 +237,25 @@ export const loadCampaignAssets = async (
     'Campaign Level icon sheet (AMaps.res IMAG 100)'
   );
 
-  const [atlas, tilemap, tiles, startingState, forceIconSheet, texts] =
-    await Promise.all([
-      loadImage(base + atlasAsset.path),
-      fetchJson<Tilemap>(base + tilemapAsset.path),
-      fetchJson<TilesMeta>(base + tilesAsset.path),
-      fetchJson<unknown>(base + startingStateAsset.path),
-      loadImage(base + forceIconsAsset.path),
-      fetchJson<TextResources>(base + textAsset.path)
-    ]);
+  const [
+    atlas,
+    tilemap,
+    tiles,
+    startingState,
+    forceIconSheet,
+    texts,
+    palette,
+    frame
+  ] = await Promise.all([
+    loadImage(base + atlasAsset.path),
+    fetchJson<Tilemap>(base + tilemapAsset.path),
+    fetchJson<TilesMeta>(base + tilesAsset.path),
+    fetchJson<unknown>(base + startingStateAsset.path),
+    loadImage(base + forceIconsAsset.path),
+    fetchJson<TextResources>(base + textAsset.path),
+    fetchJson<{ hex: string[] }>(base + paletteAsset.path),
+    loadImage(base + frameAsset.path)
+  ]);
 
   const icons: CampaignIcon[] = [];
   for (const { id, name } of CAMPAIGN_ICONS) {
@@ -246,7 +272,8 @@ export const loadCampaignAssets = async (
     startingState,
     texts: textsByKey(texts),
     tilemap,
-    tiles
+    tiles,
+    window: windowStyle(blackToTransparent(frame), palette.hex)
   };
 };
 
@@ -265,6 +292,10 @@ export const loadFullMapAssets = async (
     assetByKind(manifest, 'full-map-palette'),
     'Full Map Level palette'
   );
+  const frameAsset = requireAsset(
+    assetByKind(manifest, 'full-map-window-frame'),
+    'Full Map Level window frame tiles'
+  );
   const iconAssets = FULL_MAP_ICON_NAMES.map(name => ({
     asset: requireAsset(
       manifest.assets.find(
@@ -275,9 +306,10 @@ export const loadFullMapAssets = async (
     name
   }));
 
-  const [map, palette, icons] = await Promise.all([
+  const [map, palette, frame, icons] = await Promise.all([
     loadImage(base + mapAsset.path),
     fetchJson<FullMapPalette>(base + paletteAsset.path),
+    loadImage(base + frameAsset.path),
     Promise.all(
       iconAssets.map(async ({ asset, name }) => ({
         image: await loadImage(base + asset.path),
@@ -285,5 +317,5 @@ export const loadFullMapAssets = async (
       }))
     )
   ]);
-  return { icons, map, palette };
+  return { icons, map, palette, windowFrame: frame };
 };

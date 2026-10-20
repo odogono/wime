@@ -1,10 +1,12 @@
 import { GAME_SPEEDS, type GameSpeed } from './tick-driver';
+import { drawWindowFrame, type WindowStyle } from './window-frame';
 
 // The Game Speed window the hourglass icon opens (docs/spec/time.md):
 // it lists the speeds, clicking one sets it and closes the window.
-// Layout and lettering are provisional until the original window
-// graphics and font are identified; the last line pauses or resumes
-// (the original pauses with the P key).
+// It is framed as every window is (finding:ui-window-frame-tiles);
+// its layout and lettering are provisional, as the original's has not
+// been traced. The last line pauses or resumes (the original pauses
+// with the P key).
 
 export interface SpeedWindowOption {
   height: number;
@@ -24,8 +26,8 @@ export interface SpeedWindow {
 }
 
 const LINE_HEIGHT = 10;
-const PADDING = 4;
-const WIDTH = 72;
+const PADDING = 8;
+const WIDTH = 80;
 
 export const layoutSpeedWindow = (
   anchorRight: number,
@@ -72,28 +74,18 @@ export const speedWindowOptionAt = (
 
 export const drawSpeedWindow = (
   ctx: CanvasRenderingContext2D,
+  style: WindowStyle,
   window: SpeedWindow,
   currentSpeed: GameSpeed,
   paused: boolean
 ): void => {
-  ctx.fillStyle = '#000';
-  ctx.fillRect(window.x, window.y, window.width, window.height);
-  ctx.strokeStyle = '#fff';
-  ctx.lineWidth = 1;
-  ctx.strokeRect(
-    window.x + 0.5,
-    window.y + 0.5,
-    window.width - 1,
-    window.height - 1
-  );
-  ctx.font = '8px monospace';
-  ctx.textBaseline = 'top';
+  drawWindowFrame(ctx, style, window);
   for (const option of window.options) {
     const selected =
       option.value === 'pause'
         ? paused
         : option.value === currentSpeed && !paused;
-    ctx.fillStyle = selected ? '#ff0' : '#fff';
+    ctx.fillStyle = selected ? style.colours.red : style.colours.text;
     ctx.fillText(option.label, option.x + 2, option.y + 1);
   }
 };

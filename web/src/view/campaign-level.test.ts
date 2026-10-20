@@ -20,6 +20,7 @@ import {
   maxCamera,
   stepCamera
 } from './campaign-level';
+import { windowStyle } from './window-frame';
 
 // The real Campaign Level dimensions (finding:data-formats-campaign-map-grid).
 const realTilemap = (indices: number[] = []): Tilemap => ({
@@ -165,7 +166,8 @@ const fakeAssets = (draws: DrawCall[]): CampaignAssets => {
       tile_height: 16,
       tile_width: 16,
       width: 32
-    }
+    },
+    window: windowStyle(atlas, Array<string>(16).fill('#000'))
   };
 };
 

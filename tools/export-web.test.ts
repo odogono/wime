@@ -124,8 +124,9 @@ describe.skipIf(!existsSync(DEFAULT_ARCHIVE))('web export', () => {
     });
     expect(manifest.skipped).toEqual([]);
     // Atlas, palette, tile map, atlas metadata, 115 graphics, text and
-    // the starting state, plus the Full Map Level palette.
-    expect(manifest.assets.length).toBe(122);
+    // the starting state, plus the Full Map Level palette and the window
+    // frame tiles in each Level's palette.
+    expect(manifest.assets.length).toBe(124);
     expect(manifest.summary.assets).toBe(manifest.assets.length);
 
     for (const asset of manifest.assets) {
@@ -219,6 +220,18 @@ describe.skipIf(!existsSync(DEFAULT_ARCHIVE))('web export', () => {
     for (const icon of fullMapIcons) {
       expect(icon.palette_source).toBe(fullMap.palette_source);
       expect(icon.warnings).toBeUndefined();
+    }
+
+    // AMaps.res IMAG 13, twelve 16 by 8 frame tiles
+    // (finding:ui-window-frame-tiles), in each Level's palette.
+    for (const kind of ['window-frame', 'full-map-window-frame']) {
+      const frame = manifest.assets.find(asset => asset.kind === kind)!;
+      expect(frame.source).toEqual({
+        id: 13,
+        resource_file: 'AMaps.res',
+        type: 'IMAG'
+      });
+      expect([frame.width, frame.height, frame.depth]).toEqual([16, 96, 4]);
     }
 
     const atlas = byPath.get('campaign/tiles.png')!;
