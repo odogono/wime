@@ -1,0 +1,11 @@
+{
+  // The Sonix port is headless (ADR-0005): it uses no DOM, so tests render
+  // it without a browser. The worklet beside it needs only MessagePort.
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2023", "DOM"],
+    "types": []
+  },
+  "include": ["./**/*.ts"],
+  "exclude": ["./**/*.test.ts"]
+}

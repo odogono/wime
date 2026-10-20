@@ -50,6 +50,7 @@ import {
   type AnimationAssets,
   type CampaignAssets
 } from './assets';
+import { loadGameAudio, type GameAudio } from './audio';
 import {
   clampCamera,
   dragCamera,
@@ -66,6 +67,8 @@ import {
 } from './campaign-level';
 import {
   ANIMATION_ROUND_MS,
+  EVIL_WON,
+  GOOD_WON,
   ORDERS_MS,
   cameraForFight,
   combatHoldsTime,
@@ -131,6 +134,7 @@ import {
   layoutMirrorWindow,
   type MirrorWindow
 } from './mirror-window';
+import { PIECE } from './music';
 import {
   IDLE_ORDER,
   drawOrderPointerTag,
@@ -156,6 +160,7 @@ import {
   type ProvisionsWindow
 } from './provisions-window';
 import { NATIVE_HEIGHT, NATIVE_WIDTH, createScreen, type Fit } from './screen';
+import { QUIET, soundCues, type SoundView } from './sound-cues';
 import { placeScenery } from './special-scenery';
 import {
   drawSpeedWindow,
@@ -235,7 +240,8 @@ type Level = 'animation' | 'campaign' | 'full-map';
 const run = (
   assets: CampaignAssets,
   fullMap: FullMapLevel,
-  animation: AnimationAssets
+  animation: AnimationAssets,
+  audio: GameAudio | null
 ): void => {
   let level: Level = 'animation';
   // The roster entry the Animation Level watches, and its scene.
@@ -359,6 +365,102 @@ const run = (
   const givenTips = new Set<number>();
   // The game's ending, once a fight has ended it.
   let ending: EndingScreen | null = null;
+  // The sound (docs/spec/audio.md): what the view showed last frame, the
+  // Animation Level's Place and how many Levels have been entered.
+  let placeTile: number | null = null;
+  let levelEntries = 0;
+  let soundLevel: Level = level;
+  let lastSound: SoundView = QUIET;
+  // The title music plays first, until it ends or the player presses a
+  // key or the mouse (finding:sound-fight-and-ending-music).
+  let titleMusic = audio !== null;
+  let pressed = false;
+  audio?.play(PIECE.title);
+  window.addEventListener('pointerdown', () => (pressed = true));
+  window.addEventListener('keydown', () => (pressed = true));
+  const soundView = (): SoundView => {
+    if (level !== soundLevel) {
+      soundLevel = level;
+      levelEntries += 1;
+    }
+    const meeting = sim.meeting;
+    return {
+      boxes: [
+        infoWindow && `info:${infoWindow.lines.join('|')}`,
+        combat && `combat:${combat.kind}`,
+        meetingUi && `meeting:${meetingUi.kind}`,
+        councilWindow && 'council',
+        passingMessage && `passing:${passingMessage.text}`,
+        warMessage && `war:${warMessage.event}`,
+        provisions && `provisions:${provisions.kind}`,
+        archive && `archive:${archive.kind}`,
+        mirror && 'mirror',
+        speedWindow && 'speed',
+        talk && `talk:${talk.page}`,
+        ending && ending.page >= 0 && `ending:${ending.page}`
+      ].filter((box): box is string => typeof box === 'string'),
+      ending: !ending
+        ? 'none'
+        : !isWon(sim.ending!)
+          ? 'lost'
+          : ending.page === ending.pages.length - 1
+            ? 'won-last-page'
+            : 'won',
+      fight: !combat
+        ? 'none'
+        : combat.kind === 'announcement'
+          ? 'announced'
+          : combat.kind === 'boxes'
+            ? 'ignored'
+            : combat.message === GOOD_WON
+              ? 'good-won'
+              : combat.message === EVIL_WON
+                ? 'evil-won'
+                : 'fought',
+      following:
+        meetingUi?.kind === 'window' && meeting?.kind === 'follow'
+          ? meeting.b
+          : null,
+      level,
+      levelEntries,
+      placeTile: level === 'animation' ? placeTile : null
+    };
+  };
+  const updateSound = (): void => {
+    if (!audio) {
+      return;
+    }
+    const next = soundView();
+    if (titleMusic) {
+      if (audio.playing && !pressed) {
+        lastSound = { ...next, levelEntries: next.levelEntries };
+        return;
+      }
+      // The title gives way to the Level's own music.
+      titleMusic = false;
+      lastSound = { ...lastSound, levelEntries: -1 };
+    }
+    for (const cue of soundCues(lastSound, next)) {
+      switch (cue.kind) {
+        case 'stop':
+          audio.stop();
+          break;
+        case 'ask':
+          audio.ask(cue.entry);
+          break;
+        case 'play-asked':
+          audio.playAsked();
+          break;
+        case 'play':
+          audio.play(cue.entry);
+          break;
+        case 'effect':
+          audio.effect(cue.effect);
+          break;
+      }
+    }
+    lastSound = next;
+  };
   let lastTime = performance.now();
 
   // The pointer in native pixels; hi-res pixels are half as wide.
@@ -382,6 +484,9 @@ const run = (
     }
     watched = index;
     sim = watchEntry(sim, index);
+    // The Place's tile byte, when it has scenery of its own, picks its
+    // music (finding:sound-place-music).
+    placeTile = null;
     buildScene(
       scene,
       animation,
@@ -389,8 +494,12 @@ const run = (
       { facing: entry.facing, position: entry.position },
       sim.clock.quarterHour,
       choose,
-      placeScenery
+      (tile, random, strips) => {
+        placeTile = tile;
+        return placeScenery(tile, random, strips);
+      }
     );
+    levelEntries += 1;
     const force = forcesOnMap(sim.roster).find(
       candidate => candidate.leader.index === index
     );
@@ -987,6 +1096,9 @@ const run = (
       canvas.style.cursor = lookingDown ? 'zoom-in' : 'grab';
     } else if (event.key === 't' || event.key === 'T') {
       toggleSpeedWindow();
+    } else if (event.key === 'q' || event.key === 'Q') {
+      // Q switches sound off and on (finding:sound-q-toggles-sound).
+      audio?.toggle();
     } else if (event.key === 'p' || event.key === 'P') {
       driver.paused = !driver.paused;
     } else if (event.key === 'Escape') {
@@ -1099,6 +1211,7 @@ const run = (
   const frame = (now: number): void => {
     const elapsedMs = Math.min(1000, now - lastTime);
     lastTime = now;
+    updateSound();
     // Notices wait on the Full Map Level and behind decision windows.
     ({ message: passingMessage, sim } = stepPassingMessage(
       passingMessage,
@@ -1385,10 +1498,12 @@ const run = (
 drawMessage(['Loading Campaign Level...']);
 
 try {
-  const [campaign, fullMap, animation] = await Promise.all([
+  const [campaign, fullMap, animation, audio] = await Promise.all([
     loadCampaignAssets(),
     loadFullMapAssets(),
-    loadAnimationAssets()
+    loadAnimationAssets(),
+    // The game plays without sound if its sound cannot load.
+    loadGameAudio(choose).catch(() => null)
   ]);
   run(
     campaign,
@@ -1409,7 +1524,8 @@ try {
         image: blackToTransparent(icon.image)
       }))
     },
-    animation
+    animation,
+    audio
   );
   drawMessage([]);
 } catch (error) {

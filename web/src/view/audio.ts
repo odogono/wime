@@ -1,0 +1,152 @@
+// The game's sound in the browser (docs/spec/audio.md): one piece at a
+// time and the sound effects, played by the port of the Sonix driver in
+// an AudioWorklet (ADR-0005). What to ask for is music.ts's; this module
+// loads the files, keeps the sound setting and talks to the worklet.
+import type { Disk, WorkletMessage } from '../audio/worklet';
+import workletUrl from '../audio/worklet.ts?worker&url';
+import {
+  EFFECT_INSTRUMENTS,
+  arrangement,
+  effectNote,
+  type Effect
+} from './music';
+
+interface TableEntry {
+  disk: Disk;
+  file: string;
+  index: number;
+  kind: 'score' | 'instrument';
+}
+
+interface SoundJson {
+  disks: Record<Disk, Record<string, string>>;
+  table: (TableEntry | null)[];
+}
+
+export interface GameAudio {
+  // Ask for a piece by its table entry; it starts when `playAsked` is
+  // called, as the game loads a request only at certain moments.
+  ask(entry: number): void;
+  effect(effect: Effect): void;
+  readonly enabled: boolean;
+  // Ask for a piece and play it at once.
+  play(entry: number): void;
+  // Play the piece asked for, if any, in place of the one playing.
+  playAsked(): void;
+  readonly playing: boolean;
+  stop(): void;
+  // Q: switch sound off and on. Off stops the piece playing.
+  toggle(): void;
+}
+
+const decodeBase64 = (text: string): Uint8Array =>
+  Uint8Array.from(atob(text), char => char.charCodeAt(0));
+
+export const loadGameAudio = async (
+  random: (n: number) => number,
+  base = '/assets/'
+): Promise<GameAudio> => {
+  const response = await fetch(`${base}audio/sound.json`);
+  if (!response.ok) {
+    throw new Error(`Failed to load audio/sound.json: ${response.status}`);
+  }
+  const sound = (await response.json()) as SoundJson;
+  const context = new AudioContext();
+  await context.audioWorklet.addModule(workletUrl);
+  const node = new AudioWorkletNode(context, 'sonix', {
+    numberOfInputs: 0,
+    outputChannelCount: [2]
+  });
+  node.connect(context.destination);
+  const post = (message: WorkletMessage): void =>
+    node.port.postMessage(message);
+  post({
+    disks: Object.fromEntries(
+      Object.entries(sound.disks).map(([disk, files]) => [
+        disk,
+        Object.fromEntries(
+          Object.entries(files).map(([name, data]) => [
+            name,
+            decodeBase64(data)
+          ])
+        )
+      ])
+    ) as Record<Disk, Record<string, Uint8Array>>,
+    type: 'files'
+  });
+
+  // Browsers start audio only after the player's first input.
+  const resume = (): void => {
+    void context.resume();
+  };
+  for (const kind of ['pointerdown', 'keydown'] as const) {
+    window.addEventListener(kind, resume, { once: true });
+  }
+
+  // Sound starts on (finding:sound-q-toggles-sound).
+  let enabled = true;
+  let playing = false;
+  let asked: number | null = null;
+  node.port.onmessage = () => {
+    playing = false;
+  };
+
+  const entry = (index: number): TableEntry | null =>
+    sound.table[index] ?? null;
+
+  const stop = (): void => {
+    post({ type: 'stop' });
+    playing = false;
+  };
+
+  const playAsked = (): void => {
+    if (asked === null) {
+      return;
+    }
+    const piece = entry(arrangement(asked));
+    asked = null;
+    if (!enabled || piece?.kind !== 'score') {
+      return;
+    }
+    post({ disk: piece.disk, file: piece.file, type: 'piece' });
+    playing = true;
+  };
+
+  return {
+    ask: index => {
+      asked = index;
+    },
+    effect: effect => {
+      const instrument = entry(EFFECT_INSTRUMENTS[effect]);
+      if (!enabled || instrument?.kind !== 'instrument') {
+        return;
+      }
+      const { frames, note } = effectNote(effect, random);
+      post({
+        disk: instrument.disk,
+        file: instrument.file,
+        frames,
+        note,
+        type: 'effect'
+      });
+    },
+    get enabled() {
+      return enabled;
+    },
+    play: index => {
+      asked = index;
+      playAsked();
+    },
+    playAsked,
+    get playing() {
+      return playing;
+    },
+    stop,
+    toggle: () => {
+      enabled = !enabled;
+      if (!enabled) {
+        stop();
+      }
+    }
+  };
+};

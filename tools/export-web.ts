@@ -33,9 +33,11 @@ import {
   stringifySortedJson,
   writeRgbaPng
 } from './extract-graphics';
+import { loadSoundFiles, readSoundTable } from './extract-sound';
 import {
   STARTING_STATE_FILE,
   loadExecutable,
+  parseHunkFile,
   readFullMapPalette,
   readStartingState
 } from './extract-starting-state';
@@ -601,6 +603,39 @@ export const exportWebAssets = (
     );
   }
 
+  // The music and sound effects (ADR-0005): every score, instrument and
+  // sample file by disk, base64-encoded, and the game's table of pieces
+  // and effects (finding:sound-score-and-effect-table). The view plays
+  // them with the port of the Sonix driver in web/src/audio/sonix.
+  const soundFiles = loadSoundFiles(archive);
+  const dataHunk = parseHunkFile(executable).find(hunk => hunk.type === 'data');
+  if (!dataHunk) {
+    throw new ExtractError('executable has no data hunk');
+  }
+  const soundPath = join(outputDir, 'audio', 'sound.json');
+  writeJson(soundPath, {
+    disks: Object.fromEntries(
+      [...soundFiles].map(([disk, files]) => [
+        disk,
+        Object.fromEntries(
+          [...files].map(([name, data]) => [
+            name,
+            Buffer.from(data).toString('base64')
+          ])
+        )
+      ])
+    ),
+    table: readSoundTable(dataHunk.data)
+  });
+  assets.push({
+    count: [...soundFiles.values()].reduce((n, files) => n + files.size, 0),
+    height: null,
+    kind: 'sound',
+    path: relativePosix(outputDir, soundPath),
+    source: null,
+    width: null
+  });
+
   // CSTR text resources as JSON.
   const texts = collectCstrTexts(archive);
   const textPath = join(outputDir, 'text.json');
@@ -639,6 +674,7 @@ export const exportWebAssets = (
       'Full Map Level art is AMaps.res IMAG 2 (640x200, 4 planes); its eye, scroll, magnifying glass and hourglass are IMAG 32, 35, 33 and 34. They are coloured with the Full Map Level palette from the executable data hunk; full-map/palette.json records its colours and provenance.',
       'animation/ holds the Animation Level: its 32-colour palette, each FRML figure set as a sheet with figures.json giving every frame and hot spot (colour variants stacked in rows selected by figures.json), the icons, the window frame (AMaps.res IMAG 12) and tables.json, the scene and script tables of the data hunk. Its scenery strips are the AScene.res and BScene.res bitmaps under graphics/.',
       'fonts/ holds the text fonts: lord/10 from Disk 1, and topaz/8 from the Kickstart 1.3 ROM when FS_UAE_DIR has one. Each .png is a strike, set bits white, and each .json its glyph locations, advances and kerning.',
+      "audio/sound.json holds every .smus, .instr and .ss file of both disks, base64-encoded by disk and lower-case name, and the game's table of pieces and sound effects from the data hunk.",
       'Every decoded IMAG is exported under graphics/ with its source resource, including bitmaps whose purpose is still unidentified.'
     ],
     skipped,
