@@ -22,10 +22,11 @@ under a position is (x ÷ 16, y ÷ 16)
   (`finding:movement-destination-only-orders`). Only active Forces
   take Orders, and only on the Campaign Level
   (`finding:movement-only-active-forces-take-orders`).
-- `observed`: clicking in a Place's tile sets the destination to that
-  Place's own position. Clicking near Bree set (784, 384); clicking
-  near Osgiliath set (1632, 1184).
-  (`finding:movement-destination-snaps-to-place`)
+- An Order's destination is the clicked spot rounded down to its
+  tile origin, so a click in a Place's tile lands on the Place.
+  Clicking near Bree set (784, 384); clicking near Osgiliath set
+  (1632, 1184).
+  (`finding:movement-destination-is-the-clicked-tile`)
 - `observed`: on arrival the destination clears to (0, 0) and the
   Force stays where it stopped.
 - On arrival the entry turns resting and takes the next stop off its
@@ -38,13 +39,12 @@ under a position is (x ÷ 16, y ÷ 16)
   window gives the Order to that Character and all of its
   followers, splitting them off from the rest of the Force
   (`finding:forces-ordering-a-follower-splits-it`). The split-off
-  member becomes a Leader at the Force's position; entries whose
-  leader chain runs through it go with it. `provisional`: we allow
-  ordering a Unit member the same way, and a click that is not on a
-  Place's tile sets the destination to that tile's origin; neither
-  has been observed. Giving an Order sets the ordered entry moving
-  (state 1) even if it was resting; if its stamina is 0 it rests
-  again on the next tick.
+  member becomes a Leader with its top Leader's position and facing,
+  and loses its Default Orders: its route is emptied. Entries whose
+  leader chain runs through it go with it. A Unit that follows
+  someone cannot be ordered on its own. Giving an Order sets the
+  ordered entry moving (state 1) even if it was resting; if its
+  stamina is 0 it rests again on the next tick.
 
 ## Pace
 

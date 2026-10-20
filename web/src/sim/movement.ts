@@ -12,7 +12,6 @@ import type { Clock } from './clock';
 import { nextRandom, type RngState } from './rng';
 import {
   TILE_SIZE,
-  placeAt,
   tileOf,
   topLeader,
   type Place,
@@ -294,28 +293,28 @@ export const sweepMovement = <T extends MovementWorld>(
 export const tickMovement = <T extends MovementWorld>(world: T): T =>
   sweepMovement(world, 0).world;
 
-// Where an Order click sends a Force: a Place's own position when
-// the click is in its tile
-// (finding:movement-destination-snaps-to-place), otherwise the
-// clicked tile's origin (provisional; see docs/spec/movement.md).
-export const destinationForClick = (places: Place[], click: Point): Point => {
-  const place = placeAt(places, click);
-  if (place) {
-    return { ...place.position };
-  }
+// Where an Order click sends a Force: the clicked pixel rounded down
+// to its tile origin, so a click in a Place's tile lands on the Place
+// (finding:movement-destination-is-the-clicked-tile).
+export const destinationForClick = (click: Point): Point => {
   const tile = tileOf(click);
   return { x: tile.x * TILE_SIZE, y: tile.y * TILE_SIZE };
 };
 
 // Whether a roster entry can be given an Order: its Force must be
 // active and on the map
-// (finding:movement-only-active-forces-take-orders).
+// (finding:movement-only-active-forces-take-orders), and a Unit that
+// follows someone cannot be ordered on its own
+// (finding:forces-ordering-a-follower-splits-it).
 export const canOrder = (
   world: MovementWorld,
   memberIndex: number
 ): boolean => {
   const entry = world.roster[memberIndex];
   if (!entry || !entry.ticked) {
+    return false;
+  }
+  if (entry.leader !== null && entry.startingStrength !== 1) {
     return false;
   }
   const leader = topLeader(world.roster, entry);
@@ -326,8 +325,10 @@ export const canOrder = (
 
 // Give a movement Order to one member of a Force and everyone who
 // follows it, splitting them off when the member is not the Force's
-// Leader (finding:movement-ordering-part-of-a-force). Orders to a
-// Force that cannot take them leave the world unchanged.
+// Leader (finding:forces-ordering-a-follower-splits-it). The member
+// loses its Default Orders and takes its top Leader's position and
+// facing. Orders to a Force that cannot take them leave the world
+// unchanged.
 export const giveOrder = <T extends MovementWorld>(
   world: T,
   memberIndex: number,
@@ -338,27 +339,28 @@ export const giveOrder = <T extends MovementWorld>(
   }
   const entry = world.roster[memberIndex]!;
   const leader = topLeader(world.roster, entry);
-  const destination = destinationForClick(world.places, click);
+  const destination = destinationForClick(click);
   const atDestination =
     leader.position!.x === destination.x &&
     leader.position!.y === destination.y;
+  const routes = world.routes[entry.route]?.length
+    ? world.routes.map((route, i) => (i === entry.route ? [] : route))
+    : world.routes;
   const roster = world.roster.map(candidate => {
     if (candidate.index !== entry.index) {
       return candidate;
     }
+    // A split-off member leads its own Force from the old Force's
+    // position; followers keep their leader links and so follow it
+    // into the new Force.
     return {
       ...candidate,
       destination: atDestination ? null : destination,
-      // A split-off member leads its own Force from the old Force's
-      // position; followers keep their leader links and so follow
-      // it into the new Force.
-      leader: candidate.index === leader.index ? candidate.leader : null,
-      position:
-        candidate.index === leader.index
-          ? candidate.position
-          : { ...leader.position! },
+      facing: leader.facing,
+      leader: null,
+      position: { ...leader.position! },
       state: 1
     };
   });
-  return { ...world, roster };
+  return { ...world, roster, routes };
 };
