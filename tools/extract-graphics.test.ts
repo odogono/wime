@@ -4,6 +4,7 @@ import { beforeAll, describe, expect, test } from 'bun:test';
 import {
   AmigaOFSImage,
   DEFAULT_ARCHIVE,
+  decodeFrmlResource,
   decodeImagResource,
   defaultPalette,
   loadLhaMember,
@@ -23,6 +24,24 @@ test('default palette is the complete 32-colour Amiga palette', () => {
     0, 0, 0, 255, 255, 255, 136, 136, 136, 68, 68, 68
   ]);
   expect(palette.slice(31 * 3, 32 * 3)).toEqual([224, 224, 224]);
+});
+
+test('an FRML frame list gives each frame its hot spot and planes', () => {
+  // A 4-plane list (first byte 1) of one 3 by 2 frame at offset 8,
+  // hot spot (1, 2): row 0 is colour 1 then 2, row 1 colour 8.
+  const data = Uint8Array.from([
+    1, 1, 0, 8, 1, 2, 3, 2, 0x80, 0, 0x40, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0xe0, 0
+  ]);
+  const decoded = decodeFrmlResource(data, 0);
+
+  expect(decoded.depth).toBe(4);
+  expect(decoded.frames).toHaveLength(1);
+  const [frame] = decoded.frames;
+  expect([frame!.hotX, frame!.hotY]).toEqual([1, 2]);
+  expect(frame!.image.size).toEqual([3, 2]);
+  expect([0, 1, 2].map(x => frame!.image.getPixel(x, 0))).toEqual([1, 2, 0]);
+  expect([0, 1, 2].map(x => frame!.image.getPixel(x, 1))).toEqual([8, 8, 8]);
 });
 
 test('map palette matches the full-map roles', () => {
@@ -134,6 +153,32 @@ describe.skipIf(!existsSync(DEFAULT_ARCHIVE))('reference archive', () => {
     expect(decoded.pixelIndices.getPixel(0, 0)).toBe(13);
     expect(decoded.pixelIndices.getPixel(10, 10)).toBe(20);
     expect(decoded.pixelIndices.getPixel(60, 130)).toBe(0);
+  });
+
+  test('decodes packed and plain FRML frame lists', () => {
+    const anims = parseResourceFork(disk1.readFile('AAnims.res'));
+    const scene = parseResourceFork(disk2.readFile('BScene.res'));
+    const ent = anims.get('FRML', 7);
+    const hobbit = scene.get('FRML', 0);
+    const arrows = scene.get('FRML', 18);
+
+    const entFrames = decodeFrmlResource(ent.data, ent.attributes);
+    expect(entFrames.depth).toBe(5);
+    expect(entFrames.frames).toHaveLength(10);
+    expect(entFrames.frames[0]!.image.size).toEqual([56, 87]);
+    expect(decodeFrmlResource(hobbit.data, hobbit.attributes).depth).toBe(4);
+    expect(arrows.attributes).toBe(0);
+    expect(
+      decodeFrmlResource(arrows.data, arrows.attributes).frames.map(
+        frame => frame.image.size
+      )
+    ).toEqual([
+      [19, 5],
+      [12, 5],
+      [13, 5],
+      [15, 5],
+      [12, 16]
+    ]);
   });
 
   test('campaign map assets decode from AMaps', () => {
