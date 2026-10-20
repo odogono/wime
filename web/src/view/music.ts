@@ -134,6 +134,16 @@ export const EFFECT_INSTRUMENTS: Record<Effect, number> = {
   [EFFECT.whoosh]: 33
 };
 
+// The port departs from the original here: its Sword, Disk 2's
+// one-octave copy, cannot play the notes the game asks of it, so the
+// original never sounds it (finding:sound-disk-2-sword-is-silent). The
+// port plays Disk 1's five-octave copy instead.
+export const EFFECT_FILES: Partial<
+  Record<Effect, { disk: 'disk1' | 'disk2'; file: string }>
+> = {
+  [EFFECT.sword]: { disk: 'disk1', file: 'sword.instr' }
+};
+
 export const effectNote = (
   effect: Effect,
   random: (n: number) => number

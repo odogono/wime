@@ -5,6 +5,7 @@
 import type { Disk, WorkletMessage } from '../audio/worklet';
 import workletUrl from '../audio/worklet.ts?worker&url';
 import {
+  EFFECT_FILES,
   EFFECT_INSTRUMENTS,
   arrangement,
   effectNote,
@@ -127,8 +128,10 @@ export const loadGameAudio = async (
       asked = index;
     },
     effect: effect => {
-      const instrument = entry(EFFECT_INSTRUMENTS[effect]);
-      if (!enabled || instrument?.kind !== 'instrument') {
+      const listed = entry(EFFECT_INSTRUMENTS[effect]);
+      const instrument =
+        EFFECT_FILES[effect] ?? (listed?.kind === 'instrument' ? listed : null);
+      if (!enabled || !instrument) {
         return;
       }
       const { frames, note } = effectNote(effect, random);
