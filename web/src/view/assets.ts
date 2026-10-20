@@ -1,5 +1,9 @@
 import type { AnimationTables } from './animation-scene';
-import { windowStyle, type WindowStyle } from './window-frame';
+import {
+  ANIMATION_PARCHMENT,
+  windowStyle,
+  type WindowStyle
+} from './window-frame';
 
 // Loads the assets exported by `bun run export:web` (#3). The view layer
 // finds every asset through the manifest (issue #8 acceptance): the only
@@ -423,6 +427,6 @@ export const loadAnimationAssets = async (
     palette: palette.hex,
     strips: new Map(strips),
     tables,
-    window: windowStyle(frame, palette.hex)
+    window: windowStyle(frame, palette.hex, ANIMATION_PARCHMENT)
   };
 };

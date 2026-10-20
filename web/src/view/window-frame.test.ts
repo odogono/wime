@@ -1,6 +1,8 @@
+import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, test } from 'bun:test';
 
 import {
+  ANIMATION_PARCHMENT,
   frameBox,
   framePieces,
   seededRandom,
@@ -115,3 +117,36 @@ test('windowStyle takes the colours from the Level palette', () => {
     text: '#5'
   });
 });
+
+test('windowStyle paints the Animation Level parchment in colour 1', () => {
+  const palette = Array.from({ length: 32 }, (_, i) => `#${i}`);
+  const { colours } = windowStyle(
+    {} as CanvasImageSource,
+    palette,
+    ANIMATION_PARCHMENT
+  );
+  expect(colours.fill).toBe('#1');
+  expect(colours.line).toBe('#27');
+});
+
+const ANIMATION_PALETTE = new URL(
+  '../../public/assets/animation/palette.json',
+  import.meta.url
+).pathname;
+
+// Needs `bun run export:web`.
+test.skipIf(!existsSync(ANIMATION_PALETTE))(
+  'an Animation Level window is beige parchment, not yellow',
+  () => {
+    const { hex } = JSON.parse(readFileSync(ANIMATION_PALETTE, 'utf8')) as {
+      hex: string[];
+    };
+    const { colours } = windowStyle(
+      {} as CanvasImageSource,
+      hex,
+      ANIMATION_PARCHMENT
+    );
+    expect(colours.fill).toBe('#ddccaa');
+    expect(colours.line).toBe('#773311');
+  }
+);

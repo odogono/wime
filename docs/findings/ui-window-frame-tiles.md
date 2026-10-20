@@ -8,6 +8,8 @@ sources:
   - disasm:code+0x05dfc
   - disasm:code+0x05e46
   - disasm:code+0x05fda
+  - disasm:code+0x0acf8
+  - disasm:code+0x060a6
   - resource:AMaps.res#IMAG 13
   - resource:AMaps.res#IMAG 12
   - observed:info-window-dol-amroth
@@ -15,7 +17,7 @@ issue: 75
 ---
 
 **Every message box is a parchment fill in colour 15 inside a ring of 16 by 8 pixel edge tiles from AMaps.res IMAG 13, picked at random each time a box opens. Colour 0 is left clear, so the map shows through the ragged edge.**
-At start-up the game loads AMaps.res IMAG 12 and IMAG 13 and keeps them at data+0x5014 and data+0x5018 (code+0x021a8). Both are 16 by 96 pixels: twelve tiles, one above the other. IMAG 13 has 4 planes and frames the boxes on the Campaign and Full Map Levels. IMAG 12 has 5 planes and is used instead when the Level (data+0x5555) is 3 and the byte at data+0x08d1 is set, presumably on the Animation Level, and then the fill is colour 1 instead of 15.
+At start-up the game loads AMaps.res IMAG 12 and IMAG 13 and keeps them at data+0x5014 and data+0x5018 (code+0x021a8). Both are 16 by 96 pixels: twelve tiles, one above the other. IMAG 13 has 4 planes and frames the boxes on the Campaign and Full Map Levels. IMAG 12 has 5 planes and is used instead on the Animation Level: when the Level (data+0x5555) is 3 and the byte at data+0x08d1 is set (code+0x05be6). The scene builder sets that byte straight after loading the Animation Level palette (code+0x0acf8), and clears it on the way out (code+0x0ab64). Then the fill is colour 1 instead of 15 (code+0x05e0c, code+0x06074) and the line along a plain edge piece colour 27 instead of 3 (code+0x060a6). No colour is set when the box opens: in the Animation Level palette (finding:graphics-animation-level-palette) colour 1 is #ddccaa, a beige, and colour 27 #773311, while colour 15 there is the yellow #eeee66.
 
 The message box routine (code+0x05be2) makes a bitmap the size of the box and fills it with colour 0. If the box is wider than 32 and deeper than 16, it fills the inside, 16 in from each side and 8 from the top and bottom, with colour 15 (code+0x05dfc). It then copies tiles around the edge (code+0x05e46), with the tile's row in the sheet chosen by the game's random bits (code+0x031c2):
 
