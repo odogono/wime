@@ -97,6 +97,7 @@ export {
 export {
   dropObjects,
   OBJECT_PLACEMENT_COUNT,
+  OBJECTS,
   putDownList,
   putDownObject,
   RING,

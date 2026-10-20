@@ -50,6 +50,31 @@ Objects are handled only on the Animation Level, through the
 provisions icon, which offers "Put down an object", "Take an object"
 and "Use an object". (finding:objects-handled-on-animation-level)
 
+### The windows
+
+- The sack opens a box at (168, 5), 112 by 68, headed "Would <name>
+  like to..." in colour 8, with the framed buttons "Put down an
+  object", "Take an object" and "Use an object". It is ignored during
+  a fight. (finding:ui-provisions-window)
+- The chosen Character is the last figure clicked, if it is in the
+  Force on screen and awake, else the first awake member. With none,
+  or a Unit, "Please select an active member of the party." is shown
+  instead. (finding:ui-provisions-chosen-character) `provisional`:
+  figures cannot be clicked yet, so the last Character to act, or the
+  first awake member, is chosen.
+- A list is a box at (112, 5), 176 wide and 28 plus 10 for each line
+  deep, its heading in colour 8 and one unframed line per object.
+  (finding:ui-object-list-window)
+- A box with buttons stops the clock and the Force's figures, and
+  closes by itself after 1,020 frames; there is no Cancel. A message
+  without buttons lasts 200 frames and lets time run.
+  (finding:ui-provisions-window, finding:ui-object-list-empty-messages,
+  finding:objects-use-message-boxes) `provisional`: a press off the
+  buttons closes the box.
+- `provisional`: the walk to the object and the putting down are not
+  animated, so the put-down message is shown at once, and objects on
+  the ground are not drawn (finding:objects-lying-on-the-ground-are-pictures).
+
 The **chosen** Character is the party member selected; the
 **position** is the watched Character's position, the Force on
 screen. Each choice opens a list in object order.
@@ -62,9 +87,10 @@ screen. Each choice opens a list in object order.
   nothing to list: "<name> is unwilling to part with anything."
   (finding:objects-provisions-lists)
 - Putting an object down writes it into the first free slot, at the
-  position, and removes it from the chosen Character. No message is
-  shown. With no free slot the object is lost.
-  (finding:objects-put-down-fills-a-free-slot)
+  position, and removes it from the chosen Character. With no free
+  slot the object is lost. Once the figure has put it down, "<name>
+  puts down <object>." is shown.
+  (finding:objects-put-down-message-after-the-animation)
 
 ### Take
 

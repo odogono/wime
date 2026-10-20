@@ -19,6 +19,33 @@ export { OBJECT_PLACEMENT_COUNT, type ObjectPlacement };
 // Object 0 is the Ring (finding:objects-carried-as-a-bitmask).
 export const RING = 0;
 
+// Each object's name, as shown, whether Use lists it and whether it is
+// used up when it works (finding:objects-carried-as-a-bitmask,
+// finding:objects-use-table). The Ring's record is marked usable, but
+// Use never lists object 0.
+export const OBJECTS: readonly {
+  name: string;
+  usable: boolean;
+  usedUp: boolean;
+}[] = [
+  { name: 'the Ring', usable: true, usedUp: false },
+  { name: 'a Dwarven Ring', usable: true, usedUp: true },
+  { name: 'a Gnarled staff', usable: false, usedUp: false },
+  { name: 'an Ancient sword', usable: false, usedUp: false },
+  { name: 'an Elven blade', usable: false, usedUp: false },
+  { name: 'a Dwarven hammer', usable: false, usedUp: false },
+  { name: 'Mithril mail', usable: false, usedUp: false },
+  { name: 'a Palantir', usable: true, usedUp: false },
+  { name: 'an Elven cloak', usable: false, usedUp: false },
+  { name: 'a blue potion', usable: true, usedUp: true },
+  { name: 'a black flask', usable: true, usedUp: true },
+  { name: 'a glowing vial', usable: true, usedUp: true },
+  { name: 'the Red Arrow', usable: true, usedUp: true },
+  { name: 'a coil of rope', usable: true, usedUp: false },
+  { name: 'a sceptre', usable: true, usedUp: false },
+  { name: 'a silver orb', usable: true, usedUp: true }
+];
+
 // Take lists at most seven objects (finding:objects-provisions-lists).
 export const TAKE_LIST_LIMIT = 7;
 
