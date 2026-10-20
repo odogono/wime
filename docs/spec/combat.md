@@ -147,21 +147,8 @@ enters the round (finding:combat-no-place-or-terrain-modifier).
 
 ## Endings
 
-- At the end of every fight the sim counts the Strongholds whose
-  Garrison has no strength left. These are Minas Tirith (entry 33),
-  Lórien (61), Thranduil's Palace (64), Edoras (67) and the Hornburg
-  (68). At three or more the game is lost. Other Units at a Stronghold
-  don't count, and occupying a Stronghold does nothing.
-  (finding:places-stronghold-falls-with-its-garrison)
-- Otherwise, if the Garrison of Barad-dûr (entry 148) has no strength
-  left, the game is won (finding:places-destroying-barad-dur-garrison-wins).
-- Once the game has ended, no tick moves anything. The view shows the
-  ending's texts once the fight's windows have closed, one page per
-  press: BScene CSTR 50, 51 and 52 for the Strongholds, ending "YOU
-  HAVE LOST THE WAR IN MIDDLE EARTH."; CSTR 53, 54 and 55 for
-  Barad-dûr, ending "SO ENDS THE WAR IN MIDDLE EARTH.". The last page
-  stays. `provisional`: the original also plays scenes and music, and
-  quits on the X key, which the port doesn't copy.
+The Stronghold and Barad-dûr checks at the end of every fight, and the
+ending pages, are in `docs/spec/winning-and-losing.md`.
 
 ## Defended Places
 
@@ -179,11 +166,9 @@ enters the round (finding:combat-no-place-or-terrain-modifier).
 
 ## Left out
 
-- Objects of the dead and the Ring passing to a new bearer
-  (finding:objects-dead-drop-their-objects,
-  finding:objects-ring-passes-after-a-fight): milestone 7.
-- The Ring put on when its bearer is wounded
-  (finding:objects-ring-put-on-when-wounded): milestone 6.
+- Objects of the dead, the Ring passing to a new bearer and the Ring
+  put on when its bearer is wounded: see `docs/spec/objects.md` and
+  `docs/spec/winning-and-losing.md`.
 - Encounters (meetings are in docs/spec/forces.md).
 
 ## The announcement and the combat window

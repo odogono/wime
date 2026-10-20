@@ -11,6 +11,7 @@ Working notes on the Reference Build's executable, `WarInMiddleEarth` on Disk 1 
 - [`forces-reference.md`](forces-reference.md): the meeting and following reference scenarios.
 - [`animation-level-reference.md`](animation-level-reference.md): the Animation Level and Encounter reference captures.
 - [`objects-reference.md`](objects-reference.md): the Put Down, Take and Use reference scenarios, Tokens and the Palantír.
+- [`endings-reference.md`](endings-reference.md): the win and lose reference scenarios and the ending pages.
 
 ## Addresses
 

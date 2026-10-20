@@ -25,77 +25,78 @@ Where each part of the game sits in the code hunk, from the labels below. Start 
 
 ## Code
 
-| Address        | Label                | What it does                                                                             |
-| -------------- | -------------------- | ---------------------------------------------------------------------------------------- |
-| `code+0x00000` | `entry`              | `jmp code+0x1afb0`                                                                       |
-| `code+0x00006` | `buildScene`         | composes the Animation Level scene bitmap from scenery layers                            |
-| `code+0x00396` | `figureStep`         | works out the next tile for the watched Character's facing                               |
-| `code+0x00d3c` | `placeScenery`       | the scenery of particular Places, by tile byte                                           |
-| `code+0x0296c` | `loseGame`           | 1: the Ring at Barad-dûr (CSTR 49); 2: three Strongholds lost (CSTR 50)                  |
-| `code+0x02e64` | `winGame`            | victory ending, BScene CSTR 53–55                                                        |
-| `code+0x031c2` | `randomBits`         | (seed × 125 + data+0x4fee) mod 0x2aaaab, low n bits                                      |
-| `code+0x0320c` | `random`             | seed × 125 mod 0x2aaaab, then mod n                                                      |
-| `code+0x03240` | `absWord`            | absolute value of a word                                                                 |
-| `code+0x037d8` | `newFigure`          | creates a figure object from an FRML set and script entry                                |
-| `code+0x039a6` | `newPicture`         | creates a still IMAG object                                                              |
-| `code+0x04528` | `describeEntry`      | one status row: "is going to", "heading", "following", "at", "resting."                  |
-| `code+0x04bea` | `listFollowers`      | adds a Leader's followers as combat rows, merging like names                             |
-| `code+0x04dde` | `listForcesNear`     | Good and Evil lists near (x, y); (0, 0) lists every moving Leader                        |
-| `code+0x05be2` | `openMessageBox`     | waits for the open box to expire, then opens a new one                                   |
-| `code+0x06172` | `showMessageBox`     | shows the box; with a button pair, sets the default and its deadline                     |
-| `code+0x06b5c` | `pickUpObject`       | takes an object from the placement table into the object word                            |
-| `code+0x06d8e` | `putDownObject`      | writes an object into the first free placement slot                                      |
-| `code+0x06e60` | `useObject`          | switches on the object record's kind of use                                              |
-| `code+0x06e9c` | `heal`               | sets health to maximum, "… feels much better."                                           |
-| `code+0x070bc` | `palantirVision`     | "Looking deep into the crystal, … sees a vision:"; may set war event bit 7               |
-| `code+0x07dc4` | `galadrielsMirror`   | the Full Map eye: "In the still surface of the pool…"                                    |
-| `code+0x07eb0` | `archiveWindow`      | "Would you like to..." restore or save                                                   |
-| `code+0x08616` | `putDownList`        | "Select the object for … to drop:"                                                       |
-| `code+0x087d6` | `takeList`           | "Select the object for … to get:"                                                        |
-| `code+0x089d6` | `useList`            | "Select the object for … to use:"                                                        |
-| `code+0x08be0` | `saveGame`           | writes `data+0x1de8–0x3e71` to `A:ARCHIVE.DAT`                                           |
-| `code+0x08d12` | `restoreGame`        | reads it back and restores the name pointers                                             |
-| `code+0x09e02` | `enterAnimation`     | sets mode 3 and places the eye, map and sack icons                                       |
-| `code+0x09e92` | `leaveAnimation`     | removes the icons and scene, frees FRML 4, 8, 16 and 18                                  |
-| `code+0x09ffa` | `spawnFigures`       | adds a roster entry's figures to the scene                                               |
-| `code+0x0b102` | `animationLoop`      | the Animation Level loop                                                                 |
-| `code+0x0b7de` | `adviceTip`          | one of BScene CSTR 8–27 not yet given                                                    |
-| `code+0x0bf84` | `runFigureScript`    | steps a figure's animation script                                                        |
-| `code+0x0d26c` | `drawCampaignForces` | draws each awake leader's icon; blinks the player's                                      |
-| `code+0x0d452` | `drawFullMap`        | blits AMaps IMAG 2, then the dots                                                        |
-| `code+0x0d4c2` | `drawFullMapDots`    | one dot per awake leader at (x/4, y/8)                                                   |
-| `code+0x0d5d4` | `enterFullMap`       | places the Full Map icons and loads its palette                                          |
-| `code+0x0d718` | `blinkFullMapDots`   | loop that blinks the player's dots on the Full Map Level                                 |
-| `code+0x0d894` | `hourlyUpdate`       | draws the date and, at hour 8, runs the daily checks                                     |
-| `code+0x0da6c` | `councilOfElrond`    | Ring-bearer's Force and Gandalf at Rivendell; moves the calendar on                      |
-| `code+0x0ddc4` | `ringAtMountDoom`    | Ring-bearer's Force at Mount Doom (0x710, 0x460) calls `data+0x0036`, presumably the win |
-| `code+0x0ddec` | `copyProtection`     | "The Valar seek to determine your fitness …" from day 92                                 |
-| `code+0x0e0c0` | `warEvents`          | sets event mask bits 1–7                                                                 |
-| `code+0x0e306` | `tileAt`             | map grid byte under (x, y)                                                               |
-| `code+0x0e342` | `placeAt`            | Place 1–84 at (x, y), or 0                                                               |
-| `code+0x0e3f4` | `terrainAt`          | `data+0x4242[tileAt(x, y)]`                                                              |
-| `code+0x0e420` | `nextRouteStop`      | pops the next Default Orders Place into the destination                                  |
-| `code+0x0e4e4` | `tryTrigger`         | tests an entry's trigger byte                                                            |
-| `code+0x0e6a8` | `trigger`            | wakes and mobilises an entry                                                             |
-| `code+0x0e712` | `tick`               | moves one roster entry; advances the clock after entry 151                               |
-| `code+0x0e916` | `moveEntry`          | one movement step: facing, speed, terrain, stamina                                       |
-| `code+0x0f04e` | `findEncounter`      | looks for an Encounter among entries 152–195 or nearby Forces                            |
-| `code+0x0f382` | `evasionRoll`        | averages byte 29 over the Good Force; random(100) below it evades                        |
-| `code+0x1003c` | `combatWait`         | redraws and handles option clicks until data+0x4fee reaches a deadline                   |
-| `code+0x101f2` | `drawRowOptions`     | a Good row's four option buttons                                                         |
-| `code+0x102bc` | `drawCombatRow`      | a row's head count and name, in its health colour                                        |
-| `code+0x104fe` | `clearCombatMessage` | clears the combat window's message line                                                  |
-| `code+0x105c6` | `combatClick`        | sets a Good row's option from a click                                                    |
-| `code+0x109c2` | `combat`             | fights a battle to the end: window, rounds, aftermath                                    |
-| `code+0x1268e` | `combatOver`         | tests the side totals after a round                                                      |
-| `code+0x1286e` | `applyCombatLosses`  | takes each row's losses from its entries                                                 |
-| `code+0x12d9c` | `reassignFollowers`  | followers of dead Leaders                                                                |
-| `code+0x13098` | `passTheRing`        | hands a dropped Ring to the winners                                                      |
-| `code+0x134cc` | `checkStrongholds`   | three dead Garrisons lose; entry 148 dead wins                                           |
-| `code+0x1afb0` | `start`              | C runtime start: clears BSS, opens libraries                                             |
-| `code+0x1b022` | `setA4`              | `lea data+0x7ffe, a4`                                                                    |
-| `code+0x1b48a` | `udiv32`             | d0 / d1, unsigned                                                                        |
-| `code+0x1bb76` | `mulu32`             | 32-bit multiply, reached through `data+0x0252`; index × 38 for roster records            |
+| Address        | Label                | What it does                                                                    |
+| -------------- | -------------------- | ------------------------------------------------------------------------------- |
+| `code+0x00000` | `entry`              | `jmp code+0x1afb0`                                                              |
+| `code+0x00006` | `buildScene`         | composes the Animation Level scene bitmap from scenery layers                   |
+| `code+0x00396` | `figureStep`         | works out the next tile for the watched Character's facing                      |
+| `code+0x00d3c` | `placeScenery`       | the scenery of particular Places, by tile byte                                  |
+| `code+0x02034` | `waitFrames`         | waits until the frame count reaches its argument or a key is pressed            |
+| `code+0x0296c` | `loseGame`           | 1: the Ring at Barad-dûr (CSTR 49); 2: three Strongholds lost (CSTR 50)         |
+| `code+0x02e64` | `winGame`            | victory ending at Hobbiton, BScene CSTR 53–55, then quits on X                  |
+| `code+0x031c2` | `randomBits`         | (seed × 125 + data+0x4fee) mod 0x2aaaab, low n bits                             |
+| `code+0x0320c` | `random`             | seed × 125 mod 0x2aaaab, then mod n                                             |
+| `code+0x03240` | `absWord`            | absolute value of a word                                                        |
+| `code+0x037d8` | `newFigure`          | creates a figure object from an FRML set and script entry                       |
+| `code+0x039a6` | `newPicture`         | creates a still IMAG object                                                     |
+| `code+0x04528` | `describeEntry`      | one status row: "is going to", "heading", "following", "at", "resting."         |
+| `code+0x04bea` | `listFollowers`      | adds a Leader's followers as combat rows, merging like names                    |
+| `code+0x04dde` | `listForcesNear`     | Good and Evil lists near (x, y); (0, 0) lists every moving Leader               |
+| `code+0x05be2` | `openMessageBox`     | waits for the open box to expire, then opens a new one                          |
+| `code+0x06172` | `showMessageBox`     | shows the box; with a button pair, sets the default and its deadline            |
+| `code+0x06b5c` | `pickUpObject`       | takes an object from the placement table into the object word                   |
+| `code+0x06d8e` | `putDownObject`      | writes an object into the first free placement slot                             |
+| `code+0x06e60` | `useObject`          | switches on the object record's kind of use                                     |
+| `code+0x06e9c` | `heal`               | sets health to maximum, "… feels much better."                                  |
+| `code+0x070bc` | `palantirVision`     | "Looking deep into the crystal, … sees a vision:"; may set war event bit 7      |
+| `code+0x07dc4` | `galadrielsMirror`   | the Full Map eye: "In the still surface of the pool…"                           |
+| `code+0x07eb0` | `archiveWindow`      | "Would you like to..." restore or save                                          |
+| `code+0x08616` | `putDownList`        | "Select the object for … to drop:"                                              |
+| `code+0x087d6` | `takeList`           | "Select the object for … to get:"                                               |
+| `code+0x089d6` | `useList`            | "Select the object for … to use:"                                               |
+| `code+0x08be0` | `saveGame`           | writes `data+0x1de8–0x3e71` to `A:ARCHIVE.DAT`                                  |
+| `code+0x08d12` | `restoreGame`        | reads it back and restores the name pointers                                    |
+| `code+0x09e02` | `enterAnimation`     | sets mode 3 and places the eye, map and sack icons                              |
+| `code+0x09e92` | `leaveAnimation`     | removes the icons and scene, frees FRML 4, 8, 16 and 18                         |
+| `code+0x09ffa` | `spawnFigures`       | adds a roster entry's figures to the scene                                      |
+| `code+0x0b102` | `animationLoop`      | the Animation Level loop                                                        |
+| `code+0x0b7de` | `adviceTip`          | one of BScene CSTR 8–27 not yet given                                           |
+| `code+0x0bf84` | `runFigureScript`    | steps a figure's animation script                                               |
+| `code+0x0d26c` | `drawCampaignForces` | draws each awake leader's icon; blinks the player's                             |
+| `code+0x0d452` | `drawFullMap`        | blits AMaps IMAG 2, then the dots                                               |
+| `code+0x0d4c2` | `drawFullMapDots`    | one dot per awake leader at (x/4, y/8)                                          |
+| `code+0x0d5d4` | `enterFullMap`       | places the Full Map icons and loads its palette                                 |
+| `code+0x0d718` | `blinkFullMapDots`   | loop that blinks the player's dots on the Full Map Level                        |
+| `code+0x0d894` | `hourlyUpdate`       | draws the date and, at hour 8, runs the daily checks                            |
+| `code+0x0da6c` | `councilOfElrond`    | Ring-bearer's Force and Gandalf at Rivendell; moves the calendar on             |
+| `code+0x0ddc4` | `ringAtMountDoom`    | Ring-bearer's top Leader at Mount Doom (0x710, 0x460) each hour calls `winGame` |
+| `code+0x0ddec` | `copyProtection`     | "The Valar seek to determine your fitness …" from day 92                        |
+| `code+0x0e0c0` | `warEvents`          | sets event mask bits 1–7                                                        |
+| `code+0x0e306` | `tileAt`             | map grid byte under (x, y)                                                      |
+| `code+0x0e342` | `placeAt`            | Place 1–84 at (x, y), or 0                                                      |
+| `code+0x0e3f4` | `terrainAt`          | `data+0x4242[tileAt(x, y)]`                                                     |
+| `code+0x0e420` | `nextRouteStop`      | pops the next Default Orders Place into the destination                         |
+| `code+0x0e4e4` | `tryTrigger`         | tests an entry's trigger byte                                                   |
+| `code+0x0e6a8` | `trigger`            | wakes and mobilises an entry                                                    |
+| `code+0x0e712` | `tick`               | moves one roster entry; advances the clock after entry 151                      |
+| `code+0x0e916` | `moveEntry`          | one movement step: facing, speed, terrain, stamina                              |
+| `code+0x0f04e` | `findEncounter`      | looks for an Encounter among entries 152–195 or nearby Forces                   |
+| `code+0x0f382` | `evasionRoll`        | averages byte 29 over the Good Force; random(100) below it evades               |
+| `code+0x1003c` | `combatWait`         | redraws and handles option clicks until data+0x4fee reaches a deadline          |
+| `code+0x101f2` | `drawRowOptions`     | a Good row's four option buttons                                                |
+| `code+0x102bc` | `drawCombatRow`      | a row's head count and name, in its health colour                               |
+| `code+0x104fe` | `clearCombatMessage` | clears the combat window's message line                                         |
+| `code+0x105c6` | `combatClick`        | sets a Good row's option from a click                                           |
+| `code+0x109c2` | `combat`             | fights a battle to the end: window, rounds, aftermath                           |
+| `code+0x1268e` | `combatOver`         | tests the side totals after a round                                             |
+| `code+0x1286e` | `applyCombatLosses`  | takes each row's losses from its entries                                        |
+| `code+0x12d9c` | `reassignFollowers`  | followers of dead Leaders                                                       |
+| `code+0x13098` | `passTheRing`        | hands a dropped Ring to the winners                                             |
+| `code+0x134cc` | `checkStrongholds`   | three dead Garrisons lose; entry 148 dead wins                                  |
+| `code+0x1afb0` | `start`              | C runtime start: clears BSS, opens libraries                                    |
+| `code+0x1b022` | `setA4`              | `lea data+0x7ffe, a4`                                                           |
+| `code+0x1b48a` | `udiv32`             | d0 / d1, unsigned                                                               |
+| `code+0x1bb76` | `mulu32`             | 32-bit multiply, reached through `data+0x0252`; index × 38 for roster records   |
 
 ## Data
 
