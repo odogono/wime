@@ -94,6 +94,17 @@ export {
   STRONGHOLDS_TO_LOSE,
   type Ending
 } from './endings';
+export {
+  dropObjects,
+  OBJECT_PLACEMENT_COUNT,
+  putDownList,
+  putDownObject,
+  RING,
+  TAKE_LIST_LIMIT,
+  takeList,
+  takeObject,
+  type ObjectPlacement
+} from './objects';
 export { createRng, nextRandom, type RngState } from './rng';
 export {
   forcesOf,
