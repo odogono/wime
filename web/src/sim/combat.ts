@@ -22,10 +22,12 @@ import {
   meetingBetween,
   type Meeting
 } from './meetings';
+import { dropObjects } from './objects';
 import { nextRandom, type RngState } from './rng';
 import {
   TILE_SIZE,
   topLeader,
+  type ObjectPlacement,
   type Point,
   type RosterEntry
 } from './starting-state';
@@ -96,6 +98,9 @@ export interface CombatWorld {
   // Set by the end of a fight that ends the game.
   ending: Ending | null;
   fight: Fight | null;
+  // Where the dead leave what they carried
+  // (finding:objects-dead-drop-their-objects).
+  objectPlacements: (ObjectPlacement | null)[];
   rng: RngState;
   roster: RosterEntry[];
   routes: number[][];
@@ -666,6 +671,7 @@ export const finishFight = <T extends CombatWorld>(world: T): T => {
   }
   const roster = [...world.roster];
   const routes = world.routes.map(route => [...route]);
+  let objectPlacements = world.objectPlacements;
   for (const row of fight.rows) {
     let loss = row.startStrength - row.strength;
     const name = roster[row.entries[0]!]!.name;
@@ -688,6 +694,16 @@ export const finishFight = <T extends CombatWorld>(world: T): T => {
       loss -= taken;
       const strength = entry.strength - taken;
       const dead = strength === 0 || entry.health === 0;
+      // The dead leave everything they carried, the Ring included, at
+      // the place of the fight; their own objects are not cleared
+      // (finding:objects-dead-drop-their-objects).
+      if (dead) {
+        objectPlacements = dropObjects(
+          objectPlacements,
+          entry.objects,
+          fight.position
+        );
+      }
       roster[i] = {
         ...entry,
         health: row.side === 'evil' ? entry.maxHealth : entry.health,
@@ -730,6 +746,7 @@ export const finishFight = <T extends CombatWorld>(world: T): T => {
     ...world,
     ending: world.ending ?? endingAfterFight(roster),
     fight: null,
+    objectPlacements,
     roster: restoreEncounterHealth(roster),
     routes
   };

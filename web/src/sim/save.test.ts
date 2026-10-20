@@ -8,7 +8,13 @@ import type { Passing } from './encounters';
 import { answerMeeting, type Meeting } from './meetings';
 import { giveOrder } from './movement';
 import { SAVE_VERSION, restoreSave, serialiseSave } from './save';
-import type { Place, PlaceKind, Point, RosterEntry } from './starting-state';
+import type {
+  ObjectPlacement,
+  Place,
+  PlaceKind,
+  Point,
+  RosterEntry
+} from './starting-state';
 import { createSim, tickSim, type SimState } from './state';
 import type { WarEventAnnouncement, WarEvents } from './war-events';
 
@@ -47,6 +53,10 @@ const SHAPE = {
     winner: true
   } satisfies Fields<Fight>,
   meeting: { a: true, b: true, kind: true } satisfies Fields<Meeting>,
+  objectPlacement: {
+    object: true,
+    position: true
+  } satisfies Fields<ObjectPlacement>,
   passing: { a: true, b: true } satisfies Fields<Passing>,
   place: {
     announcesAttacks: true,
@@ -101,6 +111,7 @@ const SHAPE = {
     ending: true,
     fight: true,
     meeting: true,
+    objectPlacements: true,
     passings: true,
     placeKinds: true,
     places: true,
@@ -133,7 +144,8 @@ const PINNED_SHAPES: Record<number, string> = {
   4: 'announcement(day,event) clock(day,quarterHour) combatEvent(blow,killed,row,wounded) combatRow(entries,follower,option,side,startStrength,strength) fight(events,evil,good,position,round,rows,winner) place(announcesAttacks,gridByte,gridReference,index,name,position,tile,tileKind) placeKind(index,name,tile) point(x,y) roster(allegiance,destination,encounter,facing,fighting,figure,fraction,health,icon,index,isUnit,leader,maxHealth,maxStamina,name,objects,position,route,speed,stamina,startingStrength,state,strength,ticked,trigger,triggerByte,unknown) state(announcements,clock,ending,fight,placeKinds,places,ringBearer,rng,roster,routes,speeds,sweepFrom,terrainByTile,tilemap,warEvents) warEvents(days,mask)',
   5: 'announcement(day,event) clock(day,quarterHour) combatEvent(blow,killed,row,wounded) combatRow(entries,follower,option,side,startStrength,strength) fight(events,evil,good,position,round,rows,winner) meeting(a,b,kind) place(announcesAttacks,gridByte,gridReference,index,name,position,tile,tileKind) placeKind(index,name,tile) point(x,y) roster(allegiance,destination,encounter,facing,fighting,figure,fraction,health,icon,index,isUnit,leader,maxHealth,maxStamina,name,objects,position,route,speed,stamina,startingStrength,state,strength,ticked,trigger,triggerByte,unknown) state(announcements,clock,ending,fight,meeting,placeKinds,places,ringBearer,rng,roster,routes,speeds,sweepFrom,terrainByTile,tilemap,warEvents) warEvents(days,mask)',
   6: 'announcement(day,event) clock(day,quarterHour) combatEvent(blow,killed,row,wounded) combatRow(entries,follower,option,side,startStrength,strength) fight(events,evil,good,position,round,rows,winner) meeting(a,b,kind) passing(a,b) place(announcesAttacks,gridByte,gridReference,index,name,position,tile,tileKind) placeKind(index,name,tile) point(x,y) roster(allegiance,destination,encounter,facing,fighting,figure,fraction,health,icon,index,isUnit,leader,maxHealth,maxStamina,name,objects,position,route,speed,stamina,startingStrength,state,strength,ticked,trigger,triggerByte,unknown) state(announcements,clock,ending,fight,meeting,passings,placeKinds,places,ringBearer,rng,roster,routes,speeds,sweepFrom,terrainByTile,tilemap,warEvents,watching) warEvents(days,mask)',
-  7: 'announcement(day,event) clock(day,quarterHour) combatEvent(blow,killed,row,wounded) combatRow(entries,follower,option,side,startStrength,strength) council(ringBearer) fight(events,evil,good,position,round,rows,winner) meeting(a,b,kind) passing(a,b) place(announcesAttacks,gridByte,gridReference,index,name,position,tile,tileKind) placeKind(index,name,tile) point(x,y) roster(allegiance,destination,encounter,facing,fighting,figure,fraction,health,icon,index,isUnit,leader,maxHealth,maxStamina,name,objects,position,route,speed,stamina,startingStrength,state,strength,ticked,trigger,triggerByte,unknown) state(announcements,clock,council,councilPending,ending,fight,meeting,passings,placeKinds,places,ringBearer,rng,roster,routes,speeds,sweepFrom,terrainByTile,tilemap,warEvents,watching) warEvents(days,mask)'
+  7: 'announcement(day,event) clock(day,quarterHour) combatEvent(blow,killed,row,wounded) combatRow(entries,follower,option,side,startStrength,strength) council(ringBearer) fight(events,evil,good,position,round,rows,winner) meeting(a,b,kind) passing(a,b) place(announcesAttacks,gridByte,gridReference,index,name,position,tile,tileKind) placeKind(index,name,tile) point(x,y) roster(allegiance,destination,encounter,facing,fighting,figure,fraction,health,icon,index,isUnit,leader,maxHealth,maxStamina,name,objects,position,route,speed,stamina,startingStrength,state,strength,ticked,trigger,triggerByte,unknown) state(announcements,clock,council,councilPending,ending,fight,meeting,passings,placeKinds,places,ringBearer,rng,roster,routes,speeds,sweepFrom,terrainByTile,tilemap,warEvents,watching) warEvents(days,mask)',
+  8: 'announcement(day,event) clock(day,quarterHour) combatEvent(blow,killed,row,wounded) combatRow(entries,follower,option,side,startStrength,strength) council(ringBearer) fight(events,evil,good,position,round,rows,winner) meeting(a,b,kind) objectPlacement(object,position) passing(a,b) place(announcesAttacks,gridByte,gridReference,index,name,position,tile,tileKind) placeKind(index,name,tile) point(x,y) roster(allegiance,destination,encounter,facing,fighting,figure,fraction,health,icon,index,isUnit,leader,maxHealth,maxStamina,name,objects,position,route,speed,stamina,startingStrength,state,strength,ticked,trigger,triggerByte,unknown) state(announcements,clock,council,councilPending,ending,fight,meeting,objectPlacements,passings,placeKinds,places,ringBearer,rng,roster,routes,speeds,sweepFrom,terrainByTile,tilemap,warEvents,watching) warEvents(days,mask)'
 };
 
 const tilemap = { height: 1, indices: [0], width: 1 };

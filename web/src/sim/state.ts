@@ -8,7 +8,9 @@ import { sweepMovement, type Tilemap } from './movement';
 import { createRng, type RngState } from './rng';
 import {
   DEFAULT_SPEEDS,
+  emptyObjectPlacements,
   loadStartingState,
+  type ObjectPlacement,
   type Place,
   type PlaceKind,
   type RosterEntry
@@ -49,6 +51,9 @@ export interface SimState {
   // The meeting waiting for the player's answer, or null. Game time
   // stands still while one is (finding:ui-meeting-window).
   meeting: Meeting | null;
+  // The 30 slots of objects lying on the map, null where free
+  // (docs/spec/objects.md).
+  objectPlacements: (ObjectPlacement | null)[];
   // Encounters passed by, oldest first, until the view takes them
   // (takePassing) (finding:forces-anonymous-encounters-pass-by).
   passings: Passing[];
@@ -95,6 +100,7 @@ export const createSim = (
       ending: null,
       fight: null,
       meeting: null,
+      objectPlacements: emptyObjectPlacements(),
       passings: [],
       placeKinds: [],
       places: [],
@@ -125,6 +131,7 @@ export const createSim = (
     ending: null,
     fight: null,
     meeting: null,
+    objectPlacements: start.objectPlacements,
     passings: [],
     placeKinds: start.placeKinds,
     places: start.places,
@@ -257,6 +264,7 @@ export const deserializeSim = (text: string): SimState => {
     ending: legacy.ending ?? null,
     fight: legacy.fight ?? null,
     meeting: legacy.meeting ?? null,
+    objectPlacements: legacy.objectPlacements ?? emptyObjectPlacements(),
     passings: legacy.passings ?? [],
     roster: parsed.roster.map(entry => ({
       ...entry,

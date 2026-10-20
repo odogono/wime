@@ -86,8 +86,26 @@ export interface PlaceKind {
   tile: number;
 }
 
+// An object lying on the map: its object number and where it lies, in
+// Campaign Level pixels (finding:objects-starting-placements).
+export interface ObjectPlacement {
+  object: number;
+  position: Point;
+}
+
+// The placement table has 30 slots; a null slot is free, as a slot
+// whose x is 0 is in the original
+// (finding:objects-starting-placements).
+export const OBJECT_PLACEMENT_COUNT = 30;
+
+export const emptyObjectPlacements = (): (ObjectPlacement | null)[] =>
+  Array.from({ length: OBJECT_PLACEMENT_COUNT }, () => null);
+
 export interface StartingState {
   clock: { day: number; quarterHour: number };
+  // The 30 placement slots, filled ones first as the extractor writes
+  // them (finding:objects-starting-placements).
+  objectPlacements: (ObjectPlacement | null)[];
   placeKinds: PlaceKind[];
   places: Place[];
   ringBearer: number;
@@ -273,6 +291,26 @@ const loadWarEvents = (events: Record<string, unknown>): WarEvents => {
   };
 };
 
+// The extractor writes only the filled slots, in slot order; the
+// rest of the 30 are free. A starting state without them starts with
+// nothing lying on the map.
+const loadObjectPlacements = (value: unknown): (ObjectPlacement | null)[] => {
+  const placements = emptyObjectPlacements();
+  if (!Array.isArray(value)) {
+    return placements;
+  }
+  value.slice(0, OBJECT_PLACEMENT_COUNT).forEach((slot, i) => {
+    if (!isRecord(slot)) {
+      return fail(`object_placements[${i}] is not an object`);
+    }
+    placements[i] = {
+      object: num(slot.object, `object_placements[${i}].object`),
+      position: point(slot.position, `object_placements[${i}].position`)
+    };
+  });
+  return placements;
+};
+
 export const loadStartingState = (json: unknown): StartingState => {
   if (!isRecord(json)) {
     return fail('not an object');
@@ -295,6 +333,7 @@ export const loadStartingState = (json: unknown): StartingState => {
       day: num(clock.day, 'clock.day'),
       quarterHour: num(clock.quarter_hour, 'clock.quarter_hour')
     },
+    objectPlacements: loadObjectPlacements(json.object_placements),
     placeKinds: json.place_kinds.map((kind, i) => {
       if (!isRecord(kind)) {
         return fail(`place_kinds[${i}] is not an object`);
