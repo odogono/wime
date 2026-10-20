@@ -1,4 +1,4 @@
-import { drawText, type Font } from './font';
+import { drawText, measureLines, type Font } from './font';
 
 // Every window is framed as the original frames its message box
 // (finding:ui-window-frame-tiles): a parchment fill in colour 15 inside
@@ -33,6 +33,8 @@ export interface WindowStyle {
   };
   // The lettering (finding:ui-text-font-lord-10).
   font: Font;
+  // The Full Map Level's hi-res lettering, topaz/8, when it was exported.
+  hiresFont?: Font;
   tiles: CanvasImageSource;
 }
 
@@ -220,8 +222,9 @@ export const windowText = (
   colour: string = style.colours.text
 ): number => drawText(ctx, style.font, text, x, y, colour);
 
-// The same on the hi-res Full Map Level, each pixel drawn two wide
-// (provisional, see font.ts).
+// The same on the hi-res Full Map Level: in topaz/8 at hi-res pixels,
+// as the original, or without it in lord/10 with each pixel drawn two
+// wide (finding:ui-text-font-lord-10).
 export const hiresWindowText = (
   ctx: CanvasRenderingContext2D,
   style: WindowStyle,
@@ -229,4 +232,17 @@ export const hiresWindowText = (
   x: number,
   y: number,
   colour: string = style.colours.text
-): number => drawText(ctx, style.font, text, x, y, colour, 2);
+): number =>
+  style.hiresFont
+    ? drawText(ctx, style.hiresFont, text, x, y, colour)
+    : drawText(ctx, style.font, text, x, y, colour, 2);
+
+// The width of hi-res lines in hi-res pixels, as hiresWindowText draws
+// them.
+export const measureHiresLines = (
+  style: WindowStyle,
+  lines: readonly string[]
+): number =>
+  style.hiresFont
+    ? measureLines(style.hiresFont.metrics, lines)
+    : 2 * measureLines(style.font.metrics, lines);

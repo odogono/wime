@@ -27,6 +27,7 @@ import {
   ExtractError,
   IndexedImage
 } from './extract-graphics';
+import { KICK13, fsUaeDir } from './fs-uae/setup';
 
 const solidTile = (value: number): IndexedImage => {
   const tile = new IndexedImage(16, 16);
@@ -203,13 +204,18 @@ describe.skipIf(!existsSync(DEFAULT_ARCHIVE))('web export', () => {
       imag_total: 115,
       roster_entries: 196
     });
-    expect(manifest.skipped).toEqual([]);
+    // Only a missing Kickstart ROM is skipped, for topaz/8.
+    expect(
+      manifest.skipped.filter(entry => entry.source.type !== 'font')
+    ).toEqual([]);
     // Atlas, palette, tile map, atlas metadata, 115 graphics, text and
     // the starting state, plus the Full Map Level palette and the window
     // frame tiles in each Level's palette, and the Animation Level's
     // palette, tables, figure index, 3 icons, frame and 19 figure sets,
-    // and lord/10's glyph sheet and metrics.
-    expect(manifest.assets.length).toBe(124 + 26 + 2);
+    // and a glyph sheet and metrics for lord/10, and for topaz/8 when
+    // there is a Kickstart 1.3 ROM.
+    const topaz = existsSync(join(fsUaeDir, KICK13)) ? 2 : 0;
+    expect(manifest.assets.length).toBe(124 + 26 + 2 + topaz);
     expect(manifest.summary.assets).toBe(manifest.assets.length);
 
     for (const asset of manifest.assets) {

@@ -111,6 +111,8 @@ export interface FullMapPalette {
 
 export interface FullMapAssets {
   font: Font;
+  // topaz/8, when it was exported from a Kickstart ROM.
+  hiresFont?: Font;
   icons: {
     image: HTMLImageElement;
     name: (typeof FULL_MAP_ICON_NAMES)[number];
@@ -179,21 +181,41 @@ const fetchJson = async <T>(url: string): Promise<T> => {
   return (await response.json()) as T;
 };
 
-// The text font, lord/10 (finding:ui-text-font-lord-10): its glyph
-// sheet and metrics.
-const loadFont = async (manifest: Manifest, base: string): Promise<Font> => {
-  const font = (kind: string): ManifestAsset =>
-    requireAsset(
-      manifest.assets.find(
-        asset => asset.kind === kind && asset.name === 'lord-10'
-      ),
-      `lord/10 ${kind}`
-    );
+// A text font's glyph sheet and metrics (finding:ui-text-font-lord-10):
+// lord/10, or the Full Map Level's topaz/8, which is exported only when
+// a Kickstart ROM was at hand, so it may be missing.
+const fontAsset = (
+  manifest: Manifest,
+  name: string,
+  kind: string
+): ManifestAsset | undefined =>
+  manifest.assets.find(asset => asset.kind === kind && asset.name === name);
+
+const loadNamedFont = async (
+  manifest: Manifest,
+  base: string,
+  name: string
+): Promise<Font | undefined> => {
+  const sheetAsset = fontAsset(manifest, name, 'font-sheet');
+  const metricsAsset = fontAsset(manifest, name, 'font-metrics');
+  if (!sheetAsset || !metricsAsset) {
+    return undefined;
+  }
   const [sheet, metrics] = await Promise.all([
-    loadImage(base + font('font-sheet').path),
-    fetchJson<FontMetrics>(base + font('font-metrics').path)
+    loadImage(base + sheetAsset.path),
+    fetchJson<FontMetrics>(base + metricsAsset.path)
   ]);
   return { metrics, sheet };
+};
+
+const loadFont = async (manifest: Manifest, base: string): Promise<Font> => {
+  const font = await loadNamedFont(manifest, base, 'lord-10');
+  if (!font) {
+    throw new Error(
+      'Asset manifest has no lord/10 font; run bun run export:web'
+    );
+  }
+  return font;
 };
 
 // Pure black is colour 0 of the sheet's palette, its background. The
@@ -332,7 +354,7 @@ export const loadFullMapAssets = async (
     name
   }));
 
-  const [map, palette, frame, icons, font] = await Promise.all([
+  const [map, palette, frame, icons, font, topaz] = await Promise.all([
     loadImage(base + mapAsset.path),
     fetchJson<FullMapPalette>(base + paletteAsset.path),
     loadImage(base + frameAsset.path),
@@ -342,9 +364,17 @@ export const loadFullMapAssets = async (
         name
       }))
     ),
-    loadFont(manifest, base)
+    loadFont(manifest, base),
+    loadNamedFont(manifest, base, 'topaz-8')
   ]);
-  return { font, icons, map, palette, windowFrame: frame };
+  return {
+    font,
+    icons,
+    map,
+    palette,
+    windowFrame: frame,
+    ...(topaz ? { hiresFont: topaz } : {})
+  };
 };
 
 // One figure set: its sheet and where each frame lies in it
