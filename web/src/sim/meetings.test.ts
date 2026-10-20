@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 
 import { answerMeeting } from './meetings';
+import { giveOrder } from './movement';
 import { restoreSave, serialiseSave } from './save';
 import { createSim, tickSim, type SimState } from './state';
 
@@ -272,5 +273,35 @@ describe('saving', () => {
     expect(answerMeeting(restored.state, 'follow')).toEqual(
       answerMeeting(met, 'follow')
     );
+  });
+});
+
+// A save restores to the same state, and play continues the same
+// way from it.
+const roundTrip = (sim: SimState, ticks: number): SimState => {
+  const restored = restoreSave(serialiseSave(sim), sim.tilemap);
+  expect(restored).toEqual({ ok: true, state: sim });
+  let played = sim;
+  let replayed = restored.ok ? restored.state : sim;
+  for (let i = 0; i < ticks; i++) {
+    played = tickSim(played);
+    replayed = tickSim(replayed);
+  }
+  expect(replayed).toEqual(played);
+  return played;
+};
+
+describe('saving formed and split Forces', () => {
+  test('a Force formed by following, then split by an Order, survives save and restore', () => {
+    let sim = tickSim(faramirOntoEomer());
+    sim = roundTrip(sim, 0);
+    sim = answerMeeting(sim, 'follow').world;
+    expect(sim.roster[15]!.leader).toBe(13);
+    sim = roundTrip(sim, 20);
+    expect(sim.roster[15]!.leader).toBe(13);
+    sim = giveOrder(sim, 15, { x: 1500, y: 960 });
+    expect(sim.roster[15]!.leader).toBeNull();
+    expect(sim.roster[16]!.leader).toBe(15);
+    roundTrip(sim, 50);
   });
 });
