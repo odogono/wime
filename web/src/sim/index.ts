@@ -105,6 +105,13 @@ export {
   takeObject,
   type ObjectPlacement
 } from './objects';
+export {
+  TOKENS,
+  usableList,
+  applyObject,
+  VISION_TEXT,
+  type UseOutcome
+} from './use';
 export { createRng, nextRandom, type RngState } from './rng';
 export {
   forcesOf,

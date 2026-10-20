@@ -5,7 +5,7 @@
 // the 30 placement slots (finding:objects-starting-placements). The
 // lists and actions here take the chosen Character and the position
 // of the Force on screen, as the provisions lists do
-// (finding:objects-provisions-lists). Using objects belongs to #106.
+// (finding:objects-provisions-lists). Using objects is in use.ts.
 
 import {
   OBJECT_PLACEMENT_COUNT,
