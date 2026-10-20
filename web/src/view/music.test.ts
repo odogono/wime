@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test';
 
 import {
   EFFECT,
+  EFFECT_FILES,
   PIECE,
   arrangement,
   characterTheme,
@@ -45,6 +46,15 @@ describe('what plays when', () => {
     expect(fightStartPiece(false)).toBe(PIECE.disk1ToWarMoria);
     expect(fightEndPiece(true, true)).toBe(PIECE.shortVictory);
     expect(fightEndPiece(false, false)).toBe(PIECE.disk1ShortDefeat);
+  });
+
+  // finding:sound-disk-2-sword-is-silent
+  test('the Sword plays from Disk 1, where it can sound', () => {
+    expect(EFFECT_FILES[EFFECT.sword]).toEqual({
+      disk: 'disk1',
+      file: 'sword.instr'
+    });
+    expect(EFFECT_FILES[EFFECT.whoosh]).toBeUndefined();
   });
 
   // finding:sound-effect-notes
