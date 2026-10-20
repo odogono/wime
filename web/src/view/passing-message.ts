@@ -5,7 +5,16 @@ import type { GameSpeed } from './tick-driver';
 
 // docs/spec/encounters.md, "Passing by". The scouts' Campaign Level
 // challenge is a notice only, as specified by the provisional rule.
+// The Ring's passing after a fight shares the notice
+// (docs/spec/winning-and-losing.md).
 export const passingText = (sim: SimState, passing: Passing): string => {
+  if ('kind' in passing) {
+    if (passing.kind === 'nazgul-sent') {
+      return 'The 3rd NAZGUL is sent to the site.';
+    }
+    const bearer = sim.roster[passing.bearer]!;
+    return `${named(bearer)} now ${bearer.isUnit ? 'have' : 'has'} the RING.`;
+  }
   const a = sim.roster[passing.a]!;
   const b = sim.roster[passing.b]!;
   const name = named(a);

@@ -283,6 +283,17 @@ describe('passing notices', () => {
     );
   });
 
+  test('words the Ring’s passing after a fight', () => {
+    // docs/spec/winning-and-losing.md, "After a fight".
+    const sim = passingSim();
+    expect(passingText(sim, { bearer: 0, kind: 'ring' })).toBe(
+      'FRODO now has the RING.'
+    );
+    expect(passingText(sim, { kind: 'nazgul-sent' })).toBe(
+      'The 3rd NAZGUL is sent to the site.'
+    );
+  });
+
   test('consumes each passing, preserves time behind windows, and never holds the clock', () => {
     const sim = passingSim();
     expect(stepPassingMessage(null, sim, 0, false)).toEqual({

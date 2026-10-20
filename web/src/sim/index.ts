@@ -107,6 +107,13 @@ export {
   type ObjectPlacement
 } from './objects';
 export {
+  BARAD_DUR,
+  MOUNT_DOOM,
+  passRingAfterFight,
+  ringAtBaradDur,
+  ringAtMountDoom
+} from './ring';
+export {
   TOKENS,
   usableList,
   applyObject,

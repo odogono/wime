@@ -33,10 +33,12 @@ const RETURNS_CHANCE = 1;
 
 // "<A> passes <B>." and the like: a one-line message, with nothing
 // changed (finding:forces-anonymous-encounters-pass-by).
-export interface Passing {
-  a: number;
-  b: number;
-}
+// An Encounter passed by, or a message from the Ring's passing after a
+// fight (docs/spec/winning-and-losing.md); all share the notice box.
+export type Passing =
+  | { a: number; b: number }
+  | { bearer: number; kind: 'ring' }
+  | { kind: 'nazgul-sent' };
 
 export interface EncounterWorld {
   clock: Clock;
