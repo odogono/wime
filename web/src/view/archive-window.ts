@@ -12,7 +12,8 @@ import {
 // with a message, and a press anywhere clears it. The box is the
 // original's, framed as every window is (finding:ui-window-frame-tiles);
 // the buttons are provisional. It is lettered in topaz/8 when it was
-// exported (finding:ui-full-map-topaz-is-kickstart-1-3).
+// exported, and otherwise in our own font in its spirit
+// (finding:ui-full-map-topaz-is-kickstart-1-3, topaz-alt.ts).
 
 export type ArchiveChoice = 'restore' | 'save';
 

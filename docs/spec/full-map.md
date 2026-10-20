@@ -54,4 +54,5 @@ colour 8, blue, 20 hi-res pixels into the box (`finding:ui-galadriels-mirror-hea
 topaz/8 is not on the game's disks: the port takes it from a Kickstart
 1.3 ROM, the version the game runs on
 (`finding:ui-full-map-topaz-is-kickstart-1-3`), when `export:web` finds
-one, and otherwise draws lord/10 there at double width.
+one, and otherwise draws the port's own 8 by 8 font in its spirit,
+hand-drawn and tracked in `web/src/view/topaz-alt.ts`.

@@ -1,5 +1,6 @@
 import type { AnimationTables } from './animation-scene';
 import type { Font, FontMetrics } from './font';
+import { topazAltFont } from './topaz-alt';
 import {
   ANIMATION_PARCHMENT,
   windowStyle,
@@ -111,8 +112,9 @@ export interface FullMapPalette {
 
 export interface FullMapAssets {
   font: Font;
-  // topaz/8, when it was exported from a Kickstart ROM.
-  hiresFont?: Font;
+  // The hi-res lettering: topaz/8 when it was exported from a Kickstart
+  // ROM, otherwise our own font in its spirit (topaz-alt.ts).
+  hiresFont: Font;
   icons: {
     image: HTMLImageElement;
     name: (typeof FULL_MAP_ICON_NAMES)[number];
@@ -369,11 +371,11 @@ export const loadFullMapAssets = async (
   ]);
   return {
     font,
+    hiresFont: topaz ?? topazAltFont(),
     icons,
     map,
     palette,
-    windowFrame: frame,
-    ...(topaz ? { hiresFont: topaz } : {})
+    windowFrame: frame
   };
 };
 

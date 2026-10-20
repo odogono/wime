@@ -7,8 +7,13 @@ import {
   type ManifestAsset
 } from './assets';
 import { FIXED_FONT } from './test-font';
+import { TOPAZ_ALT_METRICS } from './topaz-alt';
 
 const imageDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'Image');
+const documentDescriptor = Object.getOwnPropertyDescriptor(
+  globalThis,
+  'document'
+);
 const loadedImages: string[] = [];
 const fetchMock = spyOn(globalThis, 'fetch');
 afterAll(() => fetchMock.mockRestore());
@@ -20,6 +25,11 @@ afterEach(() => {
     Object.defineProperty(globalThis, 'Image', imageDescriptor);
   } else {
     Reflect.deleteProperty(globalThis, 'Image');
+  }
+  if (documentDescriptor) {
+    Object.defineProperty(globalThis, 'document', documentDescriptor);
+  } else {
+    Reflect.deleteProperty(globalThis, 'document');
   }
 });
 
@@ -69,6 +79,15 @@ const serveAssets = (assets: Manifest) => {
       }
     }
   });
+  // A canvas for the hand-drawn font's sheet, drawn when no ROM font is.
+  Object.defineProperty(globalThis, 'document', {
+    configurable: true,
+    value: {
+      createElement: () => ({
+        getContext: () => ({ fillRect: () => {} })
+      })
+    }
+  });
   return palette;
 };
 
@@ -84,6 +103,8 @@ test('Full Map Level loads manifest paths, column order and palette provenance',
     '/custom/type/lord.json'
   ]);
   expect(assets.font.metrics).toEqual(FIXED_FONT);
+  // No topaz/8 was exported, so the hi-res lettering is our own.
+  expect(assets.hiresFont.metrics).toBe(TOPAZ_ALT_METRICS);
   expect(assets.icons.map(icon => icon.name)).toEqual([
     'eye',
     'scroll',
@@ -99,6 +120,23 @@ test('Full Map Level loads manifest paths, column order and palette provenance',
     '/custom/icons/time.png',
     '/custom/type/lord.png'
   ]);
+});
+
+test('Full Map Level letters in topaz/8 when it was exported', async () => {
+  serveAssets({
+    assets: [
+      ...manifest.assets,
+      asset('font-metrics', 'type/topaz.json', 'topaz-8'),
+      asset('font-sheet', 'type/topaz.png', 'topaz-8')
+    ]
+  });
+  const topaz = { ...FIXED_FONT, height: 8 };
+  fetchMock.mockResolvedValueOnce(Response.json(topaz));
+
+  const assets = await loadFullMapAssets('/custom/');
+
+  expect(assets.hiresFont.metrics).toEqual(topaz);
+  expect(loadedImages).toContain('/custom/type/topaz.png');
 });
 
 test('Full Map Level refuses an incomplete icon column', async () => {
