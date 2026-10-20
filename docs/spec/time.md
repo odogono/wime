@@ -60,9 +60,14 @@ knowledge of them (ADR-0002).
   "The Game is Paused." (`finding:executable-amiga-hunk-file`)
 - A quarter-hour waits for 256 frames on Normal and 30 on Hasty, at
   50 frames a second: 5.12 seconds and 0.6 seconds per tick. Very Hasty
-  has no clock wait; the view advances one tick per rendered frame,
-  so the simulation runs as fast as drawing allows.
+  has no clock wait: a tick lasts one sweep of the roster.
   (`finding:time-game-speed-clock-limits`)
+- `provisional`: how long the original's roster sweep takes has not
+  been measured. Until it is, Very Hasty runs one tick per 50 Hz frame
+  (20 ms, 50 ticks a second), the original's display rate
+  (`finding:time-game-speed-clock-limits`), and never more than one
+  tick per rendered frame, so it runs at the same pace on any refresh
+  rate of 50 Hz or more.
 - Generic message boxes with no buttons close after 60 frames
   (1.2 seconds) on Very Hasty and 200 frames (4 seconds) otherwise.
   The duration is set when each box opens. The Council of Elrond has
