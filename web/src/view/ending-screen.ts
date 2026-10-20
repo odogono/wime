@@ -1,7 +1,7 @@
 import type { Ending } from '../sim/index';
 import { textKey } from './assets';
 import { FRAME_MS } from './tick-driver';
-import { drawWindowFrame, type WindowStyle } from './window-frame';
+import { drawWindowFrame, windowText, type WindowStyle } from './window-frame';
 
 // How the game ends on screen (docs/spec/winning-and-losing.md,
 // finding:ui-ending-pages, finding:ui-ending-scenes-are-still-pictures):
@@ -83,11 +83,12 @@ export const drawEndingScreen = (
   }
   const box = drawWindowFrame(ctx, style, ENDING_BOX);
   lines.forEach((line, i) => {
-    ctx.fillText(
+    windowText(
+      ctx,
+      style,
       line,
       box.x + TEXT_LEFT,
-      box.y + TEXT_TOP + i * LINE_HEIGHT,
-      box.width - TEXT_LEFT - 8
+      box.y + TEXT_TOP + i * LINE_HEIGHT
     );
   });
 };

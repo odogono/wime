@@ -10,6 +10,7 @@ import {
   pickMember,
   toggleOrder
 } from './order-window';
+import { FIXED_FONT } from './test-font';
 
 const entry = (over: Partial<RosterEntry>): RosterEntry =>
   ({
@@ -96,7 +97,7 @@ describe('order flow', () => {
 
 describe('order window', () => {
   test('lists members with the Leader heading, one option per member', () => {
-    const window = layoutOrderWindow(force, places);
+    const window = layoutOrderWindow(FIXED_FONT, force, places);
     expect(window.x).toBe(8);
     expect(window.y).toBe(8);
     expect(window.options.map(option => option.label)).toEqual([
@@ -110,7 +111,7 @@ describe('order window', () => {
   });
 
   test('options hit-test by line, and the window bounds its lines', () => {
-    const window = layoutOrderWindow(force, places);
+    const window = layoutOrderWindow(FIXED_FONT, force, places);
     const sam = window.options[1]!;
     expect(orderWindowOptionAt(window, sam.x + 1, sam.y + 1)?.memberIndex).toBe(
       8

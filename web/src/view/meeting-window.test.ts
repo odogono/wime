@@ -20,6 +20,7 @@ import {
   stepMeetingUi,
   type MeetingUi
 } from './meeting-window';
+import { FIXED_FONT } from './test-font';
 
 const NOTICE_MS = 4000;
 
@@ -98,7 +99,7 @@ const plainMeet = meeting([FARAMIR, entry(26, 'THEODEN', { allegiance: 1 })], {
 });
 
 const window = (sim: SimState, now = 0) => {
-  const ui = openMeetingUi(sim, now);
+  const ui = openMeetingUi(FIXED_FONT, sim, now);
   if (ui?.kind !== 'window') {
     throw new Error('no meeting window');
   }
@@ -135,9 +136,11 @@ describe('meeting window', () => {
   test('offers Follow or Go there beside Continue on, at the top', () => {
     const follow = window(charactersMeet);
     expect(follow.box).toEqual({ height: 44, width: 192, x: 88, y: 5 });
+    // A button's area starts a pixel above its label, which is at 30
+    // in the box (finding:ui-message-box-text-colour).
     expect(follow.buttons.map(b => [b.label, b.x, b.y])).toEqual([
-      ['Follow EOMER', 104, 35],
-      ['Continue on', 198, 35]
+      ['Follow EOMER', 104, 34],
+      ['Continue on', 198, 34]
     ]);
     expect(window(unitsMeet).buttons[0]!.label).toBe('Follow infantry');
     expect(window(advisorMeet).buttons.map(b => b.label)).toEqual([

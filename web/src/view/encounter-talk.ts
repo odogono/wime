@@ -9,8 +9,9 @@ import {
   startScript,
   type ScriptWorld
 } from './figure-script';
+import { measureLines, wrapText } from './font';
 import { FRAME_MS } from './tick-driver';
-import { drawWindowFrame, type WindowStyle } from './window-frame';
+import { drawWindowFrame, windowText, type WindowStyle } from './window-frame';
 
 // Provisional arrival and advice pacing (docs/spec/encounters.md).
 export const NOTICE_MS = 200 * FRAME_MS;
@@ -204,41 +205,26 @@ export const stepEncounterTalk = (
   return now >= talk.until ? advanceEncounterTalk(stepped, now) : stepped;
 };
 
-// Reflow the resource's lines for the lo-res window without shrinking
-// the type. The source's embedded newlines target a wider text box.
-export const wrapAdvice = (text: string, columns = 52): string[] => {
-  const lines: string[] = [];
-  let line = '';
-  for (const word of text.split(/\s+/)) {
-    if (line && line.length + word.length + 1 > columns) {
-      lines.push(line);
-      line = '';
-    }
-    line += `${line ? ' ' : ''}${word}`;
-  }
-  if (line) {
-    lines.push(line);
-  }
-  return lines;
-};
+// The box's text keeps the resource's own line breaks, wrapping only a
+// line wider than the box (finding:ui-text-font-lord-10). The box's
+// width and depth are provisional: it fits its text, up to 272 wide.
+const NOTICE_MAX_WIDTH = 272;
 
 export const drawEncounterNotice = (
   ctx: CanvasRenderingContext2D,
   style: WindowStyle,
   text: string
 ): void => {
-  const lines = wrapAdvice(text);
+  const font = style.font.metrics;
+  const lines = wrapText(font, text, NOTICE_MAX_WIDTH - 20);
   const box = drawWindowFrame(ctx, style, {
-    height: 16 + lines.length * 10,
-    width: Math.min(
-      272,
-      Math.max(...lines.map(line => line.length)) * 4.8 + 20
-    ),
+    height: 16 + lines.length * font.height,
+    width: Math.min(NOTICE_MAX_WIDTH, measureLines(font, lines) + 20),
     x: 8,
     y: 5
   });
   lines.forEach((line, i) =>
-    ctx.fillText(line, box.x + 10, box.y + 8 + i * 10)
+    windowText(ctx, style, line, box.x + 10, box.y + 8 + i * font.height)
   );
 };
 

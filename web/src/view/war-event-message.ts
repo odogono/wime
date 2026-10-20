@@ -5,7 +5,7 @@ import {
 } from '../sim/index';
 import { messageDurationMs } from './message-timing';
 import type { GameSpeed } from './tick-driver';
-import { drawWindowFrame, type WindowStyle } from './window-frame';
+import { drawWindowFrame, windowText, type WindowStyle } from './window-frame';
 
 // The War Event announcements on the Campaign Level
 // (docs/spec/war-events.md, "Announcements on screen";
@@ -74,5 +74,5 @@ export const drawWarEventMessage = (
 ): void => {
   const box = drawWindowFrame(ctx, style, WAR_EVENT_BOXES[message.event]);
   // The original's message box writes its text 10 pixels in and 8 down.
-  ctx.fillText(message.text, box.x + 10, box.y + 8, box.width - 20);
+  windowText(ctx, style, message.text, box.x + 10, box.y + 8);
 };

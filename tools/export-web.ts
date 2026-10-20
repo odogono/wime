@@ -13,6 +13,7 @@ import { join, relative, sep } from 'node:path';
 import { parseArgs } from 'node:util';
 
 import { exportAnimationLevel } from './export-animation-level';
+import { fontSheet, loadLordFont } from './extract-font';
 import {
   AmigaOFSImage,
   DEFAULT_ARCHIVE,
@@ -24,7 +25,8 @@ import {
   paletteForResourceFile,
   parseResourceFork,
   safeName,
-  stringifySortedJson
+  stringifySortedJson,
+  writeRgbaPng
 } from './extract-graphics';
 import {
   STARTING_STATE_FILE,
@@ -541,6 +543,37 @@ export const exportWebAssets = (
     }
   }
 
+  // The text font, lord/10 from Disk 1 (finding:ui-text-font-lord-10): the
+  // strike as a white glyph sheet and its tables as metrics JSON.
+  const font = loadLordFont(archive);
+  const fontSheetPath = join(outputDir, 'fonts', 'lord-10.png');
+  writeRgbaPng(fontSheetPath, fontSheet(font));
+  const fontMetricsPath = join(outputDir, 'fonts', 'lord-10.json');
+  writeJson(fontMetricsPath, font.metrics);
+  const fontSource: AssetSource = {
+    id: null,
+    resource_file: 'FONTS:lord/10',
+    type: 'font'
+  };
+  assets.push(
+    {
+      height: font.metrics.height,
+      kind: 'font-sheet',
+      name: 'lord-10',
+      path: relativePosix(outputDir, fontSheetPath),
+      source: fontSource,
+      width: font.metrics.strikeWidth
+    },
+    {
+      height: null,
+      kind: 'font-metrics',
+      name: 'lord-10',
+      path: relativePosix(outputDir, fontMetricsPath),
+      source: fontSource,
+      width: null
+    }
+  );
+
   // CSTR text resources as JSON.
   const texts = collectCstrTexts(archive);
   const textPath = join(outputDir, 'text.json');
@@ -578,6 +611,7 @@ export const exportWebAssets = (
       'starting-state.json holds the opening roster, Places, Forces, routes, objects and clock, read from the data hunk of the WarInMiddleEarth executable.',
       'Full Map Level art is AMaps.res IMAG 2 (640x200, 4 planes); its eye, scroll, magnifying glass and hourglass are IMAG 32, 35, 33 and 34. They are coloured with the Full Map Level palette from the executable data hunk; full-map/palette.json records its colours and provenance.',
       'animation/ holds the Animation Level: its 32-colour palette, each FRML figure set as a sheet with figures.json giving every frame and hot spot (colour variants stacked in rows selected by figures.json), the icons, the window frame (AMaps.res IMAG 12) and tables.json, the scene and script tables of the data hunk. Its scenery strips are the AScene.res and BScene.res bitmaps under graphics/.',
+      'fonts/ holds the text font lord/10 from Disk 1: lord-10.png is its strike, set bits white, and lord-10.json the glyph locations, advances and kerning.',
       'Every decoded IMAG is exported under graphics/ with its source resource, including bitmaps whose purpose is still unidentified.'
     ],
     skipped,

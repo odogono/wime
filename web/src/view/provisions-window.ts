@@ -12,9 +12,15 @@ import {
   type UseOutcome
 } from '../sim/index';
 import { textKey } from './assets';
-import { drawTip, wrapAdvice } from './encounter-talk';
+import { drawTip } from './encounter-talk';
+import { measureText, wrapText, type FontMetrics } from './font';
 import { FRAME_MS } from './tick-driver';
-import { drawWindowFrame, type Box, type WindowStyle } from './window-frame';
+import {
+  drawWindowFrame,
+  windowText,
+  type Box,
+  type WindowStyle
+} from './window-frame';
 
 // The provisions sack's windows on the Animation Level
 // (docs/spec/objects.md, "Put Down, Take and Use"). The sack opens a
@@ -22,7 +28,8 @@ import { drawWindowFrame, type Box, type WindowStyle } from './window-frame';
 // and choosing one acts on the sim and shows a message. A pure state
 // machine over real time in milliseconds. Positions are the original's,
 // in lo-res pixels, within the shared frame
-// (finding:ui-window-frame-tiles); the lettering is provisional.
+// (finding:ui-window-frame-tiles), lettered in lord/10
+// (finding:ui-text-font-lord-10).
 
 export type ProvisionsAction = 'put-down' | 'take' | 'use';
 
@@ -53,8 +60,6 @@ export const MESSAGE_MS = 200 * FRAME_MS;
 const TEXT_X = 10;
 const TEXT_Y = 8;
 const LINE_HEIGHT = 10;
-const CHAR_WIDTH = 4.2;
-const BUTTON_HEIGHT = 10;
 
 const message = (
   lines: string[],
@@ -71,15 +76,16 @@ const message = (
 // A button's clickable area starts a pixel above its text and is four
 // wider (code+0x03a54, finding:ui-provisions-window).
 const button = (
+  font: FontMetrics,
   x: number,
   y: number,
   label: string,
   value: ProvisionsButton['value']
 ): ProvisionsButton => ({
-  height: BUTTON_HEIGHT,
+  height: font.height,
   label,
   value,
-  width: Math.ceil(label.length * CHAR_WIDTH) + 4,
+  width: measureText(font, label) + 4,
   x,
   y: y - 1
 });
@@ -101,6 +107,7 @@ export const chooseCharacter = (
 
 // The sack's menu at (168, 5), 112 by 68 (finding:ui-provisions-window).
 export const openProvisions = (
+  font: FontMetrics,
   sim: SimState,
   party: number[],
   previous: number | null,
@@ -119,9 +126,9 @@ export const openProvisions = (
   return {
     box,
     buttons: [
-      button(box.x + 20, box.y + 22, 'Put down an object', 'put-down'),
-      button(box.x + 20, box.y + 37, 'Take an object', 'take'),
-      button(box.x + 20, box.y + 52, 'Use an object', 'use')
+      button(font, box.x + 20, box.y + 22, 'Put down an object', 'put-down'),
+      button(font, box.x + 20, box.y + 37, 'Take an object', 'take'),
+      button(font, box.x + 20, box.y + 52, 'Use an object', 'use')
     ],
     chosen,
     heading: `Would ${sim.roster[chosen]!.name} like to...`,
@@ -140,6 +147,7 @@ const HEADINGS: Record<ProvisionsAction, string> = {
 // message for an empty one (finding:ui-object-list-window,
 // finding:ui-object-list-empty-messages).
 export const openObjectList = (
+  font: FontMetrics,
   sim: SimState,
   chosen: number,
   action: ProvisionsAction,
@@ -171,7 +179,13 @@ export const openObjectList = (
   return {
     box,
     buttons: objects.map((object, i) =>
-      button(box.x + 15, box.y + 20 + 10 * i, OBJECTS[object]!.name, object)
+      button(
+        font,
+        box.x + 15,
+        box.y + 20 + 10 * i,
+        OBJECTS[object]!.name,
+        object
+      )
     ),
     chosen,
     heading: `Select the object for ${name} to ${HEADINGS[action]}:`,
@@ -182,8 +196,10 @@ export const openObjectList = (
 
 // What Use shows, in its box's width and depth
 // (finding:objects-use-message-boxes). The Palantír shares the session's
-// tip history with advisors (finding:ui-advisors-share-advice).
+// tip history with advisors (finding:ui-advisors-share-advice). The
+// texts keep their own line breaks, which fit these boxes in lord/10.
 const effectMessage = (
+  font: FontMetrics,
   outcome: UseOutcome | null,
   name: string,
   texts: Map<string, string>,
@@ -222,7 +238,7 @@ const effectMessage = (
       };
       const [width, height] = dimensions[outcome.text]!;
       return message(
-        wrapAdvice(text(outcome.text), Math.floor((width - 20) / CHAR_WIDTH)),
+        wrapText(font, text(outcome.text), width - 2 * TEXT_X),
         width,
         now,
         height
@@ -236,7 +252,7 @@ const effectMessage = (
       return message(
         [
           `Looking deep into the crystal, ${name} sees a vision:`,
-          ...wrapAdvice(text(id), Math.floor((256 - 20) / CHAR_WIDTH))
+          ...wrapText(font, text(id), 256 - 2 * TEXT_X)
         ],
         256,
         now,
@@ -252,6 +268,7 @@ const effectMessage = (
 // the walk to the object and the putting down are not animated, so the
 // put-down message shows at once.
 export const chooseObject = (
+  font: FontMetrics,
   sim: SimState,
   chosen: number,
   action: ProvisionsAction,
@@ -280,6 +297,7 @@ export const chooseObject = (
       return {
         sim: result.state,
         window: effectMessage(
+          font,
           result.outcome,
           name,
           texts,
@@ -322,29 +340,32 @@ export const drawProvisionsWindow = (
   window: ProvisionsWindow
 ): void => {
   const box = drawWindowFrame(ctx, style, window.box);
-  ctx.save();
-  // provisional: the original's font is not traced; this one is narrow
-  // enough for its boxes.
-  ctx.font = '7px monospace';
-  ctx.textBaseline = 'top';
   if (window.kind === 'message') {
-    ctx.fillStyle = style.colours.text;
     window.lines.forEach((line, i) =>
-      ctx.fillText(line, box.x + TEXT_X, box.y + TEXT_Y + i * LINE_HEIGHT)
+      windowText(
+        ctx,
+        style,
+        line,
+        box.x + TEXT_X,
+        box.y + TEXT_Y + i * LINE_HEIGHT
+      )
     );
-    ctx.restore();
     return;
   }
-  ctx.fillStyle = style.colours.blue;
-  ctx.fillText(window.heading, box.x + TEXT_X, box.y + TEXT_Y);
-  ctx.fillStyle = style.colours.text;
+  windowText(
+    ctx,
+    style,
+    window.heading,
+    box.x + TEXT_X,
+    box.y + TEXT_Y,
+    style.colours.blue
+  );
   ctx.strokeStyle = style.colours.text;
   ctx.lineWidth = 1;
   for (const b of window.buttons) {
     if (window.kind === 'menu') {
       ctx.strokeRect(b.x - 0.5, b.y - 0.5, b.width + 1, b.height + 1);
     }
-    ctx.fillText(b.label, b.x + 2, b.y + 1);
+    windowText(ctx, style, b.label, b.x + 2, b.y + 1);
   }
-  ctx.restore();
 };

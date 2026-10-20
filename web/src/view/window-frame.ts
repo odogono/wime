@@ -1,3 +1,5 @@
+import { drawText, type Font } from './font';
+
 // Every window is framed as the original frames its message box
 // (finding:ui-window-frame-tiles): a parchment fill in colour 15 inside
 // a ring of 16 by 8 pixel edge tiles, picked at random from AMaps.res
@@ -29,6 +31,8 @@ export interface WindowStyle {
     // Colour 5: ordinary lettering, which shows as black.
     text: string;
   };
+  // The lettering (finding:ui-text-font-lord-10).
+  font: Font;
   tiles: CanvasImageSource;
 }
 
@@ -45,6 +49,7 @@ export const ANIMATION_PARCHMENT: Parchment = { fill: 1, line: 27 };
 export const windowStyle = (
   tiles: CanvasImageSource,
   palette: readonly string[],
+  font: Font,
   parchment: Parchment = MAP_PARCHMENT
 ): WindowStyle => {
   const colour = (index: number): string => {
@@ -63,6 +68,7 @@ export const windowStyle = (
       red: colour(10),
       text: colour(5)
     },
+    font,
     tiles
   };
 };
@@ -154,8 +160,8 @@ export const seededRandom = (box: Box): ((bits: number) => number) => {
   };
 };
 
-// Draw the window's frame and parchment, and set the lettering up for
-// its contents. Returns the box as fitted to the tiles.
+// Draw the window's frame and parchment. Returns the box as fitted to
+// the tiles.
 export const drawWindowFrame = (
   ctx: CanvasRenderingContext2D,
   style: WindowStyle,
@@ -200,8 +206,27 @@ export const drawWindowFrame = (
     );
     ctx.restore();
   }
-  ctx.font = '8px monospace';
-  ctx.textBaseline = 'top';
-  ctx.fillStyle = style.colours.text;
   return fitted;
 };
+
+// Letter text into a window at (x, y), its top left, in the window's
+// ordinary colour unless another is given.
+export const windowText = (
+  ctx: CanvasRenderingContext2D,
+  style: WindowStyle,
+  text: string,
+  x: number,
+  y: number,
+  colour: string = style.colours.text
+): number => drawText(ctx, style.font, text, x, y, colour);
+
+// The same on the hi-res Full Map Level, each pixel drawn two wide
+// (provisional, see font.ts).
+export const hiresWindowText = (
+  ctx: CanvasRenderingContext2D,
+  style: WindowStyle,
+  text: string,
+  x: number,
+  y: number,
+  colour: string = style.colours.text
+): number => drawText(ctx, style.font, text, x, y, colour, 2);

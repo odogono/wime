@@ -6,6 +6,7 @@ import {
   type Manifest,
   type ManifestAsset
 } from './assets';
+import { FIXED_FONT } from './test-font';
 
 const imageDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'Image');
 const loadedImages: string[] = [];
@@ -40,7 +41,9 @@ const manifest: Manifest = {
     asset('full-map', 'middle-earth.png'),
     asset('full-map-icon', 'icons/status.png', 'eye'),
     asset('full-map-icon', 'icons/archive.png', 'scroll'),
-    asset('full-map-window-frame', 'frame.png')
+    asset('full-map-window-frame', 'frame.png'),
+    asset('font-metrics', 'type/lord.json', 'lord-10'),
+    asset('font-sheet', 'type/lord.png', 'lord-10')
   ]
 };
 
@@ -55,6 +58,7 @@ const serveAssets = (assets: Manifest) => {
   fetchMock.mockResolvedValue(new Response(null, { status: 404 }));
   fetchMock.mockResolvedValueOnce(Response.json(assets));
   fetchMock.mockResolvedValueOnce(Response.json(palette));
+  fetchMock.mockResolvedValueOnce(Response.json(FIXED_FONT));
   Object.defineProperty(globalThis, 'Image', {
     configurable: true,
     value: class {
@@ -76,8 +80,10 @@ test('Full Map Level loads manifest paths, column order and palette provenance',
   expect(assets.palette).toEqual(palette);
   expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
     '/custom/manifest.json',
-    '/custom/colours.json'
+    '/custom/colours.json',
+    '/custom/type/lord.json'
   ]);
+  expect(assets.font.metrics).toEqual(FIXED_FONT);
   expect(assets.icons.map(icon => icon.name)).toEqual([
     'eye',
     'scroll',
@@ -90,7 +96,8 @@ test('Full Map Level loads manifest paths, column order and palette provenance',
     '/custom/icons/status.png',
     '/custom/icons/archive.png',
     '/custom/icons/down.png',
-    '/custom/icons/time.png'
+    '/custom/icons/time.png',
+    '/custom/type/lord.png'
   ]);
 });
 

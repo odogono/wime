@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, test } from 'bun:test';
 
+import { fixedFont } from './test-font';
 import {
   ANIMATION_PARCHMENT,
   frameBox,
@@ -108,7 +109,9 @@ test('seededRandom gives a box the same picks every time', () => {
 
 test('windowStyle takes the colours from the Level palette', () => {
   const palette = Array.from({ length: 16 }, (_, i) => `#${i}`);
-  expect(windowStyle({} as CanvasImageSource, palette).colours).toEqual({
+  expect(
+    windowStyle({} as CanvasImageSource, palette, fixedFont()).colours
+  ).toEqual({
     blue: '#8',
     fill: '#15',
     grey: '#1',
@@ -123,6 +126,7 @@ test('windowStyle paints the Animation Level parchment in colour 1', () => {
   const { colours } = windowStyle(
     {} as CanvasImageSource,
     palette,
+    fixedFont(),
     ANIMATION_PARCHMENT
   );
   expect(colours.fill).toBe('#1');
@@ -144,6 +148,7 @@ test.skipIf(!existsSync(ANIMATION_PALETTE))(
     const { colours } = windowStyle(
       {} as CanvasImageSource,
       hex,
+      fixedFont(),
       ANIMATION_PARCHMENT
     );
     expect(colours.fill).toBe('#ddccaa');
