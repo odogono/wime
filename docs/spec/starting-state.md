@@ -48,7 +48,7 @@ Only entries 1 to 151 take part in the main loop. Entries 152 to 195 are Encount
 ## Default Orders and triggers
 
 - Each entry's Default Orders are a queue of up to eight Place numbers, from the route table in the starting state, where 77 of the 85 rows hold a queue (finding:ai-default-orders-are-place-queues). Taking the next stop sets the entry's destination to that Place.
-- At the start the event mask is 0x05 and every event day is 0, so only the "Ring-bearer near" and "Gandalf near" triggers can fire until a war event happens (finding:ai-trigger-conditions, finding:ai-war-events).
+- At the start the event mask is 0x05 and every event day is 0, so only the "Ring-bearer near" and "Gandalf near" triggers can fire until a war event happens (finding:ai-trigger-conditions, finding:ai-war-events-set-once).
 
 ## Objects
 
