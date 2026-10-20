@@ -1,3 +1,4 @@
+import type { AnimationTables } from './animation-scene';
 import { windowStyle, type WindowStyle } from './window-frame';
 
 // Loads the assets exported by `bun run export:web` (#3). The view layer
@@ -318,4 +319,107 @@ export const loadFullMapAssets = async (
     )
   ]);
   return { icons, map, palette, windowFrame: frame };
+};
+
+// One figure set: its sheet and where each frame lies in it
+// (animation/figures.json, finding:data-formats-frml-frame-lists).
+export interface FigureFrame {
+  height: number;
+  hot_x: number;
+  hot_y: number;
+  width: number;
+  x: number;
+}
+
+export interface FigureSetAsset {
+  depth: number;
+  frames: FigureFrame[];
+  id: number;
+  sheet: HTMLImageElement;
+}
+
+export interface AnimationIcon {
+  button: number;
+  image: HTMLImageElement;
+  name: string;
+  // Where the original centres it (finding:ui-animation-level-icons).
+  x: number;
+  y: number;
+}
+
+export interface AnimationAssets {
+  figures: Map<number, FigureSetAsset>;
+  icons: AnimationIcon[];
+  // The 32 colours (finding:graphics-animation-level-palette).
+  palette: string[];
+  // Scenery strips by IMAG id, colour 0 clear.
+  strips: Map<number, CanvasImageSource & { height: number; width: number }>;
+  tables: AnimationTables;
+}
+
+interface FiguresJson {
+  figures: { depth: number; frames: FigureFrame[]; id: number; path: string }[];
+  icons: { button: number; imag: number; name: string; x: number; y: number }[];
+}
+
+// The Animation Level's art (docs/spec/animation-level.md). Its strips
+// are every AScene.res and BScene.res bitmap; figures, icons and tables
+// are under animation/.
+export const loadAnimationAssets = async (
+  base = '/assets/'
+): Promise<AnimationAssets> => {
+  const manifest = await fetchJson<Manifest>(`${base}manifest.json`);
+  const animationPath = (name: string): string =>
+    base +
+    requireAsset(
+      manifest.assets.find(asset => asset.path === `animation/${name}`),
+      `Animation Level ${name}`
+    ).path;
+  const [palette, tables, figures] = await Promise.all([
+    fetchJson<{ hex: string[] }>(animationPath('palette.json')),
+    fetchJson<AnimationTables>(animationPath('tables.json')),
+    fetchJson<FiguresJson>(animationPath('figures.json'))
+  ]);
+  const stripAssets = manifest.assets.filter(
+    asset =>
+      asset.kind === 'graphics' &&
+      asset.source?.id !== null &&
+      (asset.source?.resource_file === 'AScene.res' ||
+        asset.source?.resource_file === 'BScene.res')
+  );
+  const [sets, icons, strips] = await Promise.all([
+    Promise.all(
+      figures.figures.map(async set => ({
+        depth: set.depth,
+        frames: set.frames,
+        id: set.id,
+        sheet: await loadImage(`${base}animation/${set.path}`)
+      }))
+    ),
+    Promise.all(
+      figures.icons.map(async icon => ({
+        button: icon.button,
+        image: await loadImage(animationPath(`icon-${icon.name}.png`)),
+        name: icon.name,
+        x: icon.x,
+        y: icon.y
+      }))
+    ),
+    Promise.all(
+      stripAssets.map(
+        async asset =>
+          [
+            asset.source!.id!,
+            blackToTransparent(await loadImage(base + asset.path))
+          ] as const
+      )
+    )
+  ]);
+  return {
+    figures: new Map(sets.map(set => [set.id, set])),
+    icons,
+    palette: palette.hex,
+    strips: new Map(strips),
+    tables
+  };
 };
