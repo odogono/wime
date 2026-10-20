@@ -22,10 +22,9 @@ side's (finding:forces-roster-order). The Encounters, entries 152 to
   7 pixels on both axes. An Evil mover looks only at entries 1 to 78,
   any other mover at entries 1 to 151.
 - It is a fight when exactly one of the two is Evil (allegiance 0).
-  Allegiance 1, unmobilised, counts as non-Evil.
-  `provisional`: a match that is not a fight is skipped and the search
-  goes on. The original opens a friendly meeting there instead, which
-  the sim doesn't model yet.
+  Allegiance 1, unmobilised, counts as non-Evil. A match where
+  neither is Evil may be a meeting instead, which ends the search; one
+  that is not passes by and the search goes on (docs/spec/forces.md).
 - Evasion: before the fight, random(100) is drawn. The Good party's
   Force can escape if the roll is below the average of its members'
   evasion byte (byte 29), with 20 added for each member wearing an
@@ -186,7 +185,7 @@ enters the round (finding:combat-no-place-or-terrain-modifier).
 - The Ring put on when its bearer is wounded
   (finding:objects-ring-put-on-when-wounded) and fights fought on the
   Animation Level: milestone 6.
-- Encounters and friendly meetings.
+- Encounters (meetings are in docs/spec/forces.md).
 
 ## The announcement and the combat window
 

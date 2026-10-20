@@ -1,4 +1,5 @@
 import {
+  answerMeeting,
   createSim,
   forcesOnMap,
   formatClock,
@@ -711,6 +712,11 @@ const run = (assets: CampaignAssets, fullMap: FullMapLevel): void => {
     const ticks = driver.advance(elapsedMs);
     for (let i = 0; i < ticks && !combatHoldsTime(combat) && !sim.fight; i++) {
       sim = tickSim(sim);
+      // Until the meeting window (#70), every meeting gets its default,
+      // Continue on, at once (docs/spec/forces.md).
+      if (sim.meeting) {
+        sim = answerMeeting(sim, 'continue-on').world;
+      }
       if (sim.fight) {
         combat = startCombatUi(sim, now);
         speedWindow = null;

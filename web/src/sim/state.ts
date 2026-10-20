@@ -1,6 +1,7 @@
 import { INITIAL_CLOCK, tickClock, type Clock } from './clock';
-import { findFight, startFight, type Fight } from './combat';
+import { findMatch, startFight, type Fight } from './combat';
 import type { Ending } from './endings';
+import { startMeeting, type Meeting } from './meetings';
 import { sweepMovement, type Tilemap } from './movement';
 import { createRng, type RngState } from './rng';
 import {
@@ -36,6 +37,9 @@ export interface SimState {
   // The fight under way, or null. Game time stands still while one is
   // (finding:time-stops-during-a-fight).
   fight: Fight | null;
+  // The meeting waiting for the player's answer, or null. Game time
+  // stands still while one is (finding:ui-meeting-window).
+  meeting: Meeting | null;
   placeKinds: PlaceKind[];
   places: Place[];
   // The roster index of the Ring-bearer, or null before the starting
@@ -72,6 +76,7 @@ export const createSim = (
       clock: { ...INITIAL_CLOCK },
       ending: null,
       fight: null,
+      meeting: null,
       placeKinds: [],
       places: [],
       ringBearer: null,
@@ -97,6 +102,7 @@ export const createSim = (
     },
     ending: null,
     fight: null,
+    meeting: null,
     placeKinds: start.placeKinds,
     places: start.places,
     ringBearer: start.ringBearer,
@@ -115,13 +121,13 @@ export const createSim = (
 // then the clock steps one quarter-hour, as the original advanced
 // it after the sweep reached entry 151
 // (finding:time-clock-advances-after-each-roster-sweep). A step that
-// starts a fight stops the sweep and the clock until the fight is
-// over; the next tick carries on from the following entry
-// (docs/spec/combat.md). When the clock reaches 8 a.m. the daily War
+// starts a fight or a meeting stops the sweep and the clock until the
+// fight is over or the meeting answered; the next tick carries on from
+// the following entry (docs/spec/combat.md, docs/spec/forces.md). When the clock reaches 8 a.m. the daily War
 // Event check runs before the next sweep
 // (finding:time-daily-check-opens-the-8am-sweep).
 export const tickSim = (state: SimState): SimState => {
-  if (state.fight || state.ending) {
+  if (state.fight || state.meeting || state.ending) {
     return state;
   }
   const { stoppedAt, world } = sweepMovement(
@@ -133,8 +139,13 @@ export const tickSim = (state: SimState): SimState => {
         moved.roster[index]!,
         moved.clock.day
       );
-      const fight = findFight(moved, index);
-      return fight ? startFight(moved, fight) : null;
+      const match = findMatch(moved, index);
+      if (!match) {
+        return null;
+      }
+      return 'fight' in match
+        ? startFight(moved, match.fight)
+        : startMeeting(moved, match.meeting);
     },
     wakeEntry
   );
@@ -193,6 +204,7 @@ export const deserializeSim = (text: string): SimState => {
     announcements: legacy.announcements ?? [],
     ending: legacy.ending ?? null,
     fight: legacy.fight ?? null,
+    meeting: legacy.meeting ?? null,
     roster: parsed.roster.map(entry => ({
       ...entry,
       fraction: entry.fraction ?? 0
