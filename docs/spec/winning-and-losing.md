@@ -28,20 +28,24 @@ Build for #103. Carrying, taking and dropping objects in general is in
 - A Ring-bearer killed in a fight leaves the Ring, with everything else
   it carried, at the place of the fight.
   (finding:objects-dead-drop-their-objects)
-- At the end of the fight the winners take a Ring lying at the fight's
-  place: (finding:objects-ring-passes-after-a-fight)
+- At the end of the fight a Ring lying exactly at the fight's place is
+  taken from the ground, and goes to one of the winners; with nobody
+  to take it, it is lost. (finding:objects-ring-taken-by-last-awake-winner)
   - **Good wins:** the first living Hobbit in the Good rows; with no
-    Hobbit, the last-listed living Character; with no Character, a
-    Unit. Gollum takes it only if nobody else is left.
-  - **Evil wins:** the last-listed Evil row. If the winner was an
-    Encounter, not a Force, the 3rd Nazgûl is brought to the place to
-    take it, with "The 3rd NAZGUL is sent to the site.".
+    Hobbit, the last-listed awake row, Character or Unit alike. Gollum
+    takes it only if he is all that is left of the Good side.
+  - **Evil wins:** the last-listed awake Evil row. If the winner was
+    an Encounter, not a Force, "The 3rd NAZGUL is sent to the site."
+    and the 3rd Nazgûl takes it if awake, where he stands on the
+    Campaign Level.
 - The new bearer gets the Ring and becomes the Ring-bearer, with
-  "<name> now has the RING.". An Evil bearer is given Barad-dûr as its
-  destination and loses its Default Orders, and every other awake
-  Nazgûl is sent to Dol Guldur, the Morannon or Minas Morgul, at
+  "<name> now has the RING." ("have" for a Unit). An Evil bearer is
+  given Barad-dûr as its destination, leaves its Leader and loses its
+  Default Orders, and every other awake Nazgûl loses its Default
+  Orders and is sent to Dol Guldur, the Morannon or Minas Morgul, at
   random, with Minas Morgul twice as likely as each of the others.
-  (finding:objects-ring-passes-after-a-fight)
+  The messages share the notice box after the fight's windows close.
+  (finding:objects-ring-taken-by-last-awake-winner)
 
 ### Worn when wounded
 
