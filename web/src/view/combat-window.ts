@@ -9,6 +9,8 @@ import {
   type RosterEntry,
   type SimState
 } from '../sim/index';
+import { messageDurationMs } from './message-timing';
+import { FRAME_MS, type GameSpeed } from './tick-driver';
 import {
   drawWindowFrame,
   frameBox,
@@ -26,7 +28,6 @@ import {
 // (finding:ui-window-frame-tiles); the lettering is provisional.
 
 // The original counts 50 Hz frames.
-const FRAME_MS = 20;
 // An unanswered announcement presses "Ignore it" after 720 frames
 // (finding:combat-unanswered-announcement-ignores-the-fight).
 export const ANNOUNCEMENT_MS = 720 * FRAME_MS;
@@ -36,8 +37,6 @@ export const ANNOUNCEMENT_MS = 720 * FRAME_MS;
 export const ORDERS_MS = 300 * FRAME_MS;
 export const MESSAGE_MS = 180 * FRAME_MS;
 export const RESULT_MS = 300 * FRAME_MS;
-// How long each message box of an ignored fight stays up.
-export const BOX_MS = 200 * FRAME_MS;
 // `provisional`: how long a round with no messages stays up on the
 // Animation Level (docs/spec/encounters.md).
 export const ANIMATION_ROUND_MS = 800;
@@ -106,6 +105,18 @@ export const announcementText = (sim: SimState, fight: Fight): string => {
   const good = sim.roster[fight.good]!;
   const verb = good.strength > 1 ? 'are' : 'is';
   return `${capitalise(rowLabel(good.name, good.strength))} ${verb} attacked by ${enemy}.`;
+};
+
+// Drops the shown box, re-arming the timer for the next or closing.
+const nextBox = (
+  ui: Extract<CombatUi, { kind: 'boxes' }>,
+  now: number,
+  speed: GameSpeed
+): CombatUi | null => {
+  const [, ...rest] = ui.boxes;
+  return rest.length > 0
+    ? { ...ui, boxes: rest, until: now + messageDurationMs(speed) }
+    : null;
 };
 
 export const startCombatUi = (sim: SimState, now: number): CombatUi | null =>
@@ -213,7 +224,8 @@ const deathBoxes = (before: SimState, after: SimState): string[] => {
 // its result and its dead are shown.
 const ignore = (
   sim: SimState,
-  now: number
+  now: number,
+  speed: GameSpeed
 ): { sim: SimState; ui: CombatUi } => {
   let fought = sim;
   while (fought.fight && !fought.fight.winner) {
@@ -226,7 +238,7 @@ const ignore = (
     ui: {
       boxes: [result, ...deathBoxes(fought, finished)],
       kind: 'boxes',
-      until: now + BOX_MS
+      until: now + messageDurationMs(speed)
     }
   };
 };
@@ -255,20 +267,17 @@ export const stepCombatUi = (
   sim: SimState,
   now: number,
   choose: Choose,
-  roundMs = 0
+  roundMs = 0,
+  speed: GameSpeed = 'normal'
 ): { sim: SimState; ui: CombatUi | null } => {
   if (ui.kind === 'announcement') {
-    return now >= ui.deadline ? ignore(sim, now) : { sim, ui };
+    return now >= ui.deadline ? ignore(sim, now, speed) : { sim, ui };
   }
   if (ui.kind === 'boxes') {
     if (now < ui.until) {
       return { sim, ui };
     }
-    const [, ...rest] = ui.boxes;
-    return {
-      sim,
-      ui: rest.length > 0 ? { ...ui, boxes: rest, until: now + BOX_MS } : null
-    };
+    return { sim, ui: nextBox(ui, now, speed) };
   }
   let next = sim;
   let window = ui;
@@ -405,7 +414,8 @@ export const pressCombatUi = (
   ui: CombatUi,
   sim: SimState,
   point: { x: number; y: number },
-  now: number
+  now: number,
+  speed: GameSpeed = 'normal'
 ): { sim: SimState; ui: CombatUi | null } => {
   if (ui.kind === 'announcement') {
     const button = ANNOUNCEMENT_BUTTONS.find(candidate =>
@@ -415,7 +425,7 @@ export const pressCombatUi = (
       return { sim, ui };
     }
     return button.choice === 'ignore-it'
-      ? ignore(sim, now)
+      ? ignore(sim, now, speed)
       : { sim, ui: openCombatWindow(sim, now) };
   }
   if (ui.kind === 'window' && sim.fight) {
@@ -426,11 +436,7 @@ export const pressCombatUi = (
   }
   // A press clears a message box early.
   if (ui.kind === 'boxes') {
-    const [, ...rest] = ui.boxes;
-    return {
-      sim,
-      ui: rest.length > 0 ? { ...ui, boxes: rest, until: now + BOX_MS } : null
-    };
+    return { sim, ui: nextBox(ui, now, speed) };
   }
   return { sim, ui };
 };

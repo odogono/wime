@@ -9,8 +9,11 @@ import {
   startScript,
   type ScriptWorld
 } from './figure-script';
-import { NOTICE_MS } from './meeting-window';
+import { FRAME_MS } from './tick-driver';
 import { drawWindowFrame, type WindowStyle } from './window-frame';
+
+// Provisional arrival and advice pacing (docs/spec/encounters.md).
+export const NOTICE_MS = 200 * FRAME_MS;
 
 const GREETINGS = ['Greetings ', 'Hello ', 'Welcome ', ''];
 const FAREWELLS = ['Farewell!', 'Good luck!', 'Good journey!', 'Goodbye!'];

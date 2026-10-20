@@ -1,5 +1,7 @@
 import { takePassing, type Passing, type SimState } from '../sim/index';
-import { NOTICE_MS, named } from './meeting-window';
+import { named } from './meeting-window';
+import { messageDurationMs } from './message-timing';
+import type { GameSpeed } from './tick-driver';
 
 // docs/spec/encounters.md, "Passing by". The scouts' Campaign Level
 // challenge is a notice only, as specified by the provisional rule.
@@ -25,7 +27,8 @@ export const stepPassingMessage = (
   message: PassingMessage | null,
   sim: SimState,
   now: number,
-  free: boolean
+  free: boolean,
+  speed: GameSpeed = 'normal'
 ): { message: PassingMessage | null; sim: SimState } => {
   if (!free) {
     return {
@@ -37,12 +40,13 @@ export const stepPassingMessage = (
     return { message: { ...message, remaining: message.until - now }, sim };
   }
   const taken = takePassing(sim);
+  const duration = messageDurationMs(speed);
   return {
     message: taken.passing
       ? {
-          remaining: NOTICE_MS,
+          remaining: duration,
           text: passingText(sim, taken.passing),
-          until: now + NOTICE_MS
+          until: now + duration
         }
       : null,
     sim: taken.state

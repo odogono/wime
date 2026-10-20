@@ -649,7 +649,8 @@ const run = (
         combat,
         sim,
         toNative(event),
-        performance.now()
+        performance.now(),
+        driver.speed
       );
       sim = result.sim;
       combat = result.ui;
@@ -687,7 +688,8 @@ const run = (
         meetingUi!,
         sim,
         pointer,
-        performance.now()
+        performance.now(),
+        driver.speed
       );
       const meeting = sim.meeting;
       sim = result.sim;
@@ -971,7 +973,8 @@ const run = (
         !sim.council &&
         !talk &&
         !ending &&
-        !sim.ending
+        !sim.ending,
+      driver.speed
     ));
     // Game time does not pass on the Full Map Level
     // (finding:time-stops-on-full-map-level).
@@ -981,7 +984,8 @@ const run = (
         warMessage,
         sim,
         now,
-        false
+        false,
+        driver.speed
       ));
       drawFullMapLevel(
         screen.hires,
@@ -1020,13 +1024,17 @@ const run = (
       requestAnimationFrame(frame);
       return;
     }
+    let animationTicked = false;
     if (level === 'animation') {
       // Talks hold the view's clock. Meetings of the watched Character
       // with an advisor start here without the Campaign Level's choice.
-      const due = driver.advance(elapsedMs);
-      for (let i = 0; i < due && !talk && !sim.fight && !sim.meeting; i++) {
+      const ticks = driver.advance(elapsedMs);
+      for (let i = 0; i < ticks && !talk && !sim.fight && !sim.meeting; i++) {
         sim = tickSim(sim);
       }
+      // Returning to the Campaign Level below must not tick again in
+      // the same frame, especially on Very Hasty.
+      animationTicked = true;
       if (sim.meeting?.kind === 'talk' && sim.meeting.a === watched) {
         const meeting = sim.meeting;
         sim = answerMeeting(sim, 'go-there').world;
@@ -1060,7 +1068,8 @@ const run = (
             sim,
             now,
             choose,
-            ANIMATION_ROUND_MS
+            ANIMATION_ROUND_MS,
+            driver.speed
           );
           sim = result.sim;
           combat = result.ui;
@@ -1124,7 +1133,7 @@ const run = (
       combat = startCombatUi(sim, now);
     }
     if (combat) {
-      const result = stepCombatUi(combat, sim, now, choose);
+      const result = stepCombatUi(combat, sim, now, choose, 0, driver.speed);
       sim = result.sim;
       combat = result.ui;
     }
@@ -1137,7 +1146,12 @@ const run = (
       setOrder(IDLE_ORDER);
     }
     if (meetingUi) {
-      ({ sim, ui: meetingUi } = stepMeetingUi(meetingUi, sim, now));
+      ({ sim, ui: meetingUi } = stepMeetingUi(
+        meetingUi,
+        sim,
+        now,
+        driver.speed
+      ));
     }
     // The Council of Elrond's message holds the game until its time is
     // up, and sets the Game Speed back to Normal.
@@ -1168,7 +1182,7 @@ const run = (
     // Game time stands still while a fight or a meeting holds the game
     // (finding:time-stops-during-a-fight, finding:ui-meeting-window);
     // the ticks due are dropped.
-    const ticks = driver.advance(elapsedMs);
+    const ticks = animationTicked ? 0 : driver.advance(elapsedMs);
     for (
       let i = 0;
       i < ticks &&
@@ -1193,7 +1207,8 @@ const run = (
       warMessage,
       sim,
       now,
-      !combat && !meetingUi && !councilWindow && !passingMessage
+      !combat && !meetingUi && !councilWindow && !passingMessage,
+      driver.speed
     ));
     // Hovering the icon column does not scroll the map under it, and
     // dragging pans instead of edge scrolling.

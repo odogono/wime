@@ -74,8 +74,12 @@ in `docs/spec/combat.md`.
   (finding:forces-anonymous-encounters-pass-by)
 - `provisional`: what the scouts' challenge does on the Campaign Level
   is not known; it does nothing here.
-- `provisional`: pass-by messages last four seconds and wait behind
-  talks and decision windows, and while the Full Map Level is shown.
+- Pass-by messages use the generic timeout for boxes with no buttons:
+  60 frames (1.2 seconds) on Very Hasty, 200 frames (4 seconds)
+  otherwise. (`finding:ui-war-event-messages`,
+  `finding:time-game-speed-clock-limits`)
+- `provisional`: pass-by messages wait behind talks and decision
+  windows, and while the Full Map Level is shown.
 
 ## Joining
 

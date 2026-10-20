@@ -204,6 +204,51 @@ const runWindow = (
 };
 
 describe('the announcement', () => {
+  test('Very Hasty times out ignored-fight boxes after 60 frames, including boxes advanced by a press', () => {
+    const sim = eomer();
+    const announcement = startCombatUi(sim, 0)!;
+    const ignored = pressCombatUi(
+      announcement,
+      sim,
+      centre(ignoreIt),
+      100,
+      'very-hasty'
+    );
+    expect(ignored.ui).toMatchObject({ kind: 'boxes', until: 1300 });
+    expect(
+      stepCombatUi(ignored.ui!, ignored.sim, 1299, first, 0, 'very-hasty').ui
+    ).toBe(ignored.ui);
+    const next = stepCombatUi(
+      ignored.ui!,
+      ignored.sim,
+      1300,
+      first,
+      0,
+      'very-hasty'
+    );
+    expect(next.ui).toMatchObject({ kind: 'boxes', until: 2500 });
+    expect(
+      stepCombatUi(next.ui!, next.sim, 2500, first, 0, 'very-hasty').ui
+    ).toBeNull();
+    const pressed = pressCombatUi(
+      ignored.ui!,
+      ignored.sim,
+      { x: 0, y: 0 },
+      500,
+      'very-hasty'
+    );
+    expect(pressed.ui).toMatchObject({ kind: 'boxes', until: 1700 });
+    const timedOut = stepCombatUi(
+      announcement,
+      sim,
+      ANNOUNCEMENT_MS,
+      first,
+      0,
+      'very-hasty'
+    );
+    expect(timedOut.ui).toMatchObject({ until: ANNOUNCEMENT_MS + 1200 });
+  });
+
   test('names the Place that announces attacks, or the Leader attacked', () => {
     const sim = calembel();
     expect(announcementText(sim, sim.fight!)).toBe(
