@@ -63,6 +63,11 @@ import {
   type CombatUi
 } from './combat-window';
 import {
+  drawCouncilMessage,
+  stepCouncilMessage,
+  type CouncilMessageWindow
+} from './council-message';
+import {
   drawEndingScreen,
   endingScreen,
   turnEndingPage,
@@ -215,8 +220,9 @@ const run = (
     // A message already on screen was shown; the restored game's own
     // waiting announcements follow.
     warMessage = null;
-    // A restored meeting gets a fresh window.
+    // A restored meeting or Council gets a fresh window.
     meetingUi = null;
+    councilWindow = null;
     return archiveMessage(ARCHIVE_MESSAGES.restored);
   };
   // The Archive window, from the scroll or A (finding:ui-archive-window).
@@ -283,6 +289,9 @@ const run = (
   // The meeting window, or the notice an answer leaves
   // (docs/spec/forces.md).
   let meetingUi: MeetingUi | null = null;
+  // The Council of Elrond's message, while it holds the game
+  // (docs/spec/council-of-elrond.md).
+  let councilWindow: CouncilMessageWindow | null = null;
   // The game's ending, once a fight has ended it.
   let ending: EndingScreen | null = null;
   let lastTime = performance.now();
@@ -554,6 +563,11 @@ const run = (
       ending = turnEndingPage(ending);
       return;
     }
+    // The Council's message cannot be dismissed, and nothing else
+    // answers while it is up.
+    if (councilWindow) {
+      return;
+    }
     // A fight's windows take every press while they hold the game.
     if (combat && (combatHoldsTime(combat) || combat.kind === 'boxes')) {
       const before = combat;
@@ -706,6 +720,9 @@ const run = (
     // magnifying glass, T opens the Game Speed window and P pauses
     // (finding:ui-key-bindings). The Campaign Level's magnifying
     // glass waits for the Animation Level.
+    if (councilWindow) {
+      return;
+    }
     const key = event.key.toLowerCase();
     if (level === 'animation') {
       if (key === 'u') {
@@ -837,6 +854,8 @@ const run = (
       drawCombatUi(ctx, assets.window, combat, sim);
     } else if (meetingUi) {
       drawMeetingUi(ctx, assets.window, meetingUi);
+    } else if (councilWindow) {
+      drawCouncilMessage(ctx, assets.window, councilWindow);
     } else if (warMessage) {
       drawWarEventMessage(ctx, assets.window, warMessage);
     }
@@ -900,7 +919,13 @@ const run = (
         sim = tick(sim);
       }
       stage = stepStage(stage, figureWorld, vblankAt(now));
-      if (sim.fight || sim.meeting || sim.ending || walkedOff(stage)) {
+      if (
+        sim.fight ||
+        sim.meeting ||
+        sim.council ||
+        sim.ending ||
+        walkedOff(stage)
+      ) {
         goUpFromAnimation();
       } else {
         screen.buffer.drawImage(scene, 0, 0);
@@ -927,6 +952,21 @@ const run = (
     if (meetingUi) {
       ({ sim, ui: meetingUi } = stepMeetingUi(meetingUi, sim, now));
     }
+    // The Council of Elrond's message holds the game until its time is
+    // up, and sets the Game Speed back to Normal.
+    if (sim.council && !councilWindow) {
+      driver.speed = 'normal';
+      speedWindow = null;
+      infoWindow = null;
+      drag = null;
+      setOrder(IDLE_ORDER);
+    }
+    ({ sim, window: councilWindow } = stepCouncilMessage(
+      councilWindow,
+      sim,
+      assets.texts,
+      now
+    ));
     // Once a fight has ended the game and its windows have closed, the
     // ending takes the screen for good.
     if (!ending && !combat && sim.ending) {
@@ -944,7 +984,11 @@ const run = (
     const ticks = driver.advance(elapsedMs);
     for (
       let i = 0;
-      i < ticks && !combatHoldsTime(combat) && !sim.fight && !sim.meeting;
+      i < ticks &&
+      !combatHoldsTime(combat) &&
+      !sim.fight &&
+      !sim.meeting &&
+      !sim.council;
       i++
     ) {
       sim = tick(sim);
@@ -962,7 +1006,7 @@ const run = (
       warMessage,
       sim,
       now,
-      !combat && !meetingUi
+      !combat && !meetingUi && !councilWindow
     ));
     // Hovering the icon column does not scroll the map under it, and
     // dragging pans instead of edge scrolling.

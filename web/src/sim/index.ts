@@ -35,6 +35,14 @@ export {
   type MatchWorld
 } from './combat';
 export {
+  closeCouncil,
+  councilDue,
+  dayAfterCouncil,
+  holdCouncil,
+  RIVENDELL,
+  type CouncilMessage
+} from './council';
+export {
   BILBO,
   FIRST_ENCOUNTER,
   isEncounter,

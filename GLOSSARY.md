@@ -97,6 +97,10 @@ _Avoid_: Script, AI path
 One of the five turning points that set later stages of the war going, such as Saruman's army marching.
 _Avoid_: Trigger, stage, phase
 
+**Council of Elrond**:
+The one-off event when the Ring-bearer's Force reaches Rivendell with Gandalf there: the Fellowship is formed under Gandalf, the calendar moves on and the Nazgûl are put to sleep.
+_Avoid_: Rivendell event, council meeting
+
 **Game Speed**:
 How fast game time passes in real time: Normal, Hasty or Very Hasty. Game Speed never changes the rules.
 _Avoid_: Difficulty, tempo

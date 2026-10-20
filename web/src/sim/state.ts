@@ -1,5 +1,6 @@
 import { INITIAL_CLOCK, tickClock, type Clock } from './clock';
 import { findMatch, startFight, type Fight } from './combat';
+import { councilDue, holdCouncil, type CouncilMessage } from './council';
 import type { Passing } from './encounters';
 import type { Ending } from './endings';
 import { startMeeting, type Meeting } from './meetings';
@@ -32,6 +33,13 @@ export interface SimState {
   // takes them (takeAnnouncement).
   announcements: WarEventAnnouncement[];
   clock: Clock;
+  // The Council of Elrond's message, waiting for the view to close it,
+  // or null. Game time stands still while one is
+  // (docs/spec/council-of-elrond.md).
+  council: CouncilMessage | null;
+  // Whether the Council of Elrond is still to come
+  // (finding:ai-council-of-elrond-trigger).
+  councilPending: boolean;
   // How the game ended, or null while it goes on. Nothing moves once
   // it has ended (docs/spec/combat.md, "Endings").
   ending: Ending | null;
@@ -82,6 +90,8 @@ export const createSim = (
     return {
       announcements: [],
       clock: { ...INITIAL_CLOCK },
+      council: null,
+      councilPending: true,
       ending: null,
       fight: null,
       meeting: null,
@@ -110,6 +120,8 @@ export const createSim = (
       day: start.clock.day,
       quarterHour: start.clock.quarterHour
     },
+    council: null,
+    councilPending: true,
     ending: null,
     fight: null,
     meeting: null,
@@ -136,11 +148,13 @@ export const createSim = (
 // starts a fight or a meeting stops the sweep and the clock until the
 // fight is over or the meeting answered; the next tick carries on from
 // the following entry (docs/spec/combat.md, docs/spec/forces.md). An
-// Encounter passed by is queued for the view and the sweep goes on. When the clock reaches 8 a.m. the daily War
-// Event check runs before the next sweep
-// (finding:time-daily-check-opens-the-8am-sweep).
+// Encounter passed by is queued for the view and the sweep goes on. On
+// each hour the Council of Elrond may be held, and when the clock
+// reaches 8 a.m. the daily War Event check then runs before the next
+// sweep (docs/spec/council-of-elrond.md,
+// finding:time-daily-check-opens-the-8am-sweep).
 export const tickSim = (state: SimState): SimState => {
-  if (state.fight || state.meeting || state.ending) {
+  if (state.fight || state.meeting || state.council || state.ending) {
     return state;
   }
   const { stoppedAt, world } = sweepMovement(
@@ -169,7 +183,8 @@ export const tickSim = (state: SimState): SimState => {
   if (stoppedAt !== null) {
     return { ...world, sweepFrom: stoppedAt + 1 };
   }
-  return dailyChecks({ ...world, clock: tickClock(world.clock), sweepFrom: 0 });
+  const stepped = { ...world, clock: tickClock(world.clock), sweepFrom: 0 };
+  return dailyChecks(councilDue(stepped) ? holdCouncil(stepped) : stepped);
 };
 
 const dailyChecks = (state: SimState): SimState => {
@@ -237,6 +252,8 @@ export const deserializeSim = (text: string): SimState => {
   return {
     ...parsed,
     announcements: legacy.announcements ?? [],
+    council: legacy.council ?? null,
+    councilPending: legacy.councilPending ?? true,
     ending: legacy.ending ?? null,
     fight: legacy.fight ?? null,
     meeting: legacy.meeting ?? null,

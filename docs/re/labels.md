@@ -97,6 +97,7 @@ Names given to addresses in the Reference Build's executable during analysis ([a
 | `data+0x3db0` | `objectPlacements`     | 30 × 6                                                                  |
 | `data+0x3e64` | `day`                  | word                                                                    |
 | `data+0x3e66` | `quarterHour`          | word, 0–95                                                              |
+| `data+0x3e68` | `councilPending`       | byte, 1 at the start; cleared by the Council of Elrond                  |
 | `data+0x3e69` | `eventMask`            | byte                                                                    |
 | `data+0x3e6a` | `ringBearer`           | byte; also base of `eventDay[bit]`                                      |
 | `data+0x3e72` | `places`               | 85 × 10                                                                 |
@@ -113,6 +114,7 @@ Names given to addresses in the Reference Build's executable during analysis ([a
 | `data+0x4342` | `objects`              | 17 × 8                                                                  |
 | `data+0x4ac8` | `fullMapPalette`       | 16 RGB4 words                                                           |
 | `data+0x4b48` | `animationPalette`     | the Animation Level's 32 RGB4 colours                                   |
+| `data+0x4c72` | `pointerShown`         | byte, written as sprite DMA is switched; presumably the pointer is on   |
 | `data+0x4f40` | `blinkPhase`           | toggles each frame                                                      |
 | `data+0x4fec` | `frameCounter`         | compared with `data+0x08c2` before a clock step                         |
 | `data+0x4fee` | `vblankCount`          | word, 50 Hz                                                             |

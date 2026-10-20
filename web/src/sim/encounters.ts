@@ -137,8 +137,8 @@ export const spendAdvisor = (
 };
 
 // The Council of Elrond lets Bilbo be met (code+0x0dcfe;
-// finding:forces-advisors-met-once). The Council itself is not in the
-// sim yet; this is what it does to the Encounters.
+// finding:forces-advisors-met-once); this is what holdCouncil does to
+// the Encounters.
 export const openBilbo = (roster: RosterEntry[]): RosterEntry[] =>
   roster.map(entry =>
     entry.index === BILBO && entry.encounter
