@@ -572,7 +572,7 @@ export const exportWebAssets = (
     skipped.push({
       source: { id: null, resource_file: 'Kickstart 1.3 ROM', type: 'font' },
       warnings: [
-        `no ${rom} (set FS_UAE_DIR): the Full Map Level falls back to lord/10`
+        `no ${rom} (set FS_UAE_DIR): the Full Map Level falls back to the port's own topaz-style font`
       ]
     });
   }

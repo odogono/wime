@@ -1400,7 +1400,7 @@ try {
           fullMap.palette.hex,
           fullMap.font
         ),
-        ...(fullMap.hiresFont ? { hiresFont: fullMap.hiresFont } : {})
+        hiresFont: fullMap.hiresFont
       },
       // Their black backgrounds are masked out like the Campaign Level's
       // icon sheet; how the original masked them is provisional.

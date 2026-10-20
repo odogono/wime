@@ -33,7 +33,8 @@ export interface WindowStyle {
   };
   // The lettering (finding:ui-text-font-lord-10).
   font: Font;
-  // The Full Map Level's hi-res lettering, topaz/8, when it was exported.
+  // The Full Map Level's hi-res lettering: topaz/8, or our own font in
+  // its spirit when no ROM was at hand (topaz-alt.ts).
   hiresFont?: Font;
   tiles: CanvasImageSource;
 }
@@ -222,9 +223,9 @@ export const windowText = (
   colour: string = style.colours.text
 ): number => drawText(ctx, style.font, text, x, y, colour);
 
-// The same on the hi-res Full Map Level: in topaz/8 at hi-res pixels,
-// as the original, or without it in lord/10 with each pixel drawn two
-// wide (finding:ui-text-font-lord-10).
+// The same on the hi-res Full Map Level: in the style's hi-res font at
+// hi-res pixels, as the original letters it in topaz/8, or with none in
+// lord/10 with each pixel drawn two wide (finding:ui-text-font-lord-10).
 export const hiresWindowText = (
   ctx: CanvasRenderingContext2D,
   style: WindowStyle,

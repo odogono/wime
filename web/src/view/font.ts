@@ -5,7 +5,7 @@
 //
 // The original letters the hi-res Full Map Level in the ROM font topaz/8,
 // which `bun run export:web` takes from a Kickstart 1.3 ROM when there is
-// one (see hiresWindowText in window-frame.ts).
+// one, and otherwise our own font in its spirit (topaz-alt.ts).
 
 export interface FontGlyph {
   // The character code, or null for the "not defined" glyph.

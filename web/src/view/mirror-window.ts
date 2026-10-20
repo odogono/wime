@@ -12,7 +12,8 @@ import {
 // (finding:ui-galadriels-mirror-lists-forces-on-the-move). It is
 // framed as every window is, its tiles at hi-res pixel size
 // (finding:ui-window-box-geometry), and lettered in topaz/8 when it was
-// exported (finding:ui-full-map-topaz-is-kickstart-1-3).
+// exported, and otherwise in our own font in its spirit
+// (finding:ui-full-map-topaz-is-kickstart-1-3, topaz-alt.ts).
 
 export interface MirrorWindow {
   height: number;
