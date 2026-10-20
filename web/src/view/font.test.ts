@@ -49,12 +49,15 @@ const textPath = new URL('../../public/assets/text.json', import.meta.url)
 describe.skipIf(!existsSync(lordPath) || !existsSync(textPath))(
   'lord/10',
   () => {
-    const lord = JSON.parse(readFileSync(lordPath, 'utf8')) as FontMetrics;
+    // Read on first use: a skipped describe still runs its body.
+    let loaded: FontMetrics | undefined;
+    const lordFont = () =>
+      (loaded ??= JSON.parse(readFileSync(lordPath, 'utf8')) as FontMetrics);
 
     test('measures with the original glyph advances', () => {
-      expect(lord.height).toBe(10);
+      expect(lordFont().height).toBe(10);
       // i advances 2, a 4, M 6 and a space 2.
-      expect(measureText(lord, 'i a M')).toBe(2 + 2 + 4 + 2 + 6);
+      expect(measureText(lordFont(), 'i a M')).toBe(2 + 2 + 4 + 2 + 6);
     });
 
     // The Palantír's vision, BScene.res CSTR 37, in its 256-wide box 64
@@ -67,12 +70,14 @@ describe.skipIf(!existsSync(lordPath) || !existsSync(textPath))(
       const vision = texts.resources.find(
         r => r.source_file === 'BScene.res' && r.id === 37
       )!.text;
-      const lines = wrapText(lord, vision.trim(), 256 - 20);
+      const lines = wrapText(lordFont(), vision.trim(), 256 - 20);
       expect(lines).toEqual(vision.trim().split('\n'));
       expect(lines).toHaveLength(4);
-      expect(measureLines(lord, lines)).toBeLessThanOrEqual(236);
+      expect(measureLines(lordFont(), lines)).toBeLessThanOrEqual(236);
       // The heading and the vision's lines, 10 apart from y 8.
-      expect(8 + (1 + lines.length) * lord.height).toBeLessThanOrEqual(64);
+      expect(8 + (1 + lines.length) * lordFont().height).toBeLessThanOrEqual(
+        64
+      );
     });
   }
 );

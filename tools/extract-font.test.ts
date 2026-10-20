@@ -5,21 +5,23 @@ import { fontSheet, loadLordFont } from './extract-font';
 import { DEFAULT_ARCHIVE } from './extract-graphics';
 
 describe.skipIf(!existsSync(DEFAULT_ARCHIVE))('lord/10', () => {
-  const font = loadLordFont(DEFAULT_ARCHIVE);
+  // Loaded on first use: a skipped describe still runs its body.
+  let loaded: ReturnType<typeof loadLordFont> | undefined;
+  const lord = () => (loaded ??= loadLordFont(DEFAULT_ARCHIVE));
   const glyph = (char: string) =>
-    font.metrics.glyphs[char.charCodeAt(0) - font.metrics.loChar]!;
+    lord().metrics.glyphs[char.charCodeAt(0) - lord().metrics.loChar]!;
 
   // finding:data-formats-lord-font-metrics
   test('has the TextFont metrics', () => {
-    expect(font.metrics).toMatchObject({
+    expect(lord().metrics).toMatchObject({
       baseline: 7,
       height: 10,
       hiChar: 126,
       loChar: 32,
       strikeWidth: 256
     });
-    expect(font.metrics.glyphs).toHaveLength(96);
-    expect(font.metrics.glyphs.every(g => g.kern === 0)).toBe(true);
+    expect(lord().metrics.glyphs).toHaveLength(96);
+    expect(lord().metrics.glyphs.every(g => g.kern === 0)).toBe(true);
   });
 
   test('gives each glyph its width and advance', () => {
@@ -32,7 +34,7 @@ describe.skipIf(!existsSync(DEFAULT_ARCHIVE))('lord/10', () => {
   });
 
   test('draws the strike as a white sheet on a clear ground', () => {
-    const sheet = fontSheet(font);
+    const sheet = fontSheet(lord());
     expect([sheet.width, sheet.height]).toEqual([256, 10]);
     const alphas = new Set<number>();
     for (let i = 3; i < sheet.data.length; i += 4) {
