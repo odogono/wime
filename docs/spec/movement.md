@@ -37,7 +37,7 @@ under a position is (x ÷ 16, y ÷ 16)
 - Ordering part of a Force: clicking a Character in the Order
   window gives the Order to that Character and all of its
   followers, splitting them off from the rest of the Force
-  (`finding:movement-ordering-part-of-a-force`). The split-off
+  (`finding:forces-ordering-a-follower-splits-it`). The split-off
   member becomes a Leader at the Force's position; entries whose
   leader chain runs through it go with it. `provisional`: we allow
   ordering a Unit member the same way, and a click that is not on a
