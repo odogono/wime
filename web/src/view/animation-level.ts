@@ -155,7 +155,17 @@ const START_X = -10;
 const PARTY_Y = 165;
 const PARTY_DEPTH = 150;
 const WALK_ENTRY = 2;
-const MAX_FIGURES = 50;
+export const MAX_FIGURES = 50;
+
+// The figures shown for a member: at most 10, and at most 3 riders
+// (figure 13) or 5 Ents (figure 7) once there are more than five.
+export const figureCount = (strength: number, figure: number): number => {
+  const count = Math.min(strength & 0xff, 10);
+  if (count <= 5) {
+    return count;
+  }
+  return figure === 13 ? 3 : figure === 7 ? 5 : count;
+};
 
 // Place the party's figures in a column reaching left from x -10, each
 // a random 0 to 29 pixels further (75 for riders and Ents), in rows
@@ -169,23 +179,19 @@ export const spawnParty = (
   const figures: Figure[] = [];
   let x = START_X;
   members.forEach((member, k) => {
-    let count = Math.min(member.strength & 0xff, 10);
     let range = 30;
     let slot = (k % 7) * 2;
     if (member.figure === 13) {
       range = 75;
-      if (count > 5) {
-        count = 3;
-      }
     }
     if (member.figure === 7) {
       slot = (k % 5) * 2 + 4;
       range = 75;
-      if (count > 5) {
-        count = 5;
-      }
     }
-    count = Math.min(count, MAX_FIGURES - figures.length);
+    const count = Math.min(
+      figureCount(member.strength, member.figure),
+      MAX_FIGURES - figures.length
+    );
     let last = 0;
     for (let j = 0; j < count; j++) {
       if (count > 1) {

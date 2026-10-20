@@ -90,3 +90,9 @@ finding:combat-where-a-fight-is-fought)
 - When the watched Character is attacked on the Animation Level,
   "<A> is attacked by <B>." shows with no buttons and the fight starts.
   (finding:combat-evil-encounters-attack)
+- After the fight the surviving Good figures walk on.
+  (finding:combat-character-fights-on-animation-level)
+- `provisional`: approach speed, fighting lunges and rotated fall poses
+  are view choreography until the fight script entries are specified.
+  Rounds without messages stay visible for 800 ms; the combat window's
+  orders, messages and result pacing otherwise apply.

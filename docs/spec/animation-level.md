@@ -17,7 +17,9 @@ talks and fights shown here are in `docs/spec/encounters.md`.
 - `provisional`: whether time runs on the Animation Level, and what
   going down does to the watched Character's Force, are not traced. The
   sim keeps ticking while the view shows the Animation Level, and a
-  fight, a meeting or the game's end brings the Campaign Level up.
+  fight with a Unit on the Good side, a meeting or the game's end
+  brings the Campaign Level up. A Character fight involving the
+  watched Character stays here (`docs/spec/encounters.md`).
 - The Campaign Level's magnifying glass goes down a Level (manual,
   pdf-p15). `provisional`: how the original picks whom to watch is not
   traced; the view watches the Force under the glass.

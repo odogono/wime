@@ -13,6 +13,15 @@ import {
   type SimState
 } from '../sim/index';
 import {
+  drawBattle,
+  fightOnAnimationLevel,
+  markFallen,
+  spawnBattle,
+  stepBattle,
+  walkAfterBattle,
+  type BattleStage
+} from './animation-combat';
+import {
   animationIconAt,
   buildScene,
   drawAnimationIcons,
@@ -54,10 +63,14 @@ import {
   type IconPlacement
 } from './campaign-level';
 import {
+  ANIMATION_ROUND_MS,
+  ORDERS_MS,
   cameraForFight,
   combatHoldsTime,
   drawCombatUi,
+  openCombatWindow,
   pressCombatUi,
+  rowLabel,
   startCombatUi,
   stepCombatUi,
   type CombatUi
@@ -254,7 +267,8 @@ const run = (
   let sim: SimState = createSim(0x14_18, assets.startingState, assets.tilemap);
   // Open on the Ring-bearer's Force at Hobbiton, the one Force the
   // player commands at the start (docs/spec/starting-state.md). The
-  // game itself opens on the Animation Level, which is not built yet.
+  // game itself opens on the Animation Level; this view starts on
+  // the Campaign Level.
   const opening = forcesOnMap(sim.roster).find(
     force => force.leader.index === sim.ringBearer
   );
@@ -283,6 +297,7 @@ const run = (
   // The fight's announcement or combat window, while a fight is on
   // (docs/spec/combat.md).
   let combat: CombatUi | null = null;
+  let battle: BattleStage | null = null;
   // The War Event announcement on screen, if any
   // (docs/spec/war-events.md).
   let warMessage: WarEventMessage | null = null;
@@ -352,6 +367,24 @@ const run = (
     drag = null;
     setOrder(IDLE_ORDER);
     canvas.style.cursor = 'default';
+  };
+
+  const startAnimationFight = (now: number, attacked = false): void => {
+    const fight = sim.fight!;
+    if (level !== 'animation') {
+      goDownToAnimation(fight.good);
+    }
+    battle = spawnBattle(sim, figureWorld, choose, vblankAt(now));
+    combat = openCombatWindow(sim, now);
+    if (attacked && combat.kind === 'window') {
+      combat = {
+        ...combat,
+        message: `${sim.roster[watched]!.name} is attacked by ${rowLabel(
+          sim.roster[fight.evil]!.name,
+          sim.roster[fight.evil]!.strength
+        )}.`
+      };
+    }
   };
 
   // Up from the Animation Level to the Campaign Level, centred on the
@@ -550,15 +583,6 @@ const run = (
 
   canvas.style.cursor = 'grab';
   canvas.addEventListener('pointerdown', event => {
-    if (level === 'full-map') {
-      handleFullMapPress(event);
-      return;
-    }
-    if (level === 'animation') {
-      handleAnimationPress(event);
-      return;
-    }
-    pointer = toNative(event);
     if (ending) {
       ending = turnEndingPage(ending);
       return;
@@ -568,28 +592,52 @@ const run = (
     if (councilWindow) {
       return;
     }
-    // A fight's windows take every press while they hold the game.
-    if (combat && (combatHoldsTime(combat) || combat.kind === 'boxes')) {
+    // Fight options and messages take presses on either Level.
+    if (
+      level !== 'full-map' &&
+      combat &&
+      (combatHoldsTime(combat) || combat.kind === 'boxes')
+    ) {
+      if (battle?.phase === 'approach') {
+        return;
+      }
       const before = combat;
-      const result = pressCombatUi(combat, sim, pointer, performance.now());
+      const result = pressCombatUi(
+        combat,
+        sim,
+        toNative(event),
+        performance.now()
+      );
       sim = result.sim;
       combat = result.ui;
-      // "Go there" brings the fight into view.
       if (
         before.kind === 'announcement' &&
         combat?.kind === 'window' &&
         sim.fight
       ) {
-        camera = clampCamera(
-          cameraForFight(sim.fight.position, camera, {
-            height: viewHeightPx(assets.tilemap),
-            width: viewWidthPx(assets.tilemap)
-          }),
-          assets.tilemap
-        );
+        if (fightOnAnimationLevel(sim)) {
+          startAnimationFight(performance.now());
+        } else {
+          camera = clampCamera(
+            cameraForFight(sim.fight.position, camera, {
+              height: viewHeightPx(assets.tilemap),
+              width: viewWidthPx(assets.tilemap)
+            }),
+            assets.tilemap
+          );
+        }
       }
       return;
     }
+    if (level === 'full-map') {
+      handleFullMapPress(event);
+      return;
+    }
+    if (level === 'animation') {
+      handleAnimationPress(event);
+      return;
+    }
+    pointer = toNative(event);
     // The meeting window takes every press while it is up.
     if (meetingHoldsTime(meetingUi)) {
       const result = pressMeetingUi(
@@ -724,6 +772,9 @@ const run = (
       return;
     }
     const key = event.key.toLowerCase();
+    if (combatHoldsTime(combat)) {
+      return;
+    }
     if (level === 'animation') {
       if (key === 'u') {
         goUpFromAnimation();
@@ -770,10 +821,6 @@ const run = (
     }
     if (ending) {
       ending = turnEndingPage(ending);
-      return;
-    }
-    // Nothing else is open to the player while a fight holds the game.
-    if (combatHoldsTime(combat)) {
       return;
     }
     if (key === 'u') {
@@ -912,29 +959,85 @@ const run = (
       return;
     }
     if (level === 'animation') {
-      // provisional: time runs on the Animation Level, and anything that
-      // holds the game (a fight, a meeting) brings the Campaign Level up.
       const due = driver.advance(elapsedMs);
       for (let i = 0; i < due && !sim.fight && !sim.meeting; i++) {
         sim = tick(sim);
       }
-      stage = stepStage(stage, figureWorld, vblankAt(now));
-      if (
-        sim.fight ||
-        sim.meeting ||
-        sim.council ||
-        sim.ending ||
-        walkedOff(stage)
-      ) {
-        goUpFromAnimation();
-      } else {
-        screen.buffer.drawImage(scene, 0, 0);
-        drawFigures(screen.buffer, animation, stage);
-        drawAnimationIcons(screen.buffer, animation.icons);
-        screen.present();
-        requestAnimationFrame(frame);
-        return;
+      if (sim.fight && !battle) {
+        const watchingFight = sim.fight.rows.some(
+          row => row.side === 'good' && row.entries.includes(watched)
+        );
+        if (watchingFight && fightOnAnimationLevel(sim)) {
+          startAnimationFight(now, true);
+        } else {
+          goUpFromAnimation();
+        }
       }
+      if (battle && sim.fight && combat) {
+        const previousPhase = battle.phase;
+        battle = stepBattle(battle, sim.fight, vblankAt(now));
+        if (battle.phase === 'fighting') {
+          if (previousPhase === 'approach' && combat.kind === 'window') {
+            combat = { ...combat, until: now + ORDERS_MS };
+          }
+          const fight = sim.fight;
+          const result = stepCombatUi(
+            combat,
+            sim,
+            now,
+            choose,
+            ANIMATION_ROUND_MS
+          );
+          sim = result.sim;
+          combat = result.ui;
+          if (sim.fight) {
+            battle = markFallen(battle, sim.fight);
+          } else {
+            stage = walkAfterBattle(battle, fight, vblankAt(now));
+            battle = null;
+          }
+        }
+      } else if (!sim.fight) {
+        stage = stepStage(stage, figureWorld, vblankAt(now));
+      }
+      if (level === 'animation') {
+        if (
+          sim.meeting ||
+          sim.council ||
+          sim.ending ||
+          (!battle &&
+            (walkedOff(stage) ||
+              stage.figures.length === 0 ||
+              sim.roster[watched]!.strength === 0))
+        ) {
+          goUpFromAnimation();
+        } else {
+          screen.buffer.drawImage(scene, 0, 0);
+          if (battle) {
+            drawBattle(screen.buffer, animation, battle);
+          } else {
+            drawFigures(screen.buffer, animation, stage);
+          }
+          drawAnimationIcons(screen.buffer, animation.icons);
+          if (combat) {
+            drawCombatUi(
+              screen.buffer,
+              assets.window,
+              combat,
+              sim,
+              battle?.phase === 'approach'
+            );
+          }
+          screen.present();
+          requestAnimationFrame(frame);
+          return;
+        }
+      }
+    }
+    // A fight met while watching another Character also needs its
+    // announcement after returning to the Campaign Level.
+    if (sim.fight && !combat) {
+      combat = startCombatUi(sim, now);
     }
     if (combat) {
       const result = stepCombatUi(combat, sim, now, choose);
