@@ -7,7 +7,7 @@ sources:
   - disasm:code+0x0237c
   - disasm:code+0x109ce
   - disasm:code+0x062ec
-  - disasm:code+0x0bd58
+  - disasm:code+0x0bd4c
   - disasm:code+0x0c5d4
   - disasm:code+0x05550
 issue: 131
@@ -18,5 +18,5 @@ The effect player (code+0x02116) plays instrument slot n of the table at data+0x
 
 - ReverbBells, slot 4, as the message box routine shows a box (code+0x062ec), so with every window.
 - ReverbBells, slot 5, from code+0x05550 and code+0x057fe, after a picture is copied into a box; what these boxes are was not traced.
-- Whoosh or Sword at random, when an Animation Level figure's action byte is 0x0b (code+0x0bd58), presumably a blow.
+- Whoosh or Sword at random, as an Animation Level figure is drawn whose record has 9 or 0x0b in byte 3 (code+0x0bd4c); what byte 3 holds was not traced.
 - Magic from two steps of the figure scripts (code+0x0c5d4, code+0x0c63a); which figures was not traced.

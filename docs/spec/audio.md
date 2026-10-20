@@ -67,9 +67,9 @@ are laid out is in the Findings of #130; how the browser plays them is
 
 - ReverbBells, a bell, rings as every message box opens.
   (finding:sound-effects)
-- During a fight on the Animation Level, a figure's blow plays Whoosh
-  or Sword at random, and two steps of the figure scripts play Magic.
-  Which figures play Magic is provisional. (finding:sound-effects)
+- `provisional`: on the Animation Level, drawing certain figures plays
+  Whoosh or Sword at random, and two steps of the figure scripts play
+  Magic; which figures, and when, was not traced. (finding:sound-effects)
 - `provisional`: a second ReverbBells rings after a picture is copied
   into some boxes; which boxes was not traced. (finding:sound-effects)
 
