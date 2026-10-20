@@ -41,10 +41,12 @@ the starting-state RE (#5, #21).
   a.m., 11 as 12 p.m., 12-22 as 1-11 p.m., 23 as 12 a.m. So the start,
   quarter-hour 64 (hour 16), shows as "5 p.m.".
   (`finding:time-clock-counts-quarter-hours`)
-- `provisional`: where the original draws the date on the Campaign
-  Level is unconfirmed. We draw it as one line in the 8-pixel strip
-  below the 320 by 192 map view, in the form
-  `23 September 1418 s.r. 5 p.m.`.
+- The Campaign Level shows the date as one line at (10, 192), in the
+  8-pixel strip below the 320 by 192 map view: time first, in the form
+  `5 p.m.  September 23,  1418 s.r.`, with the spaces after the time
+  and the comma doubled. The line is colour 3 on a strip of colour 15,
+  the parchment, across the screen's full width.
+  (`finding:ui-date-line`)
 
 ## Game Speed and pausing
 

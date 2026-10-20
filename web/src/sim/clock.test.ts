@@ -14,7 +14,7 @@ import { createSim, deserializeSim, serializeSim, tickSim } from './state';
 describe('clock', () => {
   test('starts on day 0 at quarter-hour 64, shown as 5 p.m. on 23 September', () => {
     expect(INITIAL_CLOCK).toEqual({ day: 0, quarterHour: 64 });
-    expect(formatClock(INITIAL_CLOCK)).toBe('23 September 1418 s.r. 5 p.m.');
+    expect(formatClock(INITIAL_CLOCK)).toBe('5 p.m.  September 23,  1418 s.r.');
   });
 
   test('one tick is one quarter-hour, rolling into the next day', () => {
@@ -71,7 +71,7 @@ describe('clock', () => {
     // reach quarter-hour 64 on 1 January 1419.
     const start = { day: 99, quarterHour: 64 };
     expect(formatClock(advanceClock(start, 96))).toBe(
-      '1 January 1419 s.r. 5 p.m.'
+      '5 p.m.  January 1,  1419 s.r.'
     );
   });
 
