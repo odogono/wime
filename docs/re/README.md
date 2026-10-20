@@ -6,6 +6,7 @@ Working notes on the Reference Build's executable, `WarInMiddleEarth` on Disk 1 
 - [`labels.md`](labels.md): named addresses in the code and data hunks.
 - [`full-map-reference.md`](full-map-reference.md): how the Full Map Level reference captures were made.
 - [`combat-reference.md`](combat-reference.md): the combat reference scenarios and how they were set up.
+- [`war-events-reference.md`](war-events-reference.md): the War Event and trigger reference scenarios.
 
 ## Addresses
 
