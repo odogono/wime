@@ -74,18 +74,22 @@ const message = (
 });
 
 // A button's clickable area starts a pixel above its text and is four
-// wider (code+0x03a54, finding:ui-provisions-window).
+// wider (code+0x03a54, finding:ui-provisions-window). A framed button
+// below another at the same x takes that one's width, so a column of
+// them is as wide as its first label
+// (finding:ui-stacked-buttons-share-a-width).
 const button = (
   font: FontMetrics,
   x: number,
   y: number,
   label: string,
-  value: ProvisionsButton['value']
+  value: ProvisionsButton['value'],
+  textWidth = measureText(font, label)
 ): ProvisionsButton => ({
   height: font.height,
   label,
   value,
-  width: measureText(font, label) + 4,
+  width: textWidth + 4,
   x,
   y: y - 1
 });
@@ -105,6 +109,12 @@ export const chooseCharacter = (
   return chosen === undefined || sim.roster[chosen]?.isUnit ? null : chosen;
 };
 
+const MENU: readonly [string, ProvisionsAction][] = [
+  ['Put down an object', 'put-down'],
+  ['Take an object', 'take'],
+  ['Use an object', 'use']
+];
+
 // The sack's menu at (168, 5), 112 by 68 (finding:ui-provisions-window).
 export const openProvisions = (
   font: FontMetrics,
@@ -123,13 +133,12 @@ export const openProvisions = (
     );
   }
   const box = { height: 68, width: 112, x: 168, y: 5 };
+  const columnWidth = measureText(font, MENU[0]![0]);
   return {
     box,
-    buttons: [
-      button(font, box.x + 20, box.y + 22, 'Put down an object', 'put-down'),
-      button(font, box.x + 20, box.y + 37, 'Take an object', 'take'),
-      button(font, box.x + 20, box.y + 52, 'Use an object', 'use')
-    ],
+    buttons: MENU.map(([label, action], i) =>
+      button(font, box.x + 20, box.y + 22 + 15 * i, label, action, columnWidth)
+    ),
     chosen,
     heading: `Would ${sim.roster[chosen]!.name} like to...`,
     kind: 'menu',
@@ -364,6 +373,8 @@ export const drawProvisionsWindow = (
   ctx.lineWidth = 1;
   for (const b of window.buttons) {
     if (window.kind === 'menu') {
+      // From (x - 1, y - 2), 6 wider and 2 deeper than the label
+      // (finding:ui-message-box-text-colour).
       ctx.strokeRect(b.x - 0.5, b.y - 0.5, b.width + 1, b.height + 1);
     }
     windowText(ctx, style, b.label, b.x + 2, b.y + 1);

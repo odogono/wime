@@ -111,6 +111,20 @@ describe('choosing the Character', () => {
 });
 
 describe('the menu', () => {
+  // finding:ui-stacked-buttons-share-a-width
+  test('its buttons are all as wide as the first', () => {
+    const window = openProvisions(FIXED_FONT, world(), [1], null, 0);
+    // 'Put down an object' is 18 glyphs of 4 pixels, and an area is 4
+    // wider than its label.
+    expect(
+      window.kind === 'menu' && window.buttons.map(b => [b.x, b.width])
+    ).toEqual([
+      [188, 76],
+      [188, 76],
+      [188, 76]
+    ]);
+  });
+
   // finding:ui-provisions-window
   test('opens at (168, 5) with the three choices and holds the clock', () => {
     const window = openProvisions(FIXED_FONT, world(), [1], null, 0);
