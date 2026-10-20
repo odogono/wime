@@ -4,8 +4,24 @@
 // state.fight is set, and the view steps the rounds or resolves the
 // fight at once when the player ignores it.
 
+import {
+  FIRST_ENCOUNTER,
+  LAST_ENCOUNTER,
+  isEncounter,
+  meetsEncounter,
+  passesUnseen,
+  restoreEncounterHealth,
+  spendAdvisor,
+  type EncounterWorld,
+  type Passing
+} from './encounters';
 import { endingAfterFight, type Ending } from './endings';
-import { meetingBetween, type Meeting } from './meetings';
+import {
+  ADVISOR,
+  MOBILISED_ABOVE,
+  meetingBetween,
+  type Meeting
+} from './meetings';
 import { nextRandom, type RngState } from './rng';
 import {
   TILE_SIZE,
@@ -36,6 +52,8 @@ const NO_EVASION_AT: Point[] = [
   { x: 1744, y: 1008 }
 ];
 const SHELOB = 151;
+const FIRST_BALROG = 183;
+const LAST_BALROG = 187;
 
 // 'charged' is the round after a Charge, 'gone' a row with nothing
 // left (finding:combat-option-charge-mechanics).
@@ -109,9 +127,13 @@ const fighting = (option: CombatOption): boolean =>
 
 // The chance out of 100 that a Force slips past its enemy
 // (finding:combat-evasion-chance).
-const evasionChance = (roster: RosterEntry[], leader: number): number => {
+const evasionChance = (
+  roster: RosterEntry[],
+  leader: number
+): { chance: number; hasUnit: boolean } => {
   let sum = 0;
   let count = 0;
+  let hasUnit = false;
   for (const entry of roster) {
     if (!isGood(entry.index) || entry.state === 0) {
       continue;
@@ -126,9 +148,13 @@ const evasionChance = (roster: RosterEntry[], leader: number): number => {
     }
     if (entry.startingStrength > 99) {
       count = 99;
+      hasUnit = true;
     }
   }
-  return Math.floor(sum / Math.max(count, 1));
+  return {
+    chance: Math.floor(sum / Math.max(count, 1)),
+    hasUnit
+  };
 };
 
 const addEntry = (
@@ -205,27 +231,84 @@ export const combatRows = (
 const tileAligned = (point: Point): boolean =>
   point.x % TILE_SIZE === 0 && point.y % TILE_SIZE === 0;
 
-export type Match = { fight: Fight } | { meeting: Meeting };
+export type Match =
+  { fight: Fight } | { meeting: Meeting } | { passing: Passing };
 
-// After a Leader's step lands on a tile origin: the first Leader it
-// runs into, and whether that is a fight
+// What the combat search reads: the fight's world, and the clock, map
+// and watched Character the Encounter tests need.
+export type MatchWorld = CombatWorld & EncounterWorld;
+
+// Whether the Good side slips past its enemy: a Force of Characters,
+// on the evasion roll, save at two tiles and against Shelob or a
+// balrog (finding:combat-evasion-chance,
+// finding:combat-evil-encounters-attack).
+const evades = (
+  world: MatchWorld,
+  good: RosterEntry,
+  evil: RosterEntry,
+  at: Point,
+  chance: number
+): boolean =>
+  roll(world, 100) < chance &&
+  good.startingStrength === 1 &&
+  !NO_EVASION_AT.some(point => point.x === at.x && point.y === at.y) &&
+  evil.index !== SHELOB &&
+  !(evil.index >= FIRST_BALROG && evil.index <= LAST_BALROG);
+
+const fightBetween = (
+  world: MatchWorld,
+  good: RosterEntry,
+  evil: RosterEntry
+): Fight => {
+  const rows = combatRows(world.roster, good.position!);
+  if (isEncounter(evil.index)) {
+    addEntry(rows, evil, 'evil', false, world.roster);
+  }
+  return {
+    events: [],
+    evil: evil.index,
+    good: good.index,
+    position: { ...good.position! },
+    round: 0,
+    rows,
+    winner: null
+  };
+};
+
+// What a step meets, searching the roster in order: the first Leader
+// it runs into, and whether that is a fight
 // (finding:combat-fight-starts-when-evil-meets-non-evil) or a meeting
-// (finding:forces-meeting-of-non-evil-leaders). A friendly match that
-// is not a meeting is passed by and the search goes on. Draws from the
-// world's RNG only when an enemy is met.
+// (finding:forces-meeting-of-non-evil-leaders), then the Encounter
+// figures (docs/spec/encounters.md). Leaders are met only when the
+// mover lands on a tile origin; on the Animation Level the Encounters
+// are searched on every step, and Evil movers never meet them
+// (finding:forces-encounters-by-allegiance). A friendly match that is
+// not a meeting is passed by and the search goes on; an evaded enemy
+// ends it. Draws from the world's RNG for Encounter checks and enemies.
 export const findMatch = (
-  world: CombatWorld,
+  world: MatchWorld,
   moverIndex: number
 ): Match | null => {
   const mover = world.roster[moverIndex];
-  if (!mover?.position || !tileAligned(mover.position)) {
+  if (!mover?.position) {
     return null;
   }
-  const last = mover.allegiance === 0 ? LAST_GOOD_ENTRY : LAST_EVIL_ENTRY;
-  for (let i = 1; i <= last && i < world.roster.length; i++) {
+  const aligned = tileAligned(mover.position);
+  if (!aligned && world.watching === null) {
+    return null;
+  }
+  const first = aligned ? 1 : FIRST_ENCOUNTER;
+  const last = mover.allegiance === 0 ? LAST_GOOD_ENTRY : LAST_ENCOUNTER;
+  for (let i = first; i <= last && i < world.roster.length; i++) {
     const other = world.roster[i]!;
-    if (
-      i === moverIndex ||
+    if (i === moverIndex) {
+      continue;
+    }
+    if (isEncounter(i)) {
+      if (!meetsEncounter(world, mover, other)) {
+        continue;
+      }
+    } else if (
       (other.state !== 1 && other.state !== 3) ||
       other.leader !== null ||
       other.position === null ||
@@ -234,50 +317,57 @@ export const findMatch = (
       continue;
     }
     if ((mover.allegiance === 0) === (other.allegiance === 0)) {
-      const meeting = meetingBetween(mover, other);
-      if (meeting) {
-        return { meeting };
+      if (!isEncounter(i)) {
+        const meeting = meetingBetween(mover, other);
+        if (meeting) {
+          return { meeting };
+        }
+        continue;
       }
-      continue;
+      if (
+        mover.allegiance <= MOBILISED_ABOVE ||
+        passesUnseen(world, moverIndex, other)
+      ) {
+        continue;
+      }
+      if (other.allegiance !== ADVISOR) {
+        // On the Animation Level only the watched Character's passing
+        // is told (finding:forces-anonymous-encounters-pass-by).
+        if (world.watching !== null && world.watching !== moverIndex) {
+          return null;
+        }
+        return { passing: { a: moverIndex, b: i } };
+      }
+      spendAdvisor(world, i);
+      return { meeting: { a: moverIndex, b: i, kind: 'talk' } };
     }
     const [good, evil] =
       mover.allegiance === 0 ? [other, mover] : [mover, other];
-    const chance = evasionChance(world.roster, good.index);
-    if (
-      roll(world, 100) < chance &&
-      good.startingStrength === 1 &&
-      !NO_EVASION_AT.some(
-        point => point.x === mover.position!.x && point.y === mover.position!.y
-      ) &&
-      evil.index !== SHELOB
-    ) {
+    const { chance, hasUnit } = evasionChance(world.roster, good.index);
+    // A Force with a Unit ignores small Encounters
+    // (finding:combat-evil-encounters-attack).
+    if (isEncounter(evil.index) && hasUnit && evil.startingStrength < 99) {
+      continue;
+    }
+    if (evades(world, good, evil, mover.position, chance)) {
       return null;
     }
-    return {
-      fight: {
-        events: [],
-        evil: evil.index,
-        good: good.index,
-        position: { ...good.position! },
-        round: 0,
-        rows: combatRows(world.roster, good.position!),
-        winner: null
-      }
-    };
+    return { fight: fightBetween(world, good, evil) };
   }
   return null;
 };
 
 // The fight a Leader's step starts, if it starts one.
 export const findFight = (
-  world: CombatWorld,
+  world: MatchWorld,
   moverIndex: number
 ): Fight | null => {
   const match = findMatch(world, moverIndex);
   return match && 'fight' in match ? match.fight : null;
 };
 
-// Start a fight: both parties stop until it is over.
+// Start a fight: both parties stop until it is over. An Encounter
+// figure never moves, so it is left as it is.
 export const startFight = <T extends CombatWorld>(
   world: T,
   fight: Fight
@@ -285,7 +375,8 @@ export const startFight = <T extends CombatWorld>(
   ...world,
   fight,
   roster: world.roster.map(entry =>
-    entry.index === fight.good || entry.index === fight.evil
+    (entry.index === fight.good || entry.index === fight.evil) &&
+    !isEncounter(entry.index)
       ? { ...entry, state: 2 }
       : entry
   )
@@ -566,6 +657,8 @@ export const fightRound = <T extends CombatWorld>(world: T): T => {
 
 // Take each row's losses, release the survivors and re-attach the
 // followers of the dead (docs/spec/combat.md, "The end of a fight").
+// An Encounter takes no losses and has its health restored
+// (finding:combat-evil-encounters-attack).
 export const finishFight = <T extends CombatWorld>(world: T): T => {
   const fight = world.fight;
   if (!fight || !fight.winner) {
@@ -637,7 +730,7 @@ export const finishFight = <T extends CombatWorld>(world: T): T => {
     ...world,
     ending: world.ending ?? endingAfterFight(roster),
     fight: null,
-    roster,
+    roster: restoreEncounterHealth(roster),
     routes
   };
 };

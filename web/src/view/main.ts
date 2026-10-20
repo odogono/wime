@@ -8,6 +8,7 @@ import {
   restoreSave,
   serialiseSave,
   tickSim,
+  watchEntry,
   type Force,
   type SimState
 } from '../sim/index';
@@ -209,7 +210,8 @@ const run = (
     if (!result.ok) {
       return archiveMessage(ARCHIVE_MESSAGES.otherVersion);
     }
-    sim = result.state;
+    // The restored game stays on this Level, watching whom it watches.
+    sim = watchEntry(result.state, level === 'animation' ? watched : null);
     // A message already on screen was shown; the restored game's own
     // waiting announcements follow.
     warMessage = null;
@@ -237,6 +239,12 @@ const run = (
   );
   const placements = iconPlacements(assets.icons);
   const driver = createTickDriver();
+  // provisional: Encounters passed by are not shown yet (#89), so the
+  // view drops them as they come.
+  const tick = (state: SimState): SimState => {
+    const next = tickSim(state);
+    return next.passings.length ? { ...next, passings: [] } : next;
+  };
   let sim: SimState = createSim(0x14_18, assets.startingState, assets.tilemap);
   // Open on the Ring-bearer's Force at Hobbiton, the one Force the
   // player commands at the start (docs/spec/starting-state.md). The
@@ -299,6 +307,7 @@ const run = (
       return;
     }
     watched = index;
+    sim = watchEntry(sim, index);
     buildScene(
       scene,
       animation,
@@ -350,6 +359,7 @@ const run = (
       );
     }
     level = 'campaign';
+    sim = watchEntry(sim, null);
     setOrder(IDLE_ORDER);
   };
 
@@ -887,7 +897,7 @@ const run = (
       // holds the game (a fight, a meeting) brings the Campaign Level up.
       const due = driver.advance(elapsedMs);
       for (let i = 0; i < due && !sim.fight && !sim.meeting; i++) {
-        sim = tickSim(sim);
+        sim = tick(sim);
       }
       stage = stepStage(stage, figureWorld, vblankAt(now));
       if (sim.fight || sim.meeting || sim.ending || walkedOff(stage)) {
@@ -937,7 +947,7 @@ const run = (
       i < ticks && !combatHoldsTime(combat) && !sim.fight && !sim.meeting;
       i++
     ) {
-      sim = tickSim(sim);
+      sim = tick(sim);
       if (sim.fight) {
         combat = startCombatUi(sim, now);
         speedWindow = null;

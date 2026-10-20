@@ -31,8 +31,17 @@ export {
   type CombatRow,
   type CombatSide,
   type Fight,
-  type Match
+  type Match,
+  type MatchWorld
 } from './combat';
+export {
+  BILBO,
+  FIRST_ENCOUNTER,
+  isEncounter,
+  LAST_ENCOUNTER,
+  openBilbo,
+  type Passing
+} from './encounters';
 export {
   answerMeeting,
   MEETING_TIMEOUT_FRAMES,
@@ -107,7 +116,9 @@ export {
   deserializeSim,
   serializeSim,
   takeAnnouncement,
+  takePassing,
   tickSim,
+  watchEntry,
   type SimState
 } from './state';
 export {

@@ -6,6 +6,7 @@ sources:
   - disasm:code+0x0f028
   - disasm:code+0x0f054
   - disasm:code+0x0f196
+  - disasm:code+0x0f84e
   - disasm:code+0x0f89a
   - disasm:code+0x0fb1e
 issue: 81
@@ -19,3 +20,5 @@ The search for Encounters runs inside the roster sweep (code+0x0f028). On the Ca
 - **Allegiance 3**, Círdan, Tom Bombadil, Bilbo, Galadriel, Treebeard and Radagast: an invitation to talk (finding:ui-encounter-talk-window).
 
 No Encounter figure is ever moved or removed by a meeting.
+
+The search is one walk of the roster: from entry 1 at a tile origin, so a Leader met is found before any Encounter, and from entry 152 elsewhere on the Animation Level. Only a mover with allegiance above 3 meets a figure that is not Evil (code+0x0f84e).

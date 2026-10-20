@@ -1,5 +1,6 @@
 import { INITIAL_CLOCK, tickClock, type Clock } from './clock';
 import { findMatch, startFight, type Fight } from './combat';
+import type { Passing } from './encounters';
 import type { Ending } from './endings';
 import { startMeeting, type Meeting } from './meetings';
 import { sweepMovement, type Tilemap } from './movement';
@@ -40,6 +41,9 @@ export interface SimState {
   // The meeting waiting for the player's answer, or null. Game time
   // stands still while one is (finding:ui-meeting-window).
   meeting: Meeting | null;
+  // Encounters passed by, oldest first, until the view takes them
+  // (takePassing) (finding:forces-anonymous-encounters-pass-by).
+  passings: Passing[];
   placeKinds: PlaceKind[];
   places: Place[];
   // The roster index of the Ring-bearer, or null before the starting
@@ -59,6 +63,10 @@ export interface SimState {
   // clock-only game with no map loaded.
   tilemap: Tilemap | null;
   warEvents: WarEvents;
+  // The roster entry the Animation Level watches, or null while the
+  // Campaign Level is on show. The Encounter search depends on it
+  // (docs/spec/encounters.md); the view sets it (watchEntry).
+  watching: number | null;
 }
 
 // Start a game. With no starting state the world is empty and only the
@@ -77,6 +85,7 @@ export const createSim = (
       ending: null,
       fight: null,
       meeting: null,
+      passings: [],
       placeKinds: [],
       places: [],
       ringBearer: null,
@@ -90,7 +99,8 @@ export const createSim = (
       sweepFrom: 0,
       terrainByTile: [],
       tilemap: tilemap ?? null,
-      warEvents: { ...INITIAL_WAR_EVENTS, days: [...INITIAL_WAR_EVENTS.days] }
+      warEvents: { ...INITIAL_WAR_EVENTS, days: [...INITIAL_WAR_EVENTS.days] },
+      watching: null
     };
   }
   const start = loadStartingState(startingState);
@@ -103,6 +113,7 @@ export const createSim = (
     ending: null,
     fight: null,
     meeting: null,
+    passings: [],
     placeKinds: start.placeKinds,
     places: start.places,
     ringBearer: start.ringBearer,
@@ -113,7 +124,8 @@ export const createSim = (
     sweepFrom: 0,
     terrainByTile: start.terrainByTile,
     tilemap: tilemap ?? null,
-    warEvents: start.warEvents
+    warEvents: start.warEvents,
+    watching: null
   };
 };
 
@@ -123,7 +135,8 @@ export const createSim = (
 // (finding:time-clock-advances-after-each-roster-sweep). A step that
 // starts a fight or a meeting stops the sweep and the clock until the
 // fight is over or the meeting answered; the next tick carries on from
-// the following entry (docs/spec/combat.md, docs/spec/forces.md). When the clock reaches 8 a.m. the daily War
+// the following entry (docs/spec/combat.md, docs/spec/forces.md). An
+// Encounter passed by is queued for the view and the sweep goes on. When the clock reaches 8 a.m. the daily War
 // Event check runs before the next sweep
 // (finding:time-daily-check-opens-the-8am-sweep).
 export const tickSim = (state: SimState): SimState => {
@@ -141,6 +154,10 @@ export const tickSim = (state: SimState): SimState => {
       );
       const match = findMatch(moved, index);
       if (!match) {
+        return null;
+      }
+      if ('passing' in match) {
+        moved.passings = [...moved.passings, match.passing];
         return null;
       }
       return 'fight' in match
@@ -182,6 +199,24 @@ export const takeAnnouncement = (
     : { announcement: null, state };
 };
 
+// Hand the oldest Encounter passed by to the view, as takeAnnouncement
+// does.
+export const takePassing = (
+  state: SimState
+): { passing: Passing | null; state: SimState } => {
+  const [passing, ...rest] = state.passings;
+  return passing
+    ? { passing, state: { ...state, passings: rest } }
+    : { passing: null, state };
+};
+
+// Watch a roster entry on the Animation Level, or null on going up to
+// the Campaign Level.
+export const watchEntry = (
+  state: SimState,
+  index: number | null
+): SimState => ({ ...state, watching: index });
+
 export const serializeSim = (state: SimState): string => JSON.stringify(state);
 
 export const deserializeSim = (text: string): SimState => {
@@ -205,6 +240,7 @@ export const deserializeSim = (text: string): SimState => {
     ending: legacy.ending ?? null,
     fight: legacy.fight ?? null,
     meeting: legacy.meeting ?? null,
+    passings: legacy.passings ?? [],
     roster: parsed.roster.map(entry => ({
       ...entry,
       fraction: entry.fraction ?? 0
@@ -220,6 +256,7 @@ export const deserializeSim = (text: string): SimState => {
     warEvents: legacy.warEvents ?? {
       ...INITIAL_WAR_EVENTS,
       days: [...INITIAL_WAR_EVENTS.days]
-    }
+    },
+    watching: legacy.watching ?? null
   };
 };
