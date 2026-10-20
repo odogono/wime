@@ -95,7 +95,7 @@ export {
   createSim,
   deserializeSim,
   serializeSim,
-  takeAnnouncements,
+  takeAnnouncement,
   tickSim,
   type SimState
 } from './state';

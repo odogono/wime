@@ -3,7 +3,7 @@ import { describe, expect, test } from 'bun:test';
 
 import type { Fight } from './combat';
 import { restoreSave, serialiseSave } from './save';
-import { createSim, takeAnnouncements, tickSim, type SimState } from './state';
+import { createSim, takeAnnouncement, tickSim, type SimState } from './state';
 import {
   DENETHOR,
   GANDALF,
@@ -261,9 +261,9 @@ describe('war events with fights and saves', () => {
     if (!restored.ok) {
       return;
     }
-    const first = takeAnnouncements(restored.state);
-    expect(first.announcements).toEqual([{ day: 149, event: 4 }]);
-    expect(takeAnnouncements(first.state).announcements).toEqual([]);
+    const first = takeAnnouncement(restored.state);
+    expect(first.announcement).toEqual({ day: 149, event: 4 });
+    expect(takeAnnouncement(first.state).announcement).toBeNull();
     // Taken before saving: the restored game does not show it again.
     const again = restoreSave(serialiseSave(first.state), null);
     expect(again.ok && again.state.announcements).toEqual([]);

@@ -27,7 +27,7 @@ import {
 // leader chains whenever they are needed (#9).
 export interface SimState {
   // War Events to tell the player of, oldest first, until the view
-  // takes them (takeAnnouncements).
+  // takes them (takeAnnouncement).
   announcements: WarEventAnnouncement[];
   clock: Clock;
   // How the game ended, or null while it goes on. Nothing moves once
@@ -160,13 +160,16 @@ const dailyChecks = (state: SimState): SimState => {
   };
 };
 
-// Hand the waiting announcements to the view, each exactly once.
-export const takeAnnouncements = (
+// Hand the oldest waiting announcement to the view as it is about to be
+// shown, so each is shown once and the rest survive a save.
+export const takeAnnouncement = (
   state: SimState
-): { announcements: WarEventAnnouncement[]; state: SimState } => ({
-  announcements: state.announcements,
-  state: state.announcements.length ? { ...state, announcements: [] } : state
-});
+): { announcement: WarEventAnnouncement | null; state: SimState } => {
+  const [announcement, ...rest] = state.announcements;
+  return announcement
+    ? { announcement, state: { ...state, announcements: rest } }
+    : { announcement: null, state };
+};
 
 export const serializeSim = (state: SimState): string => JSON.stringify(state);
 

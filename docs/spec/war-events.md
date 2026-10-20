@@ -147,3 +147,24 @@ When an entry's trigger is met (finding:ai-trigger-what-waking-changes):
   announcement, at the next 8 a.m. check, and day 169 is then silent.
 - Being attacked never mobilises a Force or its Nation.
   (finding:mobilisation-attack-does-not-mobilise)
+
+## Announcements on screen
+
+(finding:ui-war-event-messages)
+
+- Each announcement is shown on the Campaign Level in a one-line box
+  with no buttons at the top left: 144 by 24 lo-res pixels for
+  Saruman's, 160 by 24 for the Dark Lord's, at (10, 5). It closes by
+  itself after 200 frames (4 seconds), and game time runs on while it
+  is up.
+- Announcements are shown one at a time, oldest first. The view takes
+  each from the sim only as it shows it, so one not yet shown survives
+  a save, and one already shown is never shown again.
+- `provisional`: the original closes the box after 60 frames instead
+  at its fastest clock setting. How the Game Speeds map to that setting
+  is not traced (docs/spec/time.md), so the box always stays 200 frames.
+- `provisional`: the original queues every message box, so an
+  announcement and a fight's windows wait for each other. The view
+  shows a fight's windows first and keeps an announcement, with the
+  time it has left, until they close. Likewise on the Full Map Level,
+  where time stands still.
