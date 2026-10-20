@@ -213,9 +213,9 @@ describe.skipIf(!existsSync(DEFAULT_ARCHIVE))('web export', () => {
     // frame tiles in each Level's palette, and the Animation Level's
     // palette, tables, figure index, 3 icons, frame and 19 figure sets,
     // and a glyph sheet and metrics for lord/10, and for topaz/8 when
-    // there is a Kickstart 1.3 ROM.
+    // there is a Kickstart 1.3 ROM, and the sound files.
     const topaz = existsSync(join(fsUaeDir, KICK13)) ? 2 : 0;
-    expect(manifest.assets.length).toBe(124 + 26 + 2 + topaz);
+    expect(manifest.assets.length).toBe(124 + 26 + 2 + topaz + 1);
     expect(manifest.summary.assets).toBe(manifest.assets.length);
 
     for (const asset of manifest.assets) {

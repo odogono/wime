@@ -308,3 +308,48 @@ export const loadSoundFiles = (archive: string): SoundFiles => {
   }
   return disks;
 };
+
+// The table of pieces and sound effects in the data hunk: 36 entries of
+// 0x2b bytes from data+0x43ce, each a path such as "B:Frodo.smus" or
+// "A:ReverbBells" (finding:sound-score-and-effect-table). An empty entry
+// is null.
+export const SOUND_TABLE_OFFSET = 0x43_ce;
+export const SOUND_TABLE_STRIDE = 0x2b;
+export const SOUND_TABLE_ENTRIES = 36;
+
+export type SoundTableEntry = {
+  // 'disk1' for "A:", 'disk2' for "B:".
+  disk: 'disk1' | 'disk2';
+  // The file's lower-case name, with ".instr" added to an instrument.
+  file: string;
+  index: number;
+  kind: 'score' | 'instrument';
+  path: string;
+};
+
+export const readSoundTable = (
+  dataHunk: Uint8Array
+): (SoundTableEntry | null)[] =>
+  Array.from({ length: SOUND_TABLE_ENTRIES }, (_, index) => {
+    const path = cString(
+      dataHunk,
+      SOUND_TABLE_OFFSET + index * SOUND_TABLE_STRIDE,
+      SOUND_TABLE_STRIDE
+    );
+    if (path === '') {
+      return null;
+    }
+    const match = /^([AB]):(.+)$/.exec(path);
+    if (!match) {
+      throw new ExtractError(`sound table entry ${index} is "${path}"`);
+    }
+    const name = match[2]!.toLowerCase();
+    const score = name.endsWith('.smus');
+    return {
+      disk: match[1] === 'A' ? 'disk1' : 'disk2',
+      file: score ? name : `${name}.instr`,
+      index,
+      kind: score ? 'score' : 'instrument',
+      path
+    };
+  });
