@@ -94,6 +94,11 @@ import {
   type SpeedWindow
 } from './speed-window';
 import { createTickDriver } from './tick-driver';
+import {
+  drawWarEventMessage,
+  stepWarEventMessage,
+  type WarEventMessage
+} from './war-event-message';
 
 const canvas = document.querySelector<HTMLCanvasElement>('#screen');
 if (!canvas) {
@@ -167,6 +172,9 @@ const run = (assets: CampaignAssets, fullMap: FullMapLevel): void => {
       return archiveMessage(ARCHIVE_MESSAGES.otherVersion);
     }
     sim = result.state;
+    // A message already on screen was shown; the restored game's own
+    // waiting announcements follow.
+    warMessage = null;
     return archiveMessage(ARCHIVE_MESSAGES.restored);
   };
   // The Archive window, from the scroll or A (finding:ui-archive-window).
@@ -214,6 +222,9 @@ const run = (assets: CampaignAssets, fullMap: FullMapLevel): void => {
   // The fight's announcement or combat window, while a fight is on
   // (docs/spec/combat.md).
   let combat: CombatUi | null = null;
+  // The War Event announcement on screen, if any
+  // (docs/spec/war-events.md).
+  let warMessage: WarEventMessage | null = null;
   // The game's ending, once a fight has ended it.
   let ending: EndingScreen | null = null;
   let lastTime = performance.now();
@@ -630,6 +641,8 @@ const run = (assets: CampaignAssets, fullMap: FullMapLevel): void => {
     }
     if (combat) {
       drawCombatUi(ctx, combat, sim);
+    } else if (warMessage) {
+      drawWarEventMessage(ctx, warMessage);
     }
   };
 
@@ -639,6 +652,13 @@ const run = (assets: CampaignAssets, fullMap: FullMapLevel): void => {
     // Game time does not pass on the Full Map Level
     // (finding:time-stops-on-full-map-level).
     if (level === 'full-map') {
+      // An announcement waits, its time kept, until the Campaign Level.
+      ({ message: warMessage, sim } = stepWarEventMessage(
+        warMessage,
+        sim,
+        now,
+        false
+      ));
       drawFullMapLevel(
         screen.hires,
         fullMap,
@@ -699,6 +719,14 @@ const run = (assets: CampaignAssets, fullMap: FullMapLevel): void => {
         setOrder(IDLE_ORDER);
       }
     }
+    // War Event announcements share the message box with a fight's
+    // windows and wait for them (docs/spec/war-events.md).
+    ({ message: warMessage, sim } = stepWarEventMessage(
+      warMessage,
+      sim,
+      now,
+      !combat
+    ));
     // Hovering the icon column does not scroll the map under it, and
     // dragging pans instead of edge scrolling.
     const direction =
