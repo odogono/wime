@@ -68,3 +68,59 @@ the presentation of the announcements (#60) and the movement tripwires
   view takes it. Each is taken once. An early event 7 is never
   announced, because day 169 then finds it set; event 4 is announced
   when it follows. One check announces at most one event.
+
+## Triggers
+
+Byte 30 of a roster entry, its trigger, says when the entry is woken
+and mobilised. The highest set bit picks the condition.
+(finding:ai-trigger-conditions)
+
+- The sweep tests each entry's trigger just before the entry's movement
+  step, for entries 1 to 151 whatever their state: asleep, awake,
+  following, dead or Evil. Encounter figures, entries 152 and up, are
+  never tested. A woken Leader takes its first step in the same tick,
+  and a condition that changes during a sweep is seen by the entries
+  after it in that sweep, and by the earlier ones in the next.
+  (finding:ai-trigger-tested-before-the-move)
+- A trigger is tested only when its bits are live in the event mask:
+  for a byte up to 0x0f, the byte and the mask share a bit; above
+  0x0f, they share a bit in the high nibble.
+  (finding:ai-trigger-conditions)
+- Bit 0, near the Ring-bearer: the Ring-bearer's Force's Leader is no
+  more than 9 pixels away from the entry in x and in y.
+  (finding:ai-trigger-distances-are-square)
+- Bit 2, near Gandalf: entry 1 or entry 2 is not asleep and is no more
+  than 4 pixels away in x and in y, by that Gandalf's own position.
+  (finding:ai-trigger-distances-are-square)
+- A follower's own position is not kept up to date. The sim keeps it
+  as null and, like the original's (0, 0), measures from (0, 0).
+- Bits 1 and 3: as soon as the event is set.
+- Bits 4 to 7: once the low four bits' number of days has passed since
+  the event's day, counted on the low byte of the day, and only while
+  the hour is 8 (quarter-hours 32 to 35). An event set by the 8 a.m.
+  check is seen by its 0-day entries that morning; one set at any other
+  time waits for the next 8 a.m.
+  (finding:ai-delayed-triggers-wait-for-hour-8)
+
+## Waking
+
+When an entry's trigger is met (finding:ai-trigger-what-waking-changes):
+
+- An entry with no strength or no health left is not changed, and its
+  trigger stays to be tested again every sweep.
+- Otherwise a sleeping entry (state 0) wakes (state 1); any other state
+  is kept. Allegiance 1 becomes 99, under the player's command; Evil 0
+  and every other value are kept.
+  (finding:mobilisation-allegiance-byte)
+- If the entry's Default Orders queue is not empty, its first Place
+  becomes the destination and is taken off the queue. An empty queue
+  leaves the destination as it was.
+  (finding:ai-default-orders-are-place-queues)
+- The trigger is cleared, so it fires once and never takes a second
+  Place or overrides a later Order.
+- A follower can be woken and given a destination, but does not move
+  while it follows. A woken Force appears on the map and takes Orders
+  by the existing rules (docs/spec/movement.md).
+- The two Gandalfs are entries 1 and 2. Entry 2, waiting at Lórien for
+  event 1, wakes at the 8 a.m. check after entry 1 is killed.
+  (finding:ai-second-gandalf-wakes-when-the-first-sleeps)

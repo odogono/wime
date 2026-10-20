@@ -254,10 +254,14 @@ const tickEntry = (world: MovementWorld, entry: RosterEntry): RosterEntry => {
 // step that moves an entry, `afterStep` may stop the sweep there, as
 // a fight does (docs/spec/combat.md); the sweep then reports where it
 // stopped so the caller can carry on from the next entry later.
+// `beforeStep` runs for every entry just before its step, on the
+// sweep's working copy, as the trigger test does
+// (finding:ai-trigger-tested-before-the-move).
 export const sweepMovement = <T extends MovementWorld>(
   world: T,
   from: number,
-  afterStep?: (world: T, index: number) => T | null
+  afterStep?: (world: T, index: number) => T | null,
+  beforeStep?: (world: T, index: number) => void
 ): { stoppedAt: number | null; world: T } => {
   const next = {
     ...world,
@@ -265,6 +269,7 @@ export const sweepMovement = <T extends MovementWorld>(
     routes: world.routes.map(route => [...route])
   } as T;
   for (let i = from; i < next.roster.length; i++) {
+    beforeStep?.(next, i);
     const entry = next.roster[i]!;
     const stepped = tickEntry(next, entry);
     next.roster[i] = stepped;
