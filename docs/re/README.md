@@ -9,6 +9,7 @@ Working notes on the Reference Build's executable, `WarInMiddleEarth` on Disk 1 
 - [`war-events-reference.md`](war-events-reference.md): the War Event and trigger reference scenarios.
 - [`forces-reference.md`](forces-reference.md): the meeting and following reference scenarios.
 - [`animation-level-reference.md`](animation-level-reference.md): the Animation Level and Encounter reference captures.
+- [`objects-reference.md`](objects-reference.md): the Put Down, Take and Use reference scenarios, Tokens and the Palantír.
 
 ## Addresses
 
