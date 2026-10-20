@@ -1,5 +1,4 @@
 import {
-  answerMeeting,
   createSim,
   forcesOnMap,
   formatClock,
@@ -69,6 +68,14 @@ import {
   fullMapIconPlacements,
   type FullMapLevel
 } from './full-map-level';
+import {
+  drawMeetingUi,
+  meetingHoldsTime,
+  openMeetingUi,
+  pressMeetingUi,
+  stepMeetingUi,
+  type MeetingUi
+} from './meeting-window';
 import {
   drawMirrorWindow,
   layoutMirrorWindow,
@@ -176,6 +183,8 @@ const run = (assets: CampaignAssets, fullMap: FullMapLevel): void => {
     // A message already on screen was shown; the restored game's own
     // waiting announcements follow.
     warMessage = null;
+    // A restored meeting gets a fresh window.
+    meetingUi = null;
     return archiveMessage(ARCHIVE_MESSAGES.restored);
   };
   // The Archive window, from the scroll or A (finding:ui-archive-window).
@@ -226,6 +235,9 @@ const run = (assets: CampaignAssets, fullMap: FullMapLevel): void => {
   // The War Event announcement on screen, if any
   // (docs/spec/war-events.md).
   let warMessage: WarEventMessage | null = null;
+  // The meeting window, or the notice an answer leaves
+  // (docs/spec/forces.md).
+  let meetingUi: MeetingUi | null = null;
   // The game's ending, once a fight has ended it.
   let ending: EndingScreen | null = null;
   let lastTime = performance.now();
@@ -443,6 +455,31 @@ const run = (assets: CampaignAssets, fullMap: FullMapLevel): void => {
       }
       return;
     }
+    // The meeting window takes every press while it is up.
+    if (meetingHoldsTime(meetingUi)) {
+      const result = pressMeetingUi(
+        meetingUi!,
+        sim,
+        pointer,
+        performance.now()
+      );
+      // provisional: "Go there" brings the meeting into view, as the
+      // Animation Level it opens is not built yet.
+      const meeting = sim.meeting;
+      const position = meeting && sim.roster[meeting.a]?.position;
+      if (result.choice === 'go-there' && position) {
+        camera = clampCamera(
+          cameraForFight(position, camera, {
+            height: viewHeightPx(assets.tilemap),
+            width: viewWidthPx(assets.tilemap)
+          }),
+          assets.tilemap
+        );
+      }
+      sim = result.sim;
+      meetingUi = result.ui;
+      return;
+    }
     if (speedWindow) {
       pressSpeedWindow(pointer);
       return;
@@ -642,6 +679,8 @@ const run = (assets: CampaignAssets, fullMap: FullMapLevel): void => {
     }
     if (combat) {
       drawCombatUi(ctx, combat, sim);
+    } else if (meetingUi) {
+      drawMeetingUi(ctx, meetingUi);
     } else if (warMessage) {
       drawWarEventMessage(ctx, warMessage);
     }
@@ -696,6 +735,17 @@ const run = (assets: CampaignAssets, fullMap: FullMapLevel): void => {
       sim = result.sim;
       combat = result.ui;
     }
+    // A meeting, new or restored, opens its window.
+    if (sim.meeting && !meetingHoldsTime(meetingUi)) {
+      meetingUi = openMeetingUi(sim, now);
+      speedWindow = null;
+      infoWindow = null;
+      drag = null;
+      setOrder(IDLE_ORDER);
+    }
+    if (meetingUi) {
+      ({ sim, ui: meetingUi } = stepMeetingUi(meetingUi, sim, now));
+    }
     // Once a fight has ended the game and its windows have closed, the
     // ending takes the screen for good.
     if (!ending && !combat && sim.ending) {
@@ -707,16 +757,16 @@ const run = (assets: CampaignAssets, fullMap: FullMapLevel): void => {
       requestAnimationFrame(frame);
       return;
     }
-    // Game time stands still while a fight holds the game
-    // (finding:time-stops-during-a-fight); the ticks due are dropped.
+    // Game time stands still while a fight or a meeting holds the game
+    // (finding:time-stops-during-a-fight, finding:ui-meeting-window);
+    // the ticks due are dropped.
     const ticks = driver.advance(elapsedMs);
-    for (let i = 0; i < ticks && !combatHoldsTime(combat) && !sim.fight; i++) {
+    for (
+      let i = 0;
+      i < ticks && !combatHoldsTime(combat) && !sim.fight && !sim.meeting;
+      i++
+    ) {
       sim = tickSim(sim);
-      // Until the meeting window (#70), every meeting gets its default,
-      // Continue on, at once (docs/spec/forces.md).
-      if (sim.meeting) {
-        sim = answerMeeting(sim, 'continue-on').world;
-      }
       if (sim.fight) {
         combat = startCombatUi(sim, now);
         speedWindow = null;
@@ -731,7 +781,7 @@ const run = (assets: CampaignAssets, fullMap: FullMapLevel): void => {
       warMessage,
       sim,
       now,
-      !combat
+      !combat && !meetingUi
     ));
     // Hovering the icon column does not scroll the map under it, and
     // dragging pans instead of edge scrolling.

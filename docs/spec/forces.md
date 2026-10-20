@@ -58,6 +58,44 @@ are in `docs/spec/combat.md`.
 - `provisional`: "Go there" opens the Animation Level, which the sim
   doesn't model yet. The sim offers only Follow and Continue on.
 
+## The meeting window
+
+(finding:ui-meeting-window)
+
+- The window opens at the top of the Campaign Level, a box 192 lo-res
+  pixels wide at (88, 5), 24 high with one line and 44 with two. Its
+  lines are at 8 and 18 within the box, its left button at (16, 30)
+  and "Continue on" at (110, 30).
+- The first line is "<A> meets <B>.". A Unit is named with its head
+  count and takes the plural verb: "1000 infantry meet 800 infantry.".
+- The second line, and the left button, depend on the kind:
+  - follow: "<B> welcomes <A> to join.", with "Follow <B>". A Unit B
+    is capitalised and takes "welcome", a Unit A gets "the", and
+    neither has its head count: "Infantry welcome the infantry to
+    join.", "Follow infantry";
+  - talk: "<B> invites <A> to pause and talk.", with "Go there";
+  - plain: no second line, with "Go there".
+- The window takes every press while it is up. A press off its
+  buttons does nothing. The clock stands still until it is answered,
+  and after 720 frames, 14.4 seconds, it answers "Continue on" by
+  itself.
+- A pending meeting survives a save; the restored game opens its
+  window afresh, with the full 720 frames.
+- "GOLLUM quietly sneaks away." is shown in a one-line box with no
+  buttons at the top left for 200 frames, and the clock runs on
+  under it. (finding:forces-gollum-sneaks-away-from-a-wizard,
+  finding:ui-war-event-messages)
+- `provisional`: the one-line box would leave its buttons, at 30,
+  outside its 24 pixels, so it is drawn 44 high like the two-line
+  box. No capture records how the original drew it.
+- `provisional`: "Go there" answers as "Continue on" and brings the
+  meeting into view, until the Animation Level is built.
+- `provisional`: the deadline runs in real time, so time on the Full
+  Map Level counts against it, as for a fight's announcement.
+- `provisional`: a War Event announcement waits, its time kept, while
+  the window is up, as it does for a fight's windows
+  (docs/spec/war-events.md).
+
 ## Leaving a Force
 
 - Only an Order splits a member off (docs/spec/movement.md), apart from
@@ -72,4 +110,3 @@ are in `docs/spec/combat.md`.
   following.". (finding:forces-meeting-of-non-evil-leaders)
 - The watch moving from A to B on Follow, which is the view's.
   (finding:forces-follow-and-continue-on)
-- The meeting window's text and layout (finding:ui-meeting-window).
