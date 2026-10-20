@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>War in Middle Earth: soundboard</title>
+    <style>
+      body {
+        margin: 24px;
+        background: #111;
+        color: #eee;
+        font:
+          14px system-ui,
+          sans-serif;
+      }
+      h2 {
+        margin: 24px 0 8px;
+        font-size: 15px;
+      }
+      button {
+        margin: 0 6px 6px 0;
+        padding: 6px 10px;
+        border: 1px solid #555;
+        border-radius: 4px;
+        background: #222;
+        color: #eee;
+        cursor: pointer;
+      }
+      button:hover {
+        background: #333;
+      }
+      button.playing {
+        border-color: #6c6;
+        color: #8e8;
+      }
+      #status {
+        color: #aaa;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Soundboard</h1>
+    <p id="status">Loading sound…</p>
+    <div id="board"></div>
+    <script type="module" src="/src/view/soundboard.ts"></script>
+  </body>
+</html>

@@ -11,7 +11,7 @@ import {
   type Effect
 } from './music';
 
-interface TableEntry {
+export interface TableEntry {
   disk: Disk;
   file: string;
   index: number;
@@ -33,8 +33,13 @@ export interface GameAudio {
   play(entry: number): void;
   // Play the piece asked for, if any, in place of the one playing.
   playAsked(): void;
+  // Play an entry as it is, without choosing its full arrangement: for
+  // the soundboard.
+  playExact(entry: number): void;
   readonly playing: boolean;
   stop(): void;
+  // The game's table of pieces and effects.
+  readonly table: readonly (TableEntry | null)[];
   // Q: switch sound off and on. Off stops the piece playing.
   toggle(): void;
 }
@@ -99,17 +104,22 @@ export const loadGameAudio = async (
     playing = false;
   };
 
-  const playAsked = (): void => {
-    if (asked === null) {
-      return;
-    }
-    const piece = entry(arrangement(asked));
-    asked = null;
+  const playEntry = (index: number): void => {
+    const piece = entry(index);
     if (!enabled || piece?.kind !== 'score') {
       return;
     }
     post({ disk: piece.disk, file: piece.file, type: 'piece' });
     playing = true;
+  };
+
+  const playAsked = (): void => {
+    if (asked === null) {
+      return;
+    }
+    const index = arrangement(asked);
+    asked = null;
+    playEntry(index);
   };
 
   return {
@@ -138,10 +148,12 @@ export const loadGameAudio = async (
       playAsked();
     },
     playAsked,
+    playExact: playEntry,
     get playing() {
       return playing;
     },
     stop,
+    table: sound.table,
     toggle: () => {
       enabled = !enabled;
       if (!enabled) {
