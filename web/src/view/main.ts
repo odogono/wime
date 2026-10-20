@@ -137,6 +137,16 @@ import {
   type OrderWindow
 } from './order-window';
 import { stepPassingMessage, type PassingMessage } from './passing-message';
+import {
+  chooseObject,
+  drawProvisionsWindow,
+  holdsClock,
+  openObjectList,
+  openProvisions,
+  provisionsButtonAt,
+  expired as provisionsExpired,
+  type ProvisionsWindow
+} from './provisions-window';
 import { createScreen, type Fit } from './screen';
 import { placeScenery } from './special-scenery';
 import {
@@ -266,6 +276,7 @@ const run = (
     councilWindow = null;
     passingMessage = null;
     talk = null;
+    provisions = null;
     return archiveMessage(ARCHIVE_MESSAGES.restored);
   };
   // The Archive window, from the scroll or A (finding:ui-archive-window).
@@ -332,6 +343,11 @@ const run = (
   // (docs/spec/council-of-elrond.md).
   let councilWindow: CouncilMessageWindow | null = null;
   let talk: EncounterTalk | null = null;
+  // The provisions sack's window, the Force on screen's members and the
+  // Character who last acted (docs/spec/objects.md).
+  let provisions: ProvisionsWindow | null = null;
+  let party: number[] = [];
+  let chosenCharacter: number | null = null;
   let passingMessage: PassingMessage | null = null;
   // Deliberately survives Archive restores, and is never saved.
   const givenTips = new Set<number>();
@@ -373,6 +389,8 @@ const run = (
       candidate => candidate.leader.index === index
     );
     const members = force?.members ?? [entry];
+    party = members.map(member => member.index);
+    provisions = null;
     stage = spawnParty(
       members.map(member => ({
         figure: member.figure,
@@ -419,6 +437,7 @@ const run = (
   // watched Character.
   const goUpFromAnimation = (): void => {
     talk = null;
+    provisions = null;
     const position = sim.roster[watched]?.position;
     if (position) {
       camera = clampCamera(
@@ -458,10 +477,48 @@ const run = (
   };
 
   const handleAnimationPress = (event: PointerEvent): void => {
-    const icon = animationIconAt(animation.icons, toNative(event));
-    // provisional: the eye and the sack open nothing yet.
+    const point = toNative(event);
+    const icon = animationIconAt(animation.icons, point);
+    const now = performance.now();
+    // provisional: the eye opens nothing yet.
     if (icon?.name === 'map') {
       goUpFromAnimation();
+    } else if (provisions && provisions.kind !== 'message') {
+      // A press off the buttons closes the window, as its default does
+      // (finding:ui-provisions-window).
+      const pressed = provisionsButtonAt(provisions, point);
+      const position = sim.roster[watched]?.position;
+      if (!pressed || !position) {
+        provisions = null;
+      } else if (typeof pressed.value === 'number') {
+        if (provisions.kind !== 'menu') {
+          ({ sim, window: provisions } = chooseObject(
+            sim,
+            provisions.chosen,
+            provisions.kind,
+            pressed.value,
+            position,
+            assets.texts,
+            givenTips,
+            choose,
+            now
+          ));
+        }
+      } else {
+        provisions = openObjectList(
+          sim,
+          provisions.chosen,
+          pressed.value,
+          position,
+          now
+        );
+      }
+    } else if (icon?.name === 'sack' && !battle && !talk && !sim.fight) {
+      // The sack is ignored during a fight (finding:ui-provisions-window).
+      provisions = openProvisions(sim, party, chosenCharacter, now);
+      if (provisions.kind === 'menu') {
+        chosenCharacter = provisions.chosen;
+      }
     } else if (talk) {
       advanceTalk(performance.now());
     }
@@ -1040,7 +1097,18 @@ const run = (
       // Talks hold the view's clock. Meetings of the watched Character
       // with an advisor start here without the Campaign Level's choice.
       const ticks = driver.advance(elapsedMs);
-      for (let i = 0; i < ticks && !talk && !sim.fight && !sim.meeting; i++) {
+      if (provisions && provisionsExpired(provisions, now)) {
+        provisions = null;
+      }
+      for (
+        let i = 0;
+        i < ticks &&
+        !talk &&
+        !holdsClock(provisions) &&
+        !sim.fight &&
+        !sim.meeting;
+        i++
+      ) {
         sim = tickSim(sim);
       }
       // Returning to the Campaign Level below must not tick again in
@@ -1091,7 +1159,7 @@ const run = (
             battle = null;
           }
         }
-      } else if (!sim.fight) {
+      } else if (!sim.fight && !holdsClock(provisions)) {
         stage = stepStage(stage, figureWorld, vblankAt(now));
       }
       if (level === 'animation') {
@@ -1123,6 +1191,9 @@ const run = (
             }
           }
           drawAnimationIcons(screen.buffer, animation.icons);
+          if (provisions) {
+            drawProvisionsWindow(screen.buffer, animation.window, provisions);
+          }
           if (combat) {
             drawCombatUi(
               screen.buffer,

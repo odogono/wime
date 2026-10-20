@@ -33,9 +33,9 @@ talks and fights shown here are in `docs/spec/encounters.md`.
   the map at (300, 25) and the provisions sack at (300, 42), each
   centred on its point. The map goes up to the Campaign Level.
   (finding:ui-animation-level-icons)
-- `provisional`: the eye and the sack do nothing yet. The sack's Put
-  Down, Take and Use belong to milestone 7.
-  (finding:objects-handled-on-animation-level)
+- The sack opens Put Down, Take and Use; see `docs/spec/objects.md`.
+  (finding:objects-handled-on-animation-level) `provisional`: the eye
+  does nothing yet.
 - Every colour comes from the Animation Level palette.
   (finding:graphics-animation-level-palette)
 - Windows use the shared frame with AMaps.res IMAG 12.
