@@ -1,34 +1,71 @@
 import { describe, expect, test } from 'bun:test';
 
 import { layoutSpeedWindow, speedWindowOptionAt } from './speed-window';
-import { TICKS_PER_SECOND, createTickDriver } from './tick-driver';
+import { createTickDriver } from './tick-driver';
 
 describe('tick driver', () => {
-  test('each Game Speed turns real time into ticks at its own rate', () => {
-    for (const [speed, perSecond] of Object.entries(TICKS_PER_SECOND)) {
-      const driver = createTickDriver(speed as keyof typeof TICKS_PER_SECOND);
-      expect(driver.advance(1000)).toBe(perSecond);
-      expect(driver.advance(10_000)).toBe(perSecond * 10);
-    }
+  test('Normal waits 256 frames at 50 Hz per quarter-hour', () => {
+    const driver = createTickDriver('normal');
+    expect(driver.advance(5119)).toBe(0);
+    expect(driver.advance(1)).toBe(1);
+    expect(driver.advance(5120 * 96)).toBe(96);
+  });
+
+  test('Hasty waits 30 frames at 50 Hz per quarter-hour', () => {
+    const driver = createTickDriver('hasty');
+    expect(driver.advance(599)).toBe(0);
+    expect(driver.advance(1)).toBe(1);
+    expect(driver.advance(600 * 96)).toBe(96);
+  });
+
+  test('Very Hasty ticks once per rendered frame, including after a long gap', () => {
+    const driver = createTickDriver('very-hasty');
+    expect(driver.advance(1000 / 144)).toBe(1);
+    expect(driver.advance(1000 / 60)).toBe(1);
+    expect(driver.advance(1000 / 30)).toBe(1);
+    expect(driver.advance(60_000)).toBe(1);
   });
 
   test('accumulates fractional time instead of dropping it', () => {
     const driver = createTickDriver('normal');
-    expect(driver.advance(400)).toBe(0);
-    expect(driver.advance(400)).toBe(0);
-    expect(driver.advance(400)).toBe(1);
+    expect(driver.advance(2000)).toBe(0);
+    expect(driver.advance(2000)).toBe(0);
+    expect(driver.advance(2000)).toBe(1);
+    expect(driver.advance(4240)).toBe(1);
   });
 
-  test('changing speed changes only the rate, pausing stops ticks', () => {
+  test('changing speed uses the time already accumulated', () => {
     const driver = createTickDriver('normal');
     expect(driver.advance(500)).toBe(0);
+    driver.speed = 'hasty';
+    expect(driver.advance(100)).toBe(1);
+    driver.speed = 'normal';
+    expect(driver.advance(5119)).toBe(0);
+    expect(driver.advance(1)).toBe(1);
+  });
+
+  test('Very Hasty clears accumulated time before returning to a timed speed', () => {
+    const driver = createTickDriver('normal');
+    expect(driver.advance(5000)).toBe(0);
     driver.speed = 'very-hasty';
-    // 500ms banked + 500ms more at 4 ticks/sec = 4 ticks in a second.
-    expect(driver.advance(500)).toBe(4);
+    expect(driver.advance(10_000)).toBe(1);
+    driver.speed = 'normal';
+    expect(driver.advance(5119)).toBe(0);
+    expect(driver.advance(1)).toBe(1);
+  });
+
+  test('pausing excludes elapsed time and preserves the fractional tick', () => {
+    const driver = createTickDriver('hasty');
+    expect(driver.advance(599)).toBe(0);
     driver.paused = true;
     expect(driver.advance(10_000)).toBe(0);
     driver.paused = false;
-    expect(driver.advance(250)).toBe(1);
+    expect(driver.advance(1)).toBe(1);
+    driver.speed = 'very-hasty';
+    driver.paused = true;
+    expect(driver.advance(10_000)).toBe(0);
+    driver.paused = false;
+    expect(driver.advance(16)).toBe(1);
   });
 });
 

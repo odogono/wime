@@ -13,7 +13,6 @@ import {
 import {
   GOLLUM_SNEAKS_AWAY,
   MEETING_WINDOW_MS,
-  NOTICE_MS,
   meetingHoldsTime,
   meetingLines,
   openMeetingUi,
@@ -21,6 +20,8 @@ import {
   stepMeetingUi,
   type MeetingUi
 } from './meeting-window';
+
+const NOTICE_MS = 4000;
 
 // The meetings of docs/re/forces-reference.md, on synthetic rosters
 // with the entries at their real indices, as in the sim's tests.
@@ -259,16 +260,28 @@ describe('meeting window', () => {
       { a: 15, b: 1, kind: 'follow' }
     );
     const ui = window(sim);
-    const result = pressMeetingUi(ui, sim, centre(ui, 'Follow GANDALF'), 100);
-    expect(result.ui).toEqual({
-      kind: 'notice',
-      text: GOLLUM_SNEAKS_AWAY,
-      until: 100 + NOTICE_MS
-    });
-    expect(meetingHoldsTime(result.ui)).toBe(false);
-    expect(
-      stepMeetingUi(result.ui!, result.sim, 100 + NOTICE_MS).ui
-    ).toBeNull();
+    for (const speed of ['normal', 'hasty', 'very-hasty'] as const) {
+      const duration = speed === 'very-hasty' ? 1200 : NOTICE_MS;
+      const result = pressMeetingUi(
+        ui,
+        sim,
+        centre(ui, 'Follow GANDALF'),
+        100,
+        speed
+      );
+      expect(result.ui).toEqual({
+        kind: 'notice',
+        text: GOLLUM_SNEAKS_AWAY,
+        until: 100 + duration
+      });
+      expect(meetingHoldsTime(result.ui)).toBe(false);
+      expect(
+        stepMeetingUi(result.ui!, result.sim, 100 + duration - 1, speed).ui
+      ).not.toBeNull();
+      expect(
+        stepMeetingUi(result.ui!, result.sim, 100 + duration, speed).ui
+      ).toBeNull();
+    }
   });
 
   test('a saved meeting reopens its window on restore', () => {

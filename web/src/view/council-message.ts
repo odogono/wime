@@ -1,5 +1,6 @@
 import { closeCouncil, type SimState } from '../sim/index';
 import { textKey } from './assets';
+import { FRAME_MS } from './tick-driver';
 import { drawWindowFrame, type WindowStyle } from './window-frame';
 
 // The Council of Elrond's message on the Campaign Level
@@ -9,7 +10,6 @@ import { drawWindowFrame, type WindowStyle } from './window-frame';
 // A pure state machine over real time in milliseconds, like the War
 // Event announcements.
 
-const FRAME_MS = 20;
 export const COUNCIL_MESSAGE_MS = 1200 * FRAME_MS;
 
 export const COUNCIL_BOX = { height: 130, width: 240, x: 40, y: 20 };

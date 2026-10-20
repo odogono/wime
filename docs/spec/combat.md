@@ -201,8 +201,10 @@ original's 50 Hz frames.
 - "Ignore it" fights the fight out at once. A message box at (10, 5)
   gives the result, then one box per dead Character: "has died in
   combat.", or "has been driven from the field." for a Nazgûl. Each
-  stays 200 frames or until a press. Time runs again while the last
-  is up. (finding:combat-ignored-fight-resolved-at-once)
+  stays 60 frames on Very Hasty or 200 otherwise, or until a press.
+  Time runs again while the last is up.
+  (finding:combat-ignored-fight-resolved-at-once,
+  finding:ui-war-event-messages, finding:time-game-speed-clock-limits)
 - "Go there" brings the fight into view and opens the combat window
   at (6, 0), 272 pixels wide. It shows the option headers, a row per
   combat row, and one message line. The opening "<A> and <B> move

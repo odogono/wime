@@ -58,11 +58,16 @@ knowledge of them (ADR-0002).
   (`finding:time-game-speed-settings`, `finding:ui-key-bindings`)
 - The P key pauses. (`finding:ui-key-bindings`) The original shows
   "The Game is Paused." (`finding:executable-amiga-hunk-file`)
-- `provisional`: how the original maps each Game Speed to real time
-  (a frame counter against a limit) has not been traced.
-  (`finding:time-clock-advances-after-each-roster-sweep`) Until it is,
-  the tick driver uses 1, 2 and 4 ticks per second for Normal, Hasty
-  and Very Hasty — one game day in 96, 48 or 24 real seconds.
+- A quarter-hour waits for 256 frames on Normal and 30 on Hasty, at
+  50 frames a second: 5.12 seconds and 0.6 seconds per tick. Very Hasty
+  has no clock wait; the view advances one tick per rendered frame,
+  so the simulation runs as fast as drawing allows.
+  (`finding:time-game-speed-clock-limits`)
+- Generic message boxes with no buttons close after 60 frames
+  (1.2 seconds) on Very Hasty and 200 frames (4 seconds) otherwise.
+  The duration is set when each box opens. The Council of Elrond has
+  its own 1200-frame wait (docs/spec/council-of-elrond.md).
+  (`finding:ui-war-event-messages`, `finding:time-game-speed-clock-limits`)
 - `provisional`: the speed window's layout and graphics are
   unconfirmed. We draw a plain window under the icon column listing
   the three speeds, marking the current one, with a Pause/Resume line.

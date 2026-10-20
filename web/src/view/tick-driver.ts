@@ -2,6 +2,9 @@
 // Speed. It lives in the view because the sim has no knowledge of Game
 // Speed or pausing (ADR-0002, docs/spec/time.md).
 
+// One frame of the original's 50 Hz display.
+export const FRAME_MS = 20;
+
 export type GameSpeed = 'hasty' | 'normal' | 'very-hasty';
 
 export const GAME_SPEEDS: { label: string; speed: GameSpeed }[] = [
@@ -10,16 +13,17 @@ export const GAME_SPEEDS: { label: string; speed: GameSpeed }[] = [
   { label: 'Very Hasty', speed: 'very-hasty' }
 ];
 
-// Provisional until the original's frame-counter limits are traced
-// (docs/spec/time.md): one game day (96 ticks) in 96, 48 or 24 seconds.
-export const TICKS_PER_SECOND: Record<GameSpeed, number> = {
-  hasty: 2,
-  normal: 1,
-  'very-hasty': 4
+// docs/spec/time.md: 256 or 30 frames at 50 Hz; Very Hasty has no
+// clock wait and advances once per rendered frame instead.
+const MS_PER_TICK: Record<GameSpeed, number> = {
+  hasty: 30 * FRAME_MS,
+  normal: 256 * FRAME_MS,
+  'very-hasty': 0 // unused: Very Hasty ticks per frame
 };
 
 export interface TickDriver {
-  // Feed elapsed real time in; get back how many ticks are due.
+  // Call once per rendered frame with elapsed real time. Very Hasty
+  // returns one tick per call so the view always gets to draw.
   advance(elapsedMs: number): number;
   paused: boolean;
   speed: GameSpeed;
@@ -32,8 +36,12 @@ export const createTickDriver = (speed: GameSpeed = 'normal'): TickDriver => {
       if (driver.paused) {
         return 0;
       }
+      if (driver.speed === 'very-hasty') {
+        accumulatedMs = 0;
+        return 1;
+      }
       accumulatedMs += elapsedMs;
-      const msPerTick = 1000 / TICKS_PER_SECOND[driver.speed];
+      const msPerTick = MS_PER_TICK[driver.speed];
       const ticks = Math.floor(accumulatedMs / msPerTick);
       accumulatedMs -= ticks * msPerTick;
       return ticks;

@@ -155,14 +155,12 @@ When an entry's trigger is met (finding:ai-trigger-what-waking-changes):
 - Each announcement is shown on the Campaign Level in a one-line box
   with no buttons at the top left: 144 by 24 lo-res pixels for
   Saruman's, 160 by 24 for the Dark Lord's, at (10, 5). It closes by
-  itself after 200 frames (4 seconds), and game time runs on while it
-  is up.
+  itself after 60 frames (1.2 seconds) on Very Hasty or 200 frames
+  (4 seconds) otherwise, and game time runs on while it is up.
+  (`finding:time-game-speed-clock-limits`)
 - Announcements are shown one at a time, oldest first. The view takes
   each from the sim only as it shows it, so one not yet shown survives
   a save, and one already shown is never shown again.
-- `provisional`: the original closes the box after 60 frames instead
-  at its fastest clock setting. How the Game Speeds map to that setting
-  is not traced (docs/spec/time.md), so the box always stays 200 frames.
 - `provisional`: the original queues every message box, so an
   announcement and a fight's windows wait for each other. The view
   shows a fight's windows first and keeps an announcement, with the

@@ -6,14 +6,15 @@ import {
   serialiseSave,
   type SimState
 } from '../sim/index';
+import { GAME_SPEEDS } from './tick-driver';
 import {
   WAR_EVENT_BOXES,
-  WAR_EVENT_MESSAGE_MS,
   stepWarEventMessage,
   type WarEventMessage
 } from './war-event-message';
 
 // The War Event announcements on screen (docs/spec/war-events.md).
+const WAR_EVENT_MESSAGE_MS = 4000;
 
 const waiting = (...announcements: SimState['announcements']): SimState => ({
   ...createSim(1),
@@ -28,6 +29,72 @@ const step = (
 ) => stepWarEventMessage(message, sim, now, free);
 
 describe('war event messages', () => {
+  for (const { speed } of GAME_SPEEDS) {
+    test(`${speed} closes each queued box at its message timeout`, () => {
+      const duration = speed === 'very-hasty' ? 1200 : 4000;
+      const shown = stepWarEventMessage(
+        null,
+        waiting({ day: 149, event: 4 }, { day: 169, event: 7 }),
+        1000,
+        true,
+        speed
+      );
+      expect(shown.message?.until).toBe(1000 + duration);
+      const still = stepWarEventMessage(
+        shown.message,
+        shown.sim,
+        1000 + duration - 1,
+        true,
+        speed
+      );
+      expect(still.message?.event).toBe(4);
+      const next = stepWarEventMessage(
+        still.message,
+        still.sim,
+        1000 + duration,
+        true,
+        speed
+      );
+      expect(next.message?.event).toBe(7);
+      expect(next.message?.until).toBe(1000 + duration * 2);
+      expect(
+        stepWarEventMessage(
+          next.message,
+          next.sim,
+          1000 + duration * 2,
+          true,
+          speed
+        ).message
+      ).toBeNull();
+    });
+  }
+
+  test('a speed change leaves the open box alone and sets the next box timeout', () => {
+    const shown = stepWarEventMessage(
+      null,
+      waiting({ day: 149, event: 4 }, { day: 169, event: 7 }),
+      0,
+      true,
+      'normal'
+    );
+    const still = stepWarEventMessage(
+      shown.message,
+      shown.sim,
+      2000,
+      true,
+      'very-hasty'
+    );
+    expect(still.message?.until).toBe(4000);
+    const next = stepWarEventMessage(
+      still.message,
+      still.sim,
+      4000,
+      true,
+      'very-hasty'
+    );
+    expect(next.message?.until).toBe(5200);
+  });
+
   test("show the original's wording for 200 frames, then close", () => {
     const shown = step(null, waiting({ day: 149, event: 4 }), 1000);
     expect(shown.message).toMatchObject({

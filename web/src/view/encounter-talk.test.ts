@@ -8,6 +8,7 @@ import {
 } from '../sim/index';
 import { type Stage } from './animation-level';
 import {
+  NOTICE_MS,
   advanceEncounterTalk,
   adviceBoxes,
   drawTip,
@@ -16,7 +17,6 @@ import {
   wrapAdvice
 } from './encounter-talk';
 import { STOPPED, newFigure, type ScriptWorld } from './figure-script';
-import { NOTICE_MS } from './meeting-window';
 import { passingText, stepPassingMessage } from './passing-message';
 
 const entry = (
@@ -237,6 +237,38 @@ const passingSim = (): SimState => ({
 });
 
 describe('passing notices', () => {
+  test('Very Hasty keeps a notice for 60 frames and preserves its time while covered', () => {
+    const shown = stepPassingMessage(null, passingSim(), 0, true, 'very-hasty');
+    expect(shown.message?.until).toBe(1200);
+    const part = stepPassingMessage(
+      shown.message,
+      shown.sim,
+      200,
+      true,
+      'very-hasty'
+    );
+    const held = stepPassingMessage(
+      part.message,
+      part.sim,
+      10_000,
+      false,
+      'very-hasty'
+    );
+    expect(held.message?.until).toBe(11_000);
+    const next = stepPassingMessage(
+      held.message,
+      held.sim,
+      11_000,
+      true,
+      'very-hasty'
+    );
+    expect(next.message?.until).toBe(12_200);
+    expect(
+      stepPassingMessage(next.message, next.sim, 12_200, true, 'very-hasty')
+        .message
+    ).toBeNull();
+  });
+
   test('words Characters, Units, and the Rohirrim challenge as specified', () => {
     const sim = passingSim();
     expect(passingText(sim, { a: 0, b: 1 })).toBe('FRODO passes a Ranger.');

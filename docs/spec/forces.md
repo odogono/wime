@@ -82,9 +82,10 @@ are in `docs/spec/combat.md`.
 - A pending meeting survives a save; the restored game opens its
   window afresh, with the full 720 frames.
 - "GOLLUM quietly sneaks away." is shown in a one-line box with no
-  buttons at the top left for 200 frames, and the clock runs on
-  under it. (finding:forces-gollum-sneaks-away-from-a-wizard,
-  finding:ui-war-event-messages)
+  buttons at the top left for 60 frames on Very Hasty or 200 otherwise,
+  and the clock runs on under it.
+  (finding:forces-gollum-sneaks-away-from-a-wizard,
+  finding:time-game-speed-clock-limits, finding:ui-war-event-messages)
 - `provisional`: the one-line box would leave its buttons, at 30,
   outside its 24 pixels, so it is drawn 44 high like the two-line
   box. No capture records how the original drew it.

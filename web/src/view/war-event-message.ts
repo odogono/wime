@@ -3,16 +3,15 @@ import {
   takeAnnouncement,
   type SimState
 } from '../sim/index';
+import { messageDurationMs } from './message-timing';
+import type { GameSpeed } from './tick-driver';
 import { drawWindowFrame, type WindowStyle } from './window-frame';
 
 // The War Event announcements on the Campaign Level
 // (docs/spec/war-events.md, "Announcements on screen";
 // finding:ui-war-event-messages): a one-line box with no buttons at the
-// top left, up for 200 frames while game time runs on. A pure state
+// top left, up for 60 or 200 frames while game time runs on. A pure state
 // machine over real time in milliseconds, like the combat windows.
-
-const FRAME_MS = 20;
-export const WAR_EVENT_MESSAGE_MS = 200 * FRAME_MS;
 
 // The original's box sizes, Saruman's narrower than the Dark Lord's.
 export const WAR_EVENT_BOXES = {
@@ -36,7 +35,8 @@ export const stepWarEventMessage = (
   message: WarEventMessage | null,
   sim: SimState,
   now: number,
-  free: boolean
+  free: boolean,
+  speed: GameSpeed = 'normal'
 ): { message: WarEventMessage | null; sim: SimState } => {
   if (!free) {
     return {
@@ -55,12 +55,13 @@ export const stepWarEventMessage = (
     return { message: null, sim };
   }
   const { event } = taken.announcement;
+  const duration = messageDurationMs(speed);
   return {
     message: {
       event,
-      remaining: WAR_EVENT_MESSAGE_MS,
+      remaining: duration,
       text: WAR_EVENT_MESSAGES[event],
-      until: now + WAR_EVENT_MESSAGE_MS
+      until: now + duration
     },
     sim: taken.state
   };
