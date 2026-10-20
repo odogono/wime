@@ -12,6 +12,17 @@ import {
   type SimState
 } from '../sim/index';
 import {
+  animationIconAt,
+  buildScene,
+  drawAnimationIcons,
+  drawFigures,
+  scriptWorld,
+  spawnParty,
+  stepStage,
+  walkedOff,
+  type Stage
+} from './animation-level';
+import {
   ARCHIVE_MESSAGES,
   archiveButtonAt,
   archiveMenu,
@@ -21,8 +32,10 @@ import {
 } from './archive-window';
 import {
   blackToTransparent,
+  loadAnimationAssets,
   loadCampaignAssets,
   loadFullMapAssets,
+  type AnimationAssets,
   type CampaignAssets
 } from './assets';
 import {
@@ -95,6 +108,7 @@ import {
   type OrderWindow
 } from './order-window';
 import { createScreen, type Fit } from './screen';
+import { placeScenery } from './special-scenery';
 import {
   drawSpeedWindow,
   layoutSpeedWindow,
@@ -146,14 +160,29 @@ const FLASH_INTERVAL_MS = 500;
 // The original picks some combat message wordings at random; the view
 // may, since the wording changes nothing in the sim.
 const choose = (n: number): number => Math.floor(Math.random() * n);
+// Script times are in the original's vertical blanks, 50 a second.
+const vblankAt = (ms: number): number => Math.floor((ms * 50) / 1000);
 // A press that moves no further than this is a click, not a drag.
 const CLICK_TOLERANCE_PX = 3;
 
-// The Level on show; the game opens on the Campaign Level.
-type Level = 'campaign' | 'full-map';
+// The Level on show; the game opens on the Animation Level
+// (finding:ui-game-starts-on-animation-level).
+type Level = 'animation' | 'campaign' | 'full-map';
 
-const run = (assets: CampaignAssets, fullMap: FullMapLevel): void => {
-  let level: Level = 'campaign';
+const run = (
+  assets: CampaignAssets,
+  fullMap: FullMapLevel,
+  animation: AnimationAssets
+): void => {
+  let level: Level = 'animation';
+  // The roster entry the Animation Level watches, and its scene.
+  let watched = 0;
+  const scene = document.createElement('canvas');
+  const figureWorld = scriptWorld(animation, choose);
+  let stage: Stage = { figures: [], party: 0 };
+  // On the Campaign Level, whether the pointer is the magnifying glass,
+  // waiting for a click on a Force to go down to (manual, pdf-p15).
+  let lookingDown = false;
   // On the Full Map Level, whether the pointer is the magnifying glass,
   // waiting for a click on the map to go down to (manual, pdf-p9).
   let zooming = false;
@@ -225,6 +254,13 @@ const run = (assets: CampaignAssets, fullMap: FullMapLevel): void => {
       )
     : { x: 0, y: 0 };
   let fit: Fit = screen.resize();
+  if (sim.ringBearer !== null) {
+    // Open on the Animation Level with the Ring-bearer
+    // (finding:ui-game-starts-on-animation-level).
+    queueMicrotask(() => goDownToAnimation(sim.ringBearer!));
+  } else {
+    level = 'campaign';
+  }
   let pointer: Camera | null = null;
   let drag: { camera: Camera; pointer: Camera } | null = null;
   let speedWindow: SpeedWindow | null = null;
@@ -254,6 +290,76 @@ const run = (assets: CampaignAssets, fullMap: FullMapLevel): void => {
     };
   };
   const toHires = (event: PointerEvent): Camera => toNative(event, 2);
+
+  // Down to the Animation Level, watching a roster entry: its scene is
+  // built once, from where it stands (docs/spec/animation-level.md).
+  const goDownToAnimation = (index: number): void => {
+    const entry = sim.roster[index];
+    if (!entry?.position) {
+      return;
+    }
+    watched = index;
+    buildScene(
+      scene,
+      animation,
+      assets.tilemap,
+      { facing: entry.facing, position: entry.position },
+      sim.clock.quarterHour,
+      choose,
+      placeScenery
+    );
+    const force = forcesOnMap(sim.roster).find(
+      candidate => candidate.leader.index === index
+    );
+    const members = force?.members ?? [entry];
+    stage = spawnParty(
+      members.map(member => ({
+        figure: member.figure,
+        index: member.index,
+        strength: member.strength
+      })),
+      figureWorld,
+      choose
+    );
+    // Their scripts' times count from now.
+    const start = vblankAt(performance.now());
+    stage = {
+      ...stage,
+      figures: stage.figures.map(figure => ({ ...figure, next: start }))
+    };
+    level = 'animation';
+    lookingDown = false;
+    infoWindow = null;
+    speedWindow = null;
+    drag = null;
+    setOrder(IDLE_ORDER);
+    canvas.style.cursor = 'default';
+  };
+
+  // Up from the Animation Level to the Campaign Level, centred on the
+  // watched Character.
+  const goUpFromAnimation = (): void => {
+    const position = sim.roster[watched]?.position;
+    if (position) {
+      camera = clampCamera(
+        {
+          x: position.x + 8 - viewWidthPx(assets.tilemap) / 2,
+          y: position.y + 8 - viewHeightPx(assets.tilemap) / 2
+        },
+        assets.tilemap
+      );
+    }
+    level = 'campaign';
+    setOrder(IDLE_ORDER);
+  };
+
+  const handleAnimationPress = (event: PointerEvent): void => {
+    const icon = animationIconAt(animation.icons, toNative(event));
+    // provisional: the eye and the sack open nothing yet.
+    if (icon?.name === 'map') {
+      goUpFromAnimation();
+    }
+  };
 
   // Up to the Full Map Level (manual, pdf-p3). Any half-given Order or
   // open window is dropped, as when a decision window opens
@@ -429,6 +535,10 @@ const run = (assets: CampaignAssets, fullMap: FullMapLevel): void => {
       handleFullMapPress(event);
       return;
     }
+    if (level === 'animation') {
+      handleAnimationPress(event);
+      return;
+    }
     pointer = toNative(event);
     if (ending) {
       ending = turnEndingPage(ending);
@@ -490,6 +600,20 @@ const run = (assets: CampaignAssets, fullMap: FullMapLevel): void => {
       goUp();
       return;
     }
+    if (icon?.icon.name === 'magnifying-glass') {
+      lookingDown = !lookingDown;
+      canvas.style.cursor = lookingDown ? 'zoom-in' : 'grab';
+      return;
+    }
+    // provisional: the magnifying glass goes down to the Force under it;
+    // how the original picks whom to watch is not traced.
+    if (lookingDown && !icon) {
+      const target = targetAt(pointer, forcesOnMap(sim.roster));
+      if (target?.kind === 'force') {
+        goDownToAnimation(target.force.leader.index);
+      }
+      return;
+    }
     // The arrow starts or cancels an Order (#10).
     if (icon?.icon.name === 'arrow') {
       infoWindow = null;
@@ -521,6 +645,9 @@ const run = (assets: CampaignAssets, fullMap: FullMapLevel): void => {
     }
   });
   canvas.addEventListener('pointermove', event => {
+    if (level === 'animation') {
+      return;
+    }
     if (level === 'full-map') {
       hiresPointer = toHires(event);
       return;
@@ -570,6 +697,14 @@ const run = (assets: CampaignAssets, fullMap: FullMapLevel): void => {
     // (finding:ui-key-bindings). The Campaign Level's magnifying
     // glass waits for the Animation Level.
     const key = event.key.toLowerCase();
+    if (level === 'animation') {
+      if (key === 'u') {
+        goUpFromAnimation();
+      } else if (key === 'p') {
+        driver.paused = !driver.paused;
+      }
+      return;
+    }
     if (level === 'full-map') {
       if (archive) {
         archive = null;
@@ -616,6 +751,9 @@ const run = (assets: CampaignAssets, fullMap: FullMapLevel): void => {
     }
     if (key === 'u') {
       goUp();
+    } else if (key === 'm') {
+      lookingDown = !lookingDown;
+      canvas.style.cursor = lookingDown ? 'zoom-in' : 'grab';
     } else if (event.key === 't' || event.key === 'T') {
       toggleSpeedWindow();
     } else if (event.key === 'p' || event.key === 'P') {
@@ -744,6 +882,25 @@ const run = (assets: CampaignAssets, fullMap: FullMapLevel): void => {
       requestAnimationFrame(frame);
       return;
     }
+    if (level === 'animation') {
+      // provisional: time runs on the Animation Level, and anything that
+      // holds the game (a fight, a meeting) brings the Campaign Level up.
+      const due = driver.advance(elapsedMs);
+      for (let i = 0; i < due && !sim.fight && !sim.meeting; i++) {
+        sim = tickSim(sim);
+      }
+      stage = stepStage(stage, figureWorld, vblankAt(now));
+      if (sim.fight || sim.meeting || sim.ending || walkedOff(stage)) {
+        goUpFromAnimation();
+      } else {
+        screen.buffer.drawImage(scene, 0, 0);
+        drawFigures(screen.buffer, animation, stage);
+        drawAnimationIcons(screen.buffer, animation.icons);
+        screen.present();
+        requestAnimationFrame(frame);
+        return;
+      }
+    }
     if (combat) {
       const result = stepCombatUi(combat, sim, now, choose);
       sim = result.sim;
@@ -817,23 +974,28 @@ const run = (assets: CampaignAssets, fullMap: FullMapLevel): void => {
 drawMessage(['Loading Campaign Level...']);
 
 try {
-  const [campaign, fullMap] = await Promise.all([
+  const [campaign, fullMap, animation] = await Promise.all([
     loadCampaignAssets(),
-    loadFullMapAssets()
+    loadFullMapAssets(),
+    loadAnimationAssets()
   ]);
-  run(campaign, {
-    ...fullMap,
-    window: windowStyle(
-      blackToTransparent(fullMap.windowFrame),
-      fullMap.palette.hex
-    ),
-    // Their black backgrounds are masked out like the Campaign Level's
-    // icon sheet; how the original masked them is provisional.
-    icons: fullMap.icons.map(icon => ({
-      ...icon,
-      image: blackToTransparent(icon.image)
-    }))
-  });
+  run(
+    campaign,
+    {
+      ...fullMap,
+      window: windowStyle(
+        blackToTransparent(fullMap.windowFrame),
+        fullMap.palette.hex
+      ),
+      // Their black backgrounds are masked out like the Campaign Level's
+      // icon sheet; how the original masked them is provisional.
+      icons: fullMap.icons.map(icon => ({
+        ...icon,
+        image: blackToTransparent(icon.image)
+      }))
+    },
+    animation
+  );
 } catch (error) {
   drawMessage([
     'Campaign Level assets are missing.',

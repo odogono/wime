@@ -9,6 +9,7 @@ Names given to addresses in the Reference Build's executable during analysis ([a
 | `code+0x00000` | `entry`              | `jmp code+0x1afb0`                                                                       |
 | `code+0x00006` | `buildScene`         | composes the Animation Level scene bitmap from scenery layers                            |
 | `code+0x00396` | `figureStep`         | works out the next tile for the watched Character's facing                               |
+| `code+0x00d3c` | `placeScenery`       | the scenery of particular Places, by tile byte                                           |
 | `code+0x0296c` | `loseGame`           | 1: the Ring at Barad-dûr (CSTR 49); 2: three Strongholds lost (CSTR 50)                  |
 | `code+0x02e64` | `winGame`            | victory ending, BScene CSTR 53–55                                                        |
 | `code+0x031c2` | `randomBits`         | (seed × 125 + data+0x4fee) mod 0x2aaaab, low n bits                                      |
