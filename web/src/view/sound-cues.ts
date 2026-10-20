@@ -13,7 +13,7 @@ import {
 } from './music';
 
 export interface SoundView {
-  // A key for each message box on show (finding:sound-effects).
+  // A key for each message box on show (finding:sound-fight-effects).
   boxes: string[];
   ending: 'none' | 'lost' | 'won' | 'won-last-page';
   fight: 'none' | 'announced' | 'fought' | 'good-won' | 'evil-won' | 'ignored';
@@ -43,6 +43,30 @@ export const QUIET: SoundView = {
   level: 'animation',
   levelEntries: 0,
   placeTile: null
+};
+
+// Figures drawn on frame 9 or 11 play Whoosh or Sword at random, and a
+// spell cast plays Magic (finding:sound-fight-effects). The figures are
+// compared index by index with the last frame's.
+export const figureEffects = (
+  previous: readonly { frame: number; spells?: number }[],
+  next: readonly { frame: number; spells?: number }[],
+  random: (n: number) => number
+): Effect[] => {
+  const effects: Effect[] = [];
+  next.forEach((figure, i) => {
+    const before = previous[i];
+    if (
+      (figure.frame === 9 || figure.frame === 11) &&
+      before?.frame !== figure.frame
+    ) {
+      effects.push(random(2) === 0 ? EFFECT.whoosh : EFFECT.sword);
+    }
+    if ((figure.spells ?? 0) > (before?.spells ?? 0)) {
+      effects.push(EFFECT.magic);
+    }
+  });
+  return effects;
 };
 
 export const soundCues = (previous: SoundView, next: SoundView): SoundCue[] => {
@@ -98,7 +122,7 @@ export const soundCues = (previous: SoundView, next: SoundView): SoundCue[] => {
     }
   }
 
-  // The bell as each message box opens (finding:sound-effects).
+  // The bell as each message box opens (finding:sound-fight-effects).
   if (next.boxes.some(box => !previous.boxes.includes(box))) {
     cues.push({ effect: EFFECT.bell, kind: 'effect' });
   }

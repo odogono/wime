@@ -113,7 +113,7 @@ export const fightEndPiece = (
       : PIECE.disk1ShortDefeat;
 
 // The sound effects: an instrument slot, the note it plays and how many
-// frames it is held (finding:sound-effects). Whoosh and Sword add a roll
+// frames it is held (finding:sound-effect-notes). Whoosh and Sword add a roll
 // of 4 to their note.
 export const EFFECT = {
   bell: 4,

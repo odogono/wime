@@ -29,6 +29,10 @@ export interface Figure {
   returns: number[];
   // Steps per frame the figure works toward, and its current delay.
   speed: number;
+  // How many times its script has run event 0x10, which casts a spell:
+  // the original spawns a flash (FRML 18) and plays Magic
+  // (finding:sound-fight-effects).
+  spells?: number;
   // Top left of the current frame.
   x: number;
   y: number;
@@ -206,6 +210,9 @@ export const stepFigure = (
         }
         case 0x80: {
           figure = { ...figure, ...scriptEvent(n, figure) };
+          if (n === 0x10) {
+            figure = { ...figure, spells: (figure.spells ?? 0) + 1 };
+          }
           if (n === 0x0e) {
             x = 350;
           }

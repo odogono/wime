@@ -66,12 +66,13 @@ are laid out is in the Findings of #130; how the browser plays them is
 ## Sound effects
 
 - ReverbBells, a bell, rings as every message box opens.
-  (finding:sound-effects)
-- `provisional`: on the Animation Level, drawing certain figures plays
-  Whoosh or Sword at random, and two steps of the figure scripts play
-  Magic; which figures, and when, was not traced. (finding:sound-effects)
+  (finding:sound-fight-effects)
+- On the Animation Level, a figure turning to frame 9 or 11 of its set
+  plays Whoosh or Sword at random, and a figure's script casting a spell
+  plays Magic. The original also draws the spell's flash, a figure of
+  set 18, which the port does not yet. (finding:sound-fight-effects)
 - `provisional`: a second ReverbBells rings after a picture is copied
-  into some boxes; which boxes was not traced. (finding:sound-effects)
+  into some boxes; which boxes was not traced. (finding:sound-fight-effects)
 
 ## Switching sound off
 

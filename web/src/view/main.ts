@@ -106,6 +106,7 @@ import {
   turnEndingPage,
   type EndingScreen
 } from './ending-screen';
+import type { Figure } from './figure-script';
 import { drawText } from './font';
 import {
   drawInfoWindow,
@@ -160,7 +161,7 @@ import {
   type ProvisionsWindow
 } from './provisions-window';
 import { NATIVE_HEIGHT, NATIVE_WIDTH, createScreen, type Fit } from './screen';
-import { QUIET, soundCues, type SoundView } from './sound-cues';
+import { QUIET, figureEffects, soundCues, type SoundView } from './sound-cues';
 import { placeScenery } from './special-scenery';
 import {
   drawSpeedWindow,
@@ -371,6 +372,7 @@ const run = (
   let levelEntries = 0;
   let soundLevel: Level = level;
   let lastSound: SoundView = QUIET;
+  let lastFigures: Figure[] = [];
   // The title music plays first, until it ends or the player presses a
   // key or the mouse (finding:sound-fight-and-ending-music).
   let titleMusic = audio !== null;
@@ -460,6 +462,16 @@ const run = (
       }
     }
     lastSound = next;
+    // The figures on the Animation Level, in a fixed order, for the
+    // fight effects (finding:sound-fight-effects).
+    const figures =
+      level === 'animation'
+        ? [...stage.figures, ...(battle?.stage.figures ?? [])]
+        : [];
+    for (const effect of figureEffects(lastFigures, figures, choose)) {
+      audio.effect(effect);
+    }
+    lastFigures = figures;
   };
   let lastTime = performance.now();
 
