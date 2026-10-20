@@ -14,6 +14,7 @@ describe('the ending scenes', () => {
     const orcs = figures.filter(figure => figure.frml === 6);
     expect(orcs).toHaveLength(48);
     expect(orcs[0]).toEqual({
+      colour: 0,
       flipped: false,
       frame: 13,
       frml: 6,
@@ -24,9 +25,9 @@ describe('the ending scenes', () => {
     expect(
       figures.filter(figure => figure.frml !== 6 && figure.frml !== 8)
     ).toEqual([
-      { flipped: false, frame: 11, frml: 9, x: 18, y: 90 },
-      { flipped: true, frame: 1, frml: 12, x: 240, y: 83 },
-      { flipped: false, frame: 8, frml: 9, x: 2, y: 95 }
+      { colour: 0, flipped: false, frame: 11, frml: 9, x: 18, y: 90 },
+      { colour: 0, flipped: true, frame: 1, frml: 12, x: 240, y: 83 },
+      { colour: 0, flipped: false, frame: 8, frml: 9, x: 2, y: 95 }
     ]);
     const hooded = figures.slice(-9);
     expect(hooded.map(figure => figure.x)).toEqual([
@@ -39,7 +40,14 @@ describe('the ending scenes', () => {
 
   test('the rolls pick the orcs’ frames 10 to 13 and jitter every figure', () => {
     const [orc] = endingFigures('lost-barad-dur', top);
-    expect(orc).toEqual({ flipped: true, frame: 10, frml: 6, x: 4, y: 112 });
+    expect(orc).toEqual({
+      colour: 0,
+      flipped: true,
+      frame: 10,
+      frml: 6,
+      x: 4,
+      y: 112
+    });
   });
 
   test('a win: the Fellowship in a row, drawn from the right, the right five facing left', () => {

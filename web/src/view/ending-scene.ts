@@ -8,6 +8,7 @@ import type { FigureSetAsset } from './assets';
 // script: nothing in it moves.
 
 export interface EndingFigure {
+  colour: number;
   flipped: boolean;
   frame: number;
   frml: number;
@@ -40,23 +41,30 @@ const lostFigures = (random: (n: number) => number): EndingFigure[] => {
       const flipped = random(2) === 1;
       const y = row + random(7);
       const x = column + random(25);
-      figures.push({ flipped, frame, frml: ORC, x, y });
+      figures.push({ colour: 0, flipped, frame, frml: ORC, x, y });
     }
     if (row === 114) {
       figures.push(
-        { flipped: false, frame: 11, frml: TROLL, x: 18, y: 90 },
-        { flipped: true, frame: 1, frml: BALROG, x: 240, y: 83 }
+        { colour: 0, flipped: false, frame: 11, frml: TROLL, x: 18, y: 90 },
+        { colour: 0, flipped: true, frame: 1, frml: BALROG, x: 240, y: 83 }
       );
     }
     if (row === 122) {
-      figures.push({ flipped: false, frame: 8, frml: TROLL, x: 2, y: 95 });
+      figures.push({
+        colour: 0,
+        flipped: false,
+        frame: 8,
+        frml: TROLL,
+        x: 2,
+        y: 95
+      });
     }
   }
   for (let column = 10; column <= 280; column += 33) {
     const flipped = random(2) === 1;
     const y = 140 + random(10);
     const x = column + random(15);
-    figures.push({ flipped, frame: 13, frml: HOODED, x, y });
+    figures.push({ colour: 1, flipped, frame: 13, frml: HOODED, x, y });
   }
   return figures;
 };
@@ -67,25 +75,26 @@ const lostFigures = (random: (n: number) => number): EndingFigure[] => {
 // is past the end of FRML 3's 17 frames, an entry of width 0, so the
 // original draws no dwarf; neither does the port.
 const FELLOWSHIP = [
-  { frame: 17, frml: 3, rise: 0 },
-  { frame: 16, frml: 0, rise: 0 },
-  { frame: 15, frml: 1, rise: 10 },
-  { frame: 16, frml: 0, rise: 0 },
-  { frame: 15, frml: 4, rise: 26 },
-  { frame: 16, frml: 2, rise: 12 },
-  { frame: 16, frml: 0, rise: 0 },
-  { frame: 16, frml: 0, rise: 0 },
-  { frame: 16, frml: 2, rise: 10 }
+  { colour: 4, frame: 17, frml: 3, rise: 0 },
+  { colour: 12, frame: 16, frml: 0, rise: 0 },
+  { colour: 2, frame: 15, frml: 1, rise: 10 },
+  { colour: 5, frame: 16, frml: 0, rise: 0 },
+  { colour: 6, frame: 15, frml: 4, rise: 26 },
+  { colour: 14, frame: 16, frml: 2, rise: 12 },
+  { colour: 3, frame: 16, frml: 0, rise: 0 },
+  { colour: 11, frame: 16, frml: 0, rise: 0 },
+  { colour: 24, frame: 16, frml: 2, rise: 10 }
 ];
 
+// Colours from finding:graphics-figure-colour-selectors.
 // Drawn from the right, x 245 down to 45, 25 apart (code+0x02f3a).
 const wonFigures = (random: (n: number) => number): EndingFigure[] => {
   const figures: EndingFigure[] = [];
   for (let k = FELLOWSHIP.length - 1; k >= 0; k--) {
-    const { frame, frml, rise } = FELLOWSHIP[k]!;
+    const { colour, frame, frml, rise } = FELLOWSHIP[k]!;
     const y = 140 + random(10) - rise;
     const x = 45 + k * 25 + random(7);
-    figures.push({ flipped: k > 3, frame, frml, x, y });
+    figures.push({ colour, flipped: k > 3, frame, frml, x, y });
   }
   return figures;
 };
@@ -118,7 +127,7 @@ export const drawEndingFigures = (
     ctx.drawImage(
       set.sheet,
       frame.x,
-      0,
+      set.colour_rows[figure.colour] ?? 0,
       frame.width,
       frame.height,
       0,

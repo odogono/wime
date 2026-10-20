@@ -18,7 +18,12 @@ import {
   parseResourceFork,
   stringifySortedJson
 } from './extract-graphics';
-import { parseHunkFile } from './extract-starting-state';
+import {
+  ROSTER_COUNT,
+  ROSTER_OFFSET,
+  ROSTER_RECORD_SIZE,
+  parseHunkFile
+} from './extract-starting-state';
 import { paletteFromRgb4Words } from './render-campaign-map';
 
 // Data hunk offsets, from docs/re/labels.md and the Findings cited.
@@ -49,8 +54,14 @@ export const ANIMATION_ICONS = [
 ];
 // finding:ui-window-frame-tiles: the Animation Level's frame sheet.
 const WINDOW_FRAME_IMAG = 12;
-// finding:graphics-four-plane-figures-use-upper-colours
+// finding:graphics-figure-colour-selectors: the unchanged four-plane preview.
 const FOUR_PLANE_COLOUR_BASE = 16;
+// finding:graphics-figure-colour-selectors
+const FIGURE_COLOUR_WORDS_OFFSET = 0x4b_c8;
+const FIGURE_COLOUR_COUNT = 32;
+const ENDING_FIGURE_SETS_OFFSET = 0x09_3a;
+const ENDING_FIGURE_COLOURS_OFFSET = 0x09_55;
+const ENDING_FIGURE_COUNT = 9;
 
 // One group of a scenery list: one strip is drawn from `choices`.
 export type SceneryGroup = {
@@ -62,6 +73,7 @@ export type SceneryGroup = {
 };
 
 export type AnimationTables = {
+  figure_colours: number[];
   figure_scripts: number[][];
   foreground_lists: number[][];
   // y above the ground line of BScene.res IMAG 300 + i.
@@ -127,6 +139,10 @@ export const readAnimationTables = (
 ): AnimationTables => {
   const data = dataHunk(executable);
   return {
+    figure_colours: Array.from(
+      { length: ROSTER_COUNT },
+      (_, i) => data[ROSTER_OFFSET + i * ROSTER_RECORD_SIZE + 19]!
+    ),
     figure_scripts: Array.from({ length: FIGURE_SET_COUNT }, (_, id) => [
       ...data.subarray(
         FIGURE_SCRIPTS_OFFSET + id * FIGURE_SCRIPT_LENGTH,
@@ -159,6 +175,7 @@ export type FigureFrame = {
 };
 
 export type FigureSet = {
+  colour_rows: Record<number, number>;
   depth: number;
   frames: FigureFrame[];
   height: number;
@@ -168,19 +185,51 @@ export type FigureSet = {
   width: number;
 };
 
+// Route the four source planes into five screen planes. Fields 4 and 5
+// clear/fill a plane; source zero is outside the mask
+// (finding:graphics-figure-colour-selectors).
+export const figureColour = (index: number, word: number): number => {
+  if ((index & 15) === 0) {
+    return 0;
+  }
+  let colour = 0;
+  for (let plane = 0; plane < 5; plane++) {
+    const source = (word >> (plane * 3)) & 7;
+    const bit = source === 5 ? 1 : source === 4 ? 0 : (index >> source) & 1;
+    colour |= bit << plane;
+  }
+  return colour;
+};
+
 // A figure set's frames side by side in one sheet, colour 0 clear. The
-// 4-plane sets are moved up to colours 16 to 31.
+// first row is the unchanged preview (4-plane sets in colours 16 to
+// 31); the used colour variants follow, each one sheet-height lower.
 export const buildFigureSheet = (
   frames: { hotX: number; hotY: number; image: IndexedImage }[],
   depth: number,
-  palette: number[]
-): { frames: FigureFrame[]; sheet: IndexedImage } => {
+  palette: number[],
+  colourWords: Map<number, number> = new Map()
+): {
+  colour_rows: Record<number, number>;
+  frames: FigureFrame[];
+  sheet: IndexedImage;
+} => {
   const width = Math.max(
     1,
     frames.reduce((total, frame) => total + frame.image.width, 0)
   );
   const height = Math.max(1, ...frames.map(frame => frame.image.height));
-  const sheet = new IndexedImage(width, height, palette);
+  const sheet = new IndexedImage(
+    width,
+    height * (colourWords.size + 1),
+    palette
+  );
+  const colour_rows: Record<number, number> = { 0: 0 };
+  let rowOffset = height;
+  for (const selector of colourWords.keys()) {
+    colour_rows[selector] = rowOffset;
+    rowOffset += height;
+  }
   const base = depth === 4 ? FOUR_PLANE_COLOUR_BASE : 0;
   const placed: FigureFrame[] = [];
   let x = 0;
@@ -189,6 +238,13 @@ export const buildFigureSheet = (
       for (let column = 0; column < image.width; column++) {
         const value = image.getPixel(column, row);
         sheet.setPixel(x + column, row, value === 0 ? 0 : value + base);
+        for (const [selector, word] of colourWords) {
+          sheet.setPixel(
+            x + column,
+            row + colour_rows[selector]!,
+            figureColour(value, word)
+          );
+        }
       }
     }
     placed.push({
@@ -200,7 +256,7 @@ export const buildFigureSheet = (
     });
     x += image.width;
   }
-  return { frames: placed, sheet };
+  return { colour_rows, frames: placed, sheet };
 };
 
 // Save with colour 0 clear, so figures, icons and frames lie over the scene.
@@ -251,6 +307,36 @@ export const exportAnimationLevel = (
   const tables = readAnimationTables(executable);
   write('tables.json', tables);
 
+  const data = dataHunk(executable);
+  const colourWords = words(
+    data,
+    FIGURE_COLOUR_WORDS_OFFSET,
+    FIGURE_COLOUR_COUNT
+  );
+  // All selectors the Reference Build uses for each set, plus the ending
+  // pictures (finding:graphics-figure-colour-selectors).
+  const selectors = new Map<number, Set<number>>();
+  const addColour = (frml: number, colour: number): void => {
+    if (colour !== 0) {
+      const used = selectors.get(frml) ?? new Set<number>();
+      used.add(colour);
+      selectors.set(frml, used);
+    }
+  };
+  for (let i = 0; i < ROSTER_COUNT; i++) {
+    addColour(
+      data[ROSTER_OFFSET + i * ROSTER_RECORD_SIZE + 20]!,
+      tables.figure_colours[i]!
+    );
+  }
+  for (let i = 0; i < ENDING_FIGURE_COUNT; i++) {
+    addColour(
+      data[ENDING_FIGURE_SETS_OFFSET + i]!,
+      data[ENDING_FIGURE_COLOURS_OFFSET + i]!
+    );
+  }
+  addColour(8, 1);
+
   const figures: FigureSet[] = [];
   for (const [, [memberName, resourceNames]] of Object.entries(
     RESOURCE_FILES
@@ -260,10 +346,15 @@ export const exportAnimationLevel = (
       const fork = parseResourceFork(disk.readFile(resourceName));
       for (const resource of fork.byType('FRML')) {
         const decoded = decodeFrmlResource(resource.data, resource.attributes);
-        const { frames, sheet } = buildFigureSheet(
+        const { colour_rows, frames, sheet } = buildFigureSheet(
           decoded.frames,
           decoded.depth,
-          palette
+          palette,
+          new Map(
+            [...(selectors.get(resource.resourceId) ?? [])]
+              .sort((a, b) => a - b)
+              .map(selector => [selector, colourWords[selector]!])
+          )
         );
         const path = `figures/FRML_${resource.resourceId}.png`;
         saveClear(sheet, join(dir, path));
@@ -273,6 +364,7 @@ export const exportAnimationLevel = (
           width: sheet.width
         });
         figures.push({
+          colour_rows,
           depth: decoded.depth,
           frames,
           height: sheet.height,

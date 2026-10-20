@@ -11,6 +11,7 @@ import {
 } from './animation-scene';
 
 const tables = (over: Partial<AnimationTables> = {}): AnimationTables => ({
+  figure_colours: [],
   figure_scripts: [],
   foreground_lists: [[300]],
   foreground_offsets: [20],
