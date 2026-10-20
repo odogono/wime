@@ -20,6 +20,7 @@ import {
   maxCamera,
   stepCamera
 } from './campaign-level';
+import { fixedFont } from './test-font';
 import { windowStyle } from './window-frame';
 
 // The real Campaign Level dimensions (finding:data-formats-campaign-map-grid).
@@ -167,7 +168,7 @@ const fakeAssets = (draws: DrawCall[]): CampaignAssets => {
       tile_width: 16,
       width: 32
     },
-    window: windowStyle(atlas, Array<string>(16).fill('#000'))
+    window: windowStyle(atlas, Array<string>(16).fill('#000'), fixedFont())
   };
 };
 

@@ -9,11 +9,13 @@ import {
   type RosterEntry,
   type SimState
 } from '../sim/index';
+import { measureText } from './font';
 import { messageDurationMs } from './message-timing';
 import { FRAME_MS, type GameSpeed } from './tick-driver';
 import {
   drawWindowFrame,
   frameBox,
+  windowText,
   type Box,
   type WindowStyle
 } from './window-frame';
@@ -25,7 +27,8 @@ import {
 // only feeds it the clock and presses. Positions are the original's,
 // in lo-res pixels (finding:ui-fight-announcement,
 // finding:ui-combat-window-layout), and so are the frame and colours
-// (finding:ui-window-frame-tiles); the lettering is provisional.
+// (finding:ui-window-frame-tiles) and lettering
+// (finding:ui-text-font-lord-10).
 
 // The original counts 50 Hz frames.
 // An unanswered announcement presses "Ignore it" after 720 frames
@@ -480,7 +483,7 @@ export const drawCombatUi = (
   ctx.lineWidth = 1;
   if (ui.kind === 'announcement') {
     const box = drawWindowFrame(ctx, style, ANNOUNCEMENT_BOX);
-    ctx.fillText(ui.text, box.x + 10, box.y + 8, 206);
+    windowText(ctx, style, ui.text, box.x + 10, box.y + 8);
     ctx.strokeStyle = colours.text;
     for (const button of ANNOUNCEMENT_BUTTONS) {
       ctx.strokeRect(
@@ -489,7 +492,7 @@ export const drawCombatUi = (
         button.width - 1,
         button.height - 1
       );
-      ctx.fillText(button.label, button.x + 3, button.y + 1, button.width - 6);
+      windowText(ctx, style, button.label, button.x + 3, button.y + 1);
     }
     return;
   }
@@ -497,17 +500,22 @@ export const drawCombatUi = (
     const text = ui.kind === 'boxes' ? ui.boxes[0]! : ui.message;
     const box = drawWindowFrame(ctx, style, {
       height: 24,
-      width: Math.max(160, text.length * 5 + 20),
+      width: Math.max(160, measureText(style.font.metrics, text) + 20),
       x: 10,
       y: 5
     });
-    ctx.fillStyle =
+    windowText(
+      ctx,
+      style,
+      text,
+      box.x + 10,
+      box.y + 8,
       text === GOOD_WON
         ? colours.blue
         : text === EVIL_WON
           ? colours.red
-          : colours.text;
-    ctx.fillText(text, box.x + 10, box.y + 8, box.width - 20);
+          : colours.text
+    );
     return;
   }
   const fight = sim.fight;
@@ -521,13 +529,32 @@ export const drawCombatUi = (
     x: WINDOW_X,
     y: WINDOW_Y
   });
-  ctx.fillStyle = colours.blue;
   OPTION_LABELS.forEach((label, k) => {
-    ctx.fillText(label, LEFT + OPTION_XS[k]! - 5, WINDOW_Y + 6, 25);
+    windowText(
+      ctx,
+      style,
+      label,
+      LEFT + OPTION_XS[k]! - 5,
+      WINDOW_Y + 6,
+      colours.blue
+    );
   });
-  ctx.fillText('--Good----------', LEFT + GOOD_NAME_X, WINDOW_Y + 6, 66);
-  ctx.fillStyle = colours.red;
-  ctx.fillText('--Evil---------', LEFT + EVIL_NAME_X - 1, WINDOW_Y + 6, 66);
+  windowText(
+    ctx,
+    style,
+    '--Good----------',
+    LEFT + GOOD_NAME_X,
+    WINDOW_Y + 6,
+    colours.blue
+  );
+  windowText(
+    ctx,
+    style,
+    '--Evil---------',
+    LEFT + EVIL_NAME_X - 1,
+    WINDOW_Y + 6,
+    colours.red
+  );
   ctx.strokeStyle = colours.text;
   let goodRow = 0;
   let evilRow = 0;
@@ -547,18 +574,29 @@ export const drawCombatUi = (
         }
       });
     }
-    ctx.fillStyle = nameColour(style, row, entry);
     const x =
       LEFT +
       (good ? GOOD_NAME_X : EVIL_NAME_X) +
       (row.follower ? FOLLOWER_INDENT : 0);
-    ctx.fillText(rowLabel(entry.name, row.strength), x, y - 1, 66);
+    windowText(
+      ctx,
+      style,
+      rowLabel(entry.name, row.strength),
+      x,
+      y - 1,
+      nameColour(style, row, entry)
+    );
   }
-  ctx.fillStyle =
+  windowText(
+    ctx,
+    style,
+    ui.message,
+    LEFT + 24,
+    WINDOW_Y + layout.messageY,
     ui.messageColour === 'good'
       ? colours.blue
       : ui.messageColour === 'evil'
         ? colours.red
-        : colours.text;
-  ctx.fillText(ui.message, LEFT + 24, WINDOW_Y + layout.messageY, 230);
+        : colours.text
+  );
 };

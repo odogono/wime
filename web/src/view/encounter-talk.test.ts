@@ -13,8 +13,7 @@ import {
   adviceBoxes,
   drawTip,
   startEncounterTalk,
-  stepEncounterTalk,
-  wrapAdvice
+  stepEncounterTalk
 } from './encounter-talk';
 import { STOPPED, newFigure, type ScriptWorld } from './figure-script';
 import { passingText, stepPassingMessage } from './passing-message';
@@ -129,14 +128,6 @@ describe('advisor advice', () => {
       'CSTR 4. CSTR 28. Farewell!'
     ]);
     expect(given.size).toBe(20);
-  });
-
-  test('reflows long text into readable lines', () => {
-    expect(wrapAdvice('One two\nthree   four five', 10)).toEqual([
-      'One two',
-      'three four',
-      'five'
-    ]);
   });
 });
 

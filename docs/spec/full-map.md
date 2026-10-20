@@ -46,5 +46,9 @@ rest of the Level (`finding:time-stops-on-full-map-level`).
   (`finding:ui-galadriels-mirror-lists-forces-on-the-move`)
 
 The listing is a pure function of the simulation state (ADR-0002); the
-window's frame, lettering and layout are the view's and provisional
-until the original's window graphics and font are identified.
+window's frame and layout are the view's. The original letters the Full
+Map Level's windows in the ROM font topaz/8, and every other window in
+the disk font lord/10 (`finding:ui-text-font-lord-10`,
+`finding:data-formats-lord-font-metrics`). topaz/8 is not on the game's
+disks, so the port draws lord/10 there at double width; this is
+provisional.

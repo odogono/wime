@@ -1,7 +1,8 @@
 import { placeAt, type Force, type Place, type Point } from '../sim/index';
 import { forceAtPoint } from './campaign-level';
+import { measureLines, type FontMetrics } from './font';
 import { forceWindowLines } from './force-window';
-import { drawWindowFrame, type WindowStyle } from './window-frame';
+import { drawWindowFrame, windowText, type WindowStyle } from './window-frame';
 
 // Giving an Order (finding:ui-giving-an-order): select the arrow
 // icon, click a Force, then click a destination. Clicking the
@@ -10,8 +11,8 @@ import { drawWindowFrame, type WindowStyle } from './window-frame';
 // followers instead of the whole Force
 // (finding:movement-ordering-part-of-a-force). While a destination
 // is being chosen the pointer carries the word "TO". It is laid out
-// as the info window it replaces (see force-window.ts); the lettering
-// and the highlight of the chosen member are provisional.
+// as the info window it replaces (see force-window.ts); the highlight
+// of the chosen member is provisional.
 
 export type OrderState =
   | { kind: 'idle' }
@@ -75,7 +76,6 @@ const INSET_X = 10;
 const INSET_Y = 8;
 const X = 8;
 const Y = 8;
-const CHAR_WIDTH = 5;
 const MAX_WIDTH = 240;
 
 // Where the Leader is currently heading, as the window lists it: a
@@ -90,6 +90,7 @@ const headingLabel = (force: Force, places: Place[]): string => {
 };
 
 export const layoutOrderWindow = (
+  font: FontMetrics,
   force: Force,
   places: Place[]
 ): OrderWindow => {
@@ -98,8 +99,10 @@ export const layoutOrderWindow = (
   if (heading) {
     lines[0] = `${lines[0]}${heading}`;
   }
-  const longest = Math.max(1, ...lines.map(line => line.length));
-  const width = Math.min(MAX_WIDTH, longest * CHAR_WIDTH + INSET_X * 2);
+  const width = Math.min(
+    MAX_WIDTH,
+    Math.max(1, measureLines(font, lines)) + INSET_X * 2
+  );
   return {
     height: lines.length * LINE_HEIGHT + INSET_Y * 2,
     options: force.members.map((member, i) => ({
@@ -147,9 +150,14 @@ export const drawOrderWindow = (
 ): void => {
   drawWindowFrame(ctx, style, window);
   for (const option of window.options) {
-    ctx.fillStyle =
-      option.memberIndex === selected ? style.colours.red : style.colours.text;
-    ctx.fillText(option.label, option.x, option.y);
+    windowText(
+      ctx,
+      style,
+      option.label,
+      option.x,
+      option.y,
+      option.memberIndex === selected ? style.colours.red : style.colours.text
+    );
   }
 };
 
@@ -166,8 +174,5 @@ export const drawOrderPointerTag = (
   ctx.strokeStyle = style.colours.line;
   ctx.lineWidth = 1;
   ctx.strokeRect(pointer.x + 6.5, pointer.y + 6.5, 15, 10);
-  ctx.font = '8px monospace';
-  ctx.textBaseline = 'top';
-  ctx.fillStyle = style.colours.text;
-  ctx.fillText('TO', pointer.x + 8, pointer.y + 8);
+  windowText(ctx, style, 'TO', pointer.x + 10, pointer.y + 8);
 };

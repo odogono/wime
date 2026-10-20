@@ -207,8 +207,9 @@ describe.skipIf(!existsSync(DEFAULT_ARCHIVE))('web export', () => {
     // Atlas, palette, tile map, atlas metadata, 115 graphics, text and
     // the starting state, plus the Full Map Level palette and the window
     // frame tiles in each Level's palette, and the Animation Level's
-    // palette, tables, figure index, 3 icons, frame and 19 figure sets.
-    expect(manifest.assets.length).toBe(124 + 26);
+    // palette, tables, figure index, 3 icons, frame and 19 figure sets,
+    // and lord/10's glyph sheet and metrics.
+    expect(manifest.assets.length).toBe(124 + 26 + 2);
     expect(manifest.summary.assets).toBe(manifest.assets.length);
 
     for (const asset of manifest.assets) {

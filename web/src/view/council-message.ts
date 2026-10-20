@@ -1,7 +1,7 @@
 import { closeCouncil, type SimState } from '../sim/index';
 import { textKey } from './assets';
 import { FRAME_MS } from './tick-driver';
-import { drawWindowFrame, type WindowStyle } from './window-frame';
+import { drawWindowFrame, windowText, type WindowStyle } from './window-frame';
 
 // The Council of Elrond's message on the Campaign Level
 // (docs/spec/council-of-elrond.md, "The message";
@@ -76,11 +76,12 @@ export const drawCouncilMessage = (
 ): void => {
   const box = drawWindowFrame(ctx, style, COUNCIL_BOX);
   window.lines.forEach((line, i) => {
-    ctx.fillText(
+    windowText(
+      ctx,
+      style,
       line,
       box.x + TEXT_LEFT,
-      box.y + TEXT_TOP + i * LINE_HEIGHT,
-      box.width - TEXT_LEFT - 8
+      box.y + TEXT_TOP + i * LINE_HEIGHT
     );
   });
 };

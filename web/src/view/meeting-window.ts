@@ -6,9 +6,15 @@ import {
   type RosterEntry,
   type SimState
 } from '../sim/index';
+import { measureText, type FontMetrics } from './font';
 import { messageDurationMs } from './message-timing';
 import { FRAME_MS, type GameSpeed } from './tick-driver';
-import { drawWindowFrame, type Box, type WindowStyle } from './window-frame';
+import {
+  drawWindowFrame,
+  windowText,
+  type Box,
+  type WindowStyle
+} from './window-frame';
 
 // The meeting window on the Campaign Level (docs/spec/forces.md,
 // "The meeting window"; finding:ui-meeting-window). The sim stops while
@@ -16,8 +22,8 @@ import { drawWindowFrame, type Box, type WindowStyle } from './window-frame';
 // press or, after 720 frames, with its default, "Continue on". A pure
 // state machine over real time in milliseconds, like the combat
 // windows. Positions are the original's, in lo-res pixels, and the
-// frame is the original's (finding:ui-window-frame-tiles); the
-// lettering is provisional.
+// frame and lettering are the original's (finding:ui-window-frame-tiles,
+// finding:ui-text-font-lord-10).
 
 export const MEETING_WINDOW_MS = MEETING_TIMEOUT_FRAMES * FRAME_MS;
 export const GOLLUM_SNEAKS_AWAY = 'GOLLUM quietly sneaks away.';
@@ -39,8 +45,6 @@ const LINE_YS = [8, 18];
 const LEFT_BUTTON_X = 16;
 const RIGHT_BUTTON_X = 110;
 const BUTTON_Y = 30;
-const BUTTON_HEIGHT = 10;
-const CHAR_WIDTH = 6;
 
 export type MeetingUi =
   | {
@@ -79,21 +83,28 @@ export const meetingLines = (sim: SimState, meeting: Meeting): string[] => {
   }
 };
 
+// A button is the area from (x, y - 1), 4 wider than its label and as
+// deep as the font (finding:ui-message-box-text-colour).
 const button = (
+  font: FontMetrics,
   box: Box,
   x: number,
   choice: MeetingAnswer,
   label: string
 ): MeetingButton => ({
   choice,
-  height: BUTTON_HEIGHT,
+  height: font.height,
   label,
-  width: label.length * CHAR_WIDTH,
+  width: measureText(font, label) + 4,
   x: box.x + x,
-  y: box.y + BUTTON_Y
+  y: box.y + BUTTON_Y - 1
 });
 
-export const openMeetingUi = (sim: SimState, now: number): MeetingUi | null => {
+export const openMeetingUi = (
+  font: FontMetrics,
+  sim: SimState,
+  now: number
+): MeetingUi | null => {
   const meeting = sim.meeting;
   if (!meeting) {
     return null;
@@ -110,15 +121,19 @@ export const openMeetingUi = (sim: SimState, now: number): MeetingUi | null => {
   const left =
     meeting.kind === 'follow'
       ? button(
+          font,
           box,
           LEFT_BUTTON_X,
           'follow',
           `Follow ${sim.roster[meeting.b]!.name}`
         )
-      : button(box, LEFT_BUTTON_X, 'go-there', 'Go there');
+      : button(font, box, LEFT_BUTTON_X, 'go-there', 'Go there');
   return {
     box,
-    buttons: [left, button(box, RIGHT_BUTTON_X, 'continue-on', 'Continue on')],
+    buttons: [
+      left,
+      button(font, box, RIGHT_BUTTON_X, 'continue-on', 'Continue on')
+    ],
     deadline: now + MEETING_WINDOW_MS,
     kind: 'window',
     lines
@@ -200,36 +215,30 @@ export const drawMeetingUi = (
   if (ui.kind === 'notice') {
     const box = drawWindowFrame(ctx, style, {
       height: 24,
-      width: ui.text.length * CHAR_WIDTH + 20,
+      width: measureText(style.font.metrics, ui.text) + 2 * TEXT_X,
       x: 10,
       y: 5
     });
-    ctx.fillText(ui.text, box.x + TEXT_X, box.y + 8, box.width - 2 * TEXT_X);
+    windowText(ctx, style, ui.text, box.x + TEXT_X, box.y + 8);
     return;
   }
   drawWindowFrame(ctx, style, ui.box);
   ui.lines.forEach((line, i) =>
-    ctx.fillText(
-      line,
-      ui.box.x + TEXT_X,
-      ui.box.y + LINE_YS[i]!,
-      ui.box.width - 2 * TEXT_X
-    )
+    windowText(ctx, style, line, ui.box.x + TEXT_X, ui.box.y + LINE_YS[i]!)
   );
+  // The label at (x + 2, y) inside a frame from (x - 1, y - 2), 6 wider
+  // and 2 deeper than the label (finding:ui-message-box-text-colour).
   ctx.strokeStyle = style.colours.text;
   ctx.lineWidth = 1;
   for (const candidate of ui.buttons) {
+    const x = candidate.x;
+    const y = candidate.y + 1;
     ctx.strokeRect(
-      candidate.x + 0.5,
-      candidate.y + 0.5,
-      candidate.width - 1,
-      candidate.height - 1
+      x - 1 + 0.5,
+      y - 2 + 0.5,
+      candidate.width + 2 - 1,
+      candidate.height + 2 - 1
     );
-    ctx.fillText(
-      candidate.label,
-      candidate.x + 3,
-      candidate.y + 1,
-      candidate.width - 6
-    );
+    windowText(ctx, style, candidate.label, x + 2, y);
   }
 };

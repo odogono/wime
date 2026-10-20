@@ -17,6 +17,7 @@ import {
   openProvisions,
   provisionsButtonAt
 } from './provisions-window';
+import { FIXED_FONT } from './test-font';
 
 // The provisions windows on a synthetic roster (docs/spec/objects.md):
 // Frodo (1) carries the Ring and an Elven blade, Sam (2) is asleep, a
@@ -101,7 +102,7 @@ describe('choosing the Character', () => {
   test('a Unit or a sleeping party asks for an active member', () => {
     const sim = world();
     expect(chooseCharacter(sim, [3], null)).toBeNull();
-    const window = openProvisions(sim, [2], null, 0);
+    const window = openProvisions(FIXED_FONT, sim, [2], null, 0);
     expect(window.kind === 'message' && window.lines).toEqual([
       'Please select an active member',
       'of the party.'
@@ -112,7 +113,7 @@ describe('choosing the Character', () => {
 describe('the menu', () => {
   // finding:ui-provisions-window
   test('opens at (168, 5) with the three choices and holds the clock', () => {
-    const window = openProvisions(world(), [1], null, 0);
+    const window = openProvisions(FIXED_FONT, world(), [1], null, 0);
     expect(window.box).toEqual({ height: 68, width: 112, x: 168, y: 5 });
     expect(window.kind === 'menu' && window.heading).toBe(
       'Would FRODO like to...'
@@ -134,7 +135,7 @@ describe('the menu', () => {
 describe('the lists', () => {
   // finding:ui-object-list-window, finding:ui-object-list-empty-messages
   test('Put Down lists the carried objects but the Ring', () => {
-    const window = openObjectList(world(), 1, 'put-down', HERE, 0);
+    const window = openObjectList(FIXED_FONT, world(), 1, 'put-down', HERE, 0);
     expect(window.box).toEqual({ height: 38, width: 176, x: 112, y: 5 });
     expect(window.kind === 'put-down' && window.heading).toBe(
       'Select the object for FRODO to drop:'
@@ -148,13 +149,13 @@ describe('the lists', () => {
     const sim = world();
     const lines = (window: ReturnType<typeof openObjectList>) =>
       window.kind === 'message' ? window.lines : null;
-    expect(lines(openObjectList(sim, 1, 'use', HERE, 0))).toEqual([
+    expect(lines(openObjectList(FIXED_FONT, sim, 1, 'use', HERE, 0))).toEqual([
       "FRODO has nothing which is 'usable'."
     ]);
-    expect(lines(openObjectList(sim, 1, 'take', { x: 0, y: 8 }, 0))).toEqual([
-      'There are no objects here.'
-    ]);
-    const empty = openObjectList(sim, 2, 'put-down', HERE, 0);
+    expect(
+      lines(openObjectList(FIXED_FONT, sim, 1, 'take', { x: 0, y: 8 }, 0))
+    ).toEqual(['There are no objects here.']);
+    const empty = openObjectList(FIXED_FONT, sim, 2, 'put-down', HERE, 0);
     expect(lines(empty)).toEqual(['SAM is unwilling to part with anything.']);
     expect(empty.until).toBe(MESSAGE_MS);
     expect(holdsClock(empty)).toBe(false);
@@ -165,11 +166,12 @@ describe('choosing an object', () => {
   test('Take picks it up with the original message', () => {
     // finding:objects-take-message
     const sim = world();
-    const list = openObjectList(sim, 1, 'take', HERE, 0);
+    const list = openObjectList(FIXED_FONT, sim, 1, 'take', HERE, 0);
     if (list.kind !== 'take') {
       throw new Error('expected a list');
     }
     const result = chooseObject(
+      FIXED_FONT,
       sim,
       1,
       list.kind,
@@ -189,11 +191,12 @@ describe('choosing an object', () => {
   test('Use words what the draught did', () => {
     // finding:objects-use-message-boxes
     const taken = world();
-    const take = openObjectList(taken, 1, 'take', HERE, 0);
+    const take = openObjectList(FIXED_FONT, taken, 1, 'take', HERE, 0);
     if (take.kind !== 'take') {
       throw new Error('expected a list');
     }
     const sim = chooseObject(
+      FIXED_FONT,
       taken,
       1,
       take.kind,
@@ -204,11 +207,12 @@ describe('choosing an object', () => {
       () => 0,
       0
     ).sim;
-    const list = openObjectList(sim, 1, 'use', HERE, 0);
+    const list = openObjectList(FIXED_FONT, sim, 1, 'use', HERE, 0);
     if (list.kind !== 'use') {
       throw new Error('expected a list');
     }
     const result = chooseObject(
+      FIXED_FONT,
       sim,
       1,
       list.kind,
@@ -241,7 +245,19 @@ const use = (
   object: number,
   resources: Map<string, string>,
   given = new Set<number>()
-) => chooseObject(sim, 1, 'use', object, HERE, resources, given, () => 0, 0);
+) =>
+  chooseObject(
+    FIXED_FONT,
+    sim,
+    1,
+    'use',
+    object,
+    HERE,
+    resources,
+    given,
+    () => 0,
+    0
+  );
 const lines = (result: ReturnType<typeof use>) =>
   result.window?.kind === 'message' ? result.window.lines : null;
 

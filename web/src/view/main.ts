@@ -103,6 +103,7 @@ import {
   turnEndingPage,
   type EndingScreen
 } from './ending-screen';
+import { drawText } from './font';
 import {
   drawInfoWindow,
   forceWindowLines,
@@ -168,7 +169,7 @@ import {
   stepWarEventMessage,
   type WarEventMessage
 } from './war-event-message';
-import { drawWindowFrame, windowStyle } from './window-frame';
+import { drawWindowFrame, windowStyle, windowText } from './window-frame';
 
 const canvas = document.querySelector<HTMLCanvasElement>('#screen');
 if (!canvas) {
@@ -176,16 +177,14 @@ if (!canvas) {
 }
 const screen = createScreen(canvas);
 
+// Loading and failure notes are shown in the page, not on the canvas:
+// the game's font is one of the assets being loaded.
 const drawMessage = (lines: string[]): void => {
-  screen.resize();
-  const ctx = screen.buffer;
-  ctx.fillStyle = '#000';
-  ctx.fillRect(0, 0, 320, 200);
-  ctx.fillStyle = '#fff';
-  ctx.font = '8px monospace';
-  ctx.textBaseline = 'top';
-  lines.forEach((line, i) => ctx.fillText(line, 8, 8 + i * 10));
-  screen.present();
+  const status = document.querySelector<HTMLPreElement>('#status');
+  if (status) {
+    status.textContent = lines.join('\n');
+    status.hidden = lines.length === 0;
+  }
 };
 
 const iconAt = (
@@ -524,6 +523,7 @@ const run = (
       } else if (typeof pressed.value === 'number') {
         if (provisions.kind !== 'menu') {
           ({ sim, window: provisions } = chooseObject(
+            assets.window.font.metrics,
             sim,
             provisions.chosen,
             provisions.kind,
@@ -537,6 +537,7 @@ const run = (
         }
       } else {
         provisions = openObjectList(
+          assets.window.font.metrics,
           sim,
           provisions.chosen,
           pressed.value,
@@ -546,7 +547,13 @@ const run = (
       }
     } else if (icon?.name === 'sack' && !battle && !talk && !sim.fight) {
       // The sack is ignored during a fight (finding:ui-provisions-window).
-      provisions = openProvisions(sim, party, chosenCharacter, now);
+      provisions = openProvisions(
+        assets.window.font.metrics,
+        sim,
+        party,
+        chosenCharacter,
+        now
+      );
       if (provisions.kind === 'menu') {
         chosenCharacter = provisions.chosen;
       }
@@ -658,7 +665,9 @@ const run = (
     const force = forcesOnMap(sim.roster).find(
       candidate => candidate.leader.index === current.leaderIndex
     );
-    return force ? layoutOrderWindow(force, sim.places) : null;
+    return force
+      ? layoutOrderWindow(assets.window.font.metrics, force, sim.places)
+      : null;
   };
 
   const setOrder = (next: OrderState): void => {
@@ -881,9 +890,12 @@ const run = (
         const target = targetAt(released, forcesOnMap(sim.roster));
         infoWindow =
           target?.kind === 'force'
-            ? layoutInfoWindow(forceWindowLines(target.force))
+            ? layoutInfoWindow(
+                assets.window.font.metrics,
+                forceWindowLines(target.force)
+              )
             : target
-              ? layoutInfoWindow([target.name])
+              ? layoutInfoWindow(assets.window.font.metrics, [target.name])
               : null;
       }
     }
@@ -986,12 +998,9 @@ const run = (
 
   const drawOverlay = (forces: Force[]): void => {
     const ctx = screen.buffer;
-    ctx.font = '8px monospace';
-    ctx.textBaseline = 'top';
-    ctx.fillStyle = '#fff';
     // The date line sits in the strip below the 192px map view
-    // (provisional placement, docs/spec/time.md).
-    ctx.fillText(formatClock(sim.clock), 2, 192);
+    // (provisional placement and colour, docs/spec/time.md).
+    drawText(ctx, assets.window.font, formatClock(sim.clock), 2, 192, '#fff');
     if (driver.paused && order.kind === 'idle') {
       const box = drawWindowFrame(ctx, assets.window, {
         height: 24,
@@ -999,10 +1008,20 @@ const run = (
         x: 8,
         y: 8
       });
-      ctx.fillText('The Game is Paused.', box.x + 10, box.y + 8);
+      windowText(
+        ctx,
+        assets.window,
+        'The Game is Paused.',
+        box.x + 10,
+        box.y + 8
+      );
     }
     if (order.kind === 'pick-force') {
-      drawInfoWindow(ctx, assets.window, layoutInfoWindow(['Select a Force']));
+      drawInfoWindow(
+        ctx,
+        assets.window,
+        layoutInfoWindow(assets.window.font.metrics, ['Select a Force'])
+      );
     }
     if (order.kind === 'pick-destination') {
       const window = orderWindowFor();
@@ -1027,7 +1046,11 @@ const run = (
       const overIcons = pointer !== null && isOverIcons(pointer, placements);
       const target = overIcons ? null : targetAt(pointer, forces);
       if (target) {
-        drawInfoWindow(ctx, assets.window, layoutInfoWindow([target.name]));
+        drawInfoWindow(
+          ctx,
+          assets.window,
+          layoutInfoWindow(assets.window.font.metrics, [target.name])
+        );
       }
     }
     if (infoWindow) {
@@ -1252,7 +1275,7 @@ const run = (
     }
     // A meeting, new or restored, opens its window.
     if (sim.meeting && !meetingHoldsTime(meetingUi)) {
-      meetingUi = openMeetingUi(sim, now);
+      meetingUi = openMeetingUi(assets.window.font.metrics, sim, now);
       speedWindow = null;
       infoWindow = null;
       drag = null;
@@ -1355,7 +1378,8 @@ try {
       ...fullMap,
       window: windowStyle(
         blackToTransparent(fullMap.windowFrame),
-        fullMap.palette.hex
+        fullMap.palette.hex,
+        fullMap.font
       ),
       // Their black backgrounds are masked out like the Campaign Level's
       // icon sheet; how the original masked them is provisional.
@@ -1366,6 +1390,7 @@ try {
     },
     animation
   );
+  drawMessage([]);
 } catch (error) {
   drawMessage([
     'Campaign Level assets are missing.',

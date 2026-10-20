@@ -1,11 +1,10 @@
 import { GAME_SPEEDS, type GameSpeed } from './tick-driver';
-import { drawWindowFrame, type WindowStyle } from './window-frame';
+import { drawWindowFrame, windowText, type WindowStyle } from './window-frame';
 
 // The Game Speed window the hourglass icon opens (docs/spec/time.md):
 // it lists the speeds, clicking one sets it and closes the window.
 // It is framed as every window is (finding:ui-window-frame-tiles);
-// its layout and lettering are provisional, as the original's has not
-// been traced. The last line pauses or resumes (the original pauses
+// its layout is provisional, as the original's has not been traced. The last line pauses or resumes (the original pauses
 // with the P key).
 
 export interface SpeedWindowOption {
@@ -85,7 +84,13 @@ export const drawSpeedWindow = (
       option.value === 'pause'
         ? paused
         : option.value === currentSpeed && !paused;
-    ctx.fillStyle = selected ? style.colours.red : style.colours.text;
-    ctx.fillText(option.label, option.x + 2, option.y + 1);
+    windowText(
+      ctx,
+      style,
+      option.label,
+      option.x + 2,
+      option.y + 1,
+      selected ? style.colours.red : style.colours.text
+    );
   }
 };

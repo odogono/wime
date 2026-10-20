@@ -1,4 +1,5 @@
 import type { AnimationTables } from './animation-scene';
+import type { Font, FontMetrics } from './font';
 import {
   ANIMATION_PARCHMENT,
   windowStyle,
@@ -109,6 +110,7 @@ export interface FullMapPalette {
 }
 
 export interface FullMapAssets {
+  font: Font;
   icons: {
     image: HTMLImageElement;
     name: (typeof FULL_MAP_ICON_NAMES)[number];
@@ -175,6 +177,23 @@ const fetchJson = async <T>(url: string): Promise<T> => {
     throw new Error(`Failed to load ${url}: ${response.status}`);
   }
   return (await response.json()) as T;
+};
+
+// The text font, lord/10 (finding:ui-text-font-lord-10): its glyph
+// sheet and metrics.
+const loadFont = async (manifest: Manifest, base: string): Promise<Font> => {
+  const font = (kind: string): ManifestAsset =>
+    requireAsset(
+      manifest.assets.find(
+        asset => asset.kind === kind && asset.name === 'lord-10'
+      ),
+      `lord/10 ${kind}`
+    );
+  const [sheet, metrics] = await Promise.all([
+    loadImage(base + font('font-sheet').path),
+    fetchJson<FontMetrics>(base + font('font-metrics').path)
+  ]);
+  return { metrics, sheet };
 };
 
 // Pure black is colour 0 of the sheet's palette, its background. The
@@ -250,7 +269,8 @@ export const loadCampaignAssets = async (
     forceIconSheet,
     texts,
     palette,
-    frame
+    frame,
+    font
   ] = await Promise.all([
     loadImage(base + atlasAsset.path),
     fetchJson<Tilemap>(base + tilemapAsset.path),
@@ -259,7 +279,8 @@ export const loadCampaignAssets = async (
     loadImage(base + forceIconsAsset.path),
     fetchJson<TextResources>(base + textAsset.path),
     fetchJson<{ hex: string[] }>(base + paletteAsset.path),
-    loadImage(base + frameAsset.path)
+    loadImage(base + frameAsset.path),
+    loadFont(manifest, base)
   ]);
 
   const icons: CampaignIcon[] = [];
@@ -278,7 +299,7 @@ export const loadCampaignAssets = async (
     texts: textsByKey(texts),
     tilemap,
     tiles,
-    window: windowStyle(blackToTransparent(frame), palette.hex)
+    window: windowStyle(blackToTransparent(frame), palette.hex, font)
   };
 };
 
@@ -311,7 +332,7 @@ export const loadFullMapAssets = async (
     name
   }));
 
-  const [map, palette, frame, icons] = await Promise.all([
+  const [map, palette, frame, icons, font] = await Promise.all([
     loadImage(base + mapAsset.path),
     fetchJson<FullMapPalette>(base + paletteAsset.path),
     loadImage(base + frameAsset.path),
@@ -320,9 +341,10 @@ export const loadFullMapAssets = async (
         image: await loadImage(base + asset.path),
         name
       }))
-    )
+    ),
+    loadFont(manifest, base)
   ]);
-  return { icons, map, palette, windowFrame: frame };
+  return { font, icons, map, palette, windowFrame: frame };
 };
 
 // One figure set: its sheet and where each frame lies in it
@@ -387,11 +409,12 @@ export const loadAnimationAssets = async (
       manifest.assets.find(asset => asset.path === `animation/${name}`),
       `Animation Level ${name}`
     ).path;
-  const [palette, tables, figures, frame] = await Promise.all([
+  const [palette, tables, figures, frame, font] = await Promise.all([
     fetchJson<{ hex: string[] }>(animationPath('palette.json')),
     fetchJson<AnimationTables>(animationPath('tables.json')),
     fetchJson<FiguresJson>(animationPath('figures.json')),
-    loadImage(animationPath('window-frame.png'))
+    loadImage(animationPath('window-frame.png')),
+    loadFont(manifest, base)
   ]);
   const stripAssets = manifest.assets.filter(
     asset =>
@@ -435,6 +458,6 @@ export const loadAnimationAssets = async (
     palette: palette.hex,
     strips: new Map(strips),
     tables,
-    window: windowStyle(frame, palette.hex, ANIMATION_PARCHMENT)
+    window: windowStyle(frame, palette.hex, font, ANIMATION_PARCHMENT)
   };
 };

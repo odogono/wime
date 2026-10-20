@@ -1,5 +1,9 @@
-import { drawHiresText } from './mirror-window';
-import { drawWindowFrame, type WindowStyle } from './window-frame';
+import { measureLines } from './font';
+import {
+  drawWindowFrame,
+  hiresWindowText,
+  type WindowStyle
+} from './window-frame';
 
 // The Archive window the Full Map Level's scroll opens
 // (finding:ui-archive-window), drawn into the 640 by 200 hi-res buffer
@@ -7,7 +11,8 @@ import { drawWindowFrame, type WindowStyle } from './window-frame';
 // asks "Would you like to..." with two buttons; choosing one answers
 // with a message, and a press anywhere clears it. The box is the
 // original's, framed as every window is (finding:ui-window-frame-tiles);
-// the buttons and lettering are provisional.
+// the buttons are provisional, and so is its lettering, which the
+// original draws in topaz/8 (finding:ui-text-font-lord-10).
 
 export type ArchiveChoice = 'restore' | 'save';
 
@@ -48,14 +53,13 @@ export const ARCHIVE_MESSAGES = {
 // The original opens the menu at (168, 5), 112 wide and 53 deep
 // (code+0x07eb8); on the Full Map Level x and width are doubled
 // (finding:ui-window-box-geometry). Its text is 20 hi-res pixels in
-// and 8 down. A message window grows to its longest line, about 8
-// hi-res pixels a character, from the same right edge.
+// and 8 down. A message window grows to its longest line from the same
+// right edge.
 const X = 336;
 const Y = 5;
 const WIDTH = 224;
 const HEIGHT = 53;
 const RIGHT = X + WIDTH;
-const CHAR_WIDTH = 8;
 const INSET_X = 20;
 const INSET_Y = 8;
 const ROW_HEIGHT = 9;
@@ -106,7 +110,7 @@ export const drawArchiveWindow = (
   if (window.kind === 'message') {
     const width = Math.max(
       WIDTH,
-      INSET_X * 2 + CHAR_WIDTH * Math.max(...window.lines.map(l => l.length))
+      INSET_X * 2 + 2 * measureLines(style.font.metrics, window.lines)
     );
     const box = drawWindowFrame(ctx, style, {
       height: INSET_Y * 2 + window.lines.length * ROW_HEIGHT,
@@ -115,8 +119,9 @@ export const drawArchiveWindow = (
       y: Y
     });
     window.lines.forEach((line, i) => {
-      drawHiresText(
+      hiresWindowText(
         ctx,
+        style,
         line,
         box.x + INSET_X,
         box.y + INSET_Y + i * ROW_HEIGHT
@@ -125,9 +130,14 @@ export const drawArchiveWindow = (
     return;
   }
   drawWindowFrame(ctx, style, { height: HEIGHT, width: WIDTH, x: X, y: Y });
-  ctx.fillStyle = style.colours.red;
-  drawHiresText(ctx, ARCHIVE_HEADING, X + INSET_X, Y + INSET_Y);
-  ctx.fillStyle = style.colours.text;
+  hiresWindowText(
+    ctx,
+    style,
+    ARCHIVE_HEADING,
+    X + INSET_X,
+    Y + INSET_Y,
+    style.colours.red
+  );
   ctx.strokeStyle = style.colours.text;
   ctx.lineWidth = 1;
   for (const button of window.buttons) {
@@ -137,6 +147,6 @@ export const drawArchiveWindow = (
       button.width - 1,
       button.height - 1
     );
-    drawHiresText(ctx, button.label, button.x + 3, button.y + 2);
+    hiresWindowText(ctx, style, button.label, button.x + 3, button.y + 2);
   }
 };
