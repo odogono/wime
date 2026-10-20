@@ -1,5 +1,5 @@
 // Animation Level figures and the scripts that move them
-// (finding:graphics-figure-animation-scripts), following the original's
+// (finding:graphics-spell-flash), following the original's
 // interpreter at code+0x0bed8. Times are in vertical blanks, 50 a second.
 
 export interface FrameRecord {
@@ -30,8 +30,8 @@ export interface Figure {
   // Steps per frame the figure works toward, and its current delay.
   speed: number;
   // How many times its script has run event 0x10, which casts a spell:
-  // the original spawns a flash (FRML 18) and plays Magic
-  // (finding:sound-fight-effects).
+  // spawning a flash (FRML 18) and playing Magic
+  // (finding:graphics-spell-flash, finding:sound-fight-effects).
   spells?: number;
   // Top left of the current frame.
   x: number;
@@ -51,7 +51,15 @@ const FRAME_18: Record<number, number> = {
   5: 17
 };
 
+// The figure set a spell's flash plays (finding:graphics-spell-flash).
+export const SPELL_FLASH = 18;
+
 export interface ScriptWorld {
+  // A spell adds a figure and moves the caster's battle line.
+  castSpell?: (flash: Figure, line: 'line1' | 'line2', x: number) => void;
+  // Fight delays converge on speed without the walking party's laggard
+  // adjustment (finding:graphics-spell-flash).
+  fighting?: boolean;
   frames: (frml: number) => FrameRecord[];
   // The x the slowest party member is measured against (code+0x0c038):
   // the party's count times 16 plus its leftmost x.
@@ -160,10 +168,13 @@ export const stepFigure = (
           let delay = figure.delay;
           const held = (figure.depth & 1) === 1;
           if (!held) {
-            if (x > world.laggardLine && delay < 30) {
+            if (!world.fighting && x > world.laggardLine && delay < 30) {
               delay++;
             }
-            if (x < world.laggardLine && delay > figure.speed) {
+            if (
+              (world.fighting || x < world.laggardLine) &&
+              delay > figure.speed
+            ) {
               delay--;
             }
           }
@@ -211,6 +222,7 @@ export const stepFigure = (
         case 0x80: {
           figure = { ...figure, ...scriptEvent(n, figure) };
           if (n === 0x10) {
+            castSpell({ ...figure, flipped, x }, world);
             figure = { ...figure, spells: (figure.spells ?? 0) + 1 };
           }
           if (n === 0x0e) {
@@ -248,6 +260,29 @@ export const stepFigure = (
     }
   }
   return { ...figure, flipped, next: STOPPED, pc, returns, x };
+};
+
+// Event 0x10 starts FRML 18 at a script entry, not an image frame.
+// Facing picks the entry and launch point; Balrogs shoot lower.
+// The flash travels to the opposite battle line (finding:graphics-spell-flash).
+const castSpell = (caster: Figure, world: ScriptWorld): void => {
+  const width = world.frames(caster.frml)[caster.frame]?.width ?? 0;
+  const x = caster.flipped ? caster.x : caster.x + width;
+  const y = caster.y + 20 + (!caster.flipped && caster.frml === 12 ? 30 : 0);
+  const flash = newFigure(
+    world,
+    SPELL_FLASH,
+    caster.flipped ? 0x17 : 0x0a,
+    x,
+    y,
+    150,
+    0
+  );
+  world.castSpell?.(
+    { ...flash, flipped: !caster.flipped },
+    caster.flipped ? 'line2' : 'line1',
+    caster.flipped ? caster.x - 30 : x
+  );
 };
 
 const condition = (

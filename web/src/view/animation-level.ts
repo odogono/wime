@@ -13,6 +13,7 @@ import {
 } from './animation-scene';
 import type { AnimationAssets, AnimationIcon } from './assets';
 import {
+  SPELL_FLASH,
   STOPPED,
   newFigure,
   startScript,
@@ -140,6 +141,8 @@ export const animationIconAt = (
 // The watched Force's figures crossing the scene.
 export interface Stage {
   figures: Figure[];
+  // A spell moves its caster's battle line (finding:graphics-spell-flash).
+  lines?: Pick<ScriptWorld, 'line1' | 'line2'>;
   // The party's count, for the laggard line (data+0x555d).
   party: number;
 }
@@ -237,13 +240,35 @@ export const stepStage = (
   vbl: number
 ): Stage => {
   const laggardLine = stage.party * 16 + leftmostX(stage);
+  let figures = stage.figures.slice();
+  const scripts: ScriptWorld = {
+    ...world,
+    ...stage.lines,
+    castSpell: (flash, line, x) => {
+      // Remove only spent flashes; combatant indices stay stable for combat.
+      // The original does this on each cast (finding:graphics-spell-flash).
+      figures = figures.filter(
+        figure => figure.frml !== SPELL_FLASH || figure.x <= 320
+      );
+      figures.push(flash);
+      scripts[line] = x;
+    },
+    laggardLine
+  };
+  // New flashes run alongside the other figures, including on this update.
+  for (let i = 0; i < figures.length; i++) {
+    const figure = figures[i]!;
+    if (figure.next !== STOPPED && vbl >= figure.next) {
+      // A cast can drop spent flashes and shift indices, so find the
+      // figure again after stepping it.
+      const stepped = stepFigure(figure, scripts, vbl);
+      figures[figures.indexOf(figure)] = stepped;
+    }
+  }
   return {
     ...stage,
-    figures: stage.figures.map(figure =>
-      figure.next !== STOPPED && vbl >= figure.next
-        ? stepFigure(figure, { ...world, laggardLine }, vbl)
-        : figure
-    )
+    figures,
+    lines: { line1: scripts.line1, line2: scripts.line2 }
   };
 };
 

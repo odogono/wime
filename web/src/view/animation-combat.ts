@@ -11,6 +11,7 @@ import {
 } from './animation-level';
 import type { AnimationAssets } from './assets';
 import {
+  SPELL_FLASH,
   STOPPED,
   newFigure,
   startScript,
@@ -101,7 +102,7 @@ export const spawnBattle = (
     rows,
     stage: { figures, party: slots.good },
     vbl,
-    world: { ...world, line1, line2 }
+    world: { ...world, fighting: true, line1, line2 }
   };
 };
 
@@ -131,6 +132,10 @@ export const stepBattle = (
   const elapsed = Math.max(0, vbl - battle.vbl);
   const { fallen } = markFallen(battle, fight);
   const figures = stepped.figures.map((figure, i) => {
+    // Flashes follow their own scripts, outside the fight rows.
+    if (figure.frml === SPELL_FLASH) {
+      return figure;
+    }
     if (fallen[i]) {
       return { ...battle.stage.figures[i]!, next: STOPPED };
     }
@@ -159,7 +164,8 @@ export const stepBattle = (
     return { ...figure, x: home + direction * (retreat ? -35 : lunge) };
   });
   const arrived = figures.every(
-    (figure, i) => fallen[i] || figure.x === battle.homes[i]
+    (figure, i) =>
+      figure.frml === SPELL_FLASH || fallen[i] || figure.x === battle.homes[i]
   );
   return {
     ...battle,
@@ -208,7 +214,9 @@ export const walkAfterBattle = (
   vbl: number
 ): Stage => ({
   figures: battle.stage.figures.flatMap((figure, i) =>
-    !battle.fallen[i] && fight.rows[battle.rows[i]!]!.side === 'good'
+    figure.frml !== SPELL_FLASH &&
+    !battle.fallen[i] &&
+    fight.rows[battle.rows[i]!]!.side === 'good'
       ? [
           {
             ...startScript({ ...figure, next: STOPPED, returns: [] }, 2),
