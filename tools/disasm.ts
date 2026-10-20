@@ -7,7 +7,8 @@
 // addressed as in docs/re/README.md. A `d(a4)` operand is annotated with the
 // data offset it reaches, and addresses named in docs/re/labels.md are
 // labelled, so `rg 'data\+0x1de8' extracted_asm/code.asm` finds every access
-// to a table. code.bin and data.bin hold the raw hunk contents.
+// to a table. A call through the jump table also names the routine it
+// reaches (`; data+0x0252 jt_mulu32 -> code+0x1bb76 mulu32`). code.bin and data.bin hold the raw hunk contents.
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
@@ -106,9 +107,25 @@ export const disassembleCode = async (
   }
 };
 
+// The jump table at data+0x0000 is 100 `jmp abs.l` entries of 6 bytes, each
+// holding the code offset it reaches before relocation. Maps each entry's
+// data offset to that code offset.
+export const jumpTargets = (data: Uint8Array): Map<number, number> => {
+  const targets = new Map<number, number>();
+  const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
+  for (let entry = 0; entry + 6 <= data.length; entry += 6) {
+    if (view.getUint16(entry) !== 0x4e_f9) {
+      break;
+    }
+    targets.set(entry, view.getUint32(entry + 2));
+  }
+  return targets;
+};
+
 export const formatListing = (
   instructions: Instruction[],
-  labels: Labels
+  labels: Labels,
+  jumps: Map<number, number> = new Map()
 ): string => {
   const lines: string[] = [];
   for (const { address, bytes, mnemonic, operands } of instructions) {
@@ -119,7 +136,14 @@ export const formatListing = (
     const notes = a4Targets(operands).map(offset => {
       const target = dataAddress(offset);
       const name = labels.get(target);
-      return name ? `${target} ${name}` : target;
+      const note = name ? `${target} ${name}` : target;
+      const jump = jumps.get(offset);
+      if (jump === undefined) {
+        return note;
+      }
+      const callee = codeAddress(jump);
+      const calleeName = labels.get(callee);
+      return `${note} -> ${callee}${calleeName ? ` ${calleeName}` : ''}`;
     });
     const hex = bytes.map(byte => byte.toString(16).padStart(2, '0')).join('');
     const text = `${mnemonic} ${operands}`.trim();
@@ -150,7 +174,10 @@ export const main = async (
   const instructions = await disassembleCode(code.data);
   const labels = parseLabels(readFileSync(LABELS_FILE, 'utf8'));
   mkdirSync(out, { recursive: true });
-  writeFileSync(join(out, 'code.asm'), formatListing(instructions, labels));
+  writeFileSync(
+    join(out, 'code.asm'),
+    formatListing(instructions, labels, jumpTargets(data.data))
+  );
   writeFileSync(join(out, 'code.bin'), code.data);
   writeFileSync(join(out, 'data.bin'), data.data);
   console.log(

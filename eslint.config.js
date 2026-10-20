@@ -11,6 +11,8 @@ export default [
       'build/*',
       'extracted_graphics/*',
       'extracted_asm/*',
+      // JXA scripts for osascript, with its own globals.
+      'tools/fs-uae/*.jxa.js',
       'extracted_text/*'
     ]
   },

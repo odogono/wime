@@ -2,6 +2,27 @@
 
 Names given to addresses in the Reference Build's executable during analysis ([address format](README.md#addresses)). A name is ours, not the original's: the executable has no symbols. Add to this list as functions and variables are identified.
 
+## Subsystems
+
+Where each part of the game sits in the code hunk, from the labels below. Start a search here, then read with `bun run asm`.
+
+| Code range          | Subsystem                                                       |
+| ------------------- | --------------------------------------------------------------- |
+| `0x00006`–`0x00d3c` | Animation Level scenes and figure steps                         |
+| `0x0296c`–`0x03240` | game end, random numbers                                        |
+| `0x037d8`–`0x039a6` | figure and picture objects                                      |
+| `0x04528`–`0x04dde` | status rows and Force lists                                     |
+| `0x05be2`–`0x06172` | message boxes and window frames                                 |
+| `0x06b5c`–`0x07dc4` | objects: picking up, healing, the palantír, Galadriel's Mirror  |
+| `0x07eb0`–`0x08d12` | the Archive window, save and restore                            |
+| `0x09e02`–`0x0bf84` | entering, running and leaving the Animation Level               |
+| `0x0d26c`–`0x0d718` | Campaign Level icons and the Full Map Level                     |
+| `0x0d894`–`0x0e0c0` | the daily checks: the Council of Elrond, Mount Doom, War Events |
+| `0x0e306`–`0x0e916` | the map grid, routes, triggers and the movement tick            |
+| `0x0f04e`–`0x0f382` | finding Encounters, evasion                                     |
+| `0x1003c`–`0x134cc` | combat: the window, rounds, losses, the Ring, Strongholds       |
+| `0x1afb0`–`0x1bb76` | C runtime and arithmetic                                        |
+
 ## Code
 
 | Address        | Label                | What it does                                                                             |

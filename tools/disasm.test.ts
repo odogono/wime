@@ -4,6 +4,7 @@ import {
   a4Targets,
   disassembleCode,
   formatListing,
+  jumpTargets,
   parseLabels
 } from './disasm';
 
@@ -48,4 +49,24 @@ test('disassembles past words that are not instructions', async () => {
   expect(listing).toContain('lea.l -$6216(a4), a0  ; data+0x1de8 roster');
   expect(listing).toContain('code+0x00004  ffff');
   expect(listing).toContain('done:\ncode+0x00006  4e75                  rts');
+});
+
+test('names the routine a jump table call reaches', async () => {
+  const data = new Uint8Array([
+    0x4e, 0xf9, 0, 0, 0, 0, 0x4e, 0xf9, 0, 0, 0, 0x08
+  ]);
+  expect(jumpTargets(data)).toEqual(
+    new Map([
+      [0, 0],
+      [6, 8]
+    ])
+  );
+  // jsr -$7ff8(a4) reaches data+0x0006, the second entry.
+  const code = new Uint8Array([0x4e, 0xac, 0x80, 0x08]);
+  const listing = formatListing(
+    await disassembleCode(code),
+    new Map([['code+0x00008', 'target']]),
+    jumpTargets(data)
+  );
+  expect(listing).toContain('; data+0x0006 -> code+0x00008 target');
 });
