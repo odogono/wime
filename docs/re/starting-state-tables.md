@@ -94,7 +94,7 @@ The Place at a point is found by `code+0x0e342`: the point is rounded down to it
 
 ## Object record (8 bytes, `0x4342 + 8 × index`)
 
-A name pointer and four bytes not yet decoded. Entries 0–15 are the objects whose bits make up the roster's object word; entry 16 is "other useful objects".
+A name pointer, then byte 4 (50–65, not traced, probably the picture), byte 5 the kind of use, byte 6 usable and byte 7 used up (finding:objects-use-table). Entries 0–15 are the objects whose bits make up the roster's object word; entry 16 is "other useful objects".
 
 ## Speed table (`0x41c4`)
 

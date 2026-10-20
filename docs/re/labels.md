@@ -44,16 +44,22 @@ Where each part of the game sits in the code hunk, from the labels below. Start 
 | `code+0x05be2` | `openMessageBox`     | waits for the open box to expire, then opens a new one                                   |
 | `code+0x06172` | `showMessageBox`     | shows the box; with a button pair, sets the default and its deadline                     |
 | `code+0x06b5c` | `pickUpObject`       | takes an object from the placement table into the object word                            |
+| `code+0x06d8e` | `putDownObject`      | writes an object into the first free placement slot                                      |
+| `code+0x06e60` | `useObject`          | switches on the object record's kind of use                                              |
 | `code+0x06e9c` | `heal`               | sets health to maximum, "… feels much better."                                           |
 | `code+0x070bc` | `palantirVision`     | "Looking deep into the crystal, … sees a vision:"; may set war event bit 7               |
 | `code+0x07dc4` | `galadrielsMirror`   | the Full Map eye: "In the still surface of the pool…"                                    |
 | `code+0x07eb0` | `archiveWindow`      | "Would you like to..." restore or save                                                   |
+| `code+0x08616` | `putDownList`        | "Select the object for … to drop:"                                                       |
+| `code+0x087d6` | `takeList`           | "Select the object for … to get:"                                                        |
+| `code+0x089d6` | `useList`            | "Select the object for … to use:"                                                        |
 | `code+0x08be0` | `saveGame`           | writes `data+0x1de8–0x3e71` to `A:ARCHIVE.DAT`                                           |
 | `code+0x08d12` | `restoreGame`        | reads it back and restores the name pointers                                             |
 | `code+0x09e02` | `enterAnimation`     | sets mode 3 and places the eye, map and sack icons                                       |
 | `code+0x09e92` | `leaveAnimation`     | removes the icons and scene, frees FRML 4, 8, 16 and 18                                  |
 | `code+0x09ffa` | `spawnFigures`       | adds a roster entry's figures to the scene                                               |
 | `code+0x0b102` | `animationLoop`      | the Animation Level loop                                                                 |
+| `code+0x0b7de` | `adviceTip`          | one of BScene CSTR 8–27 not yet given                                                    |
 | `code+0x0bf84` | `runFigureScript`    | steps a figure's animation script                                                        |
 | `code+0x0d26c` | `drawCampaignForces` | draws each awake leader's icon; blinks the player's                                      |
 | `code+0x0d452` | `drawFullMap`        | blits AMaps IMAG 2, then the dots                                                        |

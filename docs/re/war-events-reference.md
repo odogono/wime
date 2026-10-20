@@ -45,7 +45,7 @@ Times below are quarter-hours (32 is 8 a.m.). The date line shows the next hour 
 Not played:
 
 - 8 a.m. passing on the Animation Level (finding:ai-war-events-checked-only-on-campaign-level).
-- The Palantír roll.
+- The Palantír roll, played later in [the objects reference](objects-reference.md).
 - Two queued message boxes. The daily check can raise only one War Event message.
 
 These rest on the code alone.
