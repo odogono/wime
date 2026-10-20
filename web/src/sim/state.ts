@@ -15,6 +15,7 @@ import {
   INITIAL_WAR_EVENTS,
   dailyWarEvents,
   isDailyCheck,
+  tripwires,
   type WarEventAnnouncement,
   type WarEvents
 } from './war-events';
@@ -127,6 +128,11 @@ export const tickSim = (state: SimState): SimState => {
     state,
     state.sweepFrom,
     (moved, index) => {
+      moved.warEvents = tripwires(
+        moved.warEvents,
+        moved.roster[index]!,
+        moved.clock.day
+      );
       const fight = findFight(moved, index);
       return fight ? startFight(moved, fight) : null;
     },
