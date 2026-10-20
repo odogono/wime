@@ -10,6 +10,13 @@ import {
   type PlaceKind,
   type RosterEntry
 } from './starting-state';
+import {
+  INITIAL_WAR_EVENTS,
+  dailyWarEvents,
+  isDailyCheck,
+  type WarEventAnnouncement,
+  type WarEvents
+} from './war-events';
 
 // All simulation state, kept serialisable at all times (ADR-0002):
 // plain data only, so JSON round-trips it exactly. The roster, Places
@@ -17,6 +24,9 @@ import {
 // loaded by loadStartingState); Forces are derived from the roster's
 // leader chains whenever they are needed (#9).
 export interface SimState {
+  // War Events to tell the player of, oldest first, until the view
+  // takes them (takeAnnouncements).
+  announcements: WarEventAnnouncement[];
   clock: Clock;
   // How the game ended, or null while it goes on. Nothing moves once
   // it has ended (docs/spec/combat.md, "Endings").
@@ -42,6 +52,7 @@ export interface SimState {
   // The Campaign Level tile grid movement steers over, or null for a
   // clock-only game with no map loaded.
   tilemap: Tilemap | null;
+  warEvents: WarEvents;
 }
 
 // Start a game. With no starting state the world is empty and only the
@@ -55,6 +66,7 @@ export const createSim = (
 ): SimState => {
   if (startingState === undefined) {
     return {
+      announcements: [],
       clock: { ...INITIAL_CLOCK },
       ending: null,
       fight: null,
@@ -70,11 +82,13 @@ export const createSim = (
       },
       sweepFrom: 0,
       terrainByTile: [],
-      tilemap: tilemap ?? null
+      tilemap: tilemap ?? null,
+      warEvents: { ...INITIAL_WAR_EVENTS, days: [...INITIAL_WAR_EVENTS.days] }
     };
   }
   const start = loadStartingState(startingState);
   return {
+    announcements: [],
     clock: {
       day: start.clock.day,
       quarterHour: start.clock.quarterHour
@@ -90,7 +104,8 @@ export const createSim = (
     speeds: start.speeds,
     sweepFrom: 0,
     terrainByTile: start.terrainByTile,
-    tilemap: tilemap ?? null
+    tilemap: tilemap ?? null,
+    warEvents: start.warEvents
   };
 };
 
@@ -100,7 +115,9 @@ export const createSim = (
 // (finding:time-clock-advances-after-each-roster-sweep). A step that
 // starts a fight stops the sweep and the clock until the fight is
 // over; the next tick carries on from the following entry
-// (docs/spec/combat.md).
+// (docs/spec/combat.md). When the clock reaches 8 a.m. the daily War
+// Event check runs before the next sweep
+// (finding:time-daily-check-opens-the-8am-sweep).
 export const tickSim = (state: SimState): SimState => {
   if (state.fight || state.ending) {
     return state;
@@ -116,8 +133,32 @@ export const tickSim = (state: SimState): SimState => {
   if (stoppedAt !== null) {
     return { ...world, sweepFrom: stoppedAt + 1 };
   }
-  return { ...world, clock: tickClock(world.clock), sweepFrom: 0 };
+  return dailyChecks({ ...world, clock: tickClock(world.clock), sweepFrom: 0 });
 };
+
+const dailyChecks = (state: SimState): SimState => {
+  if (!isDailyCheck(state.clock)) {
+    return state;
+  }
+  const { announcements, events } = dailyWarEvents(
+    state.warEvents,
+    state.roster,
+    state.clock.day
+  );
+  return {
+    ...state,
+    announcements: [...state.announcements, ...announcements],
+    warEvents: events
+  };
+};
+
+// Hand the waiting announcements to the view, each exactly once.
+export const takeAnnouncements = (
+  state: SimState
+): { announcements: WarEventAnnouncement[]; state: SimState } => ({
+  announcements: state.announcements,
+  state: state.announcements.length ? { ...state, announcements: [] } : state
+});
 
 export const serializeSim = (state: SimState): string => JSON.stringify(state);
 
@@ -138,6 +179,7 @@ export const deserializeSim = (text: string): SimState => {
   const legacy = parsed as Partial<SimState>;
   return {
     ...parsed,
+    announcements: legacy.announcements ?? [],
     ending: legacy.ending ?? null,
     fight: legacy.fight ?? null,
     roster: parsed.roster.map(entry => ({
@@ -151,6 +193,10 @@ export const deserializeSim = (text: string): SimState => {
     },
     sweepFrom: legacy.sweepFrom ?? 0,
     terrainByTile: legacy.terrainByTile ?? [],
-    tilemap: legacy.tilemap ?? null
+    tilemap: legacy.tilemap ?? null,
+    warEvents: legacy.warEvents ?? {
+      ...INITIAL_WAR_EVENTS,
+      days: [...INITIAL_WAR_EVENTS.days]
+    }
   };
 };

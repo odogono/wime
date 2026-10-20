@@ -17,9 +17,10 @@ the starting-state RE (#5, #21).
   (`finding:time-clock-advances-after-each-roster-sweep`) Our sim does
   not reproduce the sweep order (ADR-0002); a tick is just the
   quarter-hour step.
-- Once a day, at hour 8, the original runs daily checks.
-  (`finding:time-clock-counts-quarter-hours`) Nothing in slice 1 hooks
-  into this yet.
+- Once a day, as the clock steps to quarter-hour 32 (hour 8), the
+  daily checks run before anything moves, among them the War Events
+  (docs/spec/war-events.md).
+  (`finding:time-daily-check-opens-the-8am-sweep`)
 
 ## The calendar
 

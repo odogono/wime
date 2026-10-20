@@ -7,6 +7,8 @@
 // Reference Build. Field meanings are in
 // finding:data-formats-roster-record-layout.
 
+import { INITIAL_WAR_EVENTS, type WarEvents } from './war-events';
+
 export interface Point {
   x: number;
   y: number;
@@ -99,6 +101,8 @@ export interface StartingState {
   // Terrain percentage by map tile number
   // (finding:movement-terrain-percent-scales-pace).
   terrainByTile: number[];
+  // The event mask and event days (finding:ai-war-events-set-once).
+  warEvents: WarEvents;
 }
 
 // The speed table, used when a starting state does not carry it.
@@ -251,6 +255,24 @@ const loadPlace = (value: unknown, index: number): Place => {
 // Validate and convert the exported starting-state.json. Anything that
 // is not the file the extractor writes is rejected whole, so a bad
 // asset fails loudly at load instead of half-filling the simulation.
+// The extractor writes the mask and the days of events 1 to 7; a
+// starting state without them starts from the recovered values.
+const loadWarEvents = (events: Record<string, unknown>): WarEvents => {
+  const days = Array.isArray(events.event_days)
+    ? events.event_days.map((day, i) => num(day, `events.event_days[${i}]`))
+    : [];
+  return {
+    days: [
+      0,
+      ...INITIAL_WAR_EVENTS.days.slice(1).map((day, i) => days[i] ?? day)
+    ],
+    mask:
+      events.mask === undefined
+        ? INITIAL_WAR_EVENTS.mask
+        : num(events.mask, 'events.mask')
+  };
+};
+
 export const loadStartingState = (json: unknown): StartingState => {
   if (!isRecord(json)) {
     return fail('not an object');
@@ -314,7 +336,8 @@ export const loadStartingState = (json: unknown): StartingState => {
         },
     terrainByTile: Array.isArray(json.terrain_by_tile)
       ? json.terrain_by_tile.map((v, i) => num(v, `terrain_by_tile[${i}]`))
-      : []
+      : [],
+    warEvents: loadWarEvents(events)
   };
 };
 
