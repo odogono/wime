@@ -577,6 +577,93 @@ export const decodeImagResource = (
   };
 };
 
+// One frame of an FRML frame list: its bitmap and the hot spot the
+// game subtracts from a figure's position to place it (code+0x038a0).
+export type FrmlFrame = {
+  hotX: number;
+  hotY: number;
+  image: IndexedImage;
+};
+
+export type DecodedFrameList = {
+  decompressedSize: number;
+  depth: number;
+  frames: FrmlFrame[];
+  warnings: string[];
+};
+
+// Resource attribute bit 0 marks a payload packed as a 4-byte unpacked
+// size and PackBits; FRML 18 and 19 in BScene.res are stored plain.
+export const RESOURCE_COMPRESSED = 0x01;
+
+// An FRML resource (finding:data-formats-frml-frame-lists) is a byte
+// that is 1 for 4-plane figures and 0 for 5-plane ones, a frame count
+// byte, and six bytes a frame: a word offset of its bitmap from the
+// start, then hot spot x and y, width and height in bytes. The bitmaps
+// are stored like IMAG ones, each scanline's planes in turn.
+export const decodeFrmlResource = (
+  data: Uint8Array,
+  attributes: number,
+  palette?: number[]
+): DecodedFrameList => {
+  const warnings: string[] = [];
+  let decompressed = data;
+  if (attributes & RESOURCE_COMPRESSED) {
+    const expectedSize = beU32(data, 0);
+    [decompressed] = unpackPackbits(data.subarray(4), expectedSize);
+    if (decompressed.length !== expectedSize) {
+      throw new ExtractError(
+        `PackBits output is ${decompressed.length} bytes, expected ${expectedSize}`
+      );
+    }
+  }
+  if (decompressed.length < 2) {
+    throw new ExtractError('FRML resource is too short');
+  }
+  const depth = decompressed[0] === 1 ? 4 : 5;
+  const count = decompressed[1]!;
+  const frames: FrmlFrame[] = [];
+  let end = 0;
+  for (let index = 0; index < count; index++) {
+    const entry = 2 + index * 6;
+    const offset = beU16(decompressed, entry);
+    const width = decompressed[entry + 4]!;
+    const height = decompressed[entry + 5]!;
+    const rowBytes = Math.ceil(width / 16) * 2;
+    end = offset + rowBytes * depth * height;
+    if (end > decompressed.length) {
+      throw new ExtractError(`FRML frame ${index} extends past the resource`);
+    }
+    const image = new IndexedImage(width, height, palette ?? defaultPalette());
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        let value = 0;
+        for (let plane = 0; plane < depth; plane++) {
+          const byte = offset + (y * depth + plane) * rowBytes + (x >> 3);
+          if (decompressed[byte]! & (0x80 >> (x & 7))) {
+            value |= 1 << plane;
+          }
+        }
+        image.setPixel(x, y, value);
+      }
+    }
+    frames.push({
+      hotX: decompressed[entry + 2]!,
+      hotY: decompressed[entry + 3]!,
+      image
+    });
+  }
+  if (end < decompressed.length) {
+    warnings.push(`${decompressed.length - end} bytes after the last frame`);
+  }
+  return {
+    decompressedSize: decompressed.length,
+    depth,
+    frames,
+    warnings
+  };
+};
+
 const flattenPalette = (rgb: [number, number, number][]): number[] => {
   const flattened: number[] = [];
   for (const [red, green, blue] of rgb) {
@@ -646,11 +733,41 @@ export const mapPalette = (): number[] =>
     [255, 238, 170]
   ]);
 
+// The Animation Level's 32 colours, the RGB4 words at data+0x4b48
+// (finding:graphics-animation-level-palette).
+const ANIMATION_LEVEL_RGB4 = [
+  0x0_00, 0xd_ca, 0x2_ae, 0x2_7c, 0x4_26, 0x4_66, 0x7_94, 0xa_c7, 0x4_52,
+  0x6_72, 0x0_4b, 0x2_7c, 0x2_ae, 0x8_df, 0xd_a3, 0xe_e6, 0x1_22, 0x5_44,
+  0x9_00, 0xc_00, 0xa_2a, 0xd_8d, 0x8_9a, 0xc_de, 0xb_50, 0xe_70, 0x4_10,
+  0x7_31, 0x9_64, 0xc_96, 0xd_86, 0xf_c8
+];
+
+export const animationLevelPalette = (): number[] =>
+  flattenPalette(
+    ANIMATION_LEVEL_RGB4.map(word => [
+      ((word >> 8) & 0xf) * 17,
+      ((word >> 4) & 0xf) * 17,
+      (word & 0xf) * 17
+    ])
+  );
+
+const ANIMATION_LEVEL_FILES = new Set([
+  'aanims.res',
+  'ascene.res',
+  'bscene.res'
+]);
+
 export const paletteForResourceFile = (
   resourceName: string
 ): [string, number[]] => {
   if (resourceName.toLowerCase() === 'amaps.res') {
     return ['War In Middle Earth full-map palette', mapPalette()];
+  }
+  if (ANIMATION_LEVEL_FILES.has(resourceName.toLowerCase())) {
+    return [
+      'War In Middle Earth Animation Level palette',
+      animationLevelPalette()
+    ];
   }
   return ['War In Middle Earth 32-colour art palette', defaultPalette()];
 };
@@ -780,6 +897,7 @@ export const saveContactSheet = (
 type ResourceEntry = {
   decompressed_size?: number;
   depth?: number;
+  frames?: number;
   height?: number;
   id: number;
   length: number;
@@ -893,10 +1011,46 @@ export const extractArchive = (
           }
         } else if (resource.typeCode === 'FRML') {
           manifest.summary.frml_total += 1;
-          entry.status = 'warning';
-          entry.warnings.push(
-            'FRML frame-list payloads were enumerated but their frame command format is not decoded yet'
-          );
+          try {
+            const decoded = decodeFrmlResource(
+              resource.data,
+              resource.attributes,
+              palette
+            );
+            // The frames side by side, two pixels apart, in order.
+            const width = decoded.frames.reduce(
+              (total, frame) => total + frame.image.width + 2,
+              0
+            );
+            const height = Math.max(
+              1,
+              ...decoded.frames.map(frame => frame.image.height)
+            );
+            const strip = new IndexedImage(Math.max(1, width), height, palette);
+            let x = 0;
+            for (const frame of decoded.frames) {
+              strip.paste(frame.image, x, 0);
+              x += frame.image.width + 2;
+            }
+            const path = join(
+              resourceOutputDir,
+              'FRML',
+              `FRML_${resource.resourceId}.png`
+            );
+            strip.save(path);
+            entry.status = 'decoded';
+            entry.output = relative(outputDir, path).split(sep).join('/');
+            entry.frames = decoded.frames.length;
+            entry.depth = decoded.depth;
+            entry.decompressed_size = decoded.decompressedSize;
+            entry.warnings.push(...decoded.warnings);
+            manifest.summary.frml_decoded += 1;
+          } catch (error) {
+            entry.status = 'warning';
+            entry.warnings.push(
+              error instanceof Error ? error.message : String(error)
+            );
+          }
         } else if (
           resource.typeCode === 'MMAP' ||
           resource.typeCode === 'CHAR'

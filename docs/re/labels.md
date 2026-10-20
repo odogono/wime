@@ -7,12 +7,15 @@ Names given to addresses in the Reference Build's executable during analysis ([a
 | Address        | Label                | What it does                                                                             |
 | -------------- | -------------------- | ---------------------------------------------------------------------------------------- |
 | `code+0x00000` | `entry`              | `jmp code+0x1afb0`                                                                       |
+| `code+0x00006` | `buildScene`         | composes the Animation Level scene bitmap from scenery layers                            |
 | `code+0x00396` | `figureStep`         | works out the next tile for the watched Character's facing                               |
 | `code+0x0296c` | `loseGame`           | 1: the Ring at Barad-dûr (CSTR 49); 2: three Strongholds lost (CSTR 50)                  |
 | `code+0x02e64` | `winGame`            | victory ending, BScene CSTR 53–55                                                        |
 | `code+0x031c2` | `randomBits`         | (seed × 125 + data+0x4fee) mod 0x2aaaab, low n bits                                      |
 | `code+0x0320c` | `random`             | seed × 125 mod 0x2aaaab, then mod n                                                      |
 | `code+0x03240` | `absWord`            | absolute value of a word                                                                 |
+| `code+0x037d8` | `newFigure`          | creates a figure object from an FRML set and script entry                                |
+| `code+0x039a6` | `newPicture`         | creates a still IMAG object                                                              |
 | `code+0x04528` | `describeEntry`      | one status row: "is going to", "heading", "following", "at", "resting."                  |
 | `code+0x04bea` | `listFollowers`      | adds a Leader's followers as combat rows, merging like names                             |
 | `code+0x04dde` | `listForcesNear`     | Good and Evil lists near (x, y); (0, 0) lists every moving Leader                        |
@@ -25,6 +28,11 @@ Names given to addresses in the Reference Build's executable during analysis ([a
 | `code+0x07eb0` | `archiveWindow`      | "Would you like to..." restore or save                                                   |
 | `code+0x08be0` | `saveGame`           | writes `data+0x1de8–0x3e71` to `A:ARCHIVE.DAT`                                           |
 | `code+0x08d12` | `restoreGame`        | reads it back and restores the name pointers                                             |
+| `code+0x09e02` | `enterAnimation`     | sets mode 3 and places the eye, map and sack icons                                       |
+| `code+0x09e92` | `leaveAnimation`     | removes the icons and scene, frees FRML 4, 8, 16 and 18                                  |
+| `code+0x09ffa` | `spawnFigures`       | adds a roster entry's figures to the scene                                               |
+| `code+0x0b102` | `animationLoop`      | the Animation Level loop                                                                 |
+| `code+0x0bf84` | `runFigureScript`    | steps a figure's animation script                                                        |
 | `code+0x0d26c` | `drawCampaignForces` | draws each awake leader's icon; blinks the player's                                      |
 | `code+0x0d452` | `drawFullMap`        | blits AMaps IMAG 2, then the dots                                                        |
 | `code+0x0d4c2` | `drawFullMapDots`    | one dot per awake leader at (x/4, y/8)                                                   |
@@ -69,10 +77,15 @@ Names given to addresses in the Reference Build's executable during analysis ([a
 | `data+0x0030` | `jt_loseGame`          | jump table entry for `loseGame`                                         |
 | `data+0x0036` | `jt_winGame`           | jump table entry for `winGame`                                          |
 | `data+0x0252` | `jt_mulu32`            | jump table entry for `mulu32`                                           |
+| `data+0x0258` | `sceneWords`           | 256 words: the scene word for each tile byte                            |
+| `data+0x06b0` | `sceneryLists`         | 18 pointers to lists of scenery layer groups                            |
+| `data+0x085a` | `foregroundLists`      | foreground pieces (BScene IMAG 300–317) for each scenery list           |
+| `data+0x08ac` | `skyColours`           | 12 sky colour indices by quarter-hour ÷ 8                               |
 | `data+0x08c2` | `clockLimit`           | frame count a clock step waits for                                      |
 | `data+0x08c4` | `rngSeed`              | longword                                                                |
 | `data+0x08cc` | `watched`              | roster entry being watched                                              |
 | `data+0x08d0` | `ringWorn`             | byte; the Ring-bearer has put on the Ring this fight                    |
+| `data+0x095e` | `figureScripts`        | 20 scripts of 0xfc bytes, one per FRML set                              |
 | `data+0x1d32` | `healthWords`          | pointers: "near death" … "hale and hardy"                               |
 | `data+0x1d46` | `directionNames`       | pointers: "north" … "northwest"                                         |
 | `data+0x1d66` | `monthNames`           | pointers: "September " … "April "                                       |
@@ -98,6 +111,7 @@ Names given to addresses in the Reference Build's executable during analysis ([a
 | `data+0x4242` | `terrainByTile`        | 256 bytes                                                               |
 | `data+0x4342` | `objects`              | 17 × 8                                                                  |
 | `data+0x4ac8` | `fullMapPalette`       | 16 RGB4 words                                                           |
+| `data+0x4b48` | `animationPalette`     | the Animation Level's 32 RGB4 colours                                   |
 | `data+0x4f40` | `blinkPhase`           | toggles each frame                                                      |
 | `data+0x4fec` | `frameCounter`         | compared with `data+0x08c2` before a clock step                         |
 | `data+0x4fee` | `vblankCount`          | word, 50 Hz                                                             |
@@ -111,10 +125,11 @@ Names given to addresses in the Reference Build's executable during analysis ([a
 | `data+0x54ee` | `listStrengths`        | summed strength per row                                                 |
 | `data+0x5552` | `lastButton`           | button id to act on                                                     |
 | `data+0x5553` | `defaultButton`        | pressed when the message box expires                                    |
-| `data+0x5555` | `mode`                 | 1, 2 or 3; probably the current Level                                   |
+| `data+0x5555` | `mode`                 | 1 Full Map, 2 Campaign, 3 Animation Level                               |
 | `data+0x555b` | `goodRows`             | byte, rows in the Good column                                           |
 | `data+0x555c` | `evilRows`             | byte, rows in the Evil column                                           |
 | `data+0x564a` | `encounterA`           | roster index of the non-Evil party of the last meeting                  |
+| `data+0x564c` | `frmlHandles`          | loaded FRML resources by id                                             |
 | `data+0x56b1` | `encounterB`           | roster index of the other party                                         |
 | `data+0x56b3` | `tickEntry`            | roster entry the tick is on, 1–151                                      |
 | `data+0x56b8` | `rowOptions`           | 20 words: 0 Charge, 1 Engage, 2 Withdraw, 3 Retreat, 4 gone, −1 charged |
