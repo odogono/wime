@@ -6,12 +6,12 @@ Working notes on the Reference Build's executable, `WarInMiddleEarth` on Disk 1 
 - [`starting-state-tables.md`](starting-state-tables.md): the data hunk tables that hold the starting state, field by field.
 - [`labels.md`](labels.md): named addresses in the code and data hunks.
 - [`full-map-reference.md`](full-map-reference.md): how the Full Map Level reference captures were made.
-- [`combat-reference.md`](combat-reference.md): the combat reference scenarios and how they were set up.
-- [`war-events-reference.md`](war-events-reference.md): the War Event and trigger reference scenarios.
-- [`forces-reference.md`](forces-reference.md): the meeting and following reference scenarios.
+- [`combat-reference.md`](combat-reference.md): the combat Reference runs and how they were set up.
+- [`war-events-reference.md`](war-events-reference.md): the War Event and trigger Reference runs.
+- [`forces-reference.md`](forces-reference.md): the meeting and following Reference runs.
 - [`animation-level-reference.md`](animation-level-reference.md): the Animation Level and Encounter reference captures.
-- [`objects-reference.md`](objects-reference.md): the Put Down, Take and Use reference scenarios, Tokens and the Palantír.
-- [`endings-reference.md`](endings-reference.md): the win and lose reference scenarios and the ending pages.
+- [`objects-reference.md`](objects-reference.md): the Put Down, Take and Use Reference runs, Tokens and the Palantír.
+- [`endings-reference.md`](endings-reference.md): the win and lose Reference runs and the ending pages.
 - [`boot-sequence-reference.md`](boot-sequence-reference.md): timing the boot sequence's screens, the Title wait and Gandalf's letter.
 - [`game-speed-reference.md`](game-speed-reference.md): timing each Game Speed's quarter-hour, and the Game Speed window.
 

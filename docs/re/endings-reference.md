@@ -1,6 +1,6 @@
-# Endings reference scenarios
+# Endings Reference runs
 
-The `observed:ending-…` scenarios in the Findings are these runs, made in FS-UAE 3.2 on the Reference Build (issue #103). Each writes the game's memory on the Campaign Level and lets the game's own checks find the ending.
+The `observed:ending-…` sources in the Findings are these Reference runs, made in FS-UAE 3.2 on the Reference Build (issue #103). Each writes the game's memory on the Campaign Level and lets the game's own checks find the ending.
 
 ## Setting up
 
@@ -8,9 +8,9 @@ The `observed:ending-…` scenarios in the Findings are these runs, made in FS-U
 2. Break on `winGame` (`code+0x02e64`, `f 1ff2c`) and `loseGame` (`code+0x0296c`, `f 1fa34`). For the Mount Doom runs also break on the hourly update, `code+0x0d894` (`f 2a95c`), and write the position there: a Leader written onto Mount Doom between hours walks off it before the hour comes.
 3. A Leader turns only on tile origins, so start a mover on one, or set its facing, byte 21, yourself (2 is east).
 
-## Scenarios
+## Reference runs
 
-| Scenario                           | Set-up                                                                                                                                                                         | Observed                                                                                                                                                  |
+| Reference run                      | Set-up                                                                                                                                                                         | Observed                                                                                                                                                  |
 | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `ending-ring-at-mount-doom`        | Frodo (7), objects 0x0011, Ring-bearer, no leader. At the hourly break, his position set to (1808, 1120).                                                                      | `winGame` in that hourly update. The Animation Level opens on Hobbiton with the Free Peoples in a row, then BScene CSTR 53, 54 and 55, one box at a time. |
 | `ending-evil-bearer-at-mount-doom` | Nazgûl entry 79 (allegiance 0, no leader) given the Ring (objects 0x0001, Frodo's 0x0010) and made Ring-bearer (`data+0x3e6a` = 79). At the hourly break, set at (1808, 1120). | `winGame`, with the same scene and pages: no allegiance test.                                                                                             |

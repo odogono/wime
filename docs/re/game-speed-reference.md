@@ -1,6 +1,6 @@
-# Game Speed reference scenarios
+# Game Speed Reference runs
 
-The `observed:game-speed-…` scenarios in the Findings, played in FS-UAE 3.2 on the Reference Build (issue #164). Each times the clock's quarter-hour steps in emulated frames, so the host's speed doesn't enter it.
+The `observed:game-speed-…` Reference runs in the Findings, played in FS-UAE 3.2 on the Reference Build (issue #164). Each times the clock's quarter-hour steps in emulated frames, so the host's speed doesn't enter it.
 
 ## Setting up
 
@@ -11,9 +11,9 @@ The `observed:game-speed-…` scenarios in the Findings, played in FS-UAE 3.2 on
 
 The emulator stands still at each stop, and the vblank count with it, so the differences between dumps are the frames each quarter-hour took.
 
-## Scenarios
+## Reference runs
 
-| Scenario                | Set-up                                                                         | Outcome                                                                                                                                                                                                                                                     |
+| Reference run           | Set-up                                                                         | Outcome                                                                                                                                                                                                                                                     |
 | ----------------------- | ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `game-speed-normal`     | Day 0 from 7 p.m., Normal, data hunk dumped every 3 s instead of a breakpoint. | Two quarter-hours in 513 frames; between steps the sweep waited at entry 151 with the frame counter climbing to 256.                                                                                                                                        |
 | `game-speed-hasty`      | Day 4, Hasty, 40 steps timed by the breakpoint.                                | Every quarter-hour took 30 frames.                                                                                                                                                                                                                          |

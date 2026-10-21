@@ -1,7 +1,7 @@
 # Forces
 
 How Forces meet, join and split. Facts cite their Findings (ADR-0004),
-recovered from the Reference Build for #68. The reference scenarios are
+recovered from the Reference Build for #68. The Reference runs are
 in `docs/re/forces-reference.md`. Ordering part of a Force is in
 `docs/spec/movement.md`; the followers of a Leader who dies in a fight
 are in `docs/spec/combat.md`.

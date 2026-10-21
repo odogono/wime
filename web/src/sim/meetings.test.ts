@@ -6,7 +6,7 @@ import { restoreSave, serialiseSave } from './save';
 import { createSim, tickSim, type SimState } from './state';
 
 // Meetings on synthetic rosters (docs/spec/forces.md), set up as the
-// scenarios of docs/re/forces-reference.md: one Leader one pixel short
+// Reference runs of docs/re/forces-reference.md: one Leader one pixel short
 // of another's tile origin, heading for it. Entries sit at their real
 // roster indices; every other index is an empty, sleeping entry.
 

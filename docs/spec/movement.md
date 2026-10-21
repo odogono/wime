@@ -1,8 +1,8 @@
 # Movement
 
 How Forces travel once given an Order: destinations, pace, terrain,
-stamina and rest. Facts cite their Findings (ADR-0004). The reference
-scenarios below were `observed` in the original Amiga v1.0 release
+stamina and rest. Facts cite their Findings (ADR-0004). The Reference
+runs below were `observed` in the original Amiga v1.0 release
 (WHDLoad) under FS-UAE for #6, reading the game clock and roster from
 emulator memory, so times are exact quarter-hours. They are the
 expected results for headless tests (ADR-0002). Run logs are kept in
@@ -80,7 +80,7 @@ under a position is (x ÷ 16, y ÷ 16)
   following. (`finding:movement-mixed-force-at-leader-pace`)
 - `observed`: on the Animation Level the watched Character takes
   extra steps (2 steps within one quarter-hour at the start), so
-  scenarios are recorded on the Campaign Level.
+  Reference runs are recorded on the Campaign Level.
 
 ## Stamina and rest
 
@@ -122,12 +122,12 @@ under a position is (x ÷ 16, y ÷ 16)
   tile ahead scores under the bank tiles to either side. Our
   seeded RNG is not the original's (ADR-0002), so a run may
   eventually blunder across where the observed run did not; the
-  scenario's expected result is the looping, not a guarantee.
+  Reference run's expected result is the looping, not a guarantee.
   (`finding:movement-greedy-tile-steering`)
 
-## Reference scenarios
+## Reference runs
 
-Each scenario starts from the game's starting state on the Campaign
+Each Reference run starts from the game's starting state on the Campaign
 Level. Orders were given in the game's own UI. Game Speed in the
 original was left at its starting setting throughout; the emulator's
 warp mode was used to pass real time faster in later runs, which does
@@ -199,7 +199,7 @@ leader's class-3 pace (see Pace).
 
 A cavalry Force off-road is no faster than Frodo's off-road: about
 1 px/tick, well under the class-4 road pace of 1.80 px/tick. The
-scenario's expected result is non-arrival: after 4 days the Force
+Reference run's expected result is non-arrival: after 4 days the Force
 is still on the east bank of the Entwash with its destination set.
 
 ### S4. Terrain pace comparison

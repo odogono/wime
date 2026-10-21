@@ -1,6 +1,6 @@
-# Full Map reference scenario
+# Full Map Reference run
 
-`observed:full-map-at-start` in the Findings is this scenario, played in FS-UAE 3.2 on the Reference Build (issue #28).
+`observed:full-map-at-start` in the Findings is this Reference run, played in FS-UAE 3.2 on the Reference Build (issue #28).
 
 1. Boot the WHDLoad install from `artifacts/amiga/WarInMiddleEarth_v1.0_0968.lha` on an A500+ with Kickstart 2.04, 1 MB chip and 4 MB fast memory.
 2. Click through the Melbourne House and title screens. The game opens on the Animation Level at Hobbiton with Gandalf's letter.
