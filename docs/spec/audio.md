@@ -24,9 +24,10 @@ are laid out is in the Findings of #130; how the browser plays them is
 
 ## When music plays
 
-- Start-up: Title plays as the game first sets up the Animation Level,
-  and the game waits until it ends or a key is pressed.
-  (finding:sound-fight-and-ending-music)
+- Start-up: Title plays under the boot sequence. Unless a key skipped
+  part of it, the first Animation Level waits for Title to end; see
+  `docs/spec/boot-sequence.md`. (finding:sound-fight-and-ending-music,
+  finding:sound-title-music-in-the-boot-sequence)
 - The Animation Level: entering it on a Place with scenery of its own
   plays that Place's piece; other places are silent.
   (finding:sound-place-music)
