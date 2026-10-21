@@ -196,8 +196,7 @@ export interface TitleMenuLayout {
   rows: TitleMenuRow[];
 }
 
-// Where the menu sits: at the foot of the 320 by 200 screen, below the
-// logo's lettering.
+// The menu's measures, centred on the 320 by 200 screen.
 const INSET_X = 16;
 const INSET_Y = 8;
 const LINE_HEIGHT = 10;
@@ -205,8 +204,10 @@ const LINE_GAP = 6;
 const ROW_HEIGHT = 12;
 const MAIN_WIDTH = 112;
 const WIDE_WIDTH = 224;
-// The window's foot, above the screen's bottom edge.
-const BOTTOM = 192;
+// The screen the menu is centred on.
+const SCREEN = { height: 200, width: 320 };
+// The title screen is dimmed behind the menu, so the window stands out.
+export const TITLE_DIM = 'rgba(0, 0, 0, 0.5)';
 // The Load list shows this many rows, scrolling to keep the selected
 // one in view.
 export const LOAD_ROWS = 6;
@@ -214,10 +215,9 @@ export const LOAD_ROWS = 6;
 const fitRows = (
   labels: { dim?: boolean; label: string; note?: string | null }[],
   lines: string[],
-  width: number,
-  bottom: number
+  width: number
 ): TitleMenuLayout => {
-  const x = (320 - width) / 2;
+  const x = (SCREEN.width - width) / 2;
   // A gap parts the lines from the rows.
   const linesHeight =
     lines.length > 0 && labels.length > 0
@@ -226,8 +226,11 @@ const fitRows = (
   const height = INSET_Y * 2 + linesHeight + labels.length * ROW_HEIGHT;
   // The frame rounds the height up to whole tiles, so the top is found
   // from the rounded height.
-  const top =
-    bottom - Math.ceil(height / FRAME_TILE_HEIGHT) * FRAME_TILE_HEIGHT;
+  const top = Math.floor(
+    (SCREEN.height -
+      Math.ceil(height / FRAME_TILE_HEIGHT) * FRAME_TILE_HEIGHT) /
+      2
+  );
   const rowsTop = top + INSET_Y + linesHeight;
   return {
     box: { height, width, x, y: top },
@@ -254,16 +257,14 @@ export const layoutTitleMenu = (menu: TitleMenu): TitleMenuLayout => {
       return fitRows(
         menu.items.map(item => ({ label: MAIN_LABELS[item] })),
         [],
-        MAIN_WIDTH,
-        BOTTOM
+        MAIN_WIDTH
       );
     }
     case 'confirm': {
       return fitRows(
         CONFIRM_ITEMS.map(label => ({ label })),
         CONFIRM_LINES,
-        WIDE_WIDTH,
-        BOTTOM
+        WIDE_WIDTH
       );
     }
     case 'load': {
@@ -279,12 +280,11 @@ export const layoutTitleMenu = (menu: TitleMenu): TitleMenuLayout => {
       return fitRows(
         all.slice(first, first + LOAD_ROWS),
         menu.slots.length > 0 ? [] : ['There are no saves to load.'],
-        WIDE_WIDTH,
-        BOTTOM
+        WIDE_WIDTH
       );
     }
     case 'message': {
-      return fitRows([], menu.lines, WIDE_WIDTH, BOTTOM);
+      return fitRows([], menu.lines, WIDE_WIDTH);
     }
   }
 };
@@ -361,6 +361,8 @@ export const drawTitleMenu = (
   menu: TitleMenu
 ): void => {
   const layout = layoutTitleMenu(menu);
+  ctx.fillStyle = TITLE_DIM;
+  ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
   const box = drawWindowFrame(ctx, style, layout.box);
   layout.lines.forEach((line, i) => {
     windowText(

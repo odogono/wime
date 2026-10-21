@@ -9,9 +9,10 @@ port's own, built on its save slots (docs/spec/saving.md).
 ## The screen
 
 - When the boot sequence ends, the title screen and its logo return,
-  in the title palette, with the menu in a window framed as the game's
+  in the title palette, with the menu centred on it in a window framed as the game's
   windows are (`finding:ui-window-frame-tiles`), on the cream parchment
-  of the Ring verse. Title plays on under it, and Q switches sound off
+  of the Ring verse. The title screen is dimmed behind it, half
+  covered in black, so the window stands out. Title plays on under it, and Q switches sound off
   or on (`finding:sound-q-toggles-sound`).
 - A key that skips the boot sequence brings the menu up at once.
 - Nothing is saved while the menu is up.
