@@ -5,6 +5,7 @@ import {
   fightRound,
   findFight,
   finishFight,
+  glassWatches,
   resolveFight,
   setCombatOption,
   startFight
@@ -251,6 +252,30 @@ describe('rows', () => {
       ['good', [73, 74], 1800, false],
       ['evil', [141, 142], 800, false]
     ]);
+  });
+});
+
+describe('the magnifying glass', () => {
+  test('watches the lowest-numbered awake Good Leader in reach, not the nearest', () => {
+    const sim = world([
+      character(15, 'FARAMIR', 10, 5, { position: { x: 1300, y: 1160 } }),
+      unit(16, 'Rangers', 200, { allegiance: 1, leader: 15 }),
+      unit(73, 'infantry', 1000, { position: CALEMBEL }),
+      unit(141, 'orcs', 500, { ...EVIL, position: CALEMBEL })
+    ]);
+    expect(glassWatches(sim.roster, CALEMBEL)).toBe(15);
+  });
+
+  test('watches nobody with no Good Leader in reach', () => {
+    const evilOnly = world([
+      unit(141, 'orcs', 500, { ...EVIL, position: CALEMBEL })
+    ]);
+    expect(glassWatches(evilOnly.roster, CALEMBEL)).toBeNull();
+    expect(glassWatches(world([]).roster, CALEMBEL)).toBeNull();
+    const asleep = world([
+      unit(73, 'infantry', 1000, { position: CALEMBEL, state: 0 })
+    ]);
+    expect(glassWatches(asleep.roster, CALEMBEL)).toBeNull();
   });
 });
 

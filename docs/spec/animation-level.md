@@ -35,13 +35,16 @@ talks and fights shown here are in `docs/spec/encounters.md`.
   Campaign Level up. A Character fight involving the watched Character
   and advisor talks stay here (`docs/spec/encounters.md`).
 - The Campaign Level's magnifying glass goes down a Level (manual,
-  pdf-p15). In the original it watches the first Good row of the Forces
-  near the spot, the lowest-numbered awake Good Leader in reach, if it
-  is entry 1 to 78; otherwise the Level shows the spot with nobody
-  watched
+  pdf-p15). It watches the first Good row of the Forces near the spot,
+  gathered as a fight's rows are: the lowest-numbered awake Good Leader
+  in reach, if it is entry 1 to 78, whichever Force is nearest the
+  pointer. Otherwise, with an Evil Force alone or bare ground under the
+  glass, the Level shows the spot, rounded down to 16 pixels, with
+  nobody watched; no figures walk, and it stays until the map icon is
+  pressed
   (finding:ui-magnifying-glass-watches-the-first-good-leader-near-the-spot).
-  `provisional`: the view watches the Leader of the Force under the
-  glass, and does nothing on empty ground (#176).
+  `provisional`: the original flashes the chosen row's icon four times
+  first, which the port does not.
 
 ## The screen
 
