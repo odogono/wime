@@ -8,6 +8,7 @@ import {
   tickSim
 } from '../sim/index';
 import {
+  AUTOSAVE_ID,
   INDEX_KEY,
   LEGACY_ARCHIVE_KEY,
   createSaveSlots,
@@ -229,6 +230,51 @@ describe('save slots', () => {
     });
     expect(throwing.list()).toEqual({ ok: false, reason: 'unavailable' });
     expect(throwing.load(1, null)).toEqual({
+      ok: false,
+      reason: 'unavailable'
+    });
+  });
+
+  test('keeps an autosave apart from the named slots', () => {
+    let time = 1000;
+    const storage = fakeStorage();
+    const slots = createSaveSlots(storage, () => time);
+    expect(slots.autosaved()).toEqual({ ok: true, value: null });
+    expect(slots.loadAutosave(null)).toEqual({ ok: false, reason: 'missing' });
+    slots.save('Named', createSim(7));
+    const first = later(4);
+    slots.autosave(first);
+    time = 2000;
+    const second = later(8);
+    expect(slots.autosave(second).ok).toBe(true);
+    expect(slots.autosaved()).toEqual({
+      ok: true,
+      value: {
+        gameDate: formatClock(second.clock),
+        id: AUTOSAVE_ID,
+        loadable: true,
+        name: 'Autosave',
+        savedAt: 2000
+      }
+    });
+    expect(slots.list()).toMatchObject({ value: [{ id: 1, name: 'Named' }] });
+    expect(slots.save('Next', first)).toMatchObject({ value: { id: 2 } });
+    expect(createSaveSlots(storage).loadAutosave(null)).toEqual({
+      ok: true,
+      value: second
+    });
+  });
+
+  test('a failed autosave keeps the old one, without throwing', () => {
+    const sim = createSim(7);
+    const storage = fakeStorage(serialiseSave(sim).length * 1.5);
+    const slots = createSaveSlots(storage);
+    expect(slots.autosave(sim).ok).toBe(true);
+    // A longer game no longer fits beside the old autosave.
+    const longer = { ...later(4), routes: Array(500).fill([1, 2, 3]) };
+    expect(slots.autosave(longer)).toEqual({ ok: false, reason: 'full' });
+    expect(slots.loadAutosave(null)).toEqual({ ok: true, value: sim });
+    expect(createSaveSlots(null).autosave(sim)).toEqual({
       ok: false,
       reason: 'unavailable'
     });
