@@ -383,6 +383,15 @@ describe('a fight on the Animation Level', () => {
     expect(rowEntries(listed.fight!.rows, 'evil')).toHaveLength(10);
   });
 
+  test('a fight elsewhere leaves the watched Character out', () => {
+    const sim = world([
+      character(7, 'FRODO', 4, 3, { position: { x: 640, y: 368 } }),
+      ...eomerAndCavalry(300)
+    ]);
+    const fight = findFight({ ...sim, watching: 7 }, 13);
+    expect(fight!.rows.flatMap(row => row.entries)).not.toContain(7);
+  });
+
   test('against an Encounter, it is the only Evil row', () => {
     const sim = fought(
       world([
