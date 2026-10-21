@@ -80,7 +80,9 @@ in `docs/spec/combat.md`.
   otherwise. (`finding:ui-war-event-messages`,
   `finding:time-game-speed-clock-limits`)
 - `provisional`: pass-by messages wait behind talks and decision
-  windows, and while the Full Map Level is shown (#168).
+  windows, and while the Full Map Level is shown; in the original boxes
+  show one at a time in the order raised
+  (finding:ui-message-box-opening-waits-for-the-open-box, #184).
 
 ## Joining
 

@@ -70,7 +70,8 @@ and "Use an object". (finding:objects-handled-on-animation-level)
   without buttons lasts 200 frames and lets time run.
   (finding:ui-provisions-window, finding:ui-object-list-empty-messages,
   finding:objects-use-message-boxes) `provisional`: a press off the
-  buttons closes the box (#168).
+  buttons closes the box with its default; in the original it does
+  nothing (finding:ui-message-box-presses-off-the-buttons, #184).
 - Objects lying exactly where the watched Character stands are drawn
   when each scene is built, at most six: BScene.res IMAG 50 plus the
   object, its top left at x 200 plus up to 39 and y 165, at depth 0x99
