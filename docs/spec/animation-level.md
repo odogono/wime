@@ -10,20 +10,38 @@ talks and fights shown here are in `docs/spec/encounters.md`.
 - The game opens on the Animation Level, watching Frodo with Sam and
   Pippin. (finding:ui-game-starts-on-animation-level)
 - The game runs the Animation Level, then the Campaign Level, and back.
-  The Animation Level ends when the map icon is pressed, when a fight is
-  to be fought on the Campaign Level, or by itself once every figure has
-  walked off the right edge while the watched Character lives.
-  (finding:ui-animation-level-figures-walk-off)
-- `provisional`: whether time runs on the Animation Level, and what
-  going down does to the watched Character's Force, are not traced. The
-  sim keeps ticking while the view shows the Animation Level, and a
-  fight with a Unit on the Good side, a meeting other than a watched
-  advisor talk, or the game's end brings the Campaign Level up. A
-  Character fight involving the watched Character and advisor talks
-  stay here (`docs/spec/encounters.md`, #160).
+  The Animation Level ends when the map icon is pressed, or when a fight
+  is to be fought on the Campaign Level.
+- In the original, going down changes nothing about the watched
+  Character's Force: it keeps its destination, Order and followers.
+  Each time its figures walk off the right edge it moves one pixel on
+  the map and the scene is rebuilt, the figures walking in again from
+  the left; with no destination the Level goes up instead
+  (finding:movement-watched-character-advances-as-its-figures-walk-off,
+  finding:ui-animation-level-figures-walk-off).
+- In the original, time is held to the watched Character's walk: while
+  its figures walk the roster sweep waits at that Character, so no
+  Force moves and the clock stands still, and once they walk off one
+  tick applies the step. At the end of a sweep the clock steps at once
+  while the watched Character travels, and otherwise waits about 256
+  frames whatever the Game Speed. With nobody watched, time stops
+  (finding:time-animation-level-holds-the-sweep-at-the-watched-character).
+- `provisional`: the port does not pace the Animation Level so yet
+  (#175). The sim keeps ticking at the Game Speed while the view shows
+  the Animation Level, the scene is built once, and the Level goes up
+  by itself once every figure has walked off while the watched
+  Character lives. A fight with a Unit on the Good side, a meeting
+  other than a watched advisor talk, or the game's end brings the
+  Campaign Level up. A Character fight involving the watched Character
+  and advisor talks stay here (`docs/spec/encounters.md`).
 - The Campaign Level's magnifying glass goes down a Level (manual,
-  pdf-p15). `provisional`: how the original picks whom to watch is not
-  traced; the view watches the Force under the glass (#160).
+  pdf-p15). In the original it watches the first Good row of the Forces
+  near the spot, the lowest-numbered awake Good Leader in reach, if it
+  is entry 1 to 78; otherwise the Level shows the spot with nobody
+  watched
+  (finding:ui-magnifying-glass-watches-the-first-good-leader-near-the-spot).
+  `provisional`: the view watches the Leader of the Force under the
+  glass, and does nothing on empty ground (#176).
 
 ## The screen
 
