@@ -2,7 +2,7 @@
 
 ## Brief
 
-Compare two high-resolution reinterpretations of the Reference Build's title picture: richer pixel art and a painted fantasy illustration. Keep the principal subjects and overall arrangement recognisable, with freedom to improve shapes, materials, lighting and details. The source is the sole visual reference for each initial independent edit. Subsequent edits use user-supplied box art to refine the rider in the preferred painted version. The user clarified that the rider is a Nazgûl whose face must remain unseen; v3 is the current correction, and the exposed-face v2 was rejected.
+Compare two high-resolution reinterpretations of the Reference Build's title picture: richer pixel art and a painted fantasy illustration. Keep the principal subjects and overall arrangement recognisable, with freedom to improve shapes, materials, lighting and details. The source is the sole visual reference for each initial independent edit. Subsequent edits use user-supplied box art to refine the rider in the preferred painted version. The user clarified that the rider is a Nazgûl whose face must remain unseen. V4 adds the subsequently requested glowing red eyes while keeping the rest of the face hidden; the exposed-face v2 was rejected. [Painted treatments of the three gameplay Levels](gameplay-graphics-remaster.md) extend this experiment.
 
 This is an art-direction experiment. Judgement is at high resolution; compatibility with the current 320×200 renderer, map tiles, scenery layers and animation is outside this trial. The game and its asset loaders are unchanged.
 
@@ -11,10 +11,10 @@ This is an art-direction experiment. Judgement is at high resolution; compatibil
 - Reference Build: Amiga v1.0, following [ADR-0003](../adr/0003-amiga-v1-canonical.md).
 - Picture: `ATitle.res` IMAG 72, freshly regenerated with `bun run extract-graphics` in this checkout and visually checked for the correct warm palette. The separate logo, IMAG 73, is excluded. Existing provenance: [title picture dimensions](../findings/graphics-full-screen-art-is-320-by-200.md) and [title palette](../findings/graphics-title-screen-palette.md).
 - Tool: built-in `image_gen.imagegen`, one edit call per variant; the initial calls used `referenced_image_paths` pointing to `build/graphics-remaster/source.png` and `transparent_background: false`. No CLI/API fallback was used; the built-in tool does not expose a selected model identifier here.
-- Each initial call used the source directly; neither initial variant was used as input for the other. Both follow-up edits use the original `painted.png` as their edit target and `box-art-reference.png` as a supporting design reference, with `transparent_background: false`. V3 does not use the rejected v2 as an input.
+- Each initial call used the source directly; neither initial variant was used as input for the other. Both follow-up edits use the original `painted.png` as their edit target and `box-art-reference.png` as a supporting design reference, with `transparent_background: false`. V3 does not use the rejected v2 as an input. V4 uses `painted-v3.png` alone, adding the user-requested red eyes.
 - All generated outputs are opaque PNGs saved as returned, without resizing, cropping or other post-processing.
-- Local artifacts: `build/graphics-remaster/source.png`, `pixel-art.png`, `painted.png`, `painted-v2.png`, `painted-v3.png`, `box-art-reference.png`, `painted-v2-prompt.txt`, `painted-v3-prompt.txt` and `prompts.json`. This directory is gitignored.
-- Remote artifacts: [secret gist](https://gist.github.com/odogono/f6b575409714ee9a0036152250a11587), latest revision `4aae6cc1a6fc19fd5d5f6f47bb3b2355f332874f`. Anyone with its URL can view it. Image files are committed only in the separate gist, not in this project repository.
+- Local artifacts: `build/graphics-remaster/source.png`, `pixel-art.png`, `painted.png`, `painted-v2.png`, `painted-v3.png`, `painted-v4.png`, `box-art-reference.png`, `painted-v2-prompt.txt`, `painted-v3-prompt.txt`, `painted-v4-prompt.txt` and `prompts.json`. This directory is gitignored.
+- Remote artifacts: [secret gist](https://gist.github.com/odogono/f6b575409714ee9a0036152250a11587), latest revision `7a4c3f6646983ccb7e447c1f80403db76b24cba5`. Anyone with its URL can view it. Image files are committed only in the separate gist, not in this project repository.
 
 ## Results
 
@@ -24,7 +24,8 @@ This is an art-direction experiment. Judgement is at high resolution; compatibil
 | Richer pixel art      | 1586×992   | 364,398              |
 | Painted illustration  | 1586×992   | 231,441              |
 | Painted v2 (rejected) | 1586×992   | 234,313              |
-| Painted v3 (current)  | 1586×992   | 240,329              |
+| Painted v3 (previous) | 1586×992   | 240,329              |
+| Painted v4 (red eyes) | 1586×992   | 241,783              |
 
 The counts describe the saved PNGs. The pixel-art variant is a visual style experiment, not a constrained palette or a verified uniform pixel grid.
 
@@ -52,21 +53,29 @@ The counts describe the saved PNGs. The pixel-art variant is a visual style expe
 - The pixel-art version has stepped edges and clustered colour texture; the painted version has smoother contours, softer lighting transitions and brush-like texture. Their overall colours and silhouettes remain similar, making the difference in surface treatment the clearest comparison.
 - Both reinterpret the armour extensively and add distant architectural forms and cloud detail. These are generated artistic additions, not evidence about the Reference Build. Neither result should be described as an exact recolouring.
 - Visual inspection found no unintended lettering, logo or obvious extra characters. Dense reins, armour ornaments and the lance grip remain areas for closer scrutiny when judging a favourite.
-- The user preferred the painted direction, but identified the rider design as inaccurate and supplied original box art for comparison. V2 was rejected because it showed an orc-like face. The user identified the rider as a Nazgûl with an unseen face; acceptance of the resulting v3 correction remains pending.
+- The user preferred the painted direction, but identified the rider design as inaccurate and supplied original box art for comparison. V2 was rejected because it showed an orc-like face. The user identified the rider as a Nazgûl with an unseen face; the user described v3 as "not bad" and requested glowing red eyes, producing v4 below.
 
 ## Rider corrections
 
 The user preferred the painted illustration and supplied the [box-art reference](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/c1e3d2978d39dc447b3beccec5e61e04cfa2cc2d/box-art-reference.png) (1000×1500) to improve the rider detail. Its packaging, typography and borders are excluded from the artwork.
 
-### Current correction: faceless Nazgûl (v3)
+### Current treatment: Nazgûl with glowing red eyes (v4)
+
+After the unseen-face correction, the user requested glowing red eyes. V4 uses v3 as its sole edit target and asks only for two small red lights inside the dark helmet opening. Skin, nose, mouth and teeth remain hidden; this deliberately supersedes v3's instruction to omit glowing eyes.
+
+![Current painted Nazgûl with glowing red eyes](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/12d01c5f169d118f2980e2239cf2778c89ff3283/painted-v4.png)
+
+[View current title treatment at full resolution](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/12d01c5f169d118f2980e2239cf2778c89ff3283/painted-v4.png). Visual inspection confirms two small red eyes in the dark opening and no exposed face. The painting is preserved closely, with minor generative texture variation. User evaluation of v4 is pending.
+
+### Previous correction: faceless Nazgûl (v3)
 
 The user clarified that the rider is a Nazgûl and that its face is unseen. This supersedes the assistant's mistaken exposed-face interpretation in v2.
 
 The edit starts again from the original painted illustration, using the box art for the helmet's metal construction and silhouette. The prompt concentrates on the head, helmet and immediate collar: rounded horned helm, shaped metal brow, nasal and cheek guards, and a featureless black interior with no visible skin, eyes, mouth, teeth or tusks.
 
-![Current painted Nazgûl correction with unseen face](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/07effa0dd0bf2e201528893381f8b41fad9a693c/painted-v3.png)
+![Previous painted Nazgûl correction with unseen face](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/07effa0dd0bf2e201528893381f8b41fad9a693c/painted-v3.png)
 
-[View current painting at full resolution](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/07effa0dd0bf2e201528893381f8b41fad9a693c/painted-v3.png). Visual inspection confirms an empty dark face opening, with no exposed anatomy or glowing eyes. The horse, landscape framing and warm light are closely retained, although the generated image does not preserve surrounding pixels exactly. The helmet remains an interpretation of the reference; user acceptance is pending.
+[View previous painting at full resolution](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/07effa0dd0bf2e201528893381f8b41fad9a693c/painted-v3.png). Visual inspection confirms an empty dark face opening, with no exposed anatomy or glowing eyes. The horse, landscape framing and warm light are closely retained, although the generated image does not preserve surrounding pixels exactly. The helmet remains an interpretation of the reference. The user subsequently requested the red-eye addition shown in v4.
 
 ### Rejected correction: exposed face (v2)
 
@@ -118,7 +127,7 @@ Helmet and armour: use the reference's rounded domed steel helmet with its two s
 Preserve everything outside the rider as closely as possible, especially the horse design, background, landscape composition, colours, lighting, lance position and framing. Keep the same hand-painted finish and high-resolution landscape proportions as image 1. Do not reproduce the box's typography, borders, logos, packaging layout, eagle or off-white paper background. Output one complete opaque painting with no text or comparison panels.
 ```
 
-### Current Nazgûl correction (v3)
+### Previous Nazgûl correction (v3)
 
 ```text
 Use case: precise-object-edit
@@ -130,11 +139,19 @@ Helmet design: match the box art's rounded domed metal helm, two swept curved ho
 Edit only the rider's head, helmet and immediate collar as necessary. Preserve the rest of image 1 as closely as possible, including its body armour, horse design, lance position, background and crop. Deliver one opaque high-resolution landscape painting, with no text, logos, borders or comparison panels.
 ```
 
+### Red-eye addition (v4)
+
+```text
+Use case: precise-object-edit
+Edit target: supplied painted landscape of the mounted Nazgul, painted-v3.
+Change only one detail: add TWO small, menacing, glowing deep-red eyes within the existing black face opening beneath the rider's horned helmet. Their glow should be clearly readable but restrained, with a faint red reflection on the immediately adjacent inner metal edges. Keep all other facial features completely invisible: the interior remains black shadow, without a visible face, skin, mouth or teeth. Preserve the helmet shape, rider, horse, lance, landscape, golden lighting, crop, dimensions and painterly finish as closely as possible. Do not add text, borders, extra subjects or alter the horse's eyes. Output one complete opaque landscape painting.
+```
+
 ## Validation
 
 - Regenerated assets with `bun run extract-all`, which ran `bun run export:web` before the checks.
 - `bun run check` passed, including asset-dependent tests with exported assets present.
 - The gist API reports `public: false`. Each revision-specific raw image URL returns `image/png`, and the downloaded bytes match the local PNG exactly.
-- All four result embeds loaded successfully in a browser preview of GitHub-rendered Markdown, with the expected natural image dimensions.
+- All current result embeds loaded successfully in a browser preview of GitHub-rendered Markdown, with the expected natural image dimensions.
 - The correction and box-art reference URLs also return `image/png`, and their downloaded bytes match the local files exactly.
 - Project changes contain Markdown only. No image files or runtime changes are included.
