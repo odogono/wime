@@ -167,6 +167,8 @@ const evasionChance = (
   };
 };
 
+// A follower or an Evil Leader joins the row of its name; a Good Leader
+// always starts its own (finding:combat-good-leaders-keep-rows-of-their-own).
 const addEntry = (
   rows: CombatRow[],
   entry: RosterEntry,
@@ -174,9 +176,12 @@ const addEntry = (
   follower: boolean,
   roster: RosterEntry[]
 ): void => {
-  const same = rows.find(
-    row => row.side === side && roster[row.entries[0]!]!.name === entry.name
-  );
+  const merges = follower || side === 'evil';
+  const same =
+    merges &&
+    rows.find(
+      row => row.side === side && roster[row.entries[0]!]!.name === entry.name
+    );
   if (same) {
     same.entries.push(entry.index);
     same.strength += entry.strength;
@@ -210,7 +215,7 @@ const addFollowers = (
 };
 
 // Every awake Leader near the fight and its followers, Good rows first
-// (finding:combat-rows-merge-like-named-forces).
+// (finding:combat-good-leaders-keep-rows-of-their-own).
 export const combatRows = (
   roster: RosterEntry[],
   position: Point

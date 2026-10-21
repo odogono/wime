@@ -95,9 +95,12 @@ Build for #103. Carrying, taking and dropping objects in general is in
   lost when three or more of the Garrisons of Minas Tirith (entry 33),
   Lórien (61), Thranduil's Palace (64), Edoras (67) and the Hornburg
   (68) have no strength left. This is tested before Barad-dûr's
-  Garrison, so a fight that does both loses the game.
+  Garrison, so a fight that does both loses the game. The Garrisons of
+  Lórien and Thranduil's Palace start asleep and can't be fought, so
+  neither Stronghold can fall until its Garrison wakes.
   (finding:places-stronghold-falls-with-its-garrison,
-  finding:places-three-strongholds-lost-loses)
+  finding:places-three-strongholds-lost-loses,
+  finding:combat-sleeping-leaders-take-no-part-in-a-fight)
 
 ## The end of the game
 
