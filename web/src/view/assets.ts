@@ -68,6 +68,8 @@ export interface CampaignAssets {
   // map instead of in a black square.
   forceIcons: CanvasImageSource & { height: number; width: number };
   icons: CampaignIcon[];
+  // The Campaign Level's colours, as hex strings.
+  palette: string[];
   // The parsed starting-state.json, still unvalidated here: the sim
   // loads and checks it (loadStartingState in src/sim), so a bad asset
   // fails there with the sim's own error.
@@ -320,6 +322,7 @@ export const loadCampaignAssets = async (
     atlas,
     forceIcons: blackToTransparent(forceIconSheet),
     icons,
+    palette: palette.hex,
     startingState,
     texts: textsByKey(texts),
     tilemap,

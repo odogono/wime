@@ -95,6 +95,10 @@ knowledge of them (ADR-0002).
   its own 1200-frame wait (docs/spec/council-of-elrond.md). N presses
   a box's default and Y its other button
   (finding:ui-message-box-presses-off-the-buttons).
+- A pressed icon or button flashes before the press acts: six times,
+  4 frames apart, swapping each of its colours c for c XOR 8, while the
+  game, keys included, stands still. The magnifying glass flashes the
+  icon of the Force it found four times. (finding:ui-press-flash)
 - The hourglass, or T, first closes the open box, pressing its default,
   then opens a box at (184, 5), 90 by 68, headed "Rate of Time
   Passage", with framed buttons for Very Hasty, Hasty and Normal. The
