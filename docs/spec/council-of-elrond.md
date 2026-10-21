@@ -18,12 +18,14 @@ recovered from the Reference Build for #94.
   on Rivendell, (1216, 384), and Gandalf, entry 1, stands at
   (1216, 380) or (1216, 384), asleep or awake, alive or dead.
   (finding:ai-council-of-elrond-trigger)
+- Gandalf's own position is read, as the original reads it. A
+  follower's position is not kept up to date
+  (docs/spec/war-events.md, "Triggers"), so a Gandalf following
+  someone counts where he stood when he began following, or nowhere if
+  he has followed from the start.
 - `provisional`: the original also needs the pointer to be shown
   (data+0x4c72), which it is in play on the Campaign Level; the sim
-  does not model it. A follower's position is not kept up to date
-  (docs/spec/war-events.md, "Triggers"), so a Gandalf following
-  someone is never at Rivendell here; the original reads his stale
-  position (#171, #163).
+  does not model it (#171).
 
 ## What it does
 
@@ -50,11 +52,11 @@ All in one step, in this order:
    cleared. (finding:ai-council-puts-the-nazgul-to-sleep)
 7. Bilbo, entry 154, can be met: his chance becomes 100.
    (finding:forces-advisors-met-once; docs/spec/encounters.md)
-8. Every Leader among entries 1 to 150 with a destination is put at
-   its destination; the destination is kept, so it arrives on its next
-   step. (finding:movement-council-puts-forces-at-their-destinations)
-   `provisional`: the original moves followers too, but the sim keeps
-   a follower's position empty (#163).
+8. Every entry from 1 to 150 with a destination is put at its
+   destination, followers, sleeping and dead entries too; the
+   destination is kept, so a Leader arrives on its next step. A
+   follower still follows, and keeps that position until it moves again.
+   (finding:movement-council-puts-forces-at-their-destinations)
 
 - The Game Speed goes back to Normal.
   (finding:time-council-moves-the-calendar-on)

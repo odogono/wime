@@ -92,8 +92,11 @@ and mobilised. The highest set bit picks the condition.
 - Bit 2, near Gandalf: entry 1 or entry 2 is not asleep and is no more
   than 4 pixels away in x and in y, by that Gandalf's own position.
   (finding:ai-trigger-distances-are-square)
-- A follower's own position is not kept up to date. The sim keeps it
-  as null and, like the original's (0, 0), measures from (0, 0).
+- A follower's own position is not kept up to date: it stays where it
+  was when the entry began following, or, for a follower from the
+  start, none, which the sim keeps as null and, like the original's
+  (0, 0), measures from (0, 0). The Council of Elrond moves followers
+  with a destination too (docs/spec/council-of-elrond.md).
 - Bits 1 and 3: as soon as the event is set.
 - Bits 4 to 7: once the low four bits' number of days has passed since
   the event's day, counted on the low byte of the day, and only while

@@ -109,7 +109,8 @@ export const holdCouncil = (state: SimState): SimState => {
   const opened = openBilbo(roster);
   for (let index = 1; index <= LAST_MOVED; index++) {
     const entry = opened[index];
-    if (entry?.leader === null && entry.destination && entry.destination.x) {
+    // Followers too: the test looks only at the destination.
+    if (entry?.destination && entry.destination.x) {
       opened[index] = { ...entry, position: { ...entry.destination } };
     }
   }

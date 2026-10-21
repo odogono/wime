@@ -164,6 +164,18 @@ describe('when the Council is held', () => {
     ).toBeNull();
   });
 
+  test('with a following Gandalf by where he stood when he began to follow', () => {
+    expect(
+      tickSim(
+        world([
+          gandalf({ leader: 20 }),
+          frodo(),
+          { index: 20, name: 'STRIDER', position: ELSEWHERE, state: 1 }
+        ])
+      ).council
+    ).not.toBeNull();
+  });
+
   test('whether Gandalf is alive or not', () => {
     const sim = world([gandalf({ strength: 0 }), frodo()]);
     expect(tickSim(sim).council).toEqual({ ringBearer: 7 });
@@ -350,7 +362,7 @@ describe('the rest of the world', () => {
     expect(meetsEncounter(met, met.roster[7]!, bilbo)).toBe(true);
   });
 
-  test('every Leader up to entry 150 is put at its destination', () => {
+  test('every entry up to 150 with a destination is put at it, followers too', () => {
     const goal = { x: 800, y: 600 };
     const { roster } = tickSim(
       arrival([
@@ -362,7 +374,8 @@ describe('the rest of the world', () => {
       ])
     );
     expect(roster[20]).toMatchObject({ destination: goal, position: goal });
-    expect(roster[21]!.position).toBeNull();
+    // A follower is moved too, and still follows.
+    expect(roster[21]).toMatchObject({ leader: 20, position: goal });
     expect(roster[22]!.position).toEqual(ELSEWHERE);
     expect(roster[150]!.position).toEqual(goal);
     expect(roster[151]!.position).toEqual(ELSEWHERE);
