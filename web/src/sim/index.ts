@@ -152,6 +152,8 @@ export {
   serializeSim,
   takeAnnouncement,
   takePassing,
+  isHeld,
+  releaseWatched,
   tickSim,
   watchEntry,
   type SimState

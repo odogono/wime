@@ -167,11 +167,35 @@ export const createSim = (
 // sweep, unless the Animation Level is showing
 // (docs/spec/council-of-elrond.md,
 // finding:time-daily-check-opens-the-8am-sweep).
-export const tickSim = (state: SimState): SimState => {
+export const tickSim = (state: SimState): SimState =>
+  sweep(state, state.watching);
+
+// The Animation Level's sweep waits at the watched Character, the one
+// it stopped before, until its figures walk off (releaseWatched).
+// Watching the empty entry 0, nobody, time stands still
+// (finding:time-animation-level-holds-the-sweep-at-the-watched-character).
+export const isHeld = (state: SimState): boolean =>
+  state.watching !== null &&
+  (state.watching === NOBODY || state.sweepFrom === state.watching);
+
+// The watched Character's figures have walked off: one tick moves it
+// the held pixel and the sweep runs on
+// (finding:movement-watched-character-advances-as-its-figures-walk-off).
+export const releaseWatched = (state: SimState): SimState =>
+  state.watching === null || state.watching === NOBODY
+    ? state
+    : sweep(state, null);
+
+const NOBODY = 0;
+
+const sweep = (state: SimState, holdAt: number | null): SimState => {
   if (state.fight || state.meeting || state.council || state.ending) {
     return state;
   }
-  const { stoppedAt, world } = sweepMovement(
+  if (holdAt !== null && isHeld(state)) {
+    return state;
+  }
+  const { heldAt, stoppedAt, world } = sweepMovement(
     state,
     state.sweepFrom,
     (moved, index) => {
@@ -196,8 +220,12 @@ export const tickSim = (state: SimState): SimState => {
         ? startFight(moved, match.fight)
         : startMeeting(moved, match.meeting);
     },
-    wakeEntry
+    wakeEntry,
+    holdAt
   );
+  if (heldAt !== undefined) {
+    return { ...world, sweepFrom: heldAt };
+  }
   if (stoppedAt !== null) {
     return { ...world, sweepFrom: stoppedAt + 1 };
   }

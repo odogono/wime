@@ -255,13 +255,18 @@ const tickEntry = (world: MovementWorld, entry: RosterEntry): RosterEntry => {
 // stopped so the caller can carry on from the next entry later.
 // `beforeStep` runs for every entry just before its step, on the
 // sweep's working copy, as the trigger test does
-// (finding:ai-trigger-tested-before-the-move).
+// (finding:ai-trigger-tested-before-the-move). When the step of entry
+// `holdAt` would move it a pixel, the sweep stops before it instead,
+// moving nothing, and reports `heldAt`: the Animation Level holds the
+// sweep at the watched Character until its figures walk off
+// (finding:time-animation-level-holds-the-sweep-at-the-watched-character).
 export const sweepMovement = <T extends MovementWorld>(
   world: T,
   from: number,
   afterStep?: (world: T, index: number) => T | null,
-  beforeStep?: (world: T, index: number) => void
-): { stoppedAt: number | null; world: T } => {
+  beforeStep?: (world: T, index: number) => void,
+  holdAt: number | null = null
+): { heldAt?: number; stoppedAt: number | null; world: T } => {
   const next = {
     ...world,
     roster: [...world.roster],
@@ -270,13 +275,23 @@ export const sweepMovement = <T extends MovementWorld>(
   for (let i = from; i < next.roster.length; i++) {
     beforeStep?.(next, i);
     const entry = next.roster[i]!;
+    // A held step must leave no trace, so what it draws is kept.
+    const rng = next.rng;
+    const route = next.routes[entry.route];
     const stepped = tickEntry(next, entry);
-    next.roster[i] = stepped;
     const moved =
       stepped.position !== null &&
       entry.position !== null &&
       (stepped.position.x !== entry.position.x ||
         stepped.position.y !== entry.position.y);
+    if (moved && i === holdAt) {
+      next.rng = rng;
+      if (route) {
+        next.routes[entry.route] = route;
+      }
+      return { heldAt: i, stoppedAt: null, world: next };
+    }
+    next.roster[i] = stepped;
     if (moved && afterStep) {
       const stopped = afterStep(next, i);
       if (stopped) {

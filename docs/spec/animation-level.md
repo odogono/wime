@@ -12,28 +12,29 @@ talks and fights shown here are in `docs/spec/encounters.md`.
 - The game runs the Animation Level, then the Campaign Level, and back.
   The Animation Level ends when the map icon is pressed, or when a fight
   is to be fought on the Campaign Level.
-- In the original, going down changes nothing about the watched
-  Character's Force: it keeps its destination, Order and followers.
-  Each time its figures walk off the right edge it moves one pixel on
-  the map and the scene is rebuilt, the figures walking in again from
-  the left; with no destination the Level goes up instead
+- Going down changes nothing about the watched Character's Force: it
+  keeps its destination, Order and followers. Each time its figures
+  walk off the right edge it takes one step on the map and the scene is
+  rebuilt where it now stands, the figures walking in again from the
+  left; with no destination the Level goes up instead
   (finding:movement-watched-character-advances-as-its-figures-walk-off,
   finding:ui-animation-level-figures-walk-off).
-- In the original, time is held to the watched Character's walk: while
-  its figures walk the roster sweep waits at that Character, so no
-  Force moves and the clock stands still, and once they walk off one
-  tick applies the step. At the end of a sweep the clock steps at once
-  while the watched Character travels, and otherwise waits about 256
-  frames whatever the Game Speed. With nobody watched, time stops
+- Time is held to the watched Character's walk: when the sweep reaches
+  it and its step would move it a pixel, the sweep stops there, moving
+  nothing, until its figures walk off; then that step is taken and the
+  sweep runs on. Meanwhile no Force moves, no Encounter or meeting is
+  found and the clock stands still. With nobody watched, time stops
   (finding:time-animation-level-holds-the-sweep-at-the-watched-character).
-- `provisional`: the port does not pace the Animation Level so yet
-  (#175). The sim keeps ticking at the Game Speed while the view shows
-  the Animation Level, the scene is built once, and the Level goes up
-  by itself once every figure has walked off while the watched
-  Character lives. A fight with a Unit on the Good side, a meeting
-  other than a watched advisor talk, or the game's end brings the
-  Campaign Level up. A Character fight involving the watched Character
-  and advisor talks stay here (`docs/spec/encounters.md`).
+- Otherwise time runs at the Animation Level's own pace, whatever the
+  Game Speed: a sweep every 151 frames while the watched Character
+  travels, and a quarter-hour every 256 frames when it rests or has
+  nowhere to go. Pause still stops it.
+  `provisional`: the original moves one roster entry a frame; the port
+  runs the whole sweep at once at the end of those frames.
+- A fight with a Unit on the Good side, a meeting other than a watched
+  advisor talk, or the game's end brings the Campaign Level up. A
+  Character fight involving the watched Character and advisor talks
+  stay here (`docs/spec/encounters.md`).
 - The Campaign Level's magnifying glass goes down a Level (manual,
   pdf-p15). It watches the first Good row of the Forces near the spot,
   gathered as a fight's rows are: the lowest-numbered awake Good Leader
