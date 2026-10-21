@@ -10,7 +10,14 @@ import {
   type Tilemap
 } from './movement';
 import { forcesOf } from './starting-state';
-import { createSim, tickSim, type SimState } from './state';
+import {
+  createSim,
+  isHeld,
+  releaseWatched,
+  tickSim,
+  watchEntry,
+  type SimState
+} from './state';
 
 // The reference scenarios of docs/spec/movement.md on synthetic
 // maps: the same starting positions, destinations, speed classes
@@ -574,5 +581,75 @@ describe('rest and arrival', () => {
     expect(sim.roster[2]!.position).toEqual({ x: 160, y: 320 });
     // A class-0 step still charges stamina in the original.
     expect(sim.roster[2]!.stamina).toBe(20);
+  });
+});
+
+// Two travellers far apart on open road; the Animation Level watches
+// the first (docs/spec/animation-level.md).
+const watchedWorld = (): SimState =>
+  makeSim({
+    entries: [
+      entry({
+        destination: { x: 1600, y: 160 },
+        facing: 2,
+        index: 1,
+        name: 'WATCHED',
+        position: { x: 160, y: 160 }
+      }),
+      entry({
+        destination: { x: 1600, y: 960 },
+        facing: 2,
+        index: 2,
+        name: 'OTHER',
+        position: { x: 160, y: 960 }
+      })
+    ],
+    places: [place(1, 'HOME', 160, 160)],
+    terrainByTile: { 1: 100 },
+    tileAt: () => 1
+  });
+
+describe('the Animation Level holds the sweep', () => {
+  test('at the watched Character when it is due a pixel, until it walks off', () => {
+    const start = watchEntry(watchedWorld(), 1);
+    const held = tickUntil(start, isHeld, 20);
+    expect(isHeld(held)).toBe(true);
+    expect(held.sweepFrom).toBe(1);
+    // Nothing more moves and the clock stands still while it is held.
+    const later = tickN(held, 10);
+    expect(later).toEqual(held);
+    // The walk-off moves it the held pixel and the sweep runs on.
+    const released = releaseWatched(held);
+    expect(released.roster[1]!.position!.x).toBe(
+      held.roster[1]!.position!.x + 1
+    );
+    expect(released.sweepFrom).toBe(0);
+    expect(released.clock).not.toEqual(held.clock);
+  });
+
+  test('a held step draws nothing from the world', () => {
+    const start = watchEntry(watchedWorld(), 1);
+    const held = tickUntil(start, isHeld, 20);
+    const unwatched = tickUntil(
+      watchEntry(watchedWorld(), null),
+      sim => sim.clock.quarterHour === held.clock.quarterHour,
+      20
+    );
+    expect(held.rng).toEqual(unwatched.rng);
+  });
+
+  test('with nobody watched, time stands still', () => {
+    const nobody = watchEntry(watchedWorld(), 0);
+    expect(isHeld(nobody)).toBe(true);
+    expect(tickN(nobody, 5)).toEqual(nobody);
+    expect(releaseWatched(nobody)).toEqual(nobody);
+  });
+
+  test('a watched Character with nowhere to go never holds it', () => {
+    const still = watchEntry(watchedWorld(), 1);
+    still.roster[1] = { ...still.roster[1]!, destination: null };
+    const ticked = tickN(still, 10);
+    expect(isHeld(ticked)).toBe(false);
+    expect(ticked.roster[2]!.position!.x).toBeGreaterThan(160);
   });
 });

@@ -6,7 +6,9 @@ import {
   fullMapDots,
   giveOrder,
   glassWatches,
+  isHeld,
   mirrorListing,
+  releaseWatched,
   tickSim,
   watchEntry,
   type Force,
@@ -33,6 +35,11 @@ import {
   walkedOff,
   type Stage
 } from './animation-level';
+import {
+  advanceAnimationPace,
+  animationPace,
+  type AnimationPace
+} from './animation-pace';
 import {
   ARCHIVE_MESSAGES,
   archiveButtonAt,
@@ -441,6 +448,7 @@ const run = (
   let soundLevel: Level = level;
   let lastSound: SoundView = QUIET;
   let lastFigures: Figure[] = [];
+  let animationPaceState: AnimationPace = animationPace();
   // The page opens on the boot sequence (docs/spec/boot-sequence.md),
   // which holds the screen, the keys and Title until a new game starts.
   let boot: BootSequence | null = bootSequence(viewNow());
@@ -604,7 +612,9 @@ const run = (
   // built once, from where it stands (docs/spec/animation-level.md).
   // Returns whether it went down: an entry with no position cannot be
   // watched.
-  const goDownToAnimation = (index: number): boolean => {
+  // `again` rebuilds the scene for the same watch as it moves on, which
+  // is not a new entry to the Level.
+  const goDownToAnimation = (index: number, again = false): boolean => {
     const entry = sim.roster[index];
     if (!entry?.position) {
       return false;
@@ -612,7 +622,13 @@ const run = (
     const force = forcesOnMap(sim.roster).find(
       candidate => candidate.leader.index === index
     );
-    goDownTo(index, entry.position, entry.facing, force?.members ?? [entry]);
+    goDownTo(
+      index,
+      entry.position,
+      entry.facing,
+      force?.members ?? [entry],
+      again
+    );
     return true;
   };
   // Down to the Animation Level at a spot with nobody watched, as the
@@ -626,8 +642,12 @@ const run = (
     index: number,
     position: Camera,
     facing: number,
-    members: SimState['roster']
+    members: SimState['roster'],
+    again = false
   ): void => {
+    if (!again) {
+      animationPaceState = animationPace();
+    }
     watched = index;
     sim = watchEntry(sim, index);
     // The Place's tile byte, when it has scenery of its own, picks its
@@ -645,7 +665,9 @@ const run = (
         return placeScenery(tile, random, strips);
       }
     );
-    levelEntries += 1;
+    if (!again) {
+      levelEntries += 1;
+    }
     party = members.map(member => member.index);
     provisions = null;
     stage = spawnParty(
@@ -1708,7 +1730,19 @@ const run = (
     if (level === 'animation') {
       // Talks hold the view's clock. Meetings of the watched Character
       // with an advisor start here without the Campaign Level's choice.
-      const ticks = driver.advance(elapsedMs);
+      // Time runs at the Animation Level's own pace, held while the
+      // watched Character's figures walk (animation-pace.ts).
+      const watchedEntry = sim.roster[watched];
+      const paced = advanceAnimationPace(
+        animationPaceState,
+        driver.paused ? 0 : elapsedMs,
+        watchedEntry?.destination !== null &&
+          watchedEntry?.destination !== undefined &&
+          watchedEntry.state === 1,
+        isHeld(sim)
+      );
+      animationPaceState = paced.pace;
+      const ticks = paced.ticks;
       if (provisions && provisionsExpired(provisions, now)) {
         provisions = null;
       }
@@ -1782,11 +1816,20 @@ const run = (
           (!battle &&
             !talk &&
             watched !== NOBODY &&
-            (walkedOff(stage) ||
-              stage.figures.length === 0 ||
-              sim.roster[watched]!.strength === 0))
+            (stage.figures.length === 0 ||
+              sim.roster[watched]!.strength === 0 ||
+              (walkedOff(stage) && !sim.roster[watched]!.destination)))
         ) {
           goUpFromAnimation();
+        } else if (!battle && !talk && watched !== NOBODY && walkedOff(stage)) {
+          // The figures have walked off on the way somewhere: the
+          // watched Character takes its held step and the next scene is
+          // built where it now stands
+          // (finding:movement-watched-character-advances-as-its-figures-walk-off).
+          sim = releaseWatched(sim);
+          goDownToAnimation(watched, true);
+          requestAnimationFrame(frame);
+          return;
         } else {
           screen.buffer.drawImage(scene, 0, 0);
           if (battle) {

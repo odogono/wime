@@ -7,6 +7,7 @@ import { nextRandom, type RngState } from './rng';
 import { restoreSave, serialiseSave } from './save';
 import {
   createSim,
+  releaseWatched,
   takePassing,
   tickSim,
   watchEntry,
@@ -405,7 +406,10 @@ describe('an anonymous figure', () => {
       ]),
       7
     );
-    const sim = tickSim(start);
+    // The step waits for the figures to walk off, then finds the Ranger.
+    const held = tickSim(start);
+    expect(held.passings).toEqual([]);
+    const sim = releaseWatched(held);
     expect(sim.passings).toEqual([{ a: 7, b: 170 }]);
     expect(sim.fight).toBeNull();
     expect(sim.meeting).toBeNull();
@@ -515,7 +519,7 @@ describe('an advisor', () => {
 
 describe('saving with Encounters', () => {
   test('a pending talk, a used-up advisor and the watched Character survive a save', () => {
-    const met = tickSim(
+    const met = releaseWatched(
       onAnimationLevel(
         world([
           mover(7, { destination: AT, position: { x: 32, y: 33 } }),
