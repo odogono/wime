@@ -1,3 +1,4 @@
+import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, test } from 'bun:test';
 
 import {
@@ -233,7 +234,7 @@ describe('starting a fight', () => {
 });
 
 describe('rows', () => {
-  test('Leaders within 9 pixels join with their followers, and like names merge', () => {
+  test('Leaders within 9 pixels join with their followers, and like-named Evil Leaders merge', () => {
     const sim = world([
       character(15, 'FARAMIR', 10, 5, { position: CALEMBEL }),
       unit(16, 'Rangers', 200, { allegiance: 1, leader: 15 }),
@@ -249,8 +250,25 @@ describe('rows', () => {
     ).toEqual([
       ['good', [15], 1, false],
       ['good', [16], 200, true],
-      ['good', [73, 74], 1800, false],
+      ['good', [73], 1000, false],
+      ['good', [74], 800, false],
       ['evil', [141, 142], 800, false]
+    ]);
+  });
+
+  test('like-named Good Leaders keep rows of their own, and a follower joins the first', () => {
+    const sim = world([
+      unit(62, 'elves', 400, { position: CALEMBEL }),
+      unit(63, 'elves', 300, { position: CALEMBEL }),
+      unit(64, 'elves', 500, { leader: 62 }),
+      unit(142, 'orcs', 300, { ...EVIL, position: CALEMBEL })
+    ]);
+    expect(
+      combatRows(sim.roster, CALEMBEL).map(row => [row.side, row.entries])
+    ).toEqual([
+      ['good', [62, 64]],
+      ['good', [63]],
+      ['evil', [142]]
     ]);
   });
 });
@@ -514,6 +532,8 @@ const strengthsAfterFightAt = (position: Point): number[] =>
   ).roster.map(entry => entry.strength);
 
 const MORANNON = { x: 1744, y: 1008 };
+const MINAS_TIRITH = { x: 1616, y: 1184 };
+const LORIEN = { x: 1344, y: 656 };
 
 // What a 3,000-strong attacker loses, on average, against 1,000 orcs
 // of a given fighting strength.
@@ -541,8 +561,9 @@ const attackerLoss = (fighting: number): number => {
   return lost / 200;
 };
 
-// Defended Places are defended only by their Garrisons' stats
-// (finding:places-defended-by-garrison-units,
+// A Place is defended by whoever is awake near the attacked party; its
+// Garrisons count only through their stats
+// (finding:combat-place-defended-by-the-forces-near-the-fight,
 // finding:combat-no-place-or-terrain-modifier).
 describe('garrisons', () => {
   test("a Garrison's fighting strength makes an assault cost more than on troops in the field", () => {
@@ -567,4 +588,81 @@ describe('garrisons', () => {
       strengthsAfterFightAt(CALEMBEL)
     );
   });
+});
+
+// Who defends a Place (finding:combat-place-defended-by-the-forces-near-the-fight,
+// finding:combat-sleeping-leaders-take-no-part-in-a-fight).
+describe('who defends a Place', () => {
+  test('a Leader near the Place joins, though it stands off it', () => {
+    const sim = world([
+      unit(34, 'infantry', 600, { position: MINAS_TIRITH }),
+      unit(69, 'infantry', 1000, { position: { x: 1624, y: 1184 } }),
+      unit(142, 'orcs', 300, { ...EVIL, position: MINAS_TIRITH })
+    ]);
+    expect(
+      combatRows(sim.roster, MINAS_TIRITH).map(row => row.entries)
+    ).toEqual([[34], [69], [142]]);
+  });
+
+  test('a sleeping Garrison is neither attacked nor drawn into the fight', () => {
+    const sim = world([
+      unit(60, 'elves', 500, {
+        destination: LORIEN,
+        position: { x: 1344, y: 655 },
+        state: 0
+      }),
+      unit(61, 'elves', 1000, {
+        destination: LORIEN,
+        position: { x: 1344, y: 655 },
+        state: 0
+      }),
+      character(59, 'CELEBORN', 10, 5, { position: LORIEN }),
+      unit(142, 'orcs', 300, { ...EVIL, position: LORIEN })
+    ]);
+    expect(combatRows(sim.roster, LORIEN).map(row => row.entries)).toEqual([
+      [59],
+      [142]
+    ]);
+    const asleep = world([
+      unit(61, 'elves', 1000, {
+        destination: LORIEN,
+        position: { x: 1344, y: 655 },
+        state: 0
+      }),
+      unit(142, 'orcs', 300, { ...EVIL, position: LORIEN })
+    ]);
+    expect(findFight(asleep, 142)).toBeNull();
+  });
+
+  // The exported starting state is gitignored and absent in CI.
+  const startingStatePath = new URL(
+    '../../public/assets/starting-state.json',
+    import.meta.url
+  );
+  const start = (): SimState =>
+    createSim(1, JSON.parse(readFileSync(startingStatePath, 'utf8')));
+
+  test.skipIf(!existsSync(startingStatePath))(
+    'at the start, Minas Tirith is defended by Denethor, the tower guards and both infantry',
+    () => {
+      expect(
+        combatRows(start().roster, MINAS_TIRITH).map(row => row.entries)
+      ).toEqual([[32], [33], [34], [69]]);
+    }
+  );
+
+  test.skipIf(!existsSync(startingStatePath))(
+    'at the start, an Evil Force walking into Lórien finds nobody to fight',
+    () => {
+      const sim = start();
+      const orcs = sim.roster[104]!;
+      const roster = sim.roster.map(entry =>
+        entry === orcs ? { ...entry, position: LORIEN, state: 1 } : entry
+      );
+      expect(combatRows(roster, LORIEN)).toEqual([
+        expect.objectContaining({ entries: [104], side: 'evil' })
+      ]);
+      expect(findFight({ ...sim, roster }, 104)).toBeNull();
+    }
+  );
 });

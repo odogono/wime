@@ -68,11 +68,11 @@ A named point on the map, such as Hobbiton or Cirith Ungol. Every Place has a ki
 _Avoid_: Location, site, town
 
 **Stronghold**:
-One of the five major Good Places (the Hornburg, Edoras, Minas Tirith, Lórien and Thranduil's Palace). Losing any three loses the game.
+One of the five major Good Places (the Hornburg, Edoras, Minas Tirith, Lórien and Thranduil's Palace). Each stands or falls with one named Garrison, and losing any three loses the game.
 _Avoid_: Capital, base
 
 **Garrison**:
-A Unit that stands at a Place with no destination and never moves until triggered, defending it. Each Stronghold has one, and the Stronghold falls when its Garrison is destroyed.
+A Unit that starts at a Place and stays there unless the player orders it away or its Leader moves. Some start asleep until a War Event wakes them. A Place may have several.
 _Avoid_: Defenders, guard, fort troops
 
 ## Play

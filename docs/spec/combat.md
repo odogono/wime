@@ -44,10 +44,11 @@ side's (finding:forces-roster-order). The Encounters, entries 152 to
 - The fight is placed at the Good party's position. Every awake
   Leader within 9 pixels of it takes part: Good rows from entries 1
   to 78, Evil rows from 79 to 151. Each Good Leader is followed by its
-  followers, recursively, in roster order. An entry whose name matches
-  an existing row of its side joins that row. Otherwise it gets a row
-  of its own, marked as a follower if it has a Leader. Each side has
-  at most 19 rows. (finding:combat-rows-merge-like-named-forces)
+  followers, recursively, in roster order. A Good Leader always gets a
+  row of its own. A follower or an Evil Leader whose name matches an
+  existing row of its side joins that row; otherwise it gets a row of
+  its own, marked as a follower if it has a Leader. Each side has at
+  most 19 rows. (finding:combat-good-leaders-keep-rows-of-their-own)
 - A row's strength is the sum of its entries' current strength. Its
   fighting strength, health, byte 24 and objects are those of its
   first entry. A row that started at strength 1 is a Character for
@@ -154,15 +155,24 @@ ending pages, are in `docs/spec/winning-and-losing.md`.
 
 - A Place gives no bonus to the fight at it, and no Place has an owner
   or changes hands (finding:combat-no-place-or-terrain-modifier).
-- `provisional`: defence comes only from the Garrisons, the Units that
-  stand at a Place with no destination. Their starting fighting
-  strength is often higher than the same troops in the field: 3 or 4
-  for the Evil citadels' orcs against 2, and 4 for Minas Tirith's
-  tower guards against 2 for Gondor's infantry. A Garrison never
-  moves, so it never starts a fight, but it fights whoever walks into
-  it. The sim keeps the starting stats as they are and adds nothing
-  for the Place. (finding:places-defended-by-garrison-units,
-  finding:combat-defences, #166)
+- A Place is defended by whoever the rows gather around the attacked
+  Good Leader, as anywhere else; nothing about the Place or its
+  Garrisons enters the choice. A Force near the Place but not on it
+  defends it too, as the infantry at the Rammas Forts do for Minas
+  Tirith. (finding:combat-place-defended-by-the-forces-near-the-fight)
+- A Garrison never moves, so it never starts a fight, but it fights
+  whoever comes within reach. Its starting fighting strength is often
+  higher than the same troops' in the field: 3 or 4 for the Evil
+  citadels' orcs against 2, and 4 for Minas Tirith's tower guards
+  against 2 for Gondor's infantry. The sim keeps the starting stats
+  as they are and adds nothing for the Place.
+  (finding:combat-place-defended-by-the-forces-near-the-fight,
+  finding:combat-defences)
+- A sleeping Leader is never attacked and never joins a fight, and no
+  attack wakes it. At the start everyone at Lórien is asleep, so an
+  Evil Force walks through it, and only Thranduil and his elves defend
+  Thranduil's Palace.
+  (finding:combat-sleeping-leaders-take-no-part-in-a-fight)
 
 ## Left out
 
