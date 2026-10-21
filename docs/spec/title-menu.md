@@ -32,9 +32,13 @@ port's own, built on its save slots (docs/spec/saving.md).
   is lettered in grey, colour 22, and, chosen, answers with a message instead of
   loading. The list shows six rows at a time, scrolling with the
   selection.
-- A loaded game, by Resume or Load, opens on the Animation Level with
-  the Ring-bearer, as a new game does, without Gandalf's letter. Game
-  Speed and the camera are not saved (docs/spec/saving.md). A load that
+- A loaded game, by Resume or Load, returns to the Level it was saved
+  on, without Gandalf's letter: the Animation Level watching the same
+  Character, or else the Campaign Level, centred on the Ring-bearer's
+  Force. A game saved on the Full Map Level opens on the Campaign
+  Level. If the watched Character can no longer be shown, the Campaign
+  Level opens instead. Game Speed and the camera are not saved
+  (docs/spec/saving.md). A load that
   fails answers with a message, and any key or click goes back to the
   menu.
 

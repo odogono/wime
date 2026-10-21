@@ -18,8 +18,10 @@ save slots (docs/spec/saving.md), and shares the title menu's window
   Elrond or the ending holds the game, as the autosave does, so a save
   never catches one half done.
 - While it is open the game stands still: the scene stays as it was
-  when the menu opened, dimmed, and no game time passes. The Animation
-  Level's figures carry on from where they stood once it closes.
+  when the menu opened, dimmed, and no game time passes. The view's own
+  timers stand still too: a message on screen, Gandalf's letter and the
+  Animation Level's figures carry on once it closes as if no time had
+  passed.
 - Close, or Escape on its first menu, closes it.
 
 ## The choices
@@ -36,8 +38,8 @@ save slots (docs/spec/saving.md), and shares the title menu's window
 - **Load** lists the autosave, then the named slots newest first, then
   Back, as the title menu's Load does. Choosing a save asks first,
   resting on Go back, since the game in play is lost if not saved. A
-  loaded game opens on the Animation Level with the Ring-bearer, as from
-  the title menu. A save of another version is refused with a message.
+  loaded game returns to its Level, as from the title menu
+  (docs/spec/title-menu.md). A save of another version is refused with a message.
 - **Return to title** autosaves the game, then goes back to the title
   menu, with Title playing. If the autosave fails, the game stays in
   play and a message says so.
