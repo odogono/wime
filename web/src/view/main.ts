@@ -32,6 +32,7 @@ import {
   drawAnimationIcons,
   drawFigures,
   groundPictures,
+  iconBox,
   scriptWorld,
   spawnParty,
   startErrand,
@@ -201,6 +202,14 @@ import {
 } from './order-window';
 import { takePassingMessage, type PassingMessage } from './passing-message';
 import {
+  GLASS_TOGGLES,
+  PRESS_TOGGLES,
+  flashOver,
+  flashSwapped,
+  swapColours,
+  type PressFlash
+} from './press-flash';
+import {
   chooseObject,
   drawProvisionsWindow,
   holdsClock,
@@ -222,7 +231,6 @@ import { placeScenery } from './special-scenery';
 import {
   drawSpeedWindow,
   openSpeedWindow,
-  speedAt,
   type SpeedWindow
 } from './speed-window';
 import { createTickDriver } from './tick-driver';
@@ -458,9 +466,17 @@ const run = (
   // Presses on a button or an icon, each ringing ReverbBells
   // (finding:sound-reverb-bells-ring-on-a-press).
   let presses = 0;
-  const ring = (): void => {
-    presses += 1;
-  };
+  // The flash of a pressed icon or button, while it runs; the press is
+  // handled again once it is over (finding:ui-press-flash).
+  let flash:
+    | (PressFlash & {
+        original: ImageData;
+        replay: () => void;
+        resolution: 'hires' | 'lores';
+      })
+    | null = null;
+  let pressEvent: PointerEvent | null = null;
+  let replaying = false;
   let infoWindow: InfoWindow | null = null;
   let order: OrderState = IDLE_ORDER;
   // The fight's announcement or combat window, while a fight is on
@@ -668,6 +684,46 @@ const run = (
     };
   };
   const toHires = (event: PointerEvent): Camera => toNative(event, 2);
+  const inside = (
+    box: { height: number; width: number; x: number; y: number },
+    point: Camera
+  ): boolean =>
+    point.x >= box.x &&
+    point.x < box.x + box.width &&
+    point.y >= box.y &&
+    point.y < box.y + box.height;
+  // Ring the bell and flash `area` before a press acts. True when the
+  // press waits for the flash: the caller stops, and the press is
+  // handled again once the flash is over, when this is false
+  // (finding:ui-press-flash, finding:sound-reverb-bells-ring-on-a-press).
+  const pressFlashes = (
+    area: { height: number; width: number; x: number; y: number },
+    toggles = PRESS_TOGGLES
+  ): boolean => {
+    const event = pressEvent;
+    if (replaying || !event) {
+      return false;
+    }
+    presses += 1;
+    const resolution = level === 'full-map' ? 'hires' : 'lores';
+    const ctx = resolution === 'hires' ? screen.hires : screen.buffer;
+    flash = {
+      area,
+      original: ctx.getImageData(area.x, area.y, area.width, area.height),
+      replay: () => {
+        replaying = true;
+        try {
+          handlePointerDown(event);
+        } finally {
+          replaying = false;
+        }
+      },
+      resolution,
+      start: viewNow(),
+      toggles
+    };
+    return true;
+  };
 
   // The one message box (message-box.ts). What a box of each kind shows,
   // if anything; a combat window is not a message box.
@@ -1053,8 +1109,8 @@ const run = (
       pressProvisions(point, now);
       return;
     }
-    if (icon) {
-      ring();
+    if (icon && pressFlashes(iconBox(icon))) {
+      return;
     }
     if (icon?.name === 'map') {
       goUpFromAnimation();
@@ -1103,10 +1159,9 @@ const run = (
     }
     const pressed = provisionsButtonAt(provisions, point);
     const position = sim.roster[watched]?.position;
-    if (!pressed || !position) {
+    if (!pressed || !position || pressFlashes(pressed)) {
       return;
     }
-    ring();
     if (typeof pressed.value === 'number') {
       if (provisions.kind !== 'menu') {
         const { chosen, kind } = provisions;
@@ -1197,8 +1252,8 @@ const run = (
     // A press on a button acts on it; anywhere else clears the window.
     if (archive) {
       const button = archiveButtonAt(archive, point);
-      if (button) {
-        ring();
+      if (button && pressFlashes(button)) {
+        return;
       }
       archive = button
         ? button.choice === 'save'
@@ -1219,8 +1274,16 @@ const run = (
       return;
     }
     const icon = fullMapIconAt(fullMapPlacements, point);
-    if (icon) {
-      ring();
+    if (
+      icon &&
+      pressFlashes({
+        height: icon.icon.image.height,
+        width: icon.icon.image.width,
+        x: icon.x,
+        y: icon.y
+      })
+    ) {
+      return;
     }
     if (icon?.icon.name === 'scroll') {
       openArchive();
@@ -1320,9 +1383,17 @@ const run = (
   // A press on one of its buttons sets that speed and closes it; a press
   // off them does nothing (finding:ui-message-box-presses-off-the-buttons).
   const pressSpeedWindow = (point: Camera): void => {
-    const speed = speedWindow && speedAt(speedWindow, point.x, point.y);
+    const button = speedWindow?.buttons.find(b => inside(b, point));
+    // On the Full Map Level it is drawn twice as wide.
+    const area =
+      button && level === 'full-map'
+        ? { ...button, width: button.width * 2, x: button.x * 2 }
+        : button;
+    if (area && pressFlashes(area)) {
+      return;
+    }
+    const speed = button?.speed;
     if (speed) {
-      ring();
       driver.speed = speed;
       driver.paused = false;
       speedWindow = null;
@@ -1414,7 +1485,9 @@ const run = (
     return true;
   };
   canvas.style.cursor = 'grab';
-  canvas.addEventListener('pointerdown', event => {
+  // A press, handled again once its icon's or button's flash is over
+  // (finding:ui-press-flash).
+  const handlePointerDown = (event: PointerEvent): void => {
     if (gameMenu) {
       chooseInGame(clickGameMenu(gameMenu, toNative(event), titleSaves()));
       return;
@@ -1443,12 +1516,15 @@ const run = (
         return;
       }
       const point = toNative(event);
-      const answered = pressFight(point);
-      if (answered) {
-        ring();
+      const button =
+        combat?.kind === 'announcement'
+          ? ANNOUNCEMENT_BUTTONS.find(b => inside(b, point))
+          : undefined;
+      if (button && pressFlashes(button)) {
+        return;
       }
       if (
-        !answered &&
+        !pressFight(point) &&
         combat?.kind === 'announcement' &&
         level === 'campaign' &&
         !iconAt(placements, point)
@@ -1470,11 +1546,15 @@ const run = (
     // nothing and a click on a Force or a Place replaces it
     // (finding:ui-message-box-presses-off-the-buttons).
     if (meetingHoldsTime(meetingUi)) {
-      const answered = pressMeeting(pointer);
-      if (answered) {
-        ring();
+      const at = pointer;
+      const button =
+        meetingUi?.kind === 'window'
+          ? meetingUi.buttons.find(b => inside(b, at))
+          : undefined;
+      if (button && pressFlashes(button)) {
+        return;
       }
-      if (!answered && !iconAt(placements, pointer)) {
+      if (!pressMeeting(pointer) && !iconAt(placements, pointer)) {
         startDrag(event, pointer);
       }
       return;
@@ -1484,8 +1564,16 @@ const run = (
       return;
     }
     const icon = iconAt(placements, pointer);
-    if (icon) {
-      ring();
+    if (
+      icon &&
+      pressFlashes({
+        height: icon.icon.image.height,
+        width: icon.icon.image.width,
+        x: icon.x,
+        y: icon.y
+      })
+    ) {
+      return;
     }
     if (icon?.icon.name === 'map') {
       goUp();
@@ -1503,10 +1591,24 @@ const run = (
       const spot = mapPoint(pointer);
       if (spot) {
         const index = glassWatches(sim.roster, spot);
-        // The glass rings as it finds Forces near the spot
-        // (finding:sound-reverb-bells-ring-on-a-press).
-        if (combatRows(sim.roster, spot).length > 0) {
-          ring();
+        // The glass rings as it finds Forces near the spot, and flashes
+        // the first one's icon (finding:sound-reverb-bells-ring-on-a-press,
+        // finding:ui-press-flash).
+        const first = combatRows(sim.roster, spot)[0];
+        const at = first && sim.roster[first.entries[0]!]?.position;
+        if (
+          at &&
+          pressFlashes(
+            {
+              height: 16,
+              width: 16,
+              x: at.x - camera.x,
+              y: at.y - camera.y - 4
+            },
+            GLASS_TOGGLES
+          )
+        ) {
+          return;
         }
         chosenCharacter = index;
         if (index === null || !goDownToAnimation(index)) {
@@ -1535,6 +1637,12 @@ const run = (
     // Drags starting on an icon are for the icon, not the map.
     if (!icon) {
       startDrag(event, pointer);
+    }
+  };
+  canvas.addEventListener('pointerdown', event => {
+    if (!flash) {
+      pressEvent = event;
+      handlePointerDown(event);
     }
   });
   canvas.addEventListener('pointermove', event => {
@@ -1604,6 +1712,10 @@ const run = (
     fit = screen.resize();
   });
   window.addEventListener('keydown', event => {
+    // A flash holds the game, keys included (finding:ui-press-flash).
+    if (flash) {
+      return;
+    }
     // The original's keys: U goes up a Level, M picks up the
     // magnifying glass, T opens the Game Speed window and P pauses
     // (finding:ui-key-bindings). The Campaign Level's magnifying
@@ -2023,6 +2135,37 @@ const run = (
     const now = realNow - menuMs;
     const elapsedMs = Math.min(1000, now - lastTime);
     lastTime = now;
+    // While a pressed icon or button flashes the game stands still; then
+    // the press is handled (finding:ui-press-flash).
+    if (flash) {
+      const { area, original, resolution } = flash;
+      const ctx = resolution === 'hires' ? screen.hires : screen.buffer;
+      if (!flashOver(flash, now)) {
+        const shown = new ImageData(
+          new Uint8ClampedArray(original.data),
+          original.width,
+          original.height
+        );
+        if (flashSwapped(flash, now)) {
+          swapColours(
+            shown.data,
+            level === 'full-map'
+              ? fullMap.palette.hex
+              : level === 'animation'
+                ? animation.palette
+                : assets.palette
+          );
+        }
+        ctx.putImageData(shown, area.x, area.y);
+        screen.present(resolution);
+        requestAnimationFrame(frame);
+        return;
+      }
+      ctx.putImageData(original, area.x, area.y);
+      const { replay } = flash;
+      flash = null;
+      replay();
+    }
     if (menuButton) {
       menuButton.hidden = onTitle() || gameMenu !== null;
     }

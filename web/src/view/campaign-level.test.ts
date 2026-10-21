@@ -148,6 +148,7 @@ const fakeAssets = (draws: DrawCall[]): CampaignAssets => {
     // The real IMAG 100 sheet is 80 by 96 (finding:data-formats-imag-bitmaps).
     forceIcons: { height: 96, width: 80 } as HTMLCanvasElement,
     icons: [],
+    palette: [],
     startingState: null,
     texts: new Map(),
     tilemap: {
