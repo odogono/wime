@@ -66,6 +66,7 @@ in `docs/spec/combat.md`.
   advisor's approach and the party's placement are provisional. Once
   all twenty tips are spent, proverbs fill the remaining advice boxes.
   CSTR 8, also a parting prefix, shares the same once-per-session rule.
+  (#169)
 
 ## Passing by
 
@@ -73,13 +74,13 @@ in `docs/spec/combat.md`.
   Unit, or "<A> is challenged by 20 Rohirrim scouts.". Nothing changes.
   (finding:forces-anonymous-encounters-pass-by)
 - `provisional`: what the scouts' challenge does on the Campaign Level
-  is not known; it does nothing here.
+  is not known; it does nothing here (#169).
 - Pass-by messages use the generic timeout for boxes with no buttons:
   60 frames (1.2 seconds) on Very Hasty, 200 frames (4 seconds)
   otherwise. (`finding:ui-war-event-messages`,
   `finding:time-game-speed-clock-limits`)
 - `provisional`: pass-by messages wait behind talks and decision
-  windows, and while the Full Map Level is shown.
+  windows, and while the Full Map Level is shown (#168).
 
 ## Joining
 
@@ -107,4 +108,4 @@ finding:combat-where-a-fight-is-fought)
 - `provisional`: approach speed, fighting lunges and rotated fall poses
   are view choreography until the fight script entries are specified.
   Rounds without messages stay visible for 800 ms; the combat window's
-  orders, messages and result pacing otherwise apply.
+  orders, messages and result pacing otherwise apply (#169).

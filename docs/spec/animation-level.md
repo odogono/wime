@@ -20,10 +20,10 @@ talks and fights shown here are in `docs/spec/encounters.md`.
   fight with a Unit on the Good side, a meeting other than a watched
   advisor talk, or the game's end brings the Campaign Level up. A
   Character fight involving the watched Character and advisor talks
-  stay here (`docs/spec/encounters.md`).
+  stay here (`docs/spec/encounters.md`, #160).
 - The Campaign Level's magnifying glass goes down a Level (manual,
   pdf-p15). `provisional`: how the original picks whom to watch is not
-  traced; the view watches the Force under the glass.
+  traced; the view watches the Force under the glass (#160).
 
 ## The screen
 
@@ -35,7 +35,7 @@ talks and fights shown here are in `docs/spec/encounters.md`.
   (finding:ui-animation-level-icons)
 - The sack opens Put Down, Take and Use; see `docs/spec/objects.md`.
   (finding:objects-handled-on-animation-level) `provisional`: the eye
-  does nothing yet.
+  does nothing yet (#161).
 - Every colour comes from the Animation Level palette.
   (finding:graphics-animation-level-palette)
 - Windows use the shared frame with AMaps.res IMAG 12.

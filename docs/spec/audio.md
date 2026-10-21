@@ -18,7 +18,7 @@ are laid out is in the Findings of #130; how the browser plays them is
   spare at start-up. The port has memory to spare, so it always plays
   the full arrangement. (finding:sound-full-arrangements-need-memory)
 - A piece plays through once from start to end. Whether it repeats is
-  provisional. (finding:sound-music-stops-between-levels)
+  provisional (#170). (finding:sound-music-stops-between-levels)
 - Moving to another Level stops the piece playing: no piece carries
   from one Level to the next. (finding:sound-music-stops-between-levels)
 
@@ -76,7 +76,8 @@ are laid out is in the Findings of #130; how the browser plays them is
   note asked for. The port departs from this and plays Disk 1's sword,
   so every blow is heard. (finding:sound-disk-2-sword-is-silent)
 - `provisional`: a second ReverbBells rings after a picture is copied
-  into some boxes; which boxes was not traced. (finding:sound-fight-effects)
+  into some boxes; which boxes was not traced (#170).
+  (finding:sound-fight-effects)
 
 ## Switching sound off
 

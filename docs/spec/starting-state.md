@@ -61,7 +61,7 @@ Only entries 1 to 151 take part in the main loop. Entries 152 to 195 are Encount
 
 ## Unconfirmed
 
-These facts are provisional or not yet recovered, and the simulation should treat them as open:
+These facts are provisional or not yet recovered, and the simulation should treat them as open (#171):
 
 - Roster bytes 19, 24 and 37, and byte 29 for entries 1 to 151, have no settled meaning (finding:data-formats-roster-unsettled-fields). The JSON carries them raw.
 - Named Places have no kind of their own in the data. `tile_kind` is inferred from the generic kind of the tile underneath, and 41 of the 69 named Places stand on no such tile (finding:places-kinds-matched-by-map-tile).

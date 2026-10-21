@@ -23,7 +23,7 @@ recovered from the Reference Build for #94.
   does not model it. A follower's position is not kept up to date
   (docs/spec/war-events.md, "Triggers"), so a Gandalf following
   someone is never at Rivendell here; the original reads his stale
-  position.
+  position (#171, #163).
 
 ## What it does
 
@@ -54,7 +54,7 @@ All in one step, in this order:
    its destination; the destination is kept, so it arrives on its next
    step. (finding:movement-council-puts-forces-at-their-destinations)
    `provisional`: the original moves followers too, but the sim keeps
-   a follower's position empty.
+   a follower's position empty (#163).
 
 - The Game Speed goes back to Normal.
   (finding:time-council-moves-the-calendar-on)

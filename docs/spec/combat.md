@@ -162,7 +162,7 @@ ending pages, are in `docs/spec/winning-and-losing.md`.
   moves, so it never starts a fight, but it fights whoever walks into
   it. The sim keeps the starting stats as they are and adds nothing
   for the Place. (finding:places-defended-by-garrison-units,
-  finding:combat-defences)
+  finding:combat-defences, #166)
 
 ## Left out
 

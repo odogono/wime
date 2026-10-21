@@ -96,7 +96,7 @@ not covered here.
   Pippin walk on beneath it.
 - It is shown once per game, and is not saved: a restored game does not
   show it. `provisional`: whether the original shows
-  it again after restoring the Archive.
+  it again after restoring the Archive (#171).
 
 ## In the port
 

@@ -61,7 +61,7 @@ and "Use an object". (finding:objects-handled-on-animation-level)
   or a Unit, "Please select an active member of the party." is shown
   instead. (finding:ui-provisions-chosen-character) `provisional`:
   figures cannot be clicked yet, so the last Character to act, or the
-  first awake member, is chosen.
+  first awake member, is chosen (#161).
 - A list is a box at (112, 5), 176 wide and 28 plus 10 for each line
   deep, its heading in colour 8 and one unframed line per object.
   (finding:ui-object-list-window)
@@ -70,10 +70,11 @@ and "Use an object". (finding:objects-handled-on-animation-level)
   without buttons lasts 200 frames and lets time run.
   (finding:ui-provisions-window, finding:ui-object-list-empty-messages,
   finding:objects-use-message-boxes) `provisional`: a press off the
-  buttons closes the box.
+  buttons closes the box (#168).
 - `provisional`: the walk to the object and the putting down are not
   animated, so the put-down message is shown at once, and objects on
-  the ground are not drawn (finding:objects-lying-on-the-ground-are-pictures).
+  the ground are not drawn (finding:objects-lying-on-the-ground-are-pictures,
+  #162).
 
 The **chosen** Character is the party member selected; the
 **position** is the watched Character's position, the Force on
