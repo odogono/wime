@@ -39,7 +39,7 @@ rest of the Level (`finding:time-stops-on-full-map-level`).
   more than one. A single figure's name starts with a capital: "The
   NAZGUL LORD".
 - Each column shows at most 19 rows and drops the rest without saying so.
-  This is provisional (`finding:ui-galadriels-mirror-row-limit`).
+  This is provisional (`finding:ui-galadriels-mirror-row-limit`, #171).
 - At the start of the game the window shows "FRODO is going to GREEN
   HILLS.", "SAM is following FRODO." and "PIPPIN is following FRODO." on
   the left and the nine Nazgûl on the right.

@@ -55,8 +55,9 @@ are in `docs/spec/combat.md`.
   (Animation figure 4), "GOLLUM quietly sneaks away.": he stops
   following and takes that Wizard's position and facing.
   (finding:forces-gollum-sneaks-away-from-a-wizard)
-- `provisional`: "Go there" opens the Animation Level, which the sim
-  doesn't model yet. The sim offers only Follow and Continue on.
+- "Go there" sets both off again as "Continue on" does; the view goes
+  down to the Animation Level watching A, for the talk if there is one
+  (docs/spec/encounters.md).
 
 ## The meeting window
 
@@ -88,14 +89,12 @@ are in `docs/spec/combat.md`.
   finding:time-game-speed-clock-limits, finding:ui-war-event-messages)
 - `provisional`: the one-line box would leave its buttons, at 30,
   outside its 24 pixels, so it is drawn 44 high like the two-line
-  box. No capture records how the original drew it.
-- `provisional`: "Go there" answers as "Continue on" and brings the
-  meeting into view, until the Animation Level is built.
+  box. No capture records how the original drew it (#168).
 - `provisional`: the deadline runs in real time, so time on the Full
-  Map Level counts against it, as for a fight's announcement.
+  Map Level counts against it, as for a fight's announcement (#168).
 - `provisional`: a War Event announcement waits, its time kept, while
   the window is up, as it does for a fight's windows
-  (docs/spec/war-events.md).
+  (docs/spec/war-events.md, #168).
 
 ## Leaving a Force
 

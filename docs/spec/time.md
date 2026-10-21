@@ -69,7 +69,7 @@ knowledge of them (ADR-0002).
   (20 ms, 50 ticks a second), the original's display rate
   (`finding:time-game-speed-clock-limits`), and never more than one
   tick per rendered frame, so it runs at the same pace on any refresh
-  rate of 50 Hz or more.
+  rate of 50 Hz or more (#164).
 - Generic message boxes with no buttons close after 60 frames
   (1.2 seconds) on Very Hasty and 200 frames (4 seconds) otherwise.
   The duration is set when each box opens. The Council of Elrond has
@@ -79,4 +79,4 @@ knowledge of them (ADR-0002).
   unconfirmed. We draw a plain window under the icon column listing
   the three speeds, marking the current one, with a Pause/Resume line.
   Changing Game Speed changes only how fast ticks arrive, never what
-  a tick does.
+  a tick does (#164).

@@ -48,8 +48,8 @@ the presentation of the announcements (#60) and the movement tripwires
   `provisional`: the original runs the check only on the Campaign
   Level, so an 8 a.m. that passes on the Animation Level loses that
   day's check (finding:ai-war-events-checked-only-on-campaign-level).
-  The sim has no Animation Level yet (milestone 6) and runs the check
-  every day.
+  The sim does not know which Level is shown and runs the check every
+  day (#159).
 
 ## Setting an event from elsewhere
 
@@ -165,4 +165,4 @@ When an entry's trigger is met (finding:ai-trigger-what-waking-changes):
   announcement and a fight's windows wait for each other. The view
   shows a fight's windows first and keeps an announcement, with the
   time it has left, until they close. Likewise on the Full Map Level,
-  where time stands still.
+  where time stands still (#168).
