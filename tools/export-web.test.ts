@@ -25,7 +25,8 @@ import {
 import {
   DEFAULT_ARCHIVE,
   ExtractError,
-  IndexedImage
+  IndexedImage,
+  titlePalette
 } from './extract-graphics';
 import { KICK13, fsUaeDir } from './fs-uae/setup';
 
@@ -213,9 +214,10 @@ describe.skipIf(!existsSync(DEFAULT_ARCHIVE))('web export', () => {
     // frame tiles in each Level's palette, and the Animation Level's
     // palette, tables, figure index, 3 icons, frame and 19 figure sets,
     // and a glyph sheet and metrics for lord/10, and for topaz/8 when
-    // there is a Kickstart 1.3 ROM, and the sound files.
+    // there is a Kickstart 1.3 ROM, the sound files, and the title
+    // palette and its window frame.
     const topaz = existsSync(join(fsUaeDir, KICK13)) ? 2 : 0;
-    expect(manifest.assets.length).toBe(124 + 26 + 2 + topaz + 1);
+    expect(manifest.assets.length).toBe(124 + 26 + 2 + topaz + 1 + 2);
     expect(manifest.summary.assets).toBe(manifest.assets.length);
 
     for (const asset of manifest.assets) {
@@ -337,6 +339,26 @@ describe.skipIf(!existsSync(DEFAULT_ARCHIVE))('web export', () => {
       '#ddccaa',
       '#22aaee'
     ]);
+    // The boot sequence's palette (finding:graphics-title-screen-palette),
+    // which the ATitle.res pictures are decoded in too.
+    const titlePaletteJson = JSON.parse(
+      readFileSync(join(out, 'title/palette.json'), 'utf8')
+    ) as { colors: number[][]; hex: string[] };
+    expect(titlePaletteJson.hex.slice(0, 6)).toEqual([
+      '#000000',
+      '#ffffdd',
+      '#110000',
+      '#111111',
+      '#bb0000',
+      '#884422'
+    ]);
+    expect(titlePaletteJson.colors.flat()).toEqual(titlePalette().slice(0, 96));
+    expect(byPath.get('graphics/ATitle.res/IMAG_72.png')!.palette_source).toBe(
+      'War In Middle Earth title palette'
+    );
+    expect(byPath.get('title/window-frame.png')!.kind).toBe(
+      'title-window-frame'
+    );
     const tables = JSON.parse(
       readFileSync(join(out, 'animation/tables.json'), 'utf8')
     ) as AnimationTables;

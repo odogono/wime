@@ -45,11 +45,22 @@ import {
   loadAnimationAssets,
   loadCampaignAssets,
   loadFullMapAssets,
+  loadTitleAssets,
   type AnimationAssets,
-  type CampaignAssets
+  type CampaignAssets,
+  type TitleAssets
 } from './assets';
 import { loadGameAudio, type GameAudio } from './audio';
 import { autosaveDue, autosavePoint, type AutosaveView } from './autosave';
+import {
+  bootSequence,
+  bootView,
+  createBootRenderer,
+  pressBootKey,
+  startBoot,
+  stepBoot,
+  type BootSequence
+} from './boot-sequence';
 import {
   clampCamera,
   dragCamera,
@@ -121,6 +132,11 @@ import {
   fullMapIconPlacements,
   type FullMapLevel
 } from './full-map-level';
+import {
+  drawGandalfsLetter,
+  stepGandalfsLetter,
+  type GandalfsLetter
+} from './gandalfs-letter';
 import {
   drawMeetingUi,
   meetingHoldsTime,
@@ -235,6 +251,8 @@ type Level = 'animation' | 'campaign' | 'full-map';
 // `run` holds the whole view's state and handlers, in this order; search for
 // the name to jump to a part:
 // - state: `level` through `lastTime`, one `let` per open window or Level
+// - the boot sequence: `boot`, its key handler, then `startNewGame`, which
+//   `frame` calls once it is over
 // - the Animation Level: `goDownToAnimation`, `startAnimationFight`,
 //   `beginTalk`, `handleAnimationPress`
 // - the Full Map Level: `goUp`, `goDown`, `handleFullMapPress`
@@ -247,6 +265,7 @@ const run = (
   assets: CampaignAssets,
   fullMap: FullMapLevel,
   animation: AnimationAssets,
+  title: TitleAssets,
   audio: GameAudio | null
 ): void => {
   let level: Level = 'animation';
@@ -344,13 +363,6 @@ const run = (
       )
     : { x: 0, y: 0 };
   let fit: Fit = screen.resize();
-  if (sim.ringBearer !== null) {
-    // Open on the Animation Level with the Ring-bearer
-    // (finding:ui-game-starts-on-animation-level).
-    queueMicrotask(() => goDownToAnimation(sim.ringBearer!));
-  } else {
-    level = 'campaign';
-  }
   let pointer: Camera | null = null;
   let drag: { camera: Camera; pointer: Camera } | null = null;
   let speedWindow: SpeedWindow | null = null;
@@ -387,13 +399,39 @@ const run = (
   let soundLevel: Level = level;
   let lastSound: SoundView = QUIET;
   let lastFigures: Figure[] = [];
-  // The title music plays first, until it ends or the player presses a
-  // key or the mouse (finding:sound-fight-and-ending-music).
-  let titleMusic = audio !== null;
-  let pressed = false;
-  audio?.play(PIECE.title);
-  window.addEventListener('pointerdown', () => (pressed = true));
-  window.addEventListener('keydown', () => (pressed = true));
+  // The page opens on the boot sequence (docs/spec/boot-sequence.md),
+  // which holds the screen, the keys and Title until a new game starts.
+  let boot: BootSequence | null = bootSequence(performance.now());
+  const drawBoot = createBootRenderer(title, assets.texts);
+  // Title starts with the first input, as browsers require, and plays
+  // under the whole sequence
+  // (finding:sound-title-music-in-the-boot-sequence).
+  const startTitle = (started: boolean): void => {
+    if (started) {
+      audio?.play(PIECE.title);
+    }
+  };
+  window.addEventListener('pointerdown', () => {
+    if (boot) {
+      const result = startBoot(boot, performance.now());
+      boot = result.boot;
+      startTitle(result.started);
+    }
+  });
+  window.addEventListener('keydown', event => {
+    if (!boot) {
+      return;
+    }
+    // Q switches sound off or on here too (finding:sound-q-toggles-sound).
+    if (boot.startedAt !== null && event.key.toLowerCase() === 'q') {
+      audio?.toggle();
+    }
+    const started = boot.startedAt === null;
+    boot = pressBootKey(boot, performance.now());
+    startTitle(started);
+  });
+  // Gandalf's letter, waiting for the new game's first Animation Level.
+  let letter: GandalfsLetter | null = null;
   const soundView = (): SoundView => {
     if (level !== soundLevel) {
       soundLevel = level;
@@ -447,15 +485,6 @@ const run = (
       return;
     }
     const next = soundView();
-    if (titleMusic) {
-      if (audio.playing && !pressed) {
-        lastSound = { ...next, levelEntries: next.levelEntries };
-        return;
-      }
-      // The title gives way to the Level's own music.
-      titleMusic = false;
-      lastSound = { ...lastSound, levelEntries: -1 };
-    }
     for (const cue of soundCues(lastSound, next)) {
       switch (cue.kind) {
         case 'stop':
@@ -869,6 +898,9 @@ const run = (
 
   canvas.style.cursor = 'grab';
   canvas.addEventListener('pointerdown', event => {
+    if (boot) {
+      return;
+    }
     if (ending) {
       ending = turnEndingPage(ending, performance.now());
       return;
@@ -999,7 +1031,7 @@ const run = (
     }
   });
   canvas.addEventListener('pointermove', event => {
-    if (level === 'animation') {
+    if (boot || level === 'animation') {
       return;
     }
     if (level === 'full-map') {
@@ -1012,7 +1044,7 @@ const run = (
     }
   });
   const endDrag = (event: PointerEvent): void => {
-    if (drag) {
+    if (drag && !boot) {
       const released = toNative(event);
       const moved = Math.max(
         Math.abs(released.x - drag.pointer.x),
@@ -1053,7 +1085,7 @@ const run = (
     // magnifying glass, T opens the Game Speed window and P pauses
     // (finding:ui-key-bindings). The Campaign Level's magnifying
     // glass waits for the Animation Level.
-    if (councilWindow) {
+    if (boot || councilWindow) {
       return;
     }
     const key = event.key.toLowerCase();
@@ -1250,7 +1282,9 @@ const run = (
   };
   const autosaveOnHide = (): void => {
     const view = autosaveView();
-    if (view.settled) {
+    // Until a game starts there is nothing to save, and any save is
+    // left as it was.
+    if (!boot && view.settled) {
       autosaveNow(view);
     }
   };
@@ -1260,9 +1294,35 @@ const run = (
     }
   });
   window.addEventListener('pagehide', autosaveOnHide);
+  // A new game opens on the Animation Level with the Ring-bearer
+  // (finding:ui-game-starts-on-animation-level) and Gandalf's letter.
+  // It is not saved until autosave next runs.
+  const startNewGame = (): void => {
+    if (sim.ringBearer !== null) {
+      goDownToAnimation(sim.ringBearer);
+      letter = { kind: 'pending' };
+    } else {
+      level = 'campaign';
+    }
+    autosavedAt = autosavePoint(autosaveView());
+  };
   const frame = (now: number): void => {
     const elapsedMs = Math.min(1000, now - lastTime);
     lastTime = now;
+    if (boot) {
+      boot = stepBoot(boot, now, audio?.playing ?? false);
+      if (!boot.done) {
+        drawBoot(screen.buffer, bootView(boot, now));
+        screen.present();
+        requestAnimationFrame(frame);
+        return;
+      }
+      // A key that skipped part of the sequence stops Title as the
+      // Animation Level begins; otherwise it has ended.
+      boot = null;
+      audio?.stop();
+      startNewGame();
+    }
     const view = autosaveView();
     if (autosaveDue(autosavedAt, view)) {
       autosaveNow(view);
@@ -1334,6 +1394,12 @@ const run = (
       return;
     }
     let animationTicked = false;
+    letter = stepGandalfsLetter(
+      letter,
+      now,
+      level === 'animation',
+      driver.speed
+    );
     if (level === 'animation') {
       // Talks hold the view's clock. Meetings of the watched Character
       // with an advisor start here without the Campaign Level's choice.
@@ -1423,6 +1489,9 @@ const run = (
             drawEncounterTalk(screen.buffer, animation, talk);
           } else {
             drawFigures(screen.buffer, animation, stage);
+            if (letter?.kind === 'open') {
+              drawGandalfsLetter(screen.buffer, animation.window, assets.texts);
+            }
             if (passingMessage) {
               drawEncounterNotice(
                 screen.buffer,
@@ -1554,10 +1623,11 @@ const run = (
 drawMessage(['Loading Campaign Level...']);
 
 try {
-  const [campaign, fullMap, animation, audio] = await Promise.all([
+  const [campaign, fullMap, animation, title, audio] = await Promise.all([
     loadCampaignAssets(),
     loadFullMapAssets(),
     loadAnimationAssets(),
+    loadTitleAssets(),
     // The game plays without sound if its sound cannot load.
     loadGameAudio(choose).catch(() => null)
   ]);
@@ -1581,6 +1651,7 @@ try {
       }))
     },
     animation,
+    title,
     audio
   );
   drawMessage([]);

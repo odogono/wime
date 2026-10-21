@@ -763,6 +763,25 @@ export const animationLevelPalette = (): number[] =>
     ])
   );
 
+// The boot sequence's 32 colours, the RGB4 words at data+0x4b88, in
+// which every ATitle.res picture is drawn
+// (finding:graphics-title-screen-palette).
+const TITLE_RGB4 = [
+  0x0_00, 0xf_fd, 0x1_00, 0x1_11, 0xb_00, 0x8_42, 0xa_64, 0x5_32, 0x4_44,
+  0x5_44, 0x5_55, 0x7_54, 0x7_65, 0x7_76, 0x7_77, 0x9_76, 0x9_86, 0xa_78,
+  0x9_98, 0xb_97, 0xb_a8, 0xb_89, 0xd_b8, 0xc_ba, 0xe_c9, 0xe_da, 0xe_db,
+  0xf_eb, 0xf_fb, 0xf_dc, 0xc_21, 0xd_32
+];
+
+export const titlePalette = (): number[] =>
+  flattenPalette(
+    TITLE_RGB4.map(word => [
+      ((word >> 8) & 0xf) * 17,
+      ((word >> 4) & 0xf) * 17,
+      (word & 0xf) * 17
+    ])
+  );
+
 const ANIMATION_LEVEL_FILES = new Set([
   'aanims.res',
   'ascene.res',
@@ -780,6 +799,9 @@ export const paletteForResourceFile = (
       'War In Middle Earth Animation Level palette',
       animationLevelPalette()
     ];
+  }
+  if (resourceName.toLowerCase() === 'atitle.res') {
+    return ['War In Middle Earth title palette', titlePalette()];
   }
   return ['War In Middle Earth 32-colour art palette', defaultPalette()];
 };

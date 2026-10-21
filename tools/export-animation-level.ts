@@ -101,6 +101,19 @@ export const readAnimationPalette = (executable: Uint8Array): number[] =>
     32
   );
 
+// The boot sequence's palette, which colours every ATitle.res picture
+// (finding:graphics-title-screen-palette).
+const TITLE_PALETTE_OFFSET = 0x4b_88;
+
+export const readTitlePalette = (executable: Uint8Array): number[] =>
+  paletteFromRgb4Words(
+    dataHunk(executable).subarray(
+      TITLE_PALETTE_OFFSET,
+      TITLE_PALETTE_OFFSET + 64
+    ),
+    32
+  );
+
 const words = (data: Uint8Array, offset: number, count: number): number[] =>
   Array.from({ length: count }, (_, i) => beU16(data, offset + i * 2));
 
