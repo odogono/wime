@@ -217,7 +217,7 @@ describe.skipIf(!existsSync(DEFAULT_ARCHIVE))('web export', () => {
     // there is a Kickstart 1.3 ROM, the sound files, and the title
     // palette and its window frame.
     const topaz = existsSync(join(fsUaeDir, KICK13)) ? 2 : 0;
-    expect(manifest.assets.length).toBe(124 + 26 + 2 + topaz + 1 + 2);
+    expect(manifest.assets.length).toBe(124 + 26 + 2 + topaz + 1 + 1);
     expect(manifest.summary.assets).toBe(manifest.assets.length);
 
     for (const asset of manifest.assets) {
@@ -355,9 +355,6 @@ describe.skipIf(!existsSync(DEFAULT_ARCHIVE))('web export', () => {
     expect(titlePaletteJson.colors.flat()).toEqual(titlePalette().slice(0, 96));
     expect(byPath.get('graphics/ATitle.res/IMAG_72.png')!.palette_source).toBe(
       'War In Middle Earth title palette'
-    );
-    expect(byPath.get('title/window-frame.png')!.kind).toBe(
-      'title-window-frame'
     );
     const tables = JSON.parse(
       readFileSync(join(out, 'animation/tables.json'), 'utf8')

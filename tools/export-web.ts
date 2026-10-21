@@ -557,12 +557,6 @@ export const exportWebAssets = (
                   dir: 'full-map',
                   kind: 'full-map-window-frame',
                   paletteSource: FULL_MAP_PALETTE_SOURCE
-                },
-                {
-                  colours: titleColours,
-                  dir: 'title',
-                  kind: 'title-window-frame',
-                  paletteSource: TITLE_PALETTE_SOURCE
                 }
               ])
             );

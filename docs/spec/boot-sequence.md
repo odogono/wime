@@ -112,8 +112,8 @@ The port's own departures, since a browser page is not a floppy boot.
 - When the sequence ends a new game begins. The title menu (#149) will
   stand between the two. Starting it writes no save; the autosave first
   runs when it is next due (docs/spec/saving.md).
-- `provisional`: the Ring verse's window is drawn as any message box
-  off the Animation Level, AMaps.res IMAG 13 with a colour 15 fill, here
-  #997766 from the title palette (finding:ui-window-frame-tiles). The
-  capture described its parchment as cream, colour 1, which was not
-  traced.
+- The Ring verse's window is cream parchment with a dark edge, as the
+  capture showed, drawn like a message box on the Animation Level
+  (finding:ui-window-frame-tiles). The disassembly suggests the colour 15
+  fill of a box off the Animation Level, a dull brown in the title
+  palette; the port follows the capture.

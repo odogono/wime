@@ -501,7 +501,8 @@ export interface TitleAssets {
   // ATitle.res IMAG 70 to 73, by id; the logo's black is clear so the
   // title screen shows round it.
   pictures: Map<number, CanvasImageSource>;
-  // How the Ring verse's window looks (finding:ui-ring-verse-window).
+  // The Ring verse's window: cream parchment, drawn like a message box
+  // on the Animation Level (finding:ui-ring-verse-window).
   window: WindowStyle;
 }
 
@@ -511,19 +512,20 @@ export const loadTitleAssets = async (
 ): Promise<TitleAssets> => {
   const manifest = await fetchJson<Manifest>(`${base}manifest.json`);
   const ids = [70, 71, 72, 73];
-  const [palette, frame, font, pictures] = await Promise.all([
+  const animationPath = (name: string): string =>
+    base +
+    requireAsset(
+      manifest.assets.find(asset => asset.path === `animation/${name}`),
+      `Animation Level ${name}`
+    ).path;
+  const [palette, windowPalette, frame, font, pictures] = await Promise.all([
     fetchJson<{ hex: string[] }>(
       base +
         requireAsset(assetByKind(manifest, 'title-palette'), 'title palette')
           .path
     ),
-    loadImage(
-      base +
-        requireAsset(
-          assetByKind(manifest, 'title-window-frame'),
-          'title window frame'
-        ).path
-    ),
+    fetchJson<{ hex: string[] }>(animationPath('palette.json')),
+    loadImage(animationPath('window-frame.png')),
     loadFont(manifest, base),
     Promise.all(
       ids.map(id =>
@@ -546,6 +548,6 @@ export const loadTitleAssets = async (
         ids[i] === 73 ? blackToTransparent(image) : image
       ])
     ),
-    window: windowStyle(blackToTransparent(frame), palette.hex, font)
+    window: windowStyle(frame, windowPalette.hex, font, ANIMATION_PARCHMENT)
   };
 };
