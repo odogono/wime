@@ -154,4 +154,4 @@ Change only one detail: add TWO small, menacing, glowing deep-red eyes within th
 - The gist API reports `public: false`. Each revision-specific raw image URL returns `image/png`, and the downloaded bytes match the local PNG exactly.
 - All current result embeds loaded successfully in a browser preview of GitHub-rendered Markdown, with the expected natural image dimensions.
 - The correction and box-art reference URLs also return `image/png`, and their downloaded bytes match the local files exactly.
-- Project changes contain Markdown only. No image files or runtime changes are included.
+- Title image binaries stay outside tracked project paths and are not integrated into the game. The later [layered river prototype](layered-river-prototype.md) adds standalone experiment source, separate from the production renderer.

@@ -29,7 +29,8 @@
     "lint:fix": "eslint --fix .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "check": "bun tools/preflight.ts && bun run typecheck && bun run lint && bun run format:check && bun run test && bun run findings:check"
+    "check": "bun tools/preflight.ts && bun run typecheck && bun run lint && bun run format:check && bun run test && bun run findings:check",
+    "prototype:river": "bun tools/build-river-prototype.ts"
   },
   "devDependencies": {
     "@alexaltea/capstone-js": "^5.0.9",

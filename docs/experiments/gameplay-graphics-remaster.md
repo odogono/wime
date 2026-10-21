@@ -61,6 +61,10 @@ The result preserves the broad river, ridge and forest arrangement, icon column 
 
 The atlas treatment preserves the broad coastline, mountain ranges, woodland regions, compass, icon column and regional names, with a deeper ocean and warmer parchment. It adds a decorative ship and alters fine geography and coloured markers. Labels look readable, but neither their exact positioning nor marker counts and positions have been verified against game data. This tests the visual direction, not geographic or information fidelity.
 
+## Layered follow-up
+
+The [working river prototype](layered-river-prototype.md) tests the Animation Level direction with six reusable images, three scene arrangements, lighting controls and a separate eight-pose walking hobbit. It replaces the whole-screen illustration approach for this bounded experiment; the game itself is unchanged.
+
 ## Evaluation and limits
 
 The user preferred the painted title illustration; evaluation of these new Level treatments is pending. This experiment establishes no renderer, control or simulation changes. Its main next decision is whether the painted treatment is worth pursuing for each Level. A production pipeline would keep map geometry, text, Force overlays and hit targets controlled by the existing game rather than relying on these complete generated screens.
@@ -112,4 +116,4 @@ UI: preserve the decorative compass rose at the lower left and the four small ut
 - Verified secret-gist visibility, `image/png` responses and byte-for-byte download matches for all seven new source/output PNGs.
 - `bun run check` passed with exported assets present before updating the PR.
 - All seven PR image embeds loaded with the expected dimensions in a browser preview of GitHub-rendered HTML.
-- Project changes are Markdown only; all source and generated images remain outside the project's tracked paths.
+- All captured and generated image binaries remain outside the project's tracked paths. The later layered prototype adds standalone source; the game and its production renderer remain unchanged.
