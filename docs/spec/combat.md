@@ -47,8 +47,17 @@ side's (finding:forces-roster-order). The Encounters, entries 152 to
   followers, recursively, in roster order. A Good Leader always gets a
   row of its own. A follower or an Evil Leader whose name matches an
   existing row of its side joins that row; otherwise it gets a row of
-  its own, marked as a follower if it has a Leader. Each side has at
-  most 19 rows. (finding:combat-good-leaders-keep-rows-of-their-own)
+  its own, marked as a follower if it has a Leader.
+  (finding:combat-good-leaders-keep-rows-of-their-own)
+- An Encounter is the only Evil row. Against Shelob she is the only
+  Evil entry looked at.
+- Each side has at most 19 rows, or 7 against a balrog. The Good side
+  is listed in full and cut to the cap; the Evil side stops only once
+  it is over the cap, so it can hold one row more.
+  (finding:combat-rows-capped-by-level-and-enemy)
+- When the Good side lists more than 19 rows, it is listed once more
+  without each follower Character whose own followers added no row,
+  then cut. (finding:combat-rows-relisted-without-lone-followers)
 - A row's strength is the sum of its entries' current strength. Its
   fighting strength, health, byte 24 and objects are those of its
   first entry. A row that started at strength 1 is a Character for

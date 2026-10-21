@@ -167,15 +167,50 @@ const evasionChance = (
   };
 };
 
+// How a list of the Forces near a spot is made: on which Level, the
+// Character the Animation Level watches, the enemy a fight is against,
+// and whether the fight is being played on the Animation Level
+// (finding:combat-rows-capped-by-level-and-enemy).
+export interface RowListing {
+  animationFight: boolean;
+  enemy: number | null;
+  level: 'animation' | 'campaign';
+  watched: number | null;
+}
+
+const CAMPAIGN_LISTING: RowListing = {
+  animationFight: false,
+  enemy: null,
+  level: 'campaign',
+  watched: null
+};
+
+// A balrog's figure (finding:combat-rows-capped-by-level-and-enemy).
+const BALROG_FIGURE = 12;
+
+// A side's most rows: 7 against a balrog, 9 in a fight played on the
+// Animation Level, otherwise 19
+// (finding:combat-rows-capped-by-level-and-enemy).
+const rowCap = (roster: RosterEntry[], listing: RowListing): number => {
+  if (
+    listing.enemy !== null &&
+    roster[listing.enemy]?.figure === BALROG_FIGURE
+  ) {
+    return 7;
+  }
+  return listing.animationFight ? 9 : MAX_ROWS_PER_SIDE;
+};
+
 // A follower or an Evil Leader joins the row of its name; a Good Leader
 // always starts its own (finding:combat-good-leaders-keep-rows-of-their-own).
+// Returns whether it started a row.
 const addEntry = (
   rows: CombatRow[],
   entry: RosterEntry,
   side: CombatSide,
   follower: boolean,
   roster: RosterEntry[]
-): void => {
+): boolean => {
   const merges = follower || side === 'evil';
   const same =
     merges &&
@@ -186,10 +221,7 @@ const addEntry = (
     same.entries.push(entry.index);
     same.strength += entry.strength;
     same.startStrength += entry.strength;
-    return;
-  }
-  if (rows.filter(row => row.side === side).length >= MAX_ROWS_PER_SIDE) {
-    return;
+    return false;
   }
   rows.push({
     entries: [entry.index],
@@ -199,45 +231,109 @@ const addEntry = (
     startStrength: entry.strength,
     strength: entry.strength
   });
+  return true;
 };
 
+// A Leader's awake followers among entries 1 to 78, recursively. On the
+// second listing, a follower Character whose own followers added no
+// row is dropped again
+// (finding:combat-rows-relisted-without-lone-followers).
 const addFollowers = (
   rows: CombatRow[],
   roster: RosterEntry[],
-  leader: number
+  leader: number,
+  dropLoneCharacters: boolean
 ): void => {
-  for (const entry of roster) {
+  for (let i = 1; i <= LAST_GOOD_ENTRY && i < roster.length; i++) {
+    const entry = roster[i]!;
     if (entry.leader === leader && entry.state !== 0 && entry.strength > 0) {
-      addEntry(rows, entry, 'good', true, roster);
-      addFollowers(rows, roster, entry.index);
+      const started = addEntry(rows, entry, 'good', true, roster);
+      const count = rows.length;
+      addFollowers(rows, roster, i, dropLoneCharacters);
+      if (
+        dropLoneCharacters &&
+        started &&
+        rows.length === count &&
+        entry.startingStrength === 1
+      ) {
+        rows.pop();
+      }
     }
   }
 };
 
-// Every awake Leader near the fight and its followers, Good rows first
-// (finding:combat-good-leaders-keep-rows-of-their-own).
-export const combatRows = (
+const listGood = (
   roster: RosterEntry[],
-  position: Point
+  position: Point,
+  listing: RowListing,
+  cap: number,
+  dropLoneCharacters: boolean
 ): CombatRow[] => {
   const rows: CombatRow[] = [];
-  const leaders = roster.filter(
-    entry =>
+  const watched =
+    listing.level === 'animation' && listing.watched
+      ? roster[listing.watched]
+      : undefined;
+  if (watched) {
+    addEntry(rows, watched, 'good', false, roster);
+    addFollowers(rows, roster, watched.index, dropLoneCharacters);
+    rows.length = Math.min(rows.length, cap);
+  }
+  // Entry 78 is listed only on the Campaign Level.
+  const last = listing.level === 'campaign' ? LAST_GOOD_ENTRY : 77;
+  for (let i = 1; i <= last && i < roster.length; i++) {
+    const entry = roster[i]!;
+    if (
+      entry !== watched &&
       entry.state !== 0 &&
       entry.leader === null &&
       entry.strength > 0 &&
       entry.position !== null &&
       near(entry.position, position, ROW_DISTANCE)
-  );
-  for (const entry of leaders) {
-    if (isGood(entry.index)) {
+    ) {
       addEntry(rows, entry, 'good', false, roster);
-      addFollowers(rows, roster, entry.index);
+      addFollowers(rows, roster, i, dropLoneCharacters);
     }
   }
-  for (const entry of leaders) {
-    if (entry.index > LAST_GOOD_ENTRY && entry.index <= LAST_EVIL_ENTRY) {
-      addEntry(rows, entry, 'evil', false, roster);
+  return rows;
+};
+
+// Every awake Leader near the spot and its followers, Good rows first
+// (finding:combat-good-leaders-keep-rows-of-their-own). Too many Good
+// rows are listed again without lone follower Characters, once and only
+// under the cap of 19, then cut to the cap. The Evil side stops only
+// once it has more rows than the cap, so it can hold one row more;
+// against Shelob it lists her alone
+// (finding:combat-rows-capped-by-level-and-enemy,
+// finding:combat-rows-relisted-without-lone-followers).
+export const combatRows = (
+  roster: RosterEntry[],
+  position: Point,
+  listing: RowListing = CAMPAIGN_LISTING
+): CombatRow[] => {
+  const cap = rowCap(roster, listing);
+  let rows = listGood(roster, position, listing, cap, false);
+  if (rows.length > cap && cap === MAX_ROWS_PER_SIDE) {
+    rows = listGood(roster, position, listing, cap, true);
+  }
+  rows.length = Math.min(rows.length, cap);
+  let evilRows = 0;
+  for (let i = LAST_GOOD_ENTRY + 1; i <= LAST_EVIL_ENTRY; i++) {
+    if (evilRows > cap) {
+      break;
+    }
+    const entry = roster[i];
+    if (
+      entry &&
+      (listing.enemy !== SHELOB || i === SHELOB) &&
+      entry.state !== 0 &&
+      entry.leader === null &&
+      entry.strength > 0 &&
+      entry.position !== null &&
+      near(entry.position, position, ROW_DISTANCE) &&
+      addEntry(rows, entry, 'evil', false, roster)
+    ) {
+      evilRows++;
     }
   }
   return rows;
@@ -289,15 +385,34 @@ const evades = (
   evil.index !== SHELOB &&
   !(evil.index >= FIRST_BALROG && evil.index <= LAST_BALROG);
 
+// The rows of a fight against `evil`: an Encounter is the only Evil row
+// (finding:combat-good-leaders-keep-rows-of-their-own).
+const fightRows = (
+  roster: RosterEntry[],
+  position: Point,
+  evil: number,
+  listing: Omit<RowListing, 'enemy'>
+): CombatRow[] => {
+  const rows = combatRows(roster, position, { ...listing, enemy: evil });
+  if (!isEncounter(evil)) {
+    return rows;
+  }
+  const good = rows.filter(row => row.side === 'good');
+  addEntry(good, roster[evil]!, 'evil', false, roster);
+  return good;
+};
+
 const fightBetween = (
   world: MatchWorld,
   good: RosterEntry,
   evil: RosterEntry
 ): Fight => {
-  const rows = combatRows(world.roster, good.position!);
-  if (isEncounter(evil.index)) {
-    addEntry(rows, evil, 'evil', false, world.roster);
-  }
+  const rows = fightRows(
+    world.roster,
+    good.position!,
+    evil.index,
+    CAMPAIGN_LISTING
+  );
   return {
     events: [],
     evil: evil.index,
@@ -307,6 +422,45 @@ const fightBetween = (
     rows,
     winner: null
   };
+};
+
+// Elrond, who keeps a fight on the Campaign Level as a Unit does
+// (finding:combat-where-a-fight-is-fought).
+const ELROND = 3;
+
+// Whether a fight is played on the Animation Level: no Good row holds a
+// Unit, and Elrond doesn't lead one
+// (finding:combat-where-a-fight-is-fought).
+export const playedOnAnimationLevel = (
+  fight: Fight,
+  roster: RosterEntry[]
+): boolean =>
+  !fight.rows.some(
+    row =>
+      row.side === 'good' &&
+      ((row.entries[0] === ELROND && !row.follower) ||
+        row.entries.some(index => roster[index]!.startingStrength > 1))
+  );
+
+// The fight's rows listed again as the Animation Level sets its scene,
+// around the watched Character: it comes first, entry 78 is left out
+// and each side holds at most 9 rows, or 7 against a balrog
+// (finding:combat-animation-level-lists-the-fight-again).
+export const listFightOnAnimationLevel = <S extends CombatWorld>(
+  state: S,
+  watched: number
+): S => {
+  const fight = state.fight;
+  const position = state.roster[watched]?.position;
+  if (!fight || !position) {
+    return state;
+  }
+  const rows = fightRows(state.roster, position, fight.evil, {
+    animationFight: true,
+    level: 'animation',
+    watched
+  });
+  return { ...state, fight: { ...fight, rows } };
 };
 
 // What a step meets, searching the roster in order: the first Leader
