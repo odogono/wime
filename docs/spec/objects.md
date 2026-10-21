@@ -71,10 +71,23 @@ and "Use an object". (finding:objects-handled-on-animation-level)
   (finding:ui-provisions-window, finding:ui-object-list-empty-messages,
   finding:objects-use-message-boxes) `provisional`: a press off the
   buttons closes the box (#168).
-- `provisional`: the walk to the object and the putting down are not
-  animated, so the put-down message is shown at once, and objects on
-  the ground are not drawn (finding:objects-lying-on-the-ground-are-pictures,
-  #162).
+- Objects lying exactly where the watched Character stands are drawn
+  when each scene is built, at most six: BScene.res IMAG 50 plus the
+  object, its top left at x 200 plus up to 39 and y 165, at depth 0x99
+  among the figures
+  (finding:objects-on-the-ground-drawn-when-the-scene-is-built,
+  finding:objects-lying-on-the-ground-are-pictures).
+- Take sends the Character's figure walking to the picture (script
+  entry 0xd4): its message shows as it sets off, the picture goes when
+  it stoops, and it walks back and turns to its old facing
+  (finding:objects-take-is-a-walk-to-the-picture-and-back).
+- Put Down makes the figure stoop where it stands (entry 0xde): the
+  picture appears at its feet, 2 pixels left of it at y 161 and behind
+  every figure, and only then the message shows
+  (finding:objects-put-down-is-a-stoop-in-place). Without a figure on
+  screen, or for Take without the picture, the message shows at once.
+- `provisional`: these were read from the code, not played. Clicking
+  an object's picture to see its name is not built.
 
 The **chosen** Character is the party member selected; the
 **position** is the watched Character's position, the Force on
