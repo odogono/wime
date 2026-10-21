@@ -1,14 +1,14 @@
 # Animation Level reference
 
-The `observed:animation-level-opening` scenario in the Findings is this run, made in FS-UAE 3.2.35 on the Reference Build (issue #80).
+The `observed:animation-level-opening` source in the Findings is this Reference run, made in FS-UAE 3.2.35 on the Reference Build (issue #80).
 
 ## Setting up
 
 Boot as in [the combat reference](combat-reference.md): the WHDLoad install on an A500+ with Kickstart 2.04, 1 MB chip and 4 MB fast memory. Mouse clicks did not move past the Ring verse; a key press (space) did. Capture the window with `screencapture`, as the other references do, and keep the captures in a gitignored directory such as `build/fs-uae/`.
 
-## Scenario
+## Reference run
 
-| Scenario                  | Steps                                                         | Observed                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| Reference run             | Steps                                                         | Observed                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | ------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `animation-level-opening` | Boot, press space at the title, the Ring verse and the letter | The title screen and the Ring verse, then the Animation Level: a stone bridge over a stream below Hobbiton's houses, a blue sky with clouds, and the eye, map and sack icons in a column at the top right. Gandalf's letter shows over it in a framed window while Frodo, Sam and Pippin walk right across the bridge. After the letter closes they walk off the right edge and the bare scene stays. The picture fills 320 by 200 of the screen. |
 

@@ -139,6 +139,18 @@ _Avoid_: Intro text, Gandalf's message
 The release of the original game that settles questions of how it worked: the Amiga v1.0 release. Other versions may be consulted but are never authoritative.
 _Avoid_: Original, master copy
 
+**Reference run**:
+A recorded run of the Reference Build in an emulator, set up to observe one behaviour and cited as evidence by Findings.
+_Avoid_: Scenario, test case
+
+**Scenario**:
+A playable game: the starting forces, Places and map, and the rules that run them. The game the original shipped with is one Scenario.
+_Avoid_: Mod, campaign, Level
+
+**Scenario Script**:
+The code that gives a Scenario its rules.
+_Avoid_: Script, mod
+
 **Finding**:
 A single recorded fact about how the original game worked, with its sources and how certain it is.
 _Avoid_: Note, discovery, research fact

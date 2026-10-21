@@ -1,12 +1,12 @@
-# War Event reference scenarios
+# War Event Reference runs
 
-The `observed:war-events-…` scenarios in the Findings are these runs, made in FS-UAE 3.2 on the Reference Build (issue #57). Each starts from the same roster, writes a set-up into emulated memory and lets the game run. The results were read back from memory dumps.
+The `observed:war-events-…` sources in the Findings are these Reference runs, made in FS-UAE 3.2 on the Reference Build (issue #57). Each starts from the same roster, writes a set-up into emulated memory and lets the game run. The results were read back from memory dumps.
 
 ## Setting up
 
 1. Boot as in [the combat reference](combat-reference.md): the WHDLoad install on an A500+ with Kickstart 2.04, the console debugger on, then press U on the Animation Level for the Campaign Level. Keep the pointer off the map's edge, or the map scrolls and the clock stops. The data hunk was at 0x390E8 and the code hunk at 0x1D0C8. Roster entry i is at 0x3AED0 + 38 × i, the day word at 0x3CF4C and the quarter-hour at 0x3CF4E. The event mask is at 0x3CF51 and event day b at 0x3CF52 + b.
-2. Save `data+0x1de8` to `data+0x3e71` (0x3AED0, 0x208A bytes) right after reaching the Campaign Level, and write it back with `W` before each scenario. The roster is then the starting one, apart from the first quarter-hour's moves of the Fellowship and the Nazgûl.
-3. Before running each scenario:
+2. Save `data+0x1de8` to `data+0x3e71` (0x3AED0, 0x208A bytes) right after reaching the Campaign Level, and write it back with `W` before each Reference run. The roster is then the starting one, apart from the first quarter-hour's moves of the Fellowship and the Nazgûl.
+3. Before running each Reference run:
    - Write 1 to `data+0x422f` (0x3D317) so the day-92 copy-protection question is skipped. This is test scaffolding only; the reimplementation has no copy protection.
    - Write 0x0010 to the clock limit `data+0x08c2` (0x399AA) so a quarter-hour passes in 16 frames.
 4. Put breakpoints on the hourly update, code+0x0d894 (0x2A95C), and on the trigger, code+0x0e6a8 (0x2B770). At each stop the sweep position `data+0x56b3` names the entry being triggered.
@@ -20,9 +20,9 @@ Things that tripped up the harness:
 
 Times below are quarter-hours (32 is 8 a.m.). The date line shows the next hour (finding:time-daily-check-opens-the-8am-sweep).
 
-## Scenarios
+## Reference runs
 
-| Scenario                      | Set-up                                                                                                                                                                                                    | Observed                                                                                                                                                                                                                                                                                                                                                                                |
+| Reference run                 | Set-up                                                                                                                                                                                                    | Observed                                                                                                                                                                                                                                                                                                                                                                                |
 | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `war-events-day-148`          | Day 148, quarter-hour 31, mask 0x05.                                                                                                                                                                      | 8 a.m. passed with mask 0x05. Run on: day 149 at 32 set event 4.                                                                                                                                                                                                                                                                                                                        |
 | `war-events-day-149`          | Day 149, quarter-hour 31, mask 0x05.                                                                                                                                                                      | At 32, with the sweep at entry 1: mask 0x15, event 4 day 149, "Saruman's army is on the march!" at the top left. The Rangers (57) and two Hand Orc bands (88, 89, trigger 0x10) woke in that sweep, in roster order. The 0x17 bands (90–94) still waited. The Orcs headed for the Isen Ford and the Rangers for Minas Tirith.                                                           |

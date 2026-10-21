@@ -2,7 +2,7 @@
 
 How the war moves on without the player: the War Events and when they
 are set. Facts cite their Findings (ADR-0004), recovered from the
-Reference Build for #57. The reference scenarios are in
+Reference Build for #57. The Reference runs are in
 `docs/re/war-events-reference.md`. The triggers that wake Forces (#59),
 the presentation of the announcements (#60) and the movement tripwires
 (#49) have their own sections below.

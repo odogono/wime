@@ -19,7 +19,7 @@ import {
   type SimState
 } from './state';
 
-// The reference scenarios of docs/spec/movement.md on synthetic
+// The Reference runs of docs/spec/movement.md on synthetic
 // maps: the same starting positions, destinations, speed classes
 // and stamina as S1-S4, with terrain ratings matching the tiles
 // the original was observed on (100 for road and track, 60 for

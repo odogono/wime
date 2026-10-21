@@ -2,7 +2,7 @@
 
 How a fight starts, how it is resolved round by round, and what it
 leaves behind. Facts cite their Findings (ADR-0004), recovered from
-the Reference Build for #45. The reference scenarios are in
+the Reference Build for #45. The Reference runs are in
 `docs/re/combat-reference.md`. The combat window and the announcement
 are #47; this Spec covers the rules the sim applies.
 

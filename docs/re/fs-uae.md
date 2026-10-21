@@ -1,6 +1,6 @@
 # Running the original in FS-UAE
 
-How an agent boots the Reference Build in FS-UAE 3.2 and reads its state, for reference scenarios and `observed:` Findings. The `*-reference.md` notes beside this one record particular scenarios; this is the setup they share.
+How an agent boots the Reference Build in FS-UAE 3.2 and reads its state, for Reference runs and `observed:` Findings. The `*-reference.md` notes beside this one record particular Reference runs; this is the setup they share.
 
 ## Boot drive
 

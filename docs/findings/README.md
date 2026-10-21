@@ -33,7 +33,7 @@ code+0x01a2c4 gives ...
   - `confirmed`: shown in the code or data.
 - `sources`: one or more, as `kind:reference`:
   - `manual:pdf-p11`: a page of `artifacts/WarinMiddleEarth-InstructionManual.pdf`. `bun run extract-manual` writes its text, marked by page, and page images to `extracted_text/`.
-  - `observed:<scenario>`: a reference scenario played in vAmiga.
+  - `observed:<run>`: a Reference run played in vAmiga.
   - `resource:<file>#<type> <id>`: a resource in the Reference Build.
   - `disasm:code+0x<offset>` or `disasm:data+0x<offset>`: an offset into the code or data hunk of the Reference Build's executable ([docs/re](../re/README.md) explains the layout).
   - `strings:0x<offset>`: an offset in the executable's string scan.

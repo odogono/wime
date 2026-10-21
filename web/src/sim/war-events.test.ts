@@ -19,7 +19,7 @@ import {
 } from './war-events';
 
 // The War Events on a synthetic roster (docs/spec/war-events.md). Every
-// entry sleeps with no strength, so nothing moves; the scenarios are
+// entry sleeps with no strength, so nothing moves; the Reference runs are
 // those of docs/re/war-events-reference.md.
 
 const entry = (index: number, over: Record<string, unknown> = {}) => ({
@@ -90,7 +90,7 @@ const ticks = (state: SimState, n: number): SimState => {
   return next;
 };
 
-// The event days of bits 1 to 7, as the reference scenarios list them.
+// The event days of bits 1 to 7, as the Reference runs list them.
 const days = (state: SimState): number[] => state.warEvents.days.slice(1);
 
 describe('war events', () => {
