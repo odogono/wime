@@ -70,18 +70,29 @@ describe('order flow', () => {
     });
   });
 
-  test('clicking empty map or an inactive Force keeps picking', () => {
+  // finding:movement-orders-accepted-by-allegiance-roll
+  test('clicking empty map or an Evil Force keeps picking; an inactive Good Force is picked, for the roll to refuse', () => {
     expect(
       pickForceAt({ kind: 'pick-force' }, [force], { x: 0, y: 0 })
     ).toEqual({
       kind: 'pick-force'
     });
-    const evil = { ...force, active: false };
+    const evil = {
+      ...force,
+      active: false,
+      leader: { ...force.leader, index: 100 }
+    };
     expect(
       pickForceAt({ kind: 'pick-force' }, [evil], { x: 645, y: 370 })
     ).toEqual({
       kind: 'pick-force'
     });
+    expect(
+      pickForceAt({ kind: 'pick-force' }, [{ ...force, active: false }], {
+        x: 645,
+        y: 370
+      }).kind
+    ).toBe('pick-destination');
   });
 
   test('clicking a member name selects that member for the Order', () => {

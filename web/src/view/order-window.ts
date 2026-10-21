@@ -1,4 +1,10 @@
-import { placeAt, type Force, type Place, type Point } from '../sim/index';
+import {
+  LAST_GOOD_ENTRY,
+  placeAt,
+  type Force,
+  type Place,
+  type Point
+} from '../sim/index';
 import { forceAtPoint } from './campaign-level';
 import { measureLines, type FontMetrics } from './font';
 import { forceWindowLines } from './force-window';
@@ -25,8 +31,9 @@ export const IDLE_ORDER: OrderState = { kind: 'idle' };
 export const toggleOrder = (state: OrderState): OrderState =>
   state.kind === 'idle' ? { kind: 'pick-force' } : IDLE_ORDER;
 
-// Clicking an active Force while picking one moves to choosing
-// its destination, whole Force selected by default.
+// Clicking a Good Force while picking one moves to choosing its
+// destination, whole Force selected by default; whether it takes the
+// Order is the sim's roll (finding:movement-orders-accepted-by-allegiance-roll).
 export const pickForceAt = (
   state: OrderState,
   forces: Force[],
@@ -36,7 +43,12 @@ export const pickForceAt = (
     return state;
   }
   const force = forceAtPoint(forces, point);
-  if (!force || !force.active || !force.onMap) {
+  if (
+    !force ||
+    !force.onMap ||
+    force.leader.index < 1 ||
+    force.leader.index > LAST_GOOD_ENTRY
+  ) {
     return state;
   }
   return {

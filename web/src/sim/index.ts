@@ -18,6 +18,7 @@ export {
   type DisplayTime
 } from './clock';
 export {
+  LAST_GOOD_ENTRY,
   combatRows,
   glassWatches,
   fightRound,
@@ -66,6 +67,7 @@ export {
 } from './meetings';
 export {
   canOrder,
+  takesOrder,
   desiredFacing,
   destinationForClick,
   giveOrder,

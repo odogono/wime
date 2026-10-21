@@ -6,6 +6,7 @@ import {
   destinationForClick,
   giveOrder,
   paceFor,
+  takesOrder,
   terrainAt,
   type Tilemap
 } from './movement';
@@ -432,6 +433,22 @@ const orderWorld = (): SimState =>
     tileAt: () => 1
   });
 
+// The share of `tries` attempts an entry of `allegiance` takes an Order.
+const takenShare = (allegiance: number, tries = 2000): number => {
+  let world = orderWorld();
+  world = {
+    ...world,
+    roster: world.roster.map(e => (e.index === 1 ? { ...e, allegiance } : e))
+  };
+  let taken = 0;
+  for (let i = 0; i < tries; i++) {
+    const result = takesOrder(world, 1);
+    world = result.world;
+    taken += result.taken ? 1 : 0;
+  }
+  return taken / tries;
+};
+
 describe('orders', () => {
   test('ordering a member splits it and its followers off', () => {
     // finding:forces-ordering-a-follower-splits-it
@@ -459,6 +476,15 @@ describe('orders', () => {
       x: 640,
       y: 320
     });
+  });
+
+  // finding:movement-orders-accepted-by-allegiance-roll
+  test('a Force takes an Order when its allegiance beats a roll of 2 to 97', () => {
+    expect(takenShare(99)).toBe(1);
+    expect(takenShare(1)).toBe(0);
+    expect(takenShare(2)).toBe(0);
+    expect(takenShare(70)).toBeCloseTo(68 / 96, 1);
+    expect(takenShare(40)).toBeCloseTo(38 / 96, 1);
   });
 
   test('a Unit that follows someone cannot be ordered on its own', () => {

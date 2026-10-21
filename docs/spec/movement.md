@@ -19,9 +19,19 @@ under a position is (x ÷ 16, y ÷ 16)
 
 - The player picks a Force, then a destination. The Force finds its
   own route and travels at its own pace
-  (`finding:movement-destination-only-orders`). Only active Forces
-  take Orders, and only on the Campaign Level
+  (`finding:movement-destination-only-orders`). Orders are given only
+  on the Campaign Level
   (`finding:movement-only-active-forces-take-orders`).
+- Any Good Force on the map can be picked. As it is picked it rolls:
+  it takes the Order only if the picked entry's allegiance is above a
+  roll of 2 to 97, drawn from the sim's RNG at every attempt. So a
+  mobilised Force, 99, always obeys and an unmobilised one, 1, never
+  does; Boromir, 70, obeys 68 times in 96. Otherwise "The force will
+  not accept your orders." shows, and the arrow stays armed for another
+  pick. (`finding:movement-orders-accepted-by-allegiance-roll`)
+- `provisional`: the original keeps the refused pick and seems to roll
+  again once the refusal's box has had its time; the port drops the
+  pick instead, and the player picks again.
 - An Order's destination is the clicked spot rounded down to its
   tile origin, so a click in a Place's tile lands on the Place.
   Clicking near Bree set (784, 384); clicking near Osgiliath set

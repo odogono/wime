@@ -11,6 +11,7 @@ import {
   listFightOnAnimationLevel,
   mirrorListing,
   releaseWatched,
+  takesOrder,
   tickSim,
   watchEntry,
   type Force,
@@ -326,6 +327,8 @@ type BoxKind =
 // The empty roster entry 0, watched when the Animation Level shows a
 // spot with nobody there.
 const NOBODY = 0;
+// The original's refusal of an Order (code+0x0751f).
+const ORDER_REFUSED = 'The force will not accept your orders.';
 
 // `run` holds the whole view's state and handlers, in this order; search for
 // the name to jump to a part:
@@ -1360,7 +1363,23 @@ const run = (
       return;
     }
     if (order.kind === 'pick-force') {
-      setOrder(pickForceAt(order, forcesOnMap(sim.roster), point));
+      const picked = pickForceAt(order, forcesOnMap(sim.roster), point);
+      if (picked.kind !== 'pick-destination') {
+        return;
+      }
+      // The Force takes the Order only on the roll; otherwise the arrow
+      // stays armed (finding:movement-orders-accepted-by-allegiance-roll).
+      const result = takesOrder(sim, picked.selected);
+      sim = result.world;
+      if (result.taken) {
+        setOrder(picked);
+      } else {
+        const now = viewNow();
+        closeBox(now);
+        // A refusal shows as the same plain notice as a pass-by.
+        passingMessage = { text: ORDER_REFUSED };
+        showBox('passing', now);
+      }
     } else if (order.kind === 'pick-destination') {
       sim = giveOrder(sim, order.selected, point);
       setOrder(IDLE_ORDER);
