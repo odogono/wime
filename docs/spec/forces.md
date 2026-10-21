@@ -99,9 +99,13 @@ are in `docs/spec/combat.md`.
   another is up waits out that box's 200-frame deadline, the game
   standing still, then replaces it
   (finding:ui-message-box-opening-waits-for-the-open-box).
-- `provisional`: the port lets the Full Map Level be entered under the
-  window, and a War Event announcement waits, its time kept, while the
-  window is up (docs/spec/war-events.md, #184).
+- The port does the same (docs/spec/time.md, "Message boxes"). The
+  Full Map Level cannot be entered, by its icon or U, while the window
+  is up, and the other icons do nothing. A press off its buttons does
+  nothing, but a click on a Force or a Place answers "Continue on" and
+  opens that Force's or Place's window instead; N answers "Continue
+  on" and Y the other button
+  (finding:ui-message-box-presses-off-the-buttons).
 
 ## Leaving a Force
 

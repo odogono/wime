@@ -157,8 +157,8 @@ When an entry's trigger is met (finding:ai-trigger-what-waking-changes):
 
 - Each announcement is shown on the Campaign Level in a one-line box
   with no buttons at the top left: 144 by 24 lo-res pixels for
-  Saruman's, 160 by 24 for the Dark Lord's, at (10, 5). It closes by
-  itself after 60 frames (1.2 seconds) on Very Hasty or 200 frames
+  Saruman's, 160 by 24 for the Dark Lord's, at (10, 5). A later box may
+  replace it after 60 frames (1.2 seconds) on Very Hasty or 200 frames
   (4 seconds) otherwise, and game time runs on while it is up.
   (`finding:time-game-speed-clock-limits`)
 - Announcements are shown one at a time, oldest first. The view takes
@@ -173,7 +173,6 @@ When an entry's trigger is met (finding:ai-trigger-what-waking-changes):
   (finding:ui-message-box-opening-waits-for-the-open-box,
   finding:ui-message-box-timeouts-by-level,
   finding:ui-message-box-closed-on-leaving-a-level).
-- `provisional`: the view shows a fight's windows first and keeps an
-  announcement, with the time it has left, until they close, and
-  likewise on the Full Map Level, where time stands still; it closes
-  an announcement after 200 frames (#184).
+- The port does the same (docs/spec/time.md, "Message boxes"), on the
+  Animation Level as on the Campaign Level: there is no priority
+  between an announcement, a pass-by, a meeting and a fight.

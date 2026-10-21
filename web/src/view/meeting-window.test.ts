@@ -22,8 +22,6 @@ import {
 } from './meeting-window';
 import { FIXED_FONT } from './test-font';
 
-const NOTICE_MS = 4000;
-
 // The meetings of docs/re/forces-reference.md, on synthetic rosters
 // with the entries at their real indices, as in the sim's tests.
 
@@ -164,8 +162,7 @@ describe('meeting window', () => {
     const result = pressMeetingUi(
       ui,
       charactersMeet,
-      centre(ui, 'Follow EOMER'),
-      100
+      centre(ui, 'Follow EOMER')
     );
     expect(result.choice).toBe('follow');
     expect(result.ui).toBeNull();
@@ -182,7 +179,7 @@ describe('meeting window', () => {
       [plainMeet, 'Continue on']
     ] as const) {
       const ui = window(sim);
-      const result = pressMeetingUi(ui, sim, centre(ui, label), 100);
+      const result = pressMeetingUi(ui, sim, centre(ui, label));
       expect(result.ui).toBeNull();
       expect(result.sim.meeting).toBeNull();
       expect(result.sim.roster[sim.meeting!.a]!.leader).toBeNull();
@@ -192,7 +189,7 @@ describe('meeting window', () => {
 
   test('a press off the buttons leaves the window up', () => {
     const ui = window(charactersMeet);
-    const result = pressMeetingUi(ui, charactersMeet, { x: 150, y: 12 }, 100);
+    const result = pressMeetingUi(ui, charactersMeet, { x: 150, y: 12 });
     expect(result).toEqual({ choice: null, sim: charactersMeet, ui });
   });
 
@@ -241,8 +238,8 @@ describe('meeting window', () => {
       'TOM BOMBADIL invites FRODO to pause and talk.'
     ]);
     const results = [
-      pressMeetingUi(ui, sim, centre(ui, 'Go there'), 200),
-      pressMeetingUi(ui, sim, centre(ui, 'Continue on'), 200),
+      pressMeetingUi(ui, sim, centre(ui, 'Go there')),
+      pressMeetingUi(ui, sim, centre(ui, 'Continue on')),
       stepMeetingUi(ui, sim, 100 + MEETING_WINDOW_MS)
     ];
     for (const result of results) {
@@ -263,28 +260,11 @@ describe('meeting window', () => {
       { a: 15, b: 1, kind: 'follow' }
     );
     const ui = window(sim);
-    for (const speed of ['normal', 'hasty', 'very-hasty'] as const) {
-      const duration = speed === 'very-hasty' ? 1200 : NOTICE_MS;
-      const result = pressMeetingUi(
-        ui,
-        sim,
-        centre(ui, 'Follow GANDALF'),
-        100,
-        speed
-      );
-      expect(result.ui).toEqual({
-        kind: 'notice',
-        text: GOLLUM_SNEAKS_AWAY,
-        until: 100 + duration
-      });
-      expect(meetingHoldsTime(result.ui)).toBe(false);
-      expect(
-        stepMeetingUi(result.ui!, result.sim, 100 + duration - 1, speed).ui
-      ).not.toBeNull();
-      expect(
-        stepMeetingUi(result.ui!, result.sim, 100 + duration, speed).ui
-      ).toBeNull();
-    }
+    const result = pressMeetingUi(ui, sim, centre(ui, 'Follow GANDALF'));
+    expect(result.ui).toEqual({ kind: 'notice', text: GOLLUM_SNEAKS_AWAY });
+    expect(meetingHoldsTime(result.ui)).toBe(false);
+    // The message box closes it (message-box.ts).
+    expect(stepMeetingUi(result.ui!, result.sim, 1_000_000).ui).toBe(result.ui);
   });
 
   test('a saved meeting reopens its window on restore', () => {

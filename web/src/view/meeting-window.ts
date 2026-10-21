@@ -7,8 +7,7 @@ import {
   type SimState
 } from '../sim/index';
 import { measureText, type FontMetrics } from './font';
-import { messageDurationMs } from './message-timing';
-import { FRAME_MS, type GameSpeed } from './tick-driver';
+import { FRAME_MS } from './tick-driver';
 import {
   drawWindowFrame,
   windowText,
@@ -54,7 +53,9 @@ export type MeetingUi =
       kind: 'window';
       lines: string[];
     }
-  | { kind: 'notice'; text: string; until: number };
+  // A box without buttons, closed as the message box closes it
+  // (message-box.ts).
+  | { kind: 'notice'; text: string };
 
 const capitalise = (text: string): string =>
   text.charAt(0).toUpperCase() + text.slice(1);
@@ -144,37 +145,28 @@ export const openMeetingUi = (
 // there". Gollum sneaking away leaves a notice.
 const answer = (
   sim: SimState,
-  choice: MeetingAnswer,
-  now: number,
-  speed: GameSpeed
+  choice: MeetingAnswer
 ): { sim: SimState; ui: MeetingUi | null } => {
   const result = answerMeeting(sim, choice);
   return {
     sim: result.world,
     ui: result.gollumSneaksAway
-      ? {
-          kind: 'notice',
-          text: GOLLUM_SNEAKS_AWAY,
-          until: now + messageDurationMs(speed)
-        }
+      ? { kind: 'notice', text: GOLLUM_SNEAKS_AWAY }
       : null
   };
 };
 
 // Advance to `now`: an unanswered window answers its default, "Continue
-// on", at its deadline, and a notice closes when its time is up.
+// on", at its deadline. A notice stays until the message box closes it.
 export const stepMeetingUi = (
   ui: MeetingUi,
   sim: SimState,
-  now: number,
-  speed: GameSpeed = 'normal'
+  now: number
 ): { sim: SimState; ui: MeetingUi | null } => {
   if (ui.kind === 'notice') {
-    return { sim, ui: now < ui.until ? ui : null };
+    return { sim, ui };
   }
-  return now >= ui.deadline
-    ? answer(sim, 'continue-on', now, speed)
-    : { sim, ui };
+  return now >= ui.deadline ? answer(sim, 'continue-on') : { sim, ui };
 };
 
 const inBox = (box: Box, point: { x: number; y: number }): boolean =>
@@ -188,9 +180,7 @@ const inBox = (box: Box, point: { x: number; y: number }): boolean =>
 export const pressMeetingUi = (
   ui: MeetingUi,
   sim: SimState,
-  point: { x: number; y: number },
-  now: number,
-  speed: GameSpeed = 'normal'
+  point: { x: number; y: number }
 ): { choice: MeetingAnswer | null; sim: SimState; ui: MeetingUi | null } => {
   if (ui.kind === 'notice') {
     return { choice: null, sim, ui };
@@ -199,7 +189,7 @@ export const pressMeetingUi = (
   if (!pressed) {
     return { choice: null, sim, ui };
   }
-  return { choice: pressed.choice, ...answer(sim, pressed.choice, now, speed) };
+  return { choice: pressed.choice, ...answer(sim, pressed.choice) };
 };
 
 // Whether the window holds the game: the clock stops for a box with

@@ -66,7 +66,9 @@ talks and fights shown here are in `docs/spec/encounters.md`.
   (finding:ui-animation-level-click-takes-the-frontmost-figure)
 - A figure clicked shows its entry's status line, the line Galadriel's
   Mirror gives it, in a box at (10, 5), 208 by 24, with no buttons,
-  which closes after 200 frames (60 on Very Hasty). If the entry is
+  which closes as any box without buttons does, after 1,500 frames
+  (1,360 on Very Hasty) unless a later box replaces it
+  (finding:ui-message-box-timeouts-by-level). If the entry is
   one of roster entries 1 to 78 it becomes the selected Character.
   Nothing happens during a fight. The watched Character does not
   change. (finding:ui-animation-level-clicking-a-figure-selects-it)

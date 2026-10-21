@@ -1,38 +1,18 @@
 import { textKey } from './assets';
-import { messageDurationMs } from './message-timing';
-import type { GameSpeed } from './tick-driver';
 import { drawWindowFrame, windowText, type WindowStyle } from './window-frame';
 
 // Gandalf's letter (docs/spec/boot-sequence.md, "Gandalf's letter";
 // finding:ui-gandalfs-letter): on the first Animation Level of a new
-// game, BScene.res CSTR 56 in a box without buttons that closes by
-// itself, while the Hobbits walk on beneath it. Shown once per game.
+// game, BScene.res CSTR 56 in a box without buttons, while the Hobbits
+// walk on beneath it. Shown once per game. It is raised like any other
+// box, and closes as one without buttons does on the Animation Level,
+// 1,500 frames after it opens unless a later box replaces it
+// (message-box.ts).
 
 export const GANDALFS_LETTER_BOX = { height: 112, width: 256, x: 10, y: 5 };
 
-// Pending until the Animation Level shows it, then open until its time
-// is up.
-export type GandalfsLetter =
-  { kind: 'pending' } | { kind: 'open'; until: number };
-
-export const stepGandalfsLetter = (
-  letter: GandalfsLetter | null,
-  now: number,
-  onAnimationLevel: boolean,
-  speed: GameSpeed
-): GandalfsLetter | null => {
-  if (!letter) {
-    return null;
-  }
-  if (letter.kind === 'pending') {
-    // Like any box without buttons it closes after 200 frames, or 60 at
-    // the clock limit 0 (finding:ui-war-event-messages).
-    return onAnimationLevel
-      ? { kind: 'open', until: now + messageDurationMs(speed) }
-      : letter;
-  }
-  return now < letter.until ? letter : null;
-};
+// Pending until the Animation Level raises it, then open.
+export type GandalfsLetter = { kind: 'open' } | { kind: 'pending' };
 
 export const drawGandalfsLetter = (
   ctx: CanvasRenderingContext2D,

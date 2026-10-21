@@ -204,7 +204,7 @@ const runWindow = (
 };
 
 describe('the announcement', () => {
-  test('Very Hasty times out ignored-fight boxes after 60 frames, including boxes advanced by a press', () => {
+  test("Very Hasty gives an ignored fight's boxes 60 frames each, the last left up, and presses do nothing", () => {
     const sim = eomer();
     const announcement = startCombatUi(sim, 0)!;
     const ignored = pressCombatUi(
@@ -227,9 +227,11 @@ describe('the announcement', () => {
       'very-hasty'
     );
     expect(next.ui).toMatchObject({ kind: 'boxes', until: 2500 });
+    // The last box stays until the message box closes it.
     expect(
       stepCombatUi(next.ui!, next.sim, 2500, first, 0, 'very-hasty').ui
-    ).toBeNull();
+    ).toBe(next.ui);
+    // finding:ui-message-box-presses-off-the-buttons
     const pressed = pressCombatUi(
       ignored.ui!,
       ignored.sim,
@@ -237,7 +239,7 @@ describe('the announcement', () => {
       500,
       'very-hasty'
     );
-    expect(pressed.ui).toMatchObject({ kind: 'boxes', until: 1700 });
+    expect(pressed.ui).toBe(ignored.ui);
     const timedOut = stepCombatUi(
       announcement,
       sim,
