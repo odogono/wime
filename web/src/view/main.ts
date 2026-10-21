@@ -49,6 +49,7 @@ import {
   type CampaignAssets
 } from './assets';
 import { loadGameAudio, type GameAudio } from './audio';
+import { autosaveDue, autosavePoint, type AutosaveView } from './autosave';
 import {
   clampCamera,
   dragCamera,
@@ -1233,9 +1234,39 @@ const run = (
     }
   };
 
+  // The autosave slot, written on each game hour, on each change of
+  // Level and when the page is hidden, but never in a fight, a talk or
+  // the ending, which a restore would lose (docs/spec/saving.md). A
+  // failed autosave is dropped: play goes on.
+  const autosaveView = (): AutosaveView => ({
+    clock: sim.clock,
+    level,
+    settled: !sim.fight && !combat && !battle && !talk && !ending
+  });
+  let autosavedAt = autosavePoint(autosaveView());
+  const autosaveNow = (view: AutosaveView): void => {
+    saveSlots.autosave(sim);
+    autosavedAt = autosavePoint(view);
+  };
+  const autosaveOnHide = (): void => {
+    const view = autosaveView();
+    if (view.settled) {
+      autosaveNow(view);
+    }
+  };
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+      autosaveOnHide();
+    }
+  });
+  window.addEventListener('pagehide', autosaveOnHide);
   const frame = (now: number): void => {
     const elapsedMs = Math.min(1000, now - lastTime);
     lastTime = now;
+    const view = autosaveView();
+    if (autosaveDue(autosavedAt, view)) {
+      autosaveNow(view);
+    }
     updateSound();
     // Notices wait on the Full Map Level and behind decision windows.
     ({ message: passingMessage, sim } = stepPassingMessage(

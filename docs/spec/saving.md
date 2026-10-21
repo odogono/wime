@@ -30,3 +30,25 @@ keeps the original's look and messages (`finding:ui-archive-window`).
   as a slot named Archive, with no saved time, and the old key removed.
 - Until the in-game menu (#150), the Archive window saves over and
   restores the slot named Archive, creating it on the first save.
+
+## Autosave
+
+The port also saves the game by itself to a reserved autosave slot
+(#148), a departure like the named slots.
+
+- The autosave sits beside the named slots but is not one of them: it is
+  not listed among them, cannot be renamed, takes no slot id and does
+  not count against them. It is stored under `wime.autosave`, described
+  in the slot index, and each autosave writes over the last.
+- It is written on each new game hour, on each change of Level, and when
+  the page is hidden (`visibilitychange` or `pagehide`)
+  (`web/src/view/autosave.ts`).
+- It is not written while a fight, an encounter talk or the ending is
+  under way, as a restore would not bring back their windows; a point
+  passed then is saved once they are over. Meetings, the Council and
+  messages do not hold it back: a restore already gives a restored
+  meeting or Council a fresh window and drops the messages on screen.
+- Game Speed and the camera are not saved, as for the named slots.
+- A failed autosave is dropped without a message, and play goes on; the
+  previous autosave is kept.
+- Resuming from the autosave is the title menu's (#149).

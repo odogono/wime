@@ -43,6 +43,9 @@ interface SlotEntry {
 }
 
 interface SlotIndex {
+  // The autosave slot, apart from the named ones: it has no id among
+  // them and cannot be renamed.
+  autosave?: SlotEntry | undefined;
   nextId: number;
   slots: SlotEntry[];
 }
@@ -51,6 +54,10 @@ export const INDEX_KEY = 'wime.slots';
 // The single slot saved before named slots; imported once as a slot.
 export const LEGACY_ARCHIVE_KEY = 'wime.archive';
 export const LEGACY_ARCHIVE_NAME = 'Archive';
+export const AUTOSAVE_KEY = 'wime.autosave';
+export const AUTOSAVE_NAME = 'Autosave';
+// The autosave's id in summaries; named slot ids start at 1.
+export const AUTOSAVE_ID = 0;
 const slotKey = (id: number): string => `wime.slot.${id}`;
 
 // localStorage, or null where reading it throws (storage disabled).
@@ -104,8 +111,13 @@ const describeSave = (
 };
 
 export interface SaveSlots {
+  // Over the autosave slot.
+  autosave: (state: SimState) => SlotResult<SlotSummary>;
+  // The autosave slot, or null when there is none.
+  autosaved: () => SlotResult<SlotSummary | null>;
   list: () => SlotResult<SlotSummary[]>;
   load: (id: number, tilemap: SimState['tilemap']) => SlotResult<SimState>;
+  loadAutosave: (tilemap: SimState['tilemap']) => SlotResult<SimState>;
   remove: (id: number) => SlotResult<void>;
   rename: (id: number, name: string) => SlotResult<SlotSummary>;
   // Into a new slot.
@@ -135,7 +147,11 @@ export const createSaveSlots = (
       name: LEGACY_ARCHIVE_NAME,
       savedAt: null
     };
-    const imported = { nextId: id + 1, slots: [...index.slots, entry] };
+    const imported = {
+      ...index,
+      nextId: id + 1,
+      slots: [...index.slots, entry]
+    };
     try {
       storage!.setItem(slotKey(id), data);
       writeIndex(imported);
@@ -157,7 +173,11 @@ export const createSaveSlots = (
       if (raw !== null) {
         const parsed = JSON.parse(raw) as Partial<SlotIndex> | null;
         if (typeof parsed?.nextId === 'number' && Array.isArray(parsed.slots)) {
-          index = { nextId: parsed.nextId, slots: parsed.slots };
+          index = {
+            autosave: parsed.autosave,
+            nextId: parsed.nextId,
+            slots: parsed.slots
+          };
         }
       }
       return { ok: true, value: importLegacy(index) };
@@ -179,7 +199,11 @@ export const createSaveSlots = (
     try {
       previous = isNew ? null : storage!.getItem(slotKey(entry.id));
       storage!.setItem(slotKey(entry.id), data);
-      writeIndex({ nextId: Math.max(index.nextId, entry.id + 1), slots });
+      writeIndex({
+        ...index,
+        nextId: Math.max(index.nextId, entry.id + 1),
+        slots
+      });
     } catch (error) {
       // Leave the slots as they were.
       try {
@@ -224,7 +248,61 @@ export const createSaveSlots = (
       : { ok: false, reason: 'missing' };
   };
 
+  const loadFrom = (
+    key: string,
+    tilemap: SimState['tilemap']
+  ): SlotResult<SimState> => {
+    let data: string | null;
+    try {
+      data = storage!.getItem(key);
+    } catch (error) {
+      return failWith(error);
+    }
+    if (data === null) {
+      return { ok: false, reason: 'missing' };
+    }
+    const result = restoreSave(data, tilemap);
+    return result.ok
+      ? { ok: true, value: result.state }
+      : { ok: false, reason: result.reason };
+  };
+
   return {
+    autosave: state => {
+      const index = readIndex();
+      if (!index.ok) {
+        return index;
+      }
+      const { data, entry } = entryFor(state, AUTOSAVE_ID, AUTOSAVE_NAME);
+      let previous: string | null = null;
+      try {
+        previous = storage!.getItem(AUTOSAVE_KEY);
+        storage!.setItem(AUTOSAVE_KEY, data);
+        writeIndex({ ...index.value, autosave: entry });
+      } catch (error) {
+        try {
+          if (previous === null) {
+            storage!.removeItem(AUTOSAVE_KEY);
+          } else {
+            storage!.setItem(AUTOSAVE_KEY, previous);
+          }
+        } catch {
+          // The index still describes the old autosave.
+        }
+        return failWith(error);
+      }
+      return { ok: true, value: summary(entry) };
+    },
+
+    autosaved: () => {
+      const index = readIndex();
+      if (!index.ok) {
+        return index;
+      }
+      const entry = index.value.autosave;
+      return { ok: true, value: entry ? summary(entry) : null };
+    },
+
     list: () => {
       const index = readIndex();
       return index.ok
@@ -234,22 +312,17 @@ export const createSaveSlots = (
 
     load: (id, tilemap) => {
       const found = find(id);
-      if (!found.ok) {
-        return found;
+      return found.ok ? loadFrom(slotKey(id), tilemap) : found;
+    },
+
+    loadAutosave: tilemap => {
+      const index = readIndex();
+      if (!index.ok) {
+        return index;
       }
-      let data: string | null;
-      try {
-        data = storage!.getItem(slotKey(id));
-      } catch (error) {
-        return failWith(error);
-      }
-      if (data === null) {
-        return { ok: false, reason: 'missing' };
-      }
-      const result = restoreSave(data, tilemap);
-      return result.ok
-        ? { ok: true, value: result.state }
-        : { ok: false, reason: result.reason };
+      return index.value.autosave
+        ? loadFrom(AUTOSAVE_KEY, tilemap)
+        : { ok: false, reason: 'missing' };
     },
 
     remove: id => {
