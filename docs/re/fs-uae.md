@@ -18,6 +18,7 @@ Append debugger commands to `build/fs-uae/debugger.in`. Enter the debugger with 
 - `fd` adds a bogus breakpoint rather than clearing them, and `f <addr>` toggles one.
 - Console output is buffered, so read state from `S <file> <addr> <len>` dumps to a short path such as `/tmp/d`, not from stdout.
 - Commands sent while the game runs are queued and fire at the next stop.
+- The F12+D chord is sometimes lost. To sample an event repeatedly, set a breakpoint on it and queue an `S` dump and a `g` per hit instead: each stop dumps with no chord ([`game-speed-reference.md`](game-speed-reference.md)).
 
 ## Addresses at run time
 
