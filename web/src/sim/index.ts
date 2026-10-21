@@ -24,6 +24,7 @@ export {
   findFight,
   findMatch,
   finishFight,
+  fightRowCap,
   listFightOnAnimationLevel,
   playedOnAnimationLevel,
   resolveFight,

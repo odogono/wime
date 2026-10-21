@@ -1,5 +1,6 @@
 import {
   fightRound,
+  fightRowCap,
   finishFight,
   placeAt,
   setCombatOption,
@@ -367,11 +368,18 @@ export interface WindowLayout {
   rows: number;
 }
 
-export const layoutCombatWindow = (fight: Fight): WindowLayout => {
+export const layoutCombatWindow = (
+  fight: Fight,
+  roster: RosterEntry[]
+): WindowLayout => {
   const good = fight.rows.filter(row => row.side === 'good').length;
   const evil = fight.rows.length - good;
   const rows = Math.max(good, evil, 1);
-  const lineHeight = Math.max(good, evil) > 16 ? 8 : 9;
+  // Lines close up for a crowded side: over 16 rows, or over 6 when a
+  // side holds at most 9 (finding:ui-combat-window-line-height).
+  const most = Math.max(good, evil);
+  const lineHeight =
+    most > 16 || (fightRowCap(fight, roster) <= 9 && most > 6) ? 8 : 9;
   return {
     height: rows * lineHeight + 32,
     lineHeight,
@@ -389,9 +397,10 @@ const inBox = (box: Box, point: { x: number; y: number }): boolean =>
 // The option button under a point, as a Good row and an option.
 export const optionAt = (
   fight: Fight,
+  roster: RosterEntry[],
   point: { x: number; y: number }
 ): { option: (typeof OPTIONS)[number]; row: number } | null => {
-  const layout = layoutCombatWindow(fight);
+  const layout = layoutCombatWindow(fight, roster);
   let goodRow = 0;
   for (let row = 0; row < fight.rows.length; row++) {
     if (fight.rows[row]!.side !== 'good') {
@@ -435,7 +444,7 @@ export const pressCombatUi = (
       : { sim, ui: openCombatWindow(sim, now) };
   }
   if (ui.kind === 'window' && sim.fight) {
-    const hit = optionAt(sim.fight, point);
+    const hit = optionAt(sim.fight, sim.roster, point);
     return hit
       ? { sim: setCombatOption(sim, hit.row, hit.option), ui }
       : { sim, ui };
@@ -523,7 +532,7 @@ export const drawCombatUi = (
   if (!fight) {
     return;
   }
-  const layout = layoutCombatWindow(fight);
+  const layout = layoutCombatWindow(fight, sim.roster);
   drawWindowFrame(ctx, style, {
     height: layout.height,
     width: WINDOW_WIDTH,
