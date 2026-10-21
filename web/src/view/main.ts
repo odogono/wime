@@ -6,8 +6,6 @@ import {
   fullMapDots,
   giveOrder,
   mirrorListing,
-  restoreSave,
-  serialiseSave,
   tickSim,
   watchEntry,
   type Force,
@@ -160,6 +158,12 @@ import {
   expired as provisionsExpired,
   type ProvisionsWindow
 } from './provisions-window';
+import {
+  LEGACY_ARCHIVE_NAME,
+  browserStorage,
+  createSaveSlots,
+  type SlotSummary
+} from './save-slots';
 import { NATIVE_HEIGHT, NATIVE_WIDTH, createScreen, type Fit } from './screen';
 import { QUIET, figureEffects, soundCues, type SoundView } from './sound-cues';
 import { placeScenery } from './special-scenery';
@@ -259,28 +263,37 @@ const run = (
   let hiresPointer: Camera | null = null;
   let mirror: MirrorWindow | null = null;
   let archive: ArchiveWindow | null = null;
-  // The single save slot (finding:ui-single-save-slot). Game Speed and
-  // the camera are not saved, and a restore stays on this Level.
-  const ARCHIVE_KEY = 'wime.archive';
+  // The Archive window saves to and restores the slot named Archive
+  // (docs/spec/saving.md), standing in for the original's single file
+  // (finding:ui-single-save-slot). Game Speed and the camera are not
+  // saved, and a restore stays on this Level.
+  const saveSlots = createSaveSlots(browserStorage());
+  const archiveSlot = (): SlotSummary | undefined => {
+    const slots = saveSlots.list();
+    return slots.ok
+      ? slots.value.find(slot => slot.name === LEGACY_ARCHIVE_NAME)
+      : undefined;
+  };
   const saveGame = (): ArchiveWindow => {
-    try {
-      localStorage.setItem(ARCHIVE_KEY, serialiseSave(sim));
-      return archiveMessage(ARCHIVE_MESSAGES.saved);
-    } catch {
-      return archiveMessage(ARCHIVE_MESSAGES.saveFailed);
-    }
+    const slot = archiveSlot();
+    const result = slot
+      ? saveSlots.saveOver(slot.id, sim)
+      : saveSlots.save(LEGACY_ARCHIVE_NAME, sim);
+    return archiveMessage(
+      result.ok ? ARCHIVE_MESSAGES.saved : ARCHIVE_MESSAGES.saveFailed
+    );
   };
   const restoreGame = (): ArchiveWindow => {
-    const data = localStorage.getItem(ARCHIVE_KEY);
-    const result = data === null ? null : restoreSave(data, assets.tilemap);
-    if (!result || (!result.ok && result.reason === 'invalid')) {
+    const slot = archiveSlot();
+    const result = slot ? saveSlots.load(slot.id, assets.tilemap) : null;
+    if (!result || (!result.ok && result.reason !== 'other-version')) {
       return archiveMessage(ARCHIVE_MESSAGES.noArchive);
     }
     if (!result.ok) {
       return archiveMessage(ARCHIVE_MESSAGES.otherVersion);
     }
     // The restored game stays on this Level, watching whom it watches.
-    sim = watchEntry(result.state, level === 'animation' ? watched : null);
+    sim = watchEntry(result.value, level === 'animation' ? watched : null);
     // A message already on screen was shown; the restored game's own
     // waiting announcements follow.
     warMessage = null;
