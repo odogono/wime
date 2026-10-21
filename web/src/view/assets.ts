@@ -493,3 +493,61 @@ export const loadAnimationAssets = async (
     window: windowStyle(frame, palette.hex, font, ANIMATION_PARCHMENT)
   };
 };
+
+export interface TitleAssets {
+  font: Font;
+  // The title palette as hex (finding:graphics-title-screen-palette).
+  palette: string[];
+  // ATitle.res IMAG 70 to 73, by id; the logo's black is clear so the
+  // title screen shows round it.
+  pictures: Map<number, CanvasImageSource>;
+  // The Ring verse's window: cream parchment, drawn like a message box
+  // on the Animation Level (finding:ui-ring-verse-window).
+  window: WindowStyle;
+}
+
+// The boot sequence's art (docs/spec/boot-sequence.md).
+export const loadTitleAssets = async (
+  base = '/assets/'
+): Promise<TitleAssets> => {
+  const manifest = await fetchJson<Manifest>(`${base}manifest.json`);
+  const ids = [70, 71, 72, 73];
+  const animationPath = (name: string): string =>
+    base +
+    requireAsset(
+      manifest.assets.find(asset => asset.path === `animation/${name}`),
+      `Animation Level ${name}`
+    ).path;
+  const [palette, windowPalette, frame, font, pictures] = await Promise.all([
+    fetchJson<{ hex: string[] }>(
+      base +
+        requireAsset(assetByKind(manifest, 'title-palette'), 'title palette')
+          .path
+    ),
+    fetchJson<{ hex: string[] }>(animationPath('palette.json')),
+    loadImage(animationPath('window-frame.png')),
+    loadFont(manifest, base),
+    Promise.all(
+      ids.map(id =>
+        loadImage(
+          base +
+            requireAsset(
+              assetBySource(manifest, 'ATitle.res', 'IMAG', id),
+              `ATitle.res IMAG ${id}`
+            ).path
+        )
+      )
+    )
+  ]);
+  return {
+    font,
+    palette: palette.hex,
+    pictures: new Map(
+      pictures.map((image, i) => [
+        ids[i]!,
+        ids[i] === 73 ? blackToTransparent(image) : image
+      ])
+    ),
+    window: windowStyle(frame, windowPalette.hex, font, ANIMATION_PARCHMENT)
+  };
+};

@@ -94,5 +94,26 @@ not covered here.
 - It closes by itself after 200 frames, about 4 seconds, or 60 at the
   clock limit 0 (finding:ui-war-event-messages), while Frodo, Sam and
   Pippin walk on beneath it.
-- It is shown once per game. `provisional`: whether the original shows
+- It is shown once per game, and is not saved: a restored game does not
+  show it. `provisional`: whether the original shows
   it again after restoring the Archive.
+
+## In the port
+
+The port's own departures, since a browser page is not a floppy boot.
+
+- Browsers play sound only after the player's first input, so the page
+  opens on the Melbourne House screen, fading in, and the timetable and
+  Title start with the first key or click. That input skips nothing.
+- The Animation Level loads at once, so the Ring verse is held for at
+  least 150 frames, 3 seconds, where the original showed it while
+  loading. Without sound, or with Q switching it off, nothing else
+  holds it.
+- When the sequence ends a new game begins. The title menu (#149) will
+  stand between the two. Starting it writes no save; the autosave first
+  runs when it is next due (docs/spec/saving.md).
+- The Ring verse's window is cream parchment with a dark edge, as the
+  capture showed, drawn like a message box on the Animation Level
+  (finding:ui-window-frame-tiles). The disassembly suggests the colour 15
+  fill of a box off the Animation Level, a dull brown in the title
+  palette; the port follows the capture.

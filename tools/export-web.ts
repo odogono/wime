@@ -12,7 +12,10 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import { parseArgs } from 'node:util';
 
-import { exportAnimationLevel } from './export-animation-level';
+import {
+  exportAnimationLevel,
+  readTitlePalette
+} from './export-animation-level';
 import {
   fontSheet,
   loadLordFont,
@@ -67,6 +70,9 @@ const FULL_MAP_ICONS = new Map([
 ]);
 const FULL_MAP_PALETTE_SOURCE =
   'Full Map Level RGB4 words at data+0x4ac8 in the executable (finding:data-formats-full-map-palette)';
+
+const TITLE_PALETTE_SOURCE =
+  'Boot sequence RGB4 words at data+0x4b88 in the executable (finding:graphics-title-screen-palette)';
 
 const ANIMATION_PALETTE_SOURCE =
   'Animation Level RGB4 words at data+0x4b48 in the executable (finding:graphics-animation-level-palette)';
@@ -358,6 +364,25 @@ export const exportWebAssets = (
     palette_source: fullMapPalette.palette_source,
     path: relativePosix(outputDir, fullMapPalettePath),
     source: fullMapPalette.source,
+    width: null
+  });
+
+  // The boot sequence's pictures, Credits and Ring verse are drawn in
+  // the title palette (finding:graphics-title-screen-palette).
+  const titleColours = readTitlePalette(executable);
+  const titlePalette = paletteToJson(titleColours, 32, {
+    palette_source: TITLE_PALETTE_SOURCE,
+    source: executableSource
+  });
+  const titlePalettePath = join(outputDir, 'title', 'palette.json');
+  writeJson(titlePalettePath, titlePalette);
+  assets.push({
+    count: titlePalette.colors.length,
+    height: null,
+    kind: 'title-palette',
+    palette_source: titlePalette.palette_source,
+    path: relativePosix(outputDir, titlePalettePath),
+    source: titlePalette.source,
     width: null
   });
 
