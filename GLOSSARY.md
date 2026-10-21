@@ -113,6 +113,26 @@ _Avoid_: Status window, pool, overview list
 The single saved game, kept in one file and saved or restored through the scroll on the Full Map Level.
 _Avoid_: Save slot, save file
 
+**Boot sequence**:
+What the game shows from start-up until the first Animation Level: the Melbourne House screen, the Synergistic screen, the title screen, the Credits and the Ring verse, with Title playing.
+_Avoid_: Intro, splash screens, attract mode
+
+**Title screen**:
+The full-screen picture of the boot sequence, ATitle.res IMAG 72, with the game's logo, IMAG 73, drawn over it.
+_Avoid_: Splash screen, menu
+
+**Credits**:
+The names of the people who made the game, scrolled up over the title screen during the boot sequence.
+_Avoid_: Credit roll, attributions
+
+**Ring verse**:
+The verse of the Rings of Power, shown in a window on a black screen at the end of the boot sequence.
+_Avoid_: Poem, Ring poem, inscription
+
+**Gandalf's letter**:
+The note from Gandalf to Frodo shown once, in a window over the first Animation Level.
+_Avoid_: Intro text, Gandalf's message
+
 ## Project
 
 **Reference Build**:
