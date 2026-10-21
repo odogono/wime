@@ -295,6 +295,12 @@ const run = (
   title: TitleAssets,
   audio: GameAudio | null
 ): void => {
+  // The view's clock: real time less the time spent in the in-game
+  // menu, so every timer and figure stands still while it is open
+  // (docs/spec/game-menu.md).
+  let menuMs = 0;
+  let menuOpenedAt = 0;
+  const viewNow = (): number => performance.now() - menuMs;
   let level: Level = 'animation';
   // The roster entry the Animation Level watches, and its scene.
   let watched = 0;
@@ -433,7 +439,7 @@ const run = (
   let lastFigures: Figure[] = [];
   // The page opens on the boot sequence (docs/spec/boot-sequence.md),
   // which holds the screen, the keys and Title until a new game starts.
-  let boot: BootSequence | null = bootSequence(performance.now());
+  let boot: BootSequence | null = bootSequence(viewNow());
   const drawBoot = createBootRenderer(title, assets.texts);
   // Title starts with the first input, as browsers require, and plays
   // under the whole sequence
@@ -445,7 +451,7 @@ const run = (
   };
   window.addEventListener('pointerdown', () => {
     if (boot) {
-      const result = startBoot(boot, performance.now());
+      const result = startBoot(boot, viewNow());
       boot = result.boot;
       startTitle(result.started);
     }
@@ -487,7 +493,7 @@ const run = (
       audio?.toggle();
     }
     const started = boot.startedAt === null;
-    boot = pressBootKey(boot, performance.now());
+    boot = pressBootKey(boot, viewNow());
     startTitle(started);
   });
   // Gandalf's letter, waiting for the new game's first Animation Level.
@@ -576,7 +582,7 @@ const run = (
     }
     lastFigures = figures;
   };
-  let lastTime = performance.now();
+  let lastTime = viewNow();
 
   // The pointer in native pixels; hi-res pixels are half as wide.
   const toNative = (event: PointerEvent, xScale = 1): Camera => {
@@ -592,10 +598,12 @@ const run = (
 
   // Down to the Animation Level, watching a roster entry: its scene is
   // built once, from where it stands (docs/spec/animation-level.md).
-  const goDownToAnimation = (index: number): void => {
+  // Returns whether it went down: an entry with no position cannot be
+  // watched.
+  const goDownToAnimation = (index: number): boolean => {
     const entry = sim.roster[index];
     if (!entry?.position) {
-      return;
+      return false;
     }
     watched = index;
     sim = watchEntry(sim, index);
@@ -631,7 +639,7 @@ const run = (
       choose
     );
     // Their scripts' times count from now.
-    const start = vblankAt(performance.now());
+    const start = vblankAt(viewNow());
     stage = {
       ...stage,
       figures: stage.figures.map(figure => ({ ...figure, next: start }))
@@ -643,6 +651,7 @@ const run = (
     drag = null;
     setOrder(IDLE_ORDER);
     canvas.style.cursor = 'default';
+    return true;
   };
 
   // The ending's still picture: the Animation Level's scene on Mount
@@ -733,7 +742,7 @@ const run = (
   const handleAnimationPress = (event: PointerEvent): void => {
     const point = toNative(event);
     const icon = animationIconAt(animation.icons, point);
-    const now = performance.now();
+    const now = viewNow();
     // provisional: the eye opens nothing yet.
     if (icon?.name === 'map') {
       goUpFromAnimation();
@@ -782,7 +791,7 @@ const run = (
         chosenCharacter = provisions.chosen;
       }
     } else if (talk) {
-      advanceTalk(performance.now());
+      advanceTalk(viewNow());
     }
   };
 
@@ -970,7 +979,7 @@ const run = (
       return;
     }
     if (ending) {
-      ending = turnEndingPage(ending, performance.now());
+      ending = turnEndingPage(ending, viewNow());
       return;
     }
     // The Council's message cannot be dismissed, and nothing else
@@ -992,7 +1001,7 @@ const run = (
         combat,
         sim,
         toNative(event),
-        performance.now(),
+        viewNow(),
         driver.speed
       );
       sim = result.sim;
@@ -1003,7 +1012,7 @@ const run = (
         sim.fight
       ) {
         if (fightOnAnimationLevel(sim)) {
-          startAnimationFight(performance.now());
+          startAnimationFight(viewNow());
         } else {
           camera = clampCamera(
             cameraForFight(sim.fight.position, camera, {
@@ -1031,7 +1040,7 @@ const run = (
         meetingUi!,
         sim,
         pointer,
-        performance.now(),
+        viewNow(),
         driver.speed
       );
       const meeting = sim.meeting;
@@ -1040,7 +1049,7 @@ const run = (
       if (result.choice === 'go-there' && meeting) {
         goDownToAnimation(meeting.a);
         if (meeting.kind === 'talk') {
-          beginTalk(meeting, performance.now());
+          beginTalk(meeting, viewNow());
         }
       }
       return;
@@ -1186,7 +1195,7 @@ const run = (
       } else if (key === 'p') {
         driver.paused = !driver.paused;
       } else if (key === ' ' || key === 'enter') {
-        advanceTalk(performance.now());
+        advanceTalk(viewNow());
       }
       return;
     }
@@ -1227,7 +1236,7 @@ const run = (
       return;
     }
     if (ending) {
-      ending = turnEndingPage(ending, performance.now());
+      ending = turnEndingPage(ending, viewNow());
       return;
     }
     // Nothing else is open to the player while a fight or meeting holds
@@ -1382,18 +1391,22 @@ const run = (
     }
   });
   window.addEventListener('pagehide', autosaveOnHide);
-  // A game opens on the Animation Level with the Ring-bearer
-  // (finding:ui-game-starts-on-animation-level), a new one with
-  // Gandalf's letter. Title stops. Nothing is saved until autosave next
-  // runs.
+  // A new game opens on the Animation Level with the Ring-bearer
+  // (finding:ui-game-starts-on-animation-level) and Gandalf's letter. A
+  // loaded one returns to the Level it was saved on: the Animation Level
+  // watching whom it watched, or else the Campaign Level over the
+  // Ring-bearer's Force (docs/spec/game-menu.md). Title stops. Nothing
+  // is saved until autosave next runs.
   const startGame = (isNew: boolean): void => {
     titleMenu = null;
     audio?.stop();
-    if (sim.ringBearer !== null) {
-      goDownToAnimation(sim.ringBearer);
-      letter = isNew ? { kind: 'pending' } : null;
-    } else {
-      level = 'campaign';
+    level = 'campaign';
+    camera = openingCamera();
+    const watch = isNew ? sim.ringBearer : sim.watching;
+    sim = watchEntry(sim, null);
+    if (watch !== null) {
+      const down = goDownToAnimation(watch);
+      letter = isNew && down ? { kind: 'pending' } : null;
     }
     autosavedAt = autosavePoint(autosaveView());
   };
@@ -1465,6 +1478,7 @@ const run = (
     );
     drag = null;
     gameMenu = openGameMenu();
+    menuOpenedAt = performance.now();
     return true;
   };
   menuButton?.addEventListener('click', () => {
@@ -1496,6 +1510,12 @@ const run = (
     letter = null;
     driver.paused = false;
   };
+  // Closing the menu takes its time out of the view's clock.
+  const leaveGameMenu = (): void => {
+    gameMenu = null;
+    menuMs += performance.now() - menuOpenedAt;
+    lastTime = viewNow();
+  };
   // Back to the title menu, the game autosaved first; if it cannot be,
   // the game stays in play.
   const returnToTitle = (): void => {
@@ -1503,7 +1523,7 @@ const run = (
       gameMenu = gameMenuMessage(AUTOSAVE_FAILED);
       return;
     }
-    gameMenu = null;
+    leaveGameMenu();
     clearWindows();
     sim = newSim();
     camera = openingCamera();
@@ -1520,9 +1540,7 @@ const run = (
         return;
       }
       case 'close': {
-        gameMenu = null;
-        // The Animation Level's figures carry on from where they stood.
-        stage = resumeStage(stage, performance.now());
+        leaveGameMenu();
         return;
       }
       case 'title': {
@@ -1549,14 +1567,15 @@ const run = (
           gameMenu = gameMenuMessage(loadFailed(result.reason));
           return;
         }
-        gameMenu = null;
+        leaveGameMenu();
         clearWindows();
         sim = result.value;
         startGame(false);
       }
     }
   };
-  const frame = (now: number): void => {
+  const frame = (realNow: number): void => {
+    const now = realNow - menuMs;
     const elapsedMs = Math.min(1000, now - lastTime);
     lastTime = now;
     if (menuButton) {
