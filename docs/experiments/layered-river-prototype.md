@@ -4,7 +4,7 @@
 
 Can the preferred painted Animation Level style survive separate scenery layers, moving figures, different arrangements and lighting?
 
-The prototype demonstrates that a small library of painted parts can compose a coherent river family. Three arrangements reuse the same six PNGs; a separately animated hobbit walks through the scene and can pass behind foreground plants. The generated images are never requested during play. User evaluation is pending, and this is not approval of a production asset pipeline.
+The prototype demonstrates that a small library of painted parts can compose a coherent river family. Three arrangements reuse the same six PNGs; a separately animated hobbit walks through the scene and can pass behind foreground plants. The generated images are never requested during play. The user reported that it works well, but deferred integration into the game. This is not approval of a production asset pipeline.
 
 ## Run or download
 

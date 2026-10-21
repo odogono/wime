@@ -65,6 +65,8 @@ The atlas treatment preserves the broad coastline, mountain ranges, woodland reg
 
 The [working river prototype](layered-river-prototype.md) tests the Animation Level direction with six reusable images, three scene arrangements, lighting controls and a separate eight-pose walking hobbit. It replaces the whole-screen illustration approach for this bounded experiment; the game itself is unchanged.
 
+The [Campaign Level sprite prototype](campaign-sprite-prototype.md) reconstructs a real map section with reusable tree, ridge and settlement symbols, source-derived river masks, scrolling and original-tile comparisons.
+
 ## Evaluation and limits
 
 The user preferred the painted title illustration; evaluation of these new Level treatments is pending. This experiment establishes no renderer, control or simulation changes. Its main next decision is whether the painted treatment is worth pursuing for each Level. A production pipeline would keep map geometry, text, Force overlays and hit targets controlled by the existing game rather than relying on these complete generated screens.
