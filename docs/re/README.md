@@ -13,6 +13,7 @@ Working notes on the Reference Build's executable, `WarInMiddleEarth` on Disk 1 
 - [`objects-reference.md`](objects-reference.md): the Put Down, Take and Use reference scenarios, Tokens and the Palantír.
 - [`endings-reference.md`](endings-reference.md): the win and lose reference scenarios and the ending pages.
 - [`boot-sequence-reference.md`](boot-sequence-reference.md): timing the boot sequence's screens, the Title wait and Gandalf's letter.
+- [`game-speed-reference.md`](game-speed-reference.md): timing each Game Speed's quarter-hour, and the Game Speed window.
 
 ## Addresses
 

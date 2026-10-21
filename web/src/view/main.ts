@@ -220,8 +220,8 @@ import { QUIET, figureEffects, soundCues, type SoundView } from './sound-cues';
 import { placeScenery } from './special-scenery';
 import {
   drawSpeedWindow,
-  layoutSpeedWindow,
-  speedWindowOptionAt,
+  openSpeedWindow,
+  speedAt,
   type SpeedWindow
 } from './speed-window';
 import { createTickDriver } from './tick-driver';
@@ -1284,38 +1284,28 @@ const run = (
     }
   };
 
-  // The one Game Speed window, opened under the hourglass of either
-  // Level; the setting is shared (manual, pdf-p13).
+  // The one Game Speed window, opened by the hourglass of either Level;
+  // the setting is shared (manual, pdf-p13). Opening it first closes the
+  // open box, pressing its default (finding:ui-game-speed-window).
   const toggleSpeedWindow = (): void => {
     if (speedWindow) {
       speedWindow = null;
       return;
     }
-    const hourglass =
-      level === 'full-map'
-        ? fullMapPlacements.find(p => p.icon.name === 'hourglass')
-        : placements.find(p => p.icon.name === 'hourglass');
-    speedWindow = layoutSpeedWindow(
-      318,
-      hourglass ? hourglass.y + hourglass.icon.image.height + 2 : 2,
-      driver.paused
-    );
+    const now = viewNow();
+    closeBox(now);
+    speedWindow = openSpeedWindow(assets.window.font.metrics, now, level);
   };
 
-  // A press while the Game Speed window is open picks an option, if
-  // any, and closes the window.
+  // A press on one of its buttons sets that speed and closes it; a press
+  // off them does nothing (finding:ui-message-box-presses-off-the-buttons).
   const pressSpeedWindow = (point: Camera): void => {
-    if (!speedWindow) {
-      return;
-    }
-    const option = speedWindowOptionAt(speedWindow, point.x, point.y);
-    if (option?.value === 'pause') {
-      driver.paused = !driver.paused;
-    } else if (option) {
-      driver.speed = option.value;
+    const speed = speedWindow && speedAt(speedWindow, point.x, point.y);
+    if (speed) {
+      driver.speed = speed;
       driver.paused = false;
+      speedWindow = null;
     }
-    speedWindow = null;
   };
 
   const startDrag = (event: PointerEvent, at: Camera): void => {
@@ -1376,6 +1366,10 @@ const run = (
   // The keys that answer a box with buttons: N presses its default and Y
   // the other button (finding:ui-message-box-presses-off-the-buttons).
   const answerBoxKey = (key: string): boolean => {
+    if (speedWindow && (key === 'n' || key === 'y')) {
+      speedWindow = null;
+      return true;
+    }
     if (!box?.buttons || (key !== 'n' && key !== 'y')) {
       return false;
     }
@@ -1756,13 +1750,7 @@ const run = (
       drawInfoWindow(ctx, assets.window, infoWindow);
     }
     if (speedWindow) {
-      drawSpeedWindow(
-        ctx,
-        assets.window,
-        speedWindow,
-        driver.speed,
-        driver.paused
-      );
+      drawSpeedWindow(ctx, assets.window, speedWindow, driver.speed);
     }
     if (combat) {
       drawCombatUi(ctx, assets.window, combat, sim);
@@ -2070,14 +2058,18 @@ const run = (
           screen.hires,
           fullMap.window,
           speedWindow,
-          driver.speed,
-          driver.paused
+          driver.speed
         );
         screen.hires.restore();
       }
       screen.present('hires');
       requestAnimationFrame(frame);
       return;
+    }
+    // Unanswered, the Game Speed window presses its default, the current
+    // speed, at its deadline (finding:ui-game-speed-window).
+    if (speedWindow && speedWindow.until !== null && now >= speedWindow.until) {
+      speedWindow = null;
     }
     let animationTicked = false;
     if (level === 'animation') {
@@ -2102,6 +2094,7 @@ const run = (
         !talk &&
         !holdsClock(provisions) &&
         !boxWaiting &&
+        !speedWindow &&
         !sim.fight &&
         !sim.meeting;
         i++
@@ -2286,6 +2279,7 @@ const run = (
       let i = 0;
       i < ticks &&
       !boxWaiting &&
+      !speedWindow &&
       !combatHoldsTime(combat) &&
       !sim.fight &&
       !sim.meeting &&
