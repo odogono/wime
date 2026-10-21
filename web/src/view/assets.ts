@@ -1,6 +1,6 @@
 import type { AnimationTables } from './animation-scene';
 import type { Font, FontMetrics } from './font';
-import type { TitleMenuColours } from './title-menu';
+import type { MenuColours } from './menu-window';
 import { topazAltFont } from './topaz-alt';
 import {
   ANIMATION_PARCHMENT,
@@ -500,7 +500,7 @@ export interface TitleAssets {
   // The title menu's colours, from the Animation Level's palette as
   // its window is: dark red for the selected row, grey for a save that
   // cannot be loaded (docs/spec/title-menu.md).
-  menuColours: TitleMenuColours;
+  menuColours: MenuColours;
   // The title palette as hex (finding:graphics-title-screen-palette).
   palette: string[];
   // ATitle.res IMAG 70 to 73, by id; the logo's black is clear so the

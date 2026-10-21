@@ -19,6 +19,23 @@
         image-rendering: pixelated;
         touch-action: none;
       }
+      /* Opens the in-game menu, as Escape does (docs/spec/game-menu.md). */
+      #menu {
+        position: fixed;
+        top: 8px;
+        left: 8px;
+        padding: 2px 8px;
+        border: 1px solid #442266;
+        border-radius: 2px;
+        background: #ddccaa;
+        color: #446666;
+        font: 12px monospace;
+        opacity: 0.6;
+        cursor: pointer;
+      }
+      #menu:hover {
+        opacity: 1;
+      }
       #status {
         position: fixed;
         top: 8px;
@@ -32,6 +49,7 @@
   <body>
     <canvas id="screen"></canvas>
     <pre id="status"></pre>
+    <button id="menu" type="button" hidden>Menu</button>
     <script type="module" src="/src/view/main.ts"></script>
   </body>
 </html>

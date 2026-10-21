@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'bun:test';
 
+import { LIST_ROWS } from './menu-window';
 import { AUTOSAVE_ID, type SlotSummary } from './save-slots';
 import {
-  LOAD_ROWS,
   clickTitleMenu,
   hoverTitleMenu,
   latestSave,
@@ -141,7 +141,7 @@ describe('the title menu', () => {
       slots: Array.from({ length: 10 }, (_, i) => slot(i + 1, i))
     };
     const list = keys(openTitleMenu(many), many, 'ArrowUp', 'Enter').menu;
-    expect(layoutTitleMenu(list).rows).toHaveLength(LOAD_ROWS);
+    expect(layoutTitleMenu(list).rows).toHaveLength(LIST_ROWS);
     const last = keys(list, many, 'ArrowUp').menu;
     expect(layoutTitleMenu(last).rows.at(-1)!.label).toBe('Back');
     expect(keys(last, many, 'Enter').menu.kind).toBe('main');
