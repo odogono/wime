@@ -442,6 +442,17 @@ export const playedOnAnimationLevel = (
         row.entries.some(index => roster[index]!.startingStrength > 1))
   );
 
+// The most rows a fight's sides were listed with: 7 against a balrog, 9
+// when it is played on the Animation Level, otherwise 19
+// (finding:combat-rows-capped-by-level-and-enemy).
+export const fightRowCap = (fight: Fight, roster: RosterEntry[]): number =>
+  rowCap(roster, {
+    animationFight: playedOnAnimationLevel(fight, roster),
+    enemy: fight.evil,
+    level: 'campaign',
+    watched: null
+  });
+
 // The fight's rows listed again as the Animation Level sets its scene,
 // around the watched Character: it comes first, entry 78 is left out
 // and each side holds at most 9 rows, or 7 against a balrog

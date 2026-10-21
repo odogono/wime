@@ -211,7 +211,10 @@ original's 50 Hz frames.
   finding:ui-war-event-messages, finding:time-game-speed-clock-limits)
 - "Go there" brings the fight into view and opens the combat window
   at (6, 0), 272 pixels wide. It shows the option headers, a row per
-  combat row, and one message line. The opening "<A> and <B> move
+  combat row, and one message line. Its lines are 9 pixels, or 8 when
+  a side has more than 16 rows, or more than 6 in a fight played on
+  the Animation Level or against a balrog
+  (finding:ui-combat-window-line-height). The opening "<A> and <B> move
   grimly into battle." is followed by a 300-frame pause for orders.
   Each round's loss messages then stay at least 180 frames each, and
   rounds with no losses run at once. The result stays 300 frames, then

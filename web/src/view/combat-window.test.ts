@@ -316,12 +316,34 @@ describe('the combat window', () => {
       rows.map(row => rowLabel(sim.roster[row.entries[0]!]!.name, row.strength))
     ).toEqual(['FARAMIR', '200 Rangers', '444 orcs']);
     expect(rows[1]!.follower).toBe(true);
-    expect(layoutCombatWindow(sim.fight!)).toEqual({
+    expect(layoutCombatWindow(sim.fight!, sim.roster)).toEqual({
       height: 2 * 9 + 32,
       lineHeight: 9,
       messageY: 2 * 9 + 18,
       rows: 2
     });
+  });
+
+  test('closes its lines up for more than 6 rows a side when a side holds at most 9', () => {
+    const crowd = (last: Record<string, unknown>): SimState =>
+      fight(
+        [
+          ...Array.from({ length: 6 }, (_, i) =>
+            character(i + 20, `C${i + 20}`, { position: EAST_EMNET })
+          ),
+          { ...last, position: EAST_EMNET },
+          unit(142, 'orcs', 30, { ...EVIL, position: EAST_EMNET })
+        ],
+        142
+      );
+    const characters = crowd(character(30, 'C30'));
+    expect(
+      layoutCombatWindow(characters.fight!, characters.roster).lineHeight
+    ).toBe(8);
+    const withUnit = crowd(unit(30, 'infantry', 100));
+    expect(
+      layoutCombatWindow(withUnit.fight!, withUnit.roster).lineHeight
+    ).toBe(9);
   });
 
   test('"Go there" opens it with the opening message and a pause for orders', () => {
@@ -363,10 +385,17 @@ describe('the combat window', () => {
     ).ui!;
     // Charge for the Rangers, the second Good row.
     const point = { x: 8 + 18 + 5, y: 16 + 9 + 3 };
-    expect(optionAt(sim.fight!, point)).toEqual({ option: 'charge', row: 1 });
+    expect(optionAt(sim.fight!, sim.roster, point)).toEqual({
+      option: 'charge',
+      row: 1
+    });
     // The window asks for x 6 and is drawn at 8, its buttons with it.
-    expect(optionAt(sim.fight!, { ...point, x: 8 + 18 })).not.toBeNull();
-    expect(optionAt(sim.fight!, { ...point, x: 8 + 17 })).toBeNull();
+    expect(
+      optionAt(sim.fight!, sim.roster, { ...point, x: 8 + 18 })
+    ).not.toBeNull();
+    expect(
+      optionAt(sim.fight!, sim.roster, { ...point, x: 8 + 17 })
+    ).toBeNull();
     const after = pressCombatUi(ui, sim, point, 10);
     expect(after.sim.fight!.rows[1]!.option).toBe('charge');
   });
