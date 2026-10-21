@@ -70,11 +70,35 @@ knowledge of them (ADR-0002).
   (`finding:time-game-speed-clock-limits`), and never more than one
   tick per rendered frame, so it runs at the same pace on any refresh
   rate of 50 Hz or more (#164).
-- Generic message boxes with no buttons close after 60 frames
-  (1.2 seconds) on Very Hasty and 200 frames (4 seconds) otherwise.
-  The duration is set when each box opens. The Council of Elrond has
-  its own 1200-frame wait (docs/spec/council-of-elrond.md).
-  (`finding:ui-war-event-messages`, `finding:time-game-speed-clock-limits`)
+- Message boxes: only one is open at a time. Opening one sets its
+  deadline: 60 frames (1.2 seconds) on Very Hasty and 200 frames
+  (4 seconds) otherwise for a box with no buttons, 720 frames for a box
+  with buttons on the Campaign Level and 1,020 on the Animation Level.
+  A box raised before the open box's deadline waits for it, and the
+  game stands still meanwhile: no tick, and the Animation Level's
+  figures hold. Then the open box closes, its default pressed if it has
+  buttons, and the new one opens, so boxes show in the order raised.
+  Answering the open box ends the wait early.
+  (finding:ui-message-box-opening-waits-for-the-open-box,
+  `finding:ui-war-event-messages`, `finding:time-game-speed-clock-limits`)
+- A box with buttons is answered by its default at its deadline. A box
+  without buttons stays until a later box replaces it, or 1,220 frames
+  on the Campaign Level (1,080 on Very Hasty) and 1,500 on the
+  Animation Level (1,360). These are frames of real time, less time in
+  the in-game menu. On the Full Map Level no box times out
+  (finding:ui-message-box-timeouts-by-level).
+- Leaving a Level closes its box, pressing its default, and the Full
+  Map Level cannot be entered while a box with buttons is up
+  (finding:ui-message-box-closed-on-leaving-a-level). `provisional`:
+  the port also closes the box on leaving the Animation Level, which
+  the Finding does not cover.
+- A press off a box's buttons does nothing. A click on a Force or a
+  Place on the Campaign Level closes the box, pressing its default, and
+  opens that Force's or Place's window in its place; the combat window
+  and the Council of Elrond also close the open box. The Council has
+  its own 1200-frame wait (docs/spec/council-of-elrond.md). N presses
+  a box's default and Y its other button
+  (finding:ui-message-box-presses-off-the-buttons).
 - `provisional`: the speed window's layout and graphics are
   unconfirmed. We draw a plain window under the icon column listing
   the three speeds, marking the current one, with a Pause/Resume line.

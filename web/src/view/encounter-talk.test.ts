@@ -16,7 +16,7 @@ import {
   stepEncounterTalk
 } from './encounter-talk';
 import { STOPPED, newFigure, type ScriptWorld } from './figure-script';
-import { passingText, stepPassingMessage } from './passing-message';
+import { passingText, takePassingMessage } from './passing-message';
 
 const entry = (
   index: number,
@@ -228,38 +228,6 @@ const passingSim = (): SimState => ({
 });
 
 describe('passing notices', () => {
-  test('Very Hasty keeps a notice for 60 frames and preserves its time while covered', () => {
-    const shown = stepPassingMessage(null, passingSim(), 0, true, 'very-hasty');
-    expect(shown.message?.until).toBe(1200);
-    const part = stepPassingMessage(
-      shown.message,
-      shown.sim,
-      200,
-      true,
-      'very-hasty'
-    );
-    const held = stepPassingMessage(
-      part.message,
-      part.sim,
-      10_000,
-      false,
-      'very-hasty'
-    );
-    expect(held.message?.until).toBe(11_000);
-    const next = stepPassingMessage(
-      held.message,
-      held.sim,
-      11_000,
-      true,
-      'very-hasty'
-    );
-    expect(next.message?.until).toBe(12_200);
-    expect(
-      stepPassingMessage(next.message, next.sim, 12_200, true, 'very-hasty')
-        .message
-    ).toBeNull();
-  });
-
   test('words Characters, Units, and the Rohirrim challenge as specified', () => {
     const sim = passingSim();
     expect(passingText(sim, { a: 0, b: 1 })).toBe('FRODO passes a Ranger.');
@@ -285,33 +253,15 @@ describe('passing notices', () => {
     );
   });
 
-  test('consumes each passing, preserves time behind windows, and never holds the clock', () => {
+  test('takes each passing once, in order, and never holds the clock', () => {
     const sim = passingSim();
-    expect(stepPassingMessage(null, sim, 0, false)).toEqual({
-      message: null,
-      sim
-    });
-    const first = stepPassingMessage(null, sim, 100, true);
+    const first = takePassingMessage(sim);
+    expect(first.message).toEqual({ text: 'FRODO passes a Ranger.' });
     expect(first.sim.passings).toHaveLength(1);
-    expect(first.message?.text).toBe('FRODO passes a Ranger.');
-    const elapsed = stepPassingMessage(first.message, first.sim, 1100, true);
-    const held = stepPassingMessage(
-      elapsed.message,
-      elapsed.sim,
-      50_000,
-      false
-    );
-    expect(held.message?.remaining).toBe(3000);
-    expect(held.message?.until).toBe(53_000);
-    expect(held.sim).toBe(elapsed.sim);
-    const second = stepPassingMessage(held.message, held.sim, 53_000, true);
-    expect(second.sim.passings).toEqual([]);
+    const second = takePassingMessage(first.sim);
     expect(second.message).not.toBeNull();
-    expect(
-      stepPassingMessage(second.message, second.sim, 53_000 + NOTICE_MS, true)
-        .message
-    ).toBeNull();
+    expect(second.sim.passings).toEqual([]);
+    expect(takePassingMessage(second.sim).message).toBeNull();
     expect(tickSim(second.sim).clock).not.toEqual(second.sim.clock);
-    expect(second.sim.roster).toEqual(sim.roster);
   });
 });

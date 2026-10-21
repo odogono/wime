@@ -67,11 +67,14 @@ and "Use an object". (finding:objects-handled-on-animation-level)
   (finding:ui-object-list-window)
 - A box with buttons stops the clock and the Force's figures, and
   closes by itself after 1,020 frames; there is no Cancel. A message
-  without buttons lasts 200 frames and lets time run.
+  without buttons lets time run.
   (finding:ui-provisions-window, finding:ui-object-list-empty-messages,
-  finding:objects-use-message-boxes) `provisional`: a press off the
-  buttons closes the box with its default; in the original it does
-  nothing (finding:ui-message-box-presses-off-the-buttons, #184).
+  finding:objects-use-message-boxes) A message without buttons stays,
+  like any box on the Animation Level, until a later box replaces it or
+  1,500 frames after it opens (finding:ui-message-box-timeouts-by-level).
+  A press off the buttons does nothing, the icons and U included; N
+  presses the default, closing the box
+  (finding:ui-message-box-presses-off-the-buttons).
 - Objects lying exactly where the watched Character stands are drawn
   when each scene is built, at most six: BScene.res IMAG 50 plus the
   object, its top left at x 200 plus up to 39 and y 165, at depth 0x99

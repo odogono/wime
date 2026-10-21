@@ -91,9 +91,11 @@ not covered here.
 - On the first Animation Level of a new game, a window without buttons
   opens at (10, 5), shown at x 8, 256 by 112, with BScene.res CSTR 56
   in colour 5 of the Animation Level palette.
-- It closes by itself after 200 frames, about 4 seconds, or 60 at the
-  clock limit 0 (finding:ui-war-event-messages), while Frodo, Sam and
-  Pippin walk on beneath it.
+- It closes by itself as any box without buttons on the Animation
+  Level does, 1,500 frames after it opens, or 1,360 at the clock limit
+  0, unless a later box replaces it after 200 frames (60)
+  (finding:ui-gandalfs-letter, finding:ui-message-box-timeouts-by-level),
+  while Frodo, Sam and Pippin walk on beneath it.
 - It is shown once per game, and is not saved: a restored game does not
   show it. `provisional`: whether the original shows
   it again after restoring the Archive (#171).

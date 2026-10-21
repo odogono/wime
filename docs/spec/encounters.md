@@ -75,14 +75,14 @@ in `docs/spec/combat.md`.
   (finding:forces-anonymous-encounters-pass-by)
 - `provisional`: what the scouts' challenge does on the Campaign Level
   is not known; it does nothing here (#169).
-- Pass-by messages use the generic timeout for boxes with no buttons:
-  60 frames (1.2 seconds) on Very Hasty, 200 frames (4 seconds)
-  otherwise. (`finding:ui-war-event-messages`,
-  `finding:time-game-speed-clock-limits`)
-- `provisional`: pass-by messages wait behind talks and decision
-  windows, and while the Full Map Level is shown; in the original boxes
-  show one at a time in the order raised
-  (finding:ui-message-box-opening-waits-for-the-open-box, #184).
+- A pass-by message is a box without buttons, shown like any other
+  message box (docs/spec/time.md, "Message boxes"): one at a time in
+  the order raised, a later box waiting out its 200-frame deadline (60
+  on Very Hasty) with the game standing still, and up to 1,220 frames
+  on the Campaign Level or 1,500 on the Animation Level
+  (finding:ui-message-box-opening-waits-for-the-open-box,
+  finding:ui-message-box-timeouts-by-level). Pass-bys raised during a
+  talk wait for it to end.
 
 ## Joining
 

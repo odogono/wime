@@ -110,16 +110,19 @@ export const announcementText = (sim: SimState, fight: Fight): string => {
   return `${capitalise(rowLabel(good.name, good.strength))} ${verb} attacked by ${enemy}.`;
 };
 
-// Drops the shown box, re-arming the timer for the next or closing.
+// Drops the shown box for the next, which waited for its deadline
+// (finding:ui-message-box-opening-waits-for-the-open-box). The last box
+// stays until the message box closes it or a later box replaces it
+// (message-box.ts).
 const nextBox = (
   ui: Extract<CombatUi, { kind: 'boxes' }>,
   now: number,
   speed: GameSpeed
-): CombatUi | null => {
+): CombatUi => {
   const [, ...rest] = ui.boxes;
   return rest.length > 0
     ? { ...ui, boxes: rest, until: now + messageDurationMs(speed) }
-    : null;
+    : ui;
 };
 
 export const startCombatUi = (sim: SimState, now: number): CombatUi | null =>
@@ -263,7 +266,7 @@ export const openCombatWindow = (sim: SimState, now: number): CombatUi => {
 
 // Advance the fight's presentation to `now`: the announcement times out
 // into "Ignore it", window messages give way to the next round, and an
-// ignored fight's boxes run out. Returns null once the fight is over
+// ignored fight's boxes give way to the next. Returns null once the fight is over
 // and nothing is left to show.
 export const stepCombatUi = (
   ui: CombatUi,
@@ -437,10 +440,8 @@ export const pressCombatUi = (
       ? { sim: setCombatOption(sim, hit.row, hit.option), ui }
       : { sim, ui };
   }
-  // A press clears a message box early.
-  if (ui.kind === 'boxes') {
-    return { sim, ui: nextBox(ui, now, speed) };
-  }
+  // A message box has no buttons, so a press does nothing
+  // (finding:ui-message-box-presses-off-the-buttons).
   return { sim, ui };
 };
 
