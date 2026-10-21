@@ -29,9 +29,12 @@ import {
   buildScene,
   drawAnimationIcons,
   drawFigures,
+  groundPictures,
   scriptWorld,
   spawnParty,
+  startErrand,
   stepStage,
+  takeLanded,
   walkedOff,
   type Stage
 } from './animation-level';
@@ -449,6 +452,9 @@ const run = (
   // the Animation Level, the glass's pick or the sack's
   // (finding:ui-animation-level-clicking-a-figure-selects-it).
   let chosenCharacter: number | null = null;
+  // Put Down's message, waiting for the object to be down.
+  let putDownMessage: { opened: number; window: ProvisionsWindow } | null =
+    null;
   // The status box a figure click or the eye opened.
   let statusBox: (StatusBox & { until: number }) | null = null;
   let passingMessage: PassingMessage | null = null;
@@ -699,8 +705,10 @@ const run = (
     const start = vblankAt(viewNow());
     stage = {
       ...stage,
-      figures: stage.figures.map(figure => ({ ...figure, next: start }))
+      figures: stage.figures.map(figure => ({ ...figure, next: start })),
+      pictures: groundPictures(sim.objectPlacements, position, choose)
     };
+    putDownMessage = null;
     level = 'animation';
     lookingDown = false;
     infoWindow = null;
@@ -812,11 +820,12 @@ const run = (
         provisions = null;
       } else if (typeof pressed.value === 'number') {
         if (provisions.kind !== 'menu') {
+          const { chosen, kind } = provisions;
           ({ sim, window: provisions } = chooseObject(
             assets.window.font.metrics,
             sim,
-            provisions.chosen,
-            provisions.kind,
+            chosen,
+            kind,
             pressed.value,
             position,
             assets.texts,
@@ -824,6 +833,18 @@ const run = (
             choose,
             now
           ));
+          // Take and Put Down send the member's figure: Take's message
+          // shows as it sets off, Put Down's once the object is down.
+          if (kind !== 'use') {
+            const sent = startErrand(stage, kind, chosen, pressed.value);
+            if (sent) {
+              stage = sent;
+              if (kind === 'put-down' && provisions) {
+                putDownMessage = { opened: now, window: provisions };
+                provisions = null;
+              }
+            }
+          }
         }
       } else {
         provisions = openObjectList(
@@ -1859,6 +1880,13 @@ const run = (
         }
       } else if (!sim.fight && !holdsClock(provisions)) {
         stage = stepStage(stage, figureWorld, vblankAt(now));
+        const landed = takeLanded(stage);
+        stage = landed.stage;
+        if (landed.due && putDownMessage) {
+          const { opened, window } = putDownMessage;
+          provisions = { ...window, until: now + (window.until - opened) };
+          putDownMessage = null;
+        }
       }
       if (level === 'animation') {
         if (

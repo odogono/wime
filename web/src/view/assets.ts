@@ -407,9 +407,16 @@ export interface AnimationIcon {
   y: number;
 }
 
+const OBJECT_PICTURE_BASE = 50;
+const OBJECT_PICTURES = 16;
+
 export interface AnimationAssets {
   figures: Map<number, FigureSetAsset>;
   icons: AnimationIcon[];
+  // Objects lying on the ground, by object: BScene.res IMAG 50 plus the
+  // object, colour 0 clear
+  // (finding:objects-lying-on-the-ground-are-pictures).
+  objectPictures: Map<number, CanvasImageSource>;
   // The 32 colours (finding:graphics-animation-level-palette).
   palette: string[];
   // Scenery strips by IMAG id, colour 0 clear.
@@ -485,9 +492,26 @@ export const loadAnimationAssets = async (
       )
     )
   ]);
+  const objectPictures = await Promise.all(
+    Array.from({ length: OBJECT_PICTURES }, async (_, object) => {
+      const asset = assetBySource(
+        manifest,
+        'BScene.res',
+        'IMAG',
+        OBJECT_PICTURE_BASE + object
+      );
+      return asset
+        ? ([
+            object,
+            blackToTransparent(await loadImage(base + asset.path))
+          ] as const)
+        : null;
+    })
+  );
   return {
     figures: new Map(sets.map(set => [set.id, set])),
     icons,
+    objectPictures: new Map(objectPictures.filter(entry => entry !== null)),
     palette: palette.hex,
     strips: new Map(strips),
     tables,

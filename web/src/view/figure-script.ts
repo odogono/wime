@@ -57,6 +57,9 @@ export const SPELL_FLASH = 18;
 export interface ScriptWorld {
   // A spell adds a figure and moves the caster's battle line.
   castSpell?: (flash: Figure, line: 'line1' | 'line2', x: number) => void;
+  // The facing an errand set off with (data+0x5563), which condition 4
+  // turns back to; unflipped when none was saved.
+  facing?: boolean;
   // Fight delays converge on speed without the walking party's laggard
   // adjustment (finding:graphics-spell-flash).
   fighting?: boolean;
@@ -67,6 +70,11 @@ export interface ScriptWorld {
   // The two battle lines (data+0x5568, data+0x556a).
   line1: number;
   line2: number;
+  // Events 1, 2 and 4 of the object scripts: the picture taken up, the
+  // picture put down and the errand over
+  // (finding:objects-take-is-a-walk-to-the-picture-and-back,
+  // finding:objects-put-down-is-a-stoop-in-place).
+  objectEvent?: (event: 1 | 2 | 4, figure: Figure) => void;
   random: (n: number) => number;
   script: (frml: number) => number[];
 }
@@ -221,6 +229,9 @@ export const stepFigure = (
         }
         case 0x80: {
           figure = { ...figure, ...scriptEvent(n, figure) };
+          if (n === 1 || n === 2 || n === 4) {
+            world.objectEvent?.(n, { ...figure, flipped, pc, returns, x });
+          }
           if (n === 0x10) {
             castSpell({ ...figure, flipped, x }, world);
             figure = { ...figure, spells: (figure.spells ?? 0) + 1 };
@@ -296,8 +307,8 @@ const condition = (
     case 0x02:
       return flipped;
     case 0x04:
-      // provisional: data+0x5563, the side's facing, is taken as unflipped.
-      return flipped;
+      // Facing otherwise than the errand set off (data+0x5563).
+      return flipped !== (world.facing ?? false);
     case 0x06:
       return x < world.line1;
     case 0x08:
