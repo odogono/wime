@@ -45,11 +45,11 @@ the presentation of the announcements (#60) and the movement tripwires
   follow at the next day's check. When event 7 is set before 8 a.m.
   by any other means, they follow at that morning's check.
 - Days 149 and 169 are tested exactly, not "on or after".
-  `provisional`: the original runs the check only on the Campaign
-  Level, so an 8 a.m. that passes on the Animation Level loses that
-  day's check (finding:ai-war-events-checked-only-on-campaign-level).
-  The sim does not know which Level is shown and runs the check every
-  day (#159).
+- The check runs only on the Campaign Level, so an 8 a.m. that passes
+  on the Animation Level loses that day's check: a day 149 or 169
+  missed this way never sets its event from the calendar, while the
+  standing conditions are caught up at the next check
+  (finding:ai-war-events-checked-only-on-campaign-level).
 
 ## Setting an event from elsewhere
 

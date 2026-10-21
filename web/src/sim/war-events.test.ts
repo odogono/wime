@@ -3,7 +3,13 @@ import { describe, expect, test } from 'bun:test';
 
 import type { Fight } from './combat';
 import { restoreSave, serialiseSave } from './save';
-import { createSim, takeAnnouncement, tickSim, type SimState } from './state';
+import {
+  createSim,
+  takeAnnouncement,
+  tickSim,
+  watchEntry,
+  type SimState
+} from './state';
 import {
   DENETHOR,
   GANDALF,
@@ -124,6 +130,30 @@ describe('war events', () => {
     expect(sim.clock).toEqual({ day: 150, quarterHour: 32 });
     expect(days(sim)).toEqual([0, 0, 0, 149, 0, 0, 0]);
     expect(sim.announcements).toEqual([{ day: 149, event: 4 }]);
+  });
+
+  test("an 8 a.m. on the Animation Level loses that day's check", () => {
+    // Day 149 passes while watching: event 4 never comes from the
+    // calendar, as day 149 is tested exactly.
+    let sim = tickSim(watchEntry(world(149, 31), 7));
+    expect(sim.clock).toEqual({ day: 149, quarterHour: 32 });
+    expect(sim.warEvents).toEqual(INITIAL_WAR_EVENTS);
+    expect(sim.announcements).toEqual([]);
+    sim = ticks(watchEntry(sim, null), 96);
+    expect(sim.warEvents).toEqual(INITIAL_WAR_EVENTS);
+    // Day 169 missed the same way leaves event 7 unset too.
+    sim = tickSim(watchEntry(world(169, 31), 7));
+    expect(sim.warEvents.mask).toBe(0x05);
+  });
+
+  test('a standing condition missed on the Animation Level is caught up next day', () => {
+    const mobilised = { [THEODEN]: { allegiance: 99 } };
+    let sim = tickSim(watchEntry(world(10, 31, mobilised), 7));
+    expect(sim.warEvents.mask).toBe(0x05);
+    sim = ticks(watchEntry(sim, null), 96);
+    expect(sim.clock).toEqual({ day: 11, quarterHour: 32 });
+    expect(sim.warEvents.mask).toBe(0x25);
+    expect(days(sim)).toEqual([0, 0, 0, 0, 11, 0, 0]);
   });
 
   test('day 148 sets nothing; a starting game at 8 a.m. does not check', () => {
