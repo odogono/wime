@@ -14,6 +14,11 @@ not covered here.
 - Every screen is 320 by 200 and uses the title palette, not the
   Animation Level's. (finding:graphics-title-screen-palette)
 - Times are frames at 50 a second, counted from when Title starts.
+- Before the Synergistic screen and the title screen the screen fades
+  to black, one RGB4 step every 2 frames; each picture then fades in
+  from black over 32 steps of 2 frames. The logo and the Credits appear
+  without a fade. On the Amiga each fade-out made a picture about 30
+  frames later than its time. (finding:graphics-boot-screens-fade)
 
   | Frame | Screen                                                        |
   | ----- | ------------------------------------------------------------- |
@@ -34,23 +39,25 @@ not covered here.
 - AText.res CSTR 59, the roles, at x 0 and CSTR 60, the names, at x 94
   of a 160-pixel column whose left edge is at screen x 84. Each text is
   drawn in colour 1 with a one-pixel outline in colour 2.
-- The column starts with its top at y 200 and rises one pixel every 3
-  frames for 600 steps, about 36 seconds, over the title screen. From
+- The column starts with its top at y 200 and rises one pixel a step
+  for 600 steps over the title screen. The code waits at least 3
+  frames a step, but on an A500 a step took about 4 frames and the
+  Credits about 49 seconds; the port matches the A500's 49 seconds. From
   the 16th step the logo rises with it from y 20.
 
 ## The Ring verse
 
 (finding:ui-ring-verse-window)
 
-- The screen is cleared to black and a window without title or buttons
+- The title screen fades to black and a window without title or buttons
   opens at (40, 20), 240 by 120, using the shared window frame
   (finding:ui-window-frame-tiles).
 - AText.res CSTR 57 is drawn at (20, 20) and CSTR 58 at (20, 70), in
   colour 5 of the title palette, keeping their leading spaces.
 - It stays on screen while the Animation Level loads and, unless a key
-  was pressed before the Credits, until Title ends.
-  (finding:sound-title-music-in-the-boot-sequence) `provisional`: the
-  exact moment the Animation Level replaces it.
+  was pressed before the Credits, until Title ends, about 64 seconds
+  more on an A500. Keys and clicks do not move past it.
+  (finding:sound-title-music-in-the-boot-sequence)
 
 ## Moving on
 

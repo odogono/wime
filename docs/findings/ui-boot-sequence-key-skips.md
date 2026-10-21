@@ -10,10 +10,11 @@ sources:
   - disasm:code+0x027ce
   - disasm:code+0x02830
   - observed:animation-level-opening
+  - observed:boot-sequence-timing
 issue: 145
 ---
 
-**Each screen of the boot sequence gives way to the next on a timer, not a click. A key pressed before the title screen's logo skips the rest, the Credits and the Ring verse included; one pressed while the logo shows skips the Credits; one pressed during the Credits ends them. Q also switches sound off.**
+**Each screen of the boot sequence gives way to the next on a timer, not a click. A key pressed before the title screen's logo skips the rest, the Credits and the Ring verse included; one pressed while the logo shows skips the Credits; one pressed during the Credits ends them. Q also switches sound off. Once the Ring verse shows, keys do nothing.**
 Every wait in the boot sequence (finding:ui-boot-sequence-screens) goes through code+0x02034, which waits for a frame count or a key, whichever comes first. A waiting key is taken; Q, either case, also flips the sound flag (finding:sound-q-toggles-sound). The routine returns whether a key came, and the boot sequence keeps that answer:
 
 - Before frame 600, while the Melbourne House screen, the Synergistic screen or the bare title screen shows, a key ends the picture loop (code+0x0235c). The game then frees the pictures and goes straight to loading the Animation Level (code+0x02394, code+0x027ce): no logo, no Credits and no Ring verse.
@@ -21,3 +22,5 @@ Every wait in the boot sequence (finding:ui-boot-sequence-screens) goes through 
 - During the Credits the loop only looks for a waiting key without taking it, so a key ends them but is not kept; the Ring verse is shown and the key is taken with any others after it (code+0x027e2).
 
 The kept answer also decides whether the game waits for Title to end before the first Animation Level (code+0x02830; finding:sound-title-music-in-the-boot-sequence). The waits test only the key routine (code+0x17ce2), and in play mouse clicks did not move past the Ring verse.
+
+In FS-UAE a space on the Melbourne House screen took the game to the Animation Level within 5 seconds, without the Ring verse. Five spaces pressed while the Ring verse showed after an unbroken boot sequence did not shorten the wait for Title: it ended 62 seconds after the first, as without them.
