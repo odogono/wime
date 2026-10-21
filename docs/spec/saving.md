@@ -51,4 +51,5 @@ The port also saves the game by itself to a reserved autosave slot
 - Game Speed and the camera are not saved, as for the named slots.
 - A failed autosave is dropped without a message, and play goes on; the
   previous autosave is kept.
-- Resuming from the autosave is the title menu's (#149).
+- The title menu resumes from the autosave or a named slot
+  (docs/spec/title-menu.md).

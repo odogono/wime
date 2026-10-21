@@ -109,9 +109,10 @@ The port's own departures, since a browser page is not a floppy boot.
   least 150 frames, 3 seconds, where the original showed it while
   loading. Without sound, or with Q switching it off, nothing else
   holds it.
-- When the sequence ends a new game begins. The title menu (#149) will
-  stand between the two. Starting it writes no save; the autosave first
-  runs when it is next due (docs/spec/saving.md).
+- When the sequence ends the title menu opens over the title screen
+  (docs/spec/title-menu.md). Starting a new game from it writes no
+  save; the autosave first runs when it is next due
+  (docs/spec/saving.md).
 - The Ring verse's window is cream parchment with a dark edge, as the
   capture showed, drawn like a message box on the Animation Level
   (finding:ui-window-frame-tiles). The disassembly suggests the colour 15

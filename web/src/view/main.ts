@@ -53,6 +53,7 @@ import {
 import { loadGameAudio, type GameAudio } from './audio';
 import { autosaveDue, autosavePoint, type AutosaveView } from './autosave';
 import {
+  BOOT_PICTURES,
   bootSequence,
   bootView,
   createBootRenderer,
@@ -176,6 +177,7 @@ import {
   type ProvisionsWindow
 } from './provisions-window';
 import {
+  AUTOSAVE_ID,
   LEGACY_ARCHIVE_NAME,
   browserStorage,
   createSaveSlots,
@@ -191,6 +193,17 @@ import {
   type SpeedWindow
 } from './speed-window';
 import { createTickDriver } from './tick-driver';
+import {
+  LOAD_FAILED,
+  clickTitleMenu,
+  drawTitleMenu,
+  hoverTitleMenu,
+  openTitleMenu,
+  pressTitleMenuKey,
+  type TitleMenu,
+  type TitleSaves,
+  type TitleStep
+} from './title-menu';
 import {
   drawWarEventMessage,
   stepWarEventMessage,
@@ -251,8 +264,9 @@ type Level = 'animation' | 'campaign' | 'full-map';
 // `run` holds the whole view's state and handlers, in this order; search for
 // the name to jump to a part:
 // - state: `level` through `lastTime`, one `let` per open window or Level
-// - the boot sequence: `boot`, its key handler, then `startNewGame`, which
-//   `frame` calls once it is over
+// - the boot sequence: `boot`, its key handler; then the title menu,
+//   `titleMenu`, whose choices `chooseOnTitle` carries out through
+//   `startGame`
 // - the Animation Level: `goDownToAnimation`, `startAnimationFight`,
 //   `beginTalk`, `handleAnimationPress`
 // - the Full Map Level: `goUp`, `goDown`, `handleFullMapPress`
@@ -418,7 +432,35 @@ const run = (
       startTitle(result.started);
     }
   });
+  // The title menu, once the boot sequence is over
+  // (docs/spec/title-menu.md); Title plays on under it.
+  let titleMenu: TitleMenu | null = null;
+  // Until a game starts, the boot sequence or the title menu holds the
+  // screen and the keys, and nothing is saved.
+  const onTitle = (): boolean => boot !== null || titleMenu !== null;
+  const titleSaves = (): TitleSaves => {
+    const autosave = saveSlots.autosaved();
+    const slots = saveSlots.list();
+    return {
+      autosave: autosave.ok ? autosave.value : null,
+      slots: slots.ok ? slots.value : []
+    };
+  };
+  const titleScreen = {
+    creditsStep: null,
+    fade: null,
+    logoY: BOOT_PICTURES.logo.y,
+    picture: 'title',
+    verse: false
+  } as const;
   window.addEventListener('keydown', event => {
+    if (titleMenu) {
+      if (event.key.toLowerCase() === 'q') {
+        audio?.toggle();
+      }
+      chooseOnTitle(pressTitleMenuKey(titleMenu, event.key, titleSaves()));
+      return;
+    }
     if (!boot) {
       return;
     }
@@ -898,6 +940,10 @@ const run = (
 
   canvas.style.cursor = 'grab';
   canvas.addEventListener('pointerdown', event => {
+    if (titleMenu) {
+      chooseOnTitle(clickTitleMenu(titleMenu, toNative(event), titleSaves()));
+      return;
+    }
     if (boot) {
       return;
     }
@@ -1031,6 +1077,10 @@ const run = (
     }
   });
   canvas.addEventListener('pointermove', event => {
+    if (titleMenu) {
+      titleMenu = hoverTitleMenu(titleMenu, toNative(event));
+      return;
+    }
     if (boot || level === 'animation') {
       return;
     }
@@ -1044,7 +1094,7 @@ const run = (
     }
   });
   const endDrag = (event: PointerEvent): void => {
-    if (drag && !boot) {
+    if (drag && !onTitle()) {
       const released = toNative(event);
       const moved = Math.max(
         Math.abs(released.x - drag.pointer.x),
@@ -1085,7 +1135,7 @@ const run = (
     // magnifying glass, T opens the Game Speed window and P pauses
     // (finding:ui-key-bindings). The Campaign Level's magnifying
     // glass waits for the Animation Level.
-    if (boot || councilWindow) {
+    if (onTitle() || councilWindow) {
       return;
     }
     const key = event.key.toLowerCase();
@@ -1284,7 +1334,7 @@ const run = (
     const view = autosaveView();
     // Until a game starts there is nothing to save, and any save is
     // left as it was.
-    if (!boot && view.settled) {
+    if (!onTitle() && view.settled) {
       autosaveNow(view);
     }
   };
@@ -1294,17 +1344,48 @@ const run = (
     }
   });
   window.addEventListener('pagehide', autosaveOnHide);
-  // A new game opens on the Animation Level with the Ring-bearer
-  // (finding:ui-game-starts-on-animation-level) and Gandalf's letter.
-  // It is not saved until autosave next runs.
-  const startNewGame = (): void => {
+  // A game opens on the Animation Level with the Ring-bearer
+  // (finding:ui-game-starts-on-animation-level), a new one with
+  // Gandalf's letter. Title stops. Nothing is saved until autosave next
+  // runs.
+  const startGame = (isNew: boolean): void => {
+    titleMenu = null;
+    audio?.stop();
     if (sim.ringBearer !== null) {
       goDownToAnimation(sim.ringBearer);
-      letter = { kind: 'pending' };
+      letter = isNew ? { kind: 'pending' } : null;
     } else {
       level = 'campaign';
     }
     autosavedAt = autosavePoint(autosaveView());
+  };
+  // Carry out what the title menu chose.
+  const chooseOnTitle = (step: TitleStep): void => {
+    titleMenu = step.menu;
+    const choice = step.choice;
+    if (!choice) {
+      return;
+    }
+    if (choice.kind === 'new-game') {
+      startGame(true);
+      return;
+    }
+    const result =
+      choice.id === AUTOSAVE_ID
+        ? saveSlots.loadAutosave(assets.tilemap)
+        : saveSlots.load(choice.id, assets.tilemap);
+    if (!result.ok) {
+      titleMenu = {
+        kind: 'message',
+        lines:
+          LOAD_FAILED[
+            result.reason === 'other-version' ? 'other-version' : 'other'
+          ]
+      };
+      return;
+    }
+    sim = result.value;
+    startGame(false);
   };
   const frame = (now: number): void => {
     const elapsedMs = Math.min(1000, now - lastTime);
@@ -1317,11 +1398,15 @@ const run = (
         requestAnimationFrame(frame);
         return;
       }
-      // A key that skipped part of the sequence stops Title as the
-      // Animation Level begins; otherwise it has ended.
       boot = null;
-      audio?.stop();
-      startNewGame();
+      titleMenu = openTitleMenu(titleSaves());
+    }
+    if (titleMenu) {
+      drawBoot(screen.buffer, titleScreen);
+      drawTitleMenu(screen.buffer, title.window, title.menuColours, titleMenu);
+      screen.present();
+      requestAnimationFrame(frame);
+      return;
     }
     const view = autosaveView();
     if (autosaveDue(autosavedAt, view)) {
