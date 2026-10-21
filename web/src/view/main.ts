@@ -1,5 +1,6 @@
 import {
   answerMeeting,
+  combatRows,
   createSim,
   forcesOnMap,
   formatClock,
@@ -454,6 +455,12 @@ const run = (
   let pointer: Camera | null = null;
   let drag: { camera: Camera; pointer: Camera } | null = null;
   let speedWindow: SpeedWindow | null = null;
+  // Presses on a button or an icon, each ringing ReverbBells
+  // (finding:sound-reverb-bells-ring-on-a-press).
+  let presses = 0;
+  const ring = (): void => {
+    presses += 1;
+  };
   let infoWindow: InfoWindow | null = null;
   let order: OrderState = IDLE_ORDER;
   // The fight's announcement or combat window, while a fight is on
@@ -608,7 +615,8 @@ const run = (
           : null,
       level,
       levelEntries,
-      placeTile: level === 'animation' ? placeTile : null
+      placeTile: level === 'animation' ? placeTile : null,
+      presses
     };
   };
   const updateSound = (): void => {
@@ -1043,7 +1051,12 @@ const run = (
       // off them, the icons included, does nothing
       // (finding:ui-message-box-presses-off-the-buttons).
       pressProvisions(point, now);
-    } else if (icon?.name === 'map') {
+      return;
+    }
+    if (icon) {
+      ring();
+    }
+    if (icon?.name === 'map') {
       goUpFromAnimation();
     } else if (icon?.name === 'eye') {
       openEye(now);
@@ -1093,6 +1106,7 @@ const run = (
     if (!pressed || !position) {
       return;
     }
+    ring();
     if (typeof pressed.value === 'number') {
       if (provisions.kind !== 'menu') {
         const { chosen, kind } = provisions;
@@ -1183,6 +1197,9 @@ const run = (
     // A press on a button acts on it; anywhere else clears the window.
     if (archive) {
       const button = archiveButtonAt(archive, point);
+      if (button) {
+        ring();
+      }
       archive = button
         ? button.choice === 'save'
           ? saveGame()
@@ -1202,6 +1219,9 @@ const run = (
       return;
     }
     const icon = fullMapIconAt(fullMapPlacements, point);
+    if (icon) {
+      ring();
+    }
     if (icon?.icon.name === 'scroll') {
       openArchive();
     } else if (icon?.icon.name === 'eye') {
@@ -1302,6 +1322,7 @@ const run = (
   const pressSpeedWindow = (point: Camera): void => {
     const speed = speedWindow && speedAt(speedWindow, point.x, point.y);
     if (speed) {
+      ring();
       driver.speed = speed;
       driver.paused = false;
       speedWindow = null;
@@ -1422,8 +1443,12 @@ const run = (
         return;
       }
       const point = toNative(event);
+      const answered = pressFight(point);
+      if (answered) {
+        ring();
+      }
       if (
-        !pressFight(point) &&
+        !answered &&
         combat?.kind === 'announcement' &&
         level === 'campaign' &&
         !iconAt(placements, point)
@@ -1445,7 +1470,11 @@ const run = (
     // nothing and a click on a Force or a Place replaces it
     // (finding:ui-message-box-presses-off-the-buttons).
     if (meetingHoldsTime(meetingUi)) {
-      if (!pressMeeting(pointer) && !iconAt(placements, pointer)) {
+      const answered = pressMeeting(pointer);
+      if (answered) {
+        ring();
+      }
+      if (!answered && !iconAt(placements, pointer)) {
         startDrag(event, pointer);
       }
       return;
@@ -1455,6 +1484,9 @@ const run = (
       return;
     }
     const icon = iconAt(placements, pointer);
+    if (icon) {
+      ring();
+    }
     if (icon?.icon.name === 'map') {
       goUp();
       return;
@@ -1471,6 +1503,11 @@ const run = (
       const spot = mapPoint(pointer);
       if (spot) {
         const index = glassWatches(sim.roster, spot);
+        // The glass rings as it finds Forces near the spot
+        // (finding:sound-reverb-bells-ring-on-a-press).
+        if (combatRows(sim.roster, spot).length > 0) {
+          ring();
+        }
         chosenCharacter = index;
         if (index === null || !goDownToAnimation(index)) {
           goDownToSpot(spot);

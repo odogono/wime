@@ -68,6 +68,18 @@ describe('sound cues', () => {
       soundCues(view({ boxes: ['info:FRODO'] }), view({ boxes: [] }))
     ).toEqual([]);
   });
+
+  // finding:sound-reverb-bells-ring-on-a-press
+  test('a bell rings as a button or an icon is pressed, and again for the box it opens', () => {
+    expect(soundCues(QUIET, view({ presses: 1 }))).toEqual([
+      { effect: EFFECT.bell, kind: 'effect' }
+    ]);
+    expect(soundCues(QUIET, view({ boxes: ['speed'], presses: 1 }))).toEqual([
+      { effect: EFFECT.bell, kind: 'effect' },
+      { effect: EFFECT.bell, kind: 'effect' }
+    ]);
+    expect(soundCues(view({ presses: 1 }), view({ presses: 1 }))).toEqual([]);
+  });
 });
 
 // finding:sound-fight-effects
