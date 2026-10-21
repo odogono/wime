@@ -16,8 +16,8 @@ const LAST_FOLLOWER = 78;
 const FIRST_EVIL = 79;
 const LAST_EVIL = 151;
 
-// Each column shows at most this many rows
-// (finding:ui-galadriels-mirror-row-limit); provisional.
+// The Good column shows at most this many rows, and the Evil column one
+// more (finding:ui-galadriels-mirror-row-limits).
 export const MIRROR_ROW_LIMIT = 19;
 
 export const MIRROR_HEADING =
@@ -123,51 +123,91 @@ export const statusLine = (
     : '';
 };
 
-// Merge a row into one already listed with the same name, or add it.
-const addMerged = (rows: Row[], row: Row): void => {
-  const same = rows.find(other => other.entry.name === row.entry.name);
+// Merge a row into one already listed with the same name, or add it;
+// returns whether it was added. A follower joins only a row of the same
+// Leader's (finding:ui-galadriels-mirror-row-limits).
+const addMerged = (rows: Row[], row: Row): boolean => {
+  const same = rows.find(
+    other =>
+      other.entry.name === row.entry.name &&
+      (!row.follower || other.entry.leader === row.entry.leader)
+  );
   if (same) {
     same.strength += row.strength;
-  } else {
-    rows.push(row);
+    return false;
+  }
+  rows.push(row);
+  return true;
+};
+
+// A Leader's awake followers among entries 1 to 78, recursively. Listed
+// again, a follower Character whose own followers added no row is left
+// out (finding:combat-rows-relisted-without-lone-followers).
+const addFollowers = (
+  rows: Row[],
+  roster: RosterEntry[],
+  leader: number,
+  dropLoneCharacters: boolean
+): void => {
+  for (let other = 1; other <= LAST_FOLLOWER; other++) {
+    const follower = roster[other];
+    if (follower && follower.state !== 0 && follower.leader === leader) {
+      const added = addMerged(rows, {
+        entry: follower,
+        follower: true,
+        strength: follower.strength
+      });
+      const count = rows.length;
+      addFollowers(rows, roster, other, dropLoneCharacters);
+      if (
+        dropLoneCharacters &&
+        added &&
+        rows.length === count &&
+        follower.startingStrength === 1
+      ) {
+        rows.pop();
+      }
+    }
   }
 };
 
+const goodRows = (roster: RosterEntry[], dropLoneCharacters: boolean) => {
+  const good: Row[] = [];
+  for (let index = 1; index <= LAST_GOOD; index++) {
+    const leader = roster[index];
+    if (isMoving(leader)) {
+      good.push({ entry: leader, follower: false, strength: leader.strength });
+      addFollowers(good, roster, index, dropLoneCharacters);
+    }
+  }
+  return good;
+};
+
+// Too many Good rows are listed again without lone follower Characters,
+// then cut; the Evil column stops only once it is over the limit
+// (finding:ui-galadriels-mirror-row-limits).
 export const mirrorListing = (
   roster: RosterEntry[],
   places: Place[]
 ): MirrorListing => {
-  const good: Row[] = [];
-  for (let index = 1; index <= LAST_GOOD; index++) {
-    const leader = roster[index];
-    if (!isMoving(leader)) {
-      continue;
-    }
-    good.push({ entry: leader, follower: false, strength: leader.strength });
-    for (let other = 1; other <= LAST_FOLLOWER; other++) {
-      const follower = roster[other];
-      if (follower && follower.state !== 0 && follower.leader === index) {
-        addMerged(good, {
-          entry: follower,
-          follower: true,
-          strength: follower.strength
-        });
-      }
-    }
+  let good = goodRows(roster, false);
+  if (good.length > MIRROR_ROW_LIMIT) {
+    good = goodRows(roster, true);
   }
   const evil: Row[] = [];
   for (let index = FIRST_EVIL; index <= LAST_EVIL; index++) {
     const entry = roster[index];
+    if (evil.length > MIRROR_ROW_LIMIT) {
+      break;
+    }
     if (isMoving(entry)) {
       addMerged(evil, { entry, follower: false, strength: entry.strength });
     }
   }
   return {
-    evil: evil
-      .slice(0, MIRROR_ROW_LIMIT)
-      .map(({ entry, strength }) =>
-        strength > 1 ? `${strength} ${entry.name}` : capitalised(entry.name)
-      ),
+    evil: evil.map(({ entry, strength }) =>
+      strength > 1 ? `${strength} ${entry.name}` : capitalised(entry.name)
+    ),
     good: good.slice(0, MIRROR_ROW_LIMIT).map(row => ({
       follower: row.follower,
       text: goodRowText(row, roster, places)

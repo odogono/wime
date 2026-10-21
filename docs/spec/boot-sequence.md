@@ -97,8 +97,8 @@ not covered here.
   (finding:ui-gandalfs-letter, finding:ui-message-box-timeouts-by-level),
   while Frodo, Sam and Pippin walk on beneath it.
 - It is shown once per game, and is not saved: a restored game does not
-  show it. `provisional`: whether the original shows
-  it again after restoring the Archive (#171).
+  show it, as in the original, where restoring the Archive never
+  brings it back. (finding:ui-gandalfs-letter-not-shown-after-restoring)
 
 ## In the port
 
