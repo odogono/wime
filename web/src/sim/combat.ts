@@ -238,6 +238,25 @@ export const combatRows = (
   return rows;
 };
 
+// Whom the Campaign Level's magnifying glass watches, going down at
+// `position`: the first row of the Forces near the spot, as a fight
+// gathers them, when it is a Good Leader among entries 1 to 78; else
+// null, nobody watched
+// (finding:ui-magnifying-glass-watches-the-first-good-leader-near-the-spot).
+export const glassWatches = (
+  roster: RosterEntry[],
+  position: Point
+): number | null => {
+  const first = combatRows(roster, position)[0];
+  const leader = first?.entries[0];
+  return first?.side === 'good' &&
+    leader !== undefined &&
+    leader >= 1 &&
+    leader <= LAST_GOOD_ENTRY
+    ? leader
+    : null;
+};
+
 const tileAligned = (point: Point): boolean =>
   point.x % TILE_SIZE === 0 && point.y % TILE_SIZE === 0;
 

@@ -19,6 +19,7 @@ export {
 } from './clock';
 export {
   combatRows,
+  glassWatches,
   fightRound,
   findFight,
   findMatch,

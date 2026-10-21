@@ -5,6 +5,7 @@ import {
   formatClock,
   fullMapDots,
   giveOrder,
+  glassWatches,
   mirrorListing,
   tickSim,
   watchEntry,
@@ -273,6 +274,9 @@ const CLICK_TOLERANCE_PX = 3;
 // The Level on show; the game opens on the Animation Level
 // (finding:ui-game-starts-on-animation-level).
 type Level = 'animation' | 'campaign' | 'full-map';
+// The empty roster entry 0, watched when the Animation Level shows a
+// spot with nobody there.
+const NOBODY = 0;
 
 // `run` holds the whole view's state and handlers, in this order; search for
 // the name to jump to a part:
@@ -605,6 +609,25 @@ const run = (
     if (!entry?.position) {
       return false;
     }
+    const force = forcesOnMap(sim.roster).find(
+      candidate => candidate.leader.index === index
+    );
+    goDownTo(index, entry.position, entry.facing, force?.members ?? [entry]);
+    return true;
+  };
+  // Down to the Animation Level at a spot with nobody watched, as the
+  // glass does with no Good Leader in reach: the empty roster entry 0
+  // stands at the spot, rounded down to 16 pixels, and no figures walk
+  // (finding:ui-magnifying-glass-watches-the-first-good-leader-near-the-spot).
+  const goDownToSpot = (point: Camera): void => {
+    goDownTo(NOBODY, { x: point.x & ~15, y: point.y & ~15 }, 0, []);
+  };
+  const goDownTo = (
+    index: number,
+    position: Camera,
+    facing: number,
+    members: SimState['roster']
+  ): void => {
     watched = index;
     sim = watchEntry(sim, index);
     // The Place's tile byte, when it has scenery of its own, picks its
@@ -614,7 +637,7 @@ const run = (
       scene,
       animation,
       assets.tilemap,
-      { facing: entry.facing, position: entry.position },
+      { facing, position },
       sim.clock.quarterHour,
       choose,
       (tile, random, strips) => {
@@ -623,10 +646,6 @@ const run = (
       }
     );
     levelEntries += 1;
-    const force = forcesOnMap(sim.roster).find(
-      candidate => candidate.leader.index === index
-    );
-    const members = force?.members ?? [entry];
     party = members.map(member => member.index);
     provisions = null;
     stage = spawnParty(
@@ -651,7 +670,6 @@ const run = (
     drag = null;
     setOrder(IDLE_ORDER);
     canvas.style.cursor = 'default';
-    return true;
   };
 
   // The ending's still picture: the Animation Level's scene on Mount
@@ -1068,12 +1086,16 @@ const run = (
       canvas.style.cursor = lookingDown ? 'zoom-in' : 'grab';
       return;
     }
-    // provisional: the magnifying glass goes down to the Force under it;
-    // how the original picks whom to watch is not traced.
+    // The magnifying glass watches the first Good Leader near the spot,
+    // or else shows the spot with nobody watched
+    // (finding:ui-magnifying-glass-watches-the-first-good-leader-near-the-spot).
     if (lookingDown && !icon) {
-      const target = targetAt(pointer, forcesOnMap(sim.roster));
-      if (target?.kind === 'force') {
-        goDownToAnimation(target.force.leader.index);
+      const spot = mapPoint(pointer);
+      if (spot) {
+        const index = glassWatches(sim.roster, spot);
+        if (index === null || !goDownToAnimation(index)) {
+          goDownToSpot(spot);
+        }
       }
       return;
     }
@@ -1759,6 +1781,7 @@ const run = (
           sim.ending ||
           (!battle &&
             !talk &&
+            watched !== NOBODY &&
             (walkedOff(stage) ||
               stage.figures.length === 0 ||
               sim.roster[watched]!.strength === 0))
