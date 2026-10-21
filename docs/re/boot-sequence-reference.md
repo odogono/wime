@@ -23,3 +23,5 @@ Don't set a breakpoint at code+0x02830: the wait loop branches back to it, so ev
 | `boot-keys-during-verse`      | five spaces, 2 s apart, from 5 s after the verse        | the wait for Title still lasted about 62 s                                                                                    |
 
 Under WHDLoad the memory flag stays 0 whatever the chip memory, so the Credits show only when the flag is set by hand. Captures taken without stopping, 18 to 75 s after setting it, showed the bare title screen, the logo and the first Credits rising, the full columns, and the title screen fading out.
+
+`message-box-letter-timeout` (issue #168): booted with spaces pressed through the pictures, then `S` dumps of data+0x4fee to data+0x5034 (0x3E0D6) while Gandalf's letter was up. The letter's deadline was frame 640; at frame 1298 its width word data+0x502e was still 0x100, and at frame 2284 it was 0.

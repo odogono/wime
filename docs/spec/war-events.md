@@ -164,8 +164,16 @@ When an entry's trigger is met (finding:ai-trigger-what-waking-changes):
 - Announcements are shown one at a time, oldest first. The view takes
   each from the sim only as it shows it, so one not yet shown survives
   a save, and one already shown is never shown again.
-- `provisional`: the original queues every message box, so an
-  announcement and a fight's windows wait for each other. The view
-  shows a fight's windows first and keeps an announcement, with the
-  time it has left, until they close. Likewise on the Full Map Level,
-  where time stands still (#168).
+- In the original only one box is open at a time, and a box raised
+  while another is up waits out that box's 200-frame deadline, the
+  game standing still, then replaces it: boxes show in the order they
+  are raised. A box without buttons lasts until a later one replaces
+  it, or 1,220 frames on the Campaign Level and 1,500 on the Animation
+  Level, and leaving a Level closes it
+  (finding:ui-message-box-opening-waits-for-the-open-box,
+  finding:ui-message-box-timeouts-by-level,
+  finding:ui-message-box-closed-on-leaving-a-level).
+- `provisional`: the view shows a fight's windows first and keeps an
+  announcement, with the time it has left, until they close, and
+  likewise on the Full Map Level, where time stands still; it closes
+  an announcement after 200 frames (#184).

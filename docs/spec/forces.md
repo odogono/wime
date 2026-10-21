@@ -89,12 +89,19 @@ are in `docs/spec/combat.md`.
   finding:time-game-speed-clock-limits, finding:ui-war-event-messages)
 - `provisional`: the one-line box would leave its buttons, at 30,
   outside its 24 pixels, so it is drawn 44 high like the two-line
-  box. No capture records how the original drew it (#168).
-- `provisional`: the deadline runs in real time, so time on the Full
-  Map Level counts against it, as for a fight's announcement (#168).
-- `provisional`: a War Event announcement waits, its time kept, while
-  the window is up, as it does for a fight's windows
-  (docs/spec/war-events.md, #168).
+  box. The original opens it 24 high with its buttons drawn at 30;
+  how that shows on screen needs a capture (#171).
+- In the original the deadline counts real frames, and the Full Map
+  Level cannot be entered while the window is up, so no time there
+  counts against it (finding:ui-message-box-timeouts-by-level,
+  finding:ui-message-box-closed-on-leaving-a-level).
+- In the original only one box is open at a time: a box raised while
+  another is up waits out that box's 200-frame deadline, the game
+  standing still, then replaces it
+  (finding:ui-message-box-opening-waits-for-the-open-box).
+- `provisional`: the port lets the Full Map Level be entered under the
+  window, and a War Event announcement waits, its time kept, while the
+  window is up (docs/spec/war-events.md, #184).
 
 ## Leaving a Force
 
