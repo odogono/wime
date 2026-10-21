@@ -2,7 +2,7 @@
 
 ## Brief
 
-Compare two high-resolution reinterpretations of the Reference Build's title picture: richer pixel art and a painted fantasy illustration. Keep the principal subjects and overall arrangement recognisable, with freedom to improve shapes, materials, lighting and details. The source is the sole visual reference for each initial independent edit. A subsequent targeted revision uses user-supplied box art to refine the rider in the preferred painted version.
+Compare two high-resolution reinterpretations of the Reference Build's title picture: richer pixel art and a painted fantasy illustration. Keep the principal subjects and overall arrangement recognisable, with freedom to improve shapes, materials, lighting and details. The source is the sole visual reference for each initial independent edit. Subsequent edits use user-supplied box art to refine the rider in the preferred painted version. The user clarified that the rider is a Nazgûl whose face must remain unseen; v3 is the current correction, and the exposed-face v2 was rejected.
 
 This is an art-direction experiment. Judgement is at high resolution; compatibility with the current 320×200 renderer, map tiles, scenery layers and animation is outside this trial. The game and its asset loaders are unchanged.
 
@@ -11,19 +11,20 @@ This is an art-direction experiment. Judgement is at high resolution; compatibil
 - Reference Build: Amiga v1.0, following [ADR-0003](../adr/0003-amiga-v1-canonical.md).
 - Picture: `ATitle.res` IMAG 72, freshly regenerated with `bun run extract-graphics` in this checkout and visually checked for the correct warm palette. The separate logo, IMAG 73, is excluded. Existing provenance: [title picture dimensions](../findings/graphics-full-screen-art-is-320-by-200.md) and [title palette](../findings/graphics-title-screen-palette.md).
 - Tool: built-in `image_gen.imagegen`, one edit call per variant; the initial calls used `referenced_image_paths` pointing to `build/graphics-remaster/source.png` and `transparent_background: false`. No CLI/API fallback was used; the built-in tool does not expose a selected model identifier here.
-- Each initial call used the source directly; neither initial variant was used as input for the other. The revision uses `painted.png` as its edit target and `box-art-reference.png` as a rider-design reference, with `transparent_background: false`.
+- Each initial call used the source directly; neither initial variant was used as input for the other. Both follow-up edits use the original `painted.png` as their edit target and `box-art-reference.png` as a supporting design reference, with `transparent_background: false`. V3 does not use the rejected v2 as an input.
 - All generated outputs are opaque PNGs saved as returned, without resizing, cropping or other post-processing.
-- Local artifacts: `build/graphics-remaster/source.png`, `pixel-art.png`, `painted.png`, `painted-v2.png`, `box-art-reference.png`, `painted-v2-prompt.txt` and `prompts.json`. This directory is gitignored.
-- Remote artifacts: [secret gist](https://gist.github.com/odogono/f6b575409714ee9a0036152250a11587), latest revision `c23640332affddb95cbec68d44ef328bcc0e8842`. Anyone with its URL can view it. Image files are committed only in the separate gist, not in this project repository.
+- Local artifacts: `build/graphics-remaster/source.png`, `pixel-art.png`, `painted.png`, `painted-v2.png`, `painted-v3.png`, `box-art-reference.png`, `painted-v2-prompt.txt`, `painted-v3-prompt.txt` and `prompts.json`. This directory is gitignored.
+- Remote artifacts: [secret gist](https://gist.github.com/odogono/f6b575409714ee9a0036152250a11587), latest revision `4aae6cc1a6fc19fd5d5f6f47bb3b2355f332874f`. Anyone with its URL can view it. Image files are committed only in the separate gist, not in this project repository.
 
 ## Results
 
-| Image                | Dimensions | Distinct RGB colours |
-| -------------------- | ---------- | -------------------- |
-| Source               | 320×200    | 30                   |
-| Richer pixel art     | 1586×992   | 364,398              |
-| Painted illustration | 1586×992   | 231,441              |
-| Painted revision     | 1586×992   | 234,313              |
+| Image                 | Dimensions | Distinct RGB colours |
+| --------------------- | ---------- | -------------------- |
+| Source                | 320×200    | 30                   |
+| Richer pixel art      | 1586×992   | 364,398              |
+| Painted illustration  | 1586×992   | 231,441              |
+| Painted v2 (rejected) | 1586×992   | 234,313              |
+| Painted v3 (current)  | 1586×992   | 240,329              |
 
 The counts describe the saved PNGs. The pixel-art variant is a visual style experiment, not a constrained palette or a verified uniform pixel grid.
 
@@ -51,19 +52,27 @@ The counts describe the saved PNGs. The pixel-art variant is a visual style expe
 - The pixel-art version has stepped edges and clustered colour texture; the painted version has smoother contours, softer lighting transitions and brush-like texture. Their overall colours and silhouettes remain similar, making the difference in surface treatment the clearest comparison.
 - Both reinterpret the armour extensively and add distant architectural forms and cloud detail. These are generated artistic additions, not evidence about the Reference Build. Neither result should be described as an exact recolouring.
 - Visual inspection found no unintended lettering, logo or obvious extra characters. Dense reins, armour ornaments and the lance grip remain areas for closer scrutiny when judging a favourite.
-- The user preferred the painted direction, but identified the rider design as inaccurate and supplied original box art for comparison. The planned targeted revision is recorded below; acceptance of that revision remains pending.
+- The user preferred the painted direction, but identified the rider design as inaccurate and supplied original box art for comparison. V2 was rejected because it showed an orc-like face. The user identified the rider as a Nazgûl with an unseen face; acceptance of the resulting v3 correction remains pending.
 
-## Targeted painted revision
+## Rider corrections
 
-The user selected the painted illustration and requested a rider closer to the [user-supplied box-art reference](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/c1e3d2978d39dc447b3beccec5e61e04cfa2cc2d/box-art-reference.png) (1000×1500). The first painting had replaced the exposed, snarling face with a closed metal mask. This revision concentrates on the visible tusked face, open-faced domed horned helmet and broader, simpler plate armour.
+The user preferred the painted illustration and supplied the [box-art reference](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/c1e3d2978d39dc447b3beccec5e61e04cfa2cc2d/box-art-reference.png) (1000×1500) to improve the rider detail. Its packaging, typography and borders are excluded from the artwork.
 
-The painted landscape is the edit target, and the box art is a second, supporting image. The box's rider faces the opposite direction from the landscape, so the prompt asks for its design to be adapted to the existing pose. The box typography, borders and packaging are excluded. This supporting reference is an intentional change from the initial source-only experiment.
+### Current correction: faceless Nazgûl (v3)
 
-![Painted revision with box-art rider detail](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/1ca45af8cbd06d666c9003c84a034213723f2163/painted-v2.png)
+The user clarified that the rider is a Nazgûl and that its face is unseen. This supersedes the assistant's mistaken exposed-face interpretation in v2.
 
-[View revised painting at full resolution](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/1ca45af8cbd06d666c9003c84a034213723f2163/painted-v2.png). The initial painting above remains available for comparison.
+The edit starts again from the original painted illustration, using the box art for the helmet's metal construction and silhouette. The prompt concentrates on the head, helmet and immediate collar: rounded horned helm, shaped metal brow, nasal and cheek guards, and a featureless black interior with no visible skin, eyes, mouth, teeth or tusks.
 
-The result exposes a snarling face with prominent teeth, replaces the closed mask with an open-faced helmet, and uses broader rounded plates on the torso and shoulders. It retains the horse, landscape framing and warm painted light closely, although this generative edit does not preserve surrounding pixels exactly. The rider's expression, head angle and armour remain interpretations rather than an exact reproduction of the box art. No further generation has been performed after this single targeted revision.
+![Current painted Nazgûl correction with unseen face](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/07effa0dd0bf2e201528893381f8b41fad9a693c/painted-v3.png)
+
+[View current painting at full resolution](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/07effa0dd0bf2e201528893381f8b41fad9a693c/painted-v3.png). Visual inspection confirms an empty dark face opening, with no exposed anatomy or glowing eyes. The horse, landscape framing and warm light are closely retained, although the generated image does not preserve surrounding pixels exactly. The helmet remains an interpretation of the reference; user acceptance is pending.
+
+### Rejected correction: exposed face (v2)
+
+The assistant misread the box-art helmet as a snarling face and explicitly requested exposed facial anatomy. The user rejected the result as orc-like. That prompt and output are retained only as a record of the failed attempt; they are not the intended rider design.
+
+[Rejected v2 image](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/1ca45af8cbd06d666c9003c84a034213723f2163/painted-v2.png). The earlier claim that the reference showed an exposed, tusked face was incorrect and has been removed from the experiment's descriptive text.
 
 ## Exact submitted prompts
 
@@ -95,7 +104,9 @@ Constraints: one complete high-resolution artwork, opaque background, no text, n
 Style/medium: detailed hand-painted fantasy illustration. Natural painted contours, nuanced colour transitions, expressive brushwork, convincing metal and leather, atmospheric golden light and deep coloured shadows. Keep the composition recognisable while reinterpreting its small low-resolution shapes into a coherent painted image. This variant should clearly read as a painting rather than pixel art or a photograph.
 ```
 
-### Painted revision
+### Rejected painted revision (v2)
+
+This historical prompt contains the mistaken exposed-face instruction that caused the rejected result.
 
 ```text
 Use case: precise-object-edit
@@ -107,11 +118,23 @@ Helmet and armour: use the reference's rounded domed steel helmet with its two s
 Preserve everything outside the rider as closely as possible, especially the horse design, background, landscape composition, colours, lighting, lance position and framing. Keep the same hand-painted finish and high-resolution landscape proportions as image 1. Do not reproduce the box's typography, borders, logos, packaging layout, eagle or off-white paper background. Output one complete opaque painting with no text or comparison panels.
 ```
 
+### Current Nazgûl correction (v3)
+
+```text
+Use case: precise-object-edit
+Asset type: correction to a painted War in Middle Earth title-art experiment.
+Input image 1: EDIT TARGET — the original landscape painted illustration. Keep its composition, canvas, horse, lance, rider body and pose, trees, golden lighting and painterly style.
+Input image 2: HELMET DESIGN REFERENCE — the original box art, specifically the horned rider's head in the lower part. Use the helmet's silhouette and metal construction; adapt its orientation to image 1. Do not copy packaging or typography.
+Primary request: correct the rider's head and helmet. The rider is a NAZGUL / RINGWRAITH, an unseen wraith occupying armour. Its face must be COMPLETELY INVISIBLE. Inside the helmet is deep featureless black shadow: no visible skin, eyes, nose, mouth, teeth, tusks or any biological facial anatomy.
+Helmet design: match the box art's rounded domed metal helm, two swept curved horns, and angular metal brow, nasal and cheek guards. Clearly render every visible contour around the face opening as shaped STEEL ARMOUR. The openings between the metal guards reveal only black emptiness. Use an entirely dark cowl or shadowed interior beneath the helmet so that there is no readable face. The helmet is worn by a faceless Nazgul, not an orc, goblin, human face, skull or creature. Do not add glowing eyes. Keep metal highlights consistent with the existing warm lighting.
+Edit only the rider's head, helmet and immediate collar as necessary. Preserve the rest of image 1 as closely as possible, including its body armour, horse design, lance position, background and crop. Deliver one opaque high-resolution landscape painting, with no text, logos, borders or comparison panels.
+```
+
 ## Validation
 
 - Regenerated assets with `bun run extract-all`, which ran `bun run export:web` before the checks.
 - `bun run check` passed, including asset-dependent tests with exported assets present.
 - The gist API reports `public: false`. Each revision-specific raw image URL returns `image/png`, and the downloaded bytes match the local PNG exactly.
 - All four result embeds loaded successfully in a browser preview of GitHub-rendered Markdown, with the expected natural image dimensions.
-- The revision and box-art reference URLs also return `image/png`, and their downloaded bytes match the local files exactly.
+- The correction and box-art reference URLs also return `image/png`, and their downloaded bytes match the local files exactly.
 - Project changes contain Markdown only. No image files or runtime changes are included.
