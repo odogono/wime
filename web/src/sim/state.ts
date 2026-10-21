@@ -164,7 +164,8 @@ export const createSim = (
 // Encounter passed by is queued for the view and the sweep goes on. On
 // each hour the Council of Elrond may be held, and when the clock
 // reaches 8 a.m. the daily War Event check then runs before the next
-// sweep (docs/spec/council-of-elrond.md,
+// sweep, unless the Animation Level is showing
+// (docs/spec/council-of-elrond.md,
 // finding:time-daily-check-opens-the-8am-sweep).
 export const tickSim = (state: SimState): SimState => {
   if (state.fight || state.meeting || state.council || state.ending) {
@@ -214,8 +215,11 @@ const onTheHour = (state: SimState): boolean =>
   state.watching === null &&
   state.clock.quarterHour % QUARTER_HOURS_PER_HOUR === 0;
 
+// The daily War Event check, run only on the Campaign Level: an 8 a.m.
+// that passes on the Animation Level loses that day's check
+// (finding:ai-war-events-checked-only-on-campaign-level).
 const dailyChecks = (state: SimState): SimState => {
-  if (!isDailyCheck(state.clock)) {
+  if (state.watching !== null || !isDailyCheck(state.clock)) {
     return state;
   }
   const { announcements, events } = dailyWarEvents(
