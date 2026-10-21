@@ -78,3 +78,13 @@ The deadline stepping and held poses establish placement, movement and
 artwork; they do not establish wall-clock timing or which fight orders
 start these scripts. The broader fight choreography remains provisional
 in `docs/spec/encounters.md`.
+
+## Time and the watched Force (issue #160)
+
+`observed:animation-level-frodo-from-the-glass` was played in FS-UAE 3.2.35 with the usual boot drive (code 0x1d0c8, data 0x390e8). Space on the Melbourne House screen, then Gandalf's letter; the game was taken up to the Campaign Level and the view moved onto the Shire by writing data+0x08c8 = 480 and data+0x08ca = 272. Memory was read with `S` dumps of the data hunk every few seconds.
+
+1. On the Campaign Level, near quarter-hour 85 of day 0, Frodo (entry 7) was at (640, 384) moving to (656, 400); a Nazgûl (entry 82) was at (630, 390). Arming the glass held the clock: the sweep sat at 151 with the frame counter past 256.
+2. The glass clicked between the two went down watching entry 7 (data+0x08cc and data+0x5559 both 7).
+3. On the Animation Level the sweep (data+0x56b3) sat at 6 while the figures crossed, about 25 seconds a crossing. At each walk-off it moved to 7, Frodo moved one pixel diagonally and a new scene was built. Over five crossings the clock went from 85 to 90 and Frodo to (645, 389); his destination and state never changed. "FRODO passes a Ranger." and "FRODO passes an elf." came in between.
+
+Not captured: the glass on a spot with no Good Leader (entry 0 watched), a watched Character that is resting, and the Level ending when the watched Character arrives. Two clicks on the map icon during this run did not take the game up; the cause was not found.
