@@ -105,6 +105,24 @@ const goodRowText = (
   return `${subject} resting.`;
 };
 
+// One entry's status line, as a clicked figure and the eye show it on
+// the Animation Level: its Mirror row on its own (code+0x04528,
+// finding:ui-animation-level-clicking-a-figure-selects-it).
+export const statusLine = (
+  roster: RosterEntry[],
+  places: Place[],
+  index: number
+): string => {
+  const entry = roster[index];
+  return entry
+    ? goodRowText(
+        { entry, follower: entry.leader !== null, strength: entry.strength },
+        roster,
+        places
+      )
+    : '';
+};
+
 // Merge a row into one already listed with the same name, or add it.
 const addMerged = (rows: Row[], row: Row): void => {
   const same = rows.find(other => other.entry.name === row.entry.name);

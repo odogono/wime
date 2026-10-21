@@ -59,9 +59,9 @@ and "Use an object". (finding:objects-handled-on-animation-level)
 - The chosen Character is the last figure clicked, if it is in the
   Force on screen and awake, else the first awake member. With none,
   or a Unit, "Please select an active member of the party." is shown
-  instead. (finding:ui-provisions-chosen-character) `provisional`:
-  figures cannot be clicked yet, so the last Character to act, or the
-  first awake member, is chosen (#161).
+  instead. The Character the sack picks becomes the selected one
+  (docs/spec/animation-level.md, "Selecting and status").
+  (finding:ui-provisions-chosen-character)
 - A list is a box at (112, 5), 176 wide and 28 plus 10 for each line
   deep, its heading in colour 8 and one unframed line per object.
   (finding:ui-object-list-window)

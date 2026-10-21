@@ -94,10 +94,9 @@ const button = (
   y: y - 1
 });
 
-// The Character who acts: the last one chosen if it is in the Force on
+// The Character who acts: the selected one if it is in the Force on
 // screen and awake, else the first awake member
-// (finding:ui-provisions-chosen-character). provisional: figures cannot
-// be clicked yet, so the first awake member acts unless one was kept.
+// (finding:ui-provisions-chosen-character).
 export const chooseCharacter = (
   sim: SimState,
   party: number[],

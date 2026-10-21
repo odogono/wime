@@ -41,6 +41,15 @@ import {
   type AnimationPace
 } from './animation-pace';
 import {
+  drawStatusBox,
+  eyeStatus,
+  figureAt,
+  figureStatus,
+  insideStatusBox,
+  isSelectable,
+  type StatusBox
+} from './animation-status';
+import {
   ARCHIVE_MESSAGES,
   archiveButtonAt,
   archiveMenu,
@@ -168,6 +177,7 @@ import {
   stepMeetingUi,
   type MeetingUi
 } from './meeting-window';
+import { messageDurationMs } from './message-timing';
 import {
   drawMirrorWindow,
   layoutMirrorWindow,
@@ -435,7 +445,12 @@ const run = (
   // Character who last acted (docs/spec/objects.md).
   let provisions: ProvisionsWindow | null = null;
   let party: number[] = [];
+  // The selected Character, one for the whole game: a figure clicked on
+  // the Animation Level, the glass's pick or the sack's
+  // (finding:ui-animation-level-clicking-a-figure-selects-it).
   let chosenCharacter: number | null = null;
+  // The status box a figure click or the eye opened.
+  let statusBox: (StatusBox & { until: number }) | null = null;
   let passingMessage: PassingMessage | null = null;
   // Deliberately survives Archive restores, and is never saved.
   const givenTips = new Set<number>();
@@ -647,6 +662,7 @@ const run = (
   ): void => {
     if (!again) {
       animationPaceState = animationPace();
+      statusBox = null;
     }
     watched = index;
     sim = watchEntry(sim, index);
@@ -783,9 +799,10 @@ const run = (
     const point = toNative(event);
     const icon = animationIconAt(animation.icons, point);
     const now = viewNow();
-    // provisional: the eye opens nothing yet.
     if (icon?.name === 'map') {
       goUpFromAnimation();
+    } else if (icon?.name === 'eye') {
+      openEye(now);
     } else if (provisions && provisions.kind !== 'message') {
       // A press off the buttons closes the window, as its default does
       // (finding:ui-provisions-window).
@@ -820,6 +837,7 @@ const run = (
       }
     } else if (icon?.name === 'sack' && !battle && !talk && !sim.fight) {
       // The sack is ignored during a fight (finding:ui-provisions-window).
+      statusBox = null;
       provisions = openProvisions(
         assets.window.font.metrics,
         sim,
@@ -832,7 +850,36 @@ const run = (
       }
     } else if (talk) {
       advanceTalk(viewNow());
+    } else if (
+      !icon &&
+      !battle &&
+      !sim.fight &&
+      !(statusBox && insideStatusBox(statusBox, point))
+    ) {
+      // A figure clicked shows its status line and, on the Good side,
+      // becomes the selected Character; nothing during a fight
+      // (finding:ui-animation-level-clicking-a-figure-selects-it).
+      const owner = figureAt(stage, figureWorld.frames, point);
+      if (owner !== null) {
+        provisions = null;
+        statusBox = {
+          ...figureStatus(sim.roster, sim.places, owner),
+          until: now + messageDurationMs(driver.speed)
+        };
+        if (isSelectable(owner)) {
+          chosenCharacter = owner;
+        }
+      }
     }
+  };
+  // The eye, or S: the selected Character's status
+  // (finding:ui-animation-level-eye-shows-the-selected-status).
+  const openEye = (now: number): void => {
+    provisions = null;
+    statusBox = {
+      ...eyeStatus(sim.roster, sim.places, chosenCharacter),
+      until: now + messageDurationMs(driver.speed)
+    };
   };
 
   // Up to the Full Map Level (manual, pdf-p3). Any half-given Order or
@@ -1115,6 +1162,7 @@ const run = (
       const spot = mapPoint(pointer);
       if (spot) {
         const index = glassWatches(sim.roster, spot);
+        chosenCharacter = index;
         if (index === null || !goDownToAnimation(index)) {
           goDownToSpot(spot);
         }
@@ -1236,6 +1284,8 @@ const run = (
     if (level === 'animation') {
       if (key === 'u') {
         goUpFromAnimation();
+      } else if (key === 's') {
+        openEye(viewNow());
       } else if (key === 'p') {
         driver.paused = !driver.paused;
       } else if (key === ' ' || key === 'enter') {
@@ -1552,6 +1602,8 @@ const run = (
     battle = null;
     ending = null;
     letter = null;
+    statusBox = null;
+    chosenCharacter = null;
     driver.paused = false;
   };
   // Closing the menu takes its time out of the view's clock.
@@ -1840,6 +1892,12 @@ const run = (
             drawFigures(screen.buffer, animation, stage);
             if (letter?.kind === 'open') {
               drawGandalfsLetter(screen.buffer, animation.window, assets.texts);
+            }
+            if (statusBox && now >= statusBox.until) {
+              statusBox = null;
+            }
+            if (statusBox) {
+              drawStatusBox(screen.buffer, animation.window, statusBox);
             }
             if (passingMessage) {
               drawEncounterNotice(
