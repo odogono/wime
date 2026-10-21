@@ -96,9 +96,15 @@ in `docs/spec/combat.md`.
 (finding:combat-character-fights-on-animation-level,
 finding:combat-where-a-fight-is-fought)
 
-- A fight with no Unit on the Good side is played on the Animation
-  Level. It is the same fight as in the combat window: the same rows,
-  options, rounds and results; the sim's combat code runs unchanged.
+- A fight is played on the Animation Level when no Good row holds a
+  Unit and Elrond leads none. It is the same fight as in the combat
+  window: the same options, rounds and results; the sim's combat code
+  runs unchanged.
+- Its rows are listed again around the watched Character, which comes
+  first with its followers. Good Leaders come from entries 1 to 77, and
+  each side holds at most 9 rows, or 7 against a balrog, the Evil side
+  one more. (finding:combat-animation-level-lists-the-fight-again,
+  finding:combat-rows-capped-by-level-and-enemy)
 - The view places the two sides, walks them to battle lines 25 and 85
   pixels past the rightmost Good figure (100 when a balrog leads the
   Evil side), and shows charges and falls in proportion to the losses.

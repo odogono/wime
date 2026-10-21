@@ -24,6 +24,8 @@ export {
   findFight,
   findMatch,
   finishFight,
+  listFightOnAnimationLevel,
+  playedOnAnimationLevel,
   resolveFight,
   setCombatOption,
   startFight,
@@ -33,7 +35,8 @@ export {
   type CombatSide,
   type Fight,
   type Match,
-  type MatchWorld
+  type MatchWorld,
+  type RowListing
 } from './combat';
 export {
   closeCouncil,

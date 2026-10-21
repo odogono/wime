@@ -1,7 +1,11 @@
 // Character fights on the Animation Level (docs/spec/encounters.md,
 // "Fights on the Animation Level"). All rules and orders remain in the
 // combat controller and sim; this module only places and moves figures.
-import type { Fight, SimState } from '../sim/index';
+import {
+  playedOnAnimationLevel,
+  type Fight,
+  type SimState
+} from '../sim/index';
 import {
   MAX_FIGURES,
   drawFigures,
@@ -22,10 +26,7 @@ import {
 type World = Omit<ScriptWorld, 'laggardLine'>;
 
 export const fightOnAnimationLevel = (sim: SimState): boolean =>
-  !!sim.fight &&
-  sim.fight.rows
-    .filter(row => row.side === 'good')
-    .every(row => row.entries.every(index => !sim.roster[index]!.isUnit));
+  !!sim.fight && playedOnAnimationLevel(sim.fight, sim.roster);
 
 export interface BattleStage {
   fallen: boolean[];

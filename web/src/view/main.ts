@@ -7,6 +7,7 @@ import {
   giveOrder,
   glassWatches,
   isHeld,
+  listFightOnAnimationLevel,
   mirrorListing,
   releaseWatched,
   tickSim,
@@ -968,6 +969,9 @@ const run = (
     if (level !== 'animation') {
       goDownToAnimation(fight.good);
     }
+    // The scene lists the fight again around the watched Character
+    // (finding:combat-animation-level-lists-the-fight-again).
+    sim = listFightOnAnimationLevel(sim, watched);
     battle = spawnBattle(sim, figureWorld, choose, vblankAt(now));
     // The combat window closes the open box itself
     // (finding:ui-message-box-opening-waits-for-the-open-box).

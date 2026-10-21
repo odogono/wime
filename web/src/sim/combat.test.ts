@@ -7,6 +7,8 @@ import {
   findFight,
   finishFight,
   glassWatches,
+  listFightOnAnimationLevel,
+  playedOnAnimationLevel,
   resolveFight,
   setCombatOption,
   startFight
@@ -270,6 +272,163 @@ describe('rows', () => {
       ['good', [63]],
       ['evil', [142]]
     ]);
+  });
+});
+
+// Lone Leaders of distinct names at Calembel, from `first` on.
+const leaders = (
+  first: number,
+  count: number,
+  over: Record<string, unknown> = {}
+): Record<string, unknown>[] =>
+  Array.from({ length: count }, (_, i) =>
+    unit(first + i, `troop ${first + i}`, 100, { position: CALEMBEL, ...over })
+  );
+
+const rowEntries = (
+  rows: { entries: number[]; side: string }[],
+  side: string
+) => rows.filter(row => row.side === side).map(row => row.entries);
+
+// finding:combat-rows-capped-by-level-and-enemy,
+// finding:combat-rows-relisted-without-lone-followers,
+// finding:combat-animation-level-lists-the-fight-again
+describe('row caps', () => {
+  test('a side holds 19 rows on the Campaign Level, and the Evil side one more', () => {
+    const sim = world([...leaders(1, 25), ...leaders(100, 25, EVIL)]);
+    const rows = combatRows(sim.roster, CALEMBEL);
+    expect(rowEntries(rows, 'good')).toHaveLength(19);
+    expect(rowEntries(rows, 'evil')).toHaveLength(20);
+    expect(rowEntries(rows, 'evil').at(-1)).toEqual([119]);
+  });
+
+  test('against a balrog each side holds 7 rows, and the Evil side 8', () => {
+    const sim = world([
+      ...leaders(1, 10),
+      ...leaders(100, 10, EVIL),
+      unit(183, 'a balrog', 1, { figure: 12 })
+    ]);
+    const rows = combatRows(sim.roster, CALEMBEL, {
+      animationFight: false,
+      enemy: 183,
+      level: 'campaign',
+      watched: null
+    });
+    expect(rowEntries(rows, 'good')).toHaveLength(7);
+    expect(rowEntries(rows, 'evil')).toHaveLength(8);
+  });
+
+  test('too many Good rows are listed again without lone follower Characters', () => {
+    const sim = world([
+      ...leaders(1, 18),
+      character(30, 'GIMLI', 6, 4, { leader: 1 }),
+      character(31, 'LEGOLAS', 6, 4, { leader: 2 }),
+      unit(32, 'Rangers', 50, { leader: 3 })
+    ]);
+    const good = rowEntries(combatRows(sim.roster, CALEMBEL), 'good');
+    expect(good).toHaveLength(19);
+    expect(good.flat()).not.toContain(30);
+    expect(good.flat()).not.toContain(31);
+    expect(good.flat()).toContain(32);
+  });
+
+  test('against Shelob she is the only Evil row', () => {
+    const sim = world([
+      ...leaders(1, 1),
+      unit(150, 'orcs', 100, { ...EVIL, position: CALEMBEL }),
+      unit(151, 'SHELOB', 1, { ...EVIL, position: CALEMBEL })
+    ]);
+    const rows = combatRows(sim.roster, CALEMBEL, {
+      animationFight: false,
+      enemy: 151,
+      level: 'campaign',
+      watched: null
+    });
+    expect(rowEntries(rows, 'evil')).toEqual([[151]]);
+  });
+});
+
+// Whether a fight started by `mover` is played on the Animation Level.
+const fightOf = (entries: Record<string, unknown>[], mover: number) => {
+  const sim = fought(world(entries), mover);
+  return playedOnAnimationLevel(sim.fight!, sim.roster);
+};
+
+describe('a fight on the Animation Level', () => {
+  const elsewhere = { x: 1296, y: 1160 };
+
+  test('is listed again around the watched Character: it first, entry 78 left out, 9 rows a side', () => {
+    const sim = fought(
+      world([
+        character(15, 'FARAMIR', 10, 5, { position: elsewhere }),
+        ...leaders(1, 12),
+        unit(78, 'troop 78', 100, { position: CALEMBEL }),
+        ...leaders(100, 12, EVIL)
+      ]),
+      100
+    );
+    const listed = listFightOnAnimationLevel(
+      {
+        ...sim,
+        roster: sim.roster.map(entry =>
+          entry.index === 15 ? { ...entry, position: CALEMBEL } : entry
+        )
+      },
+      15
+    );
+    const good = rowEntries(listed.fight!.rows, 'good');
+    expect(good).toHaveLength(9);
+    expect(good[0]).toEqual([15]);
+    expect(good.flat()).not.toContain(78);
+    expect(rowEntries(listed.fight!.rows, 'evil')).toHaveLength(10);
+  });
+
+  test('against an Encounter, it is the only Evil row', () => {
+    const sim = fought(
+      world([
+        character(15, 'FARAMIR', 10, 5, { position: CALEMBEL }),
+        unit(142, 'orcs', 300, { ...EVIL, position: CALEMBEL })
+      ]),
+      15
+    );
+    const against = {
+      ...sim,
+      fight: { ...sim.fight!, evil: 160 },
+      roster: [
+        ...sim.roster,
+        ...Array.from({ length: 9 }, (_, i) => ({
+          ...sim.roster[0]!,
+          index: 152 + i,
+          name: 'a troll',
+          strength: 1
+        }))
+      ]
+    };
+    const listed = listFightOnAnimationLevel(against, 15);
+    expect(rowEntries(listed.fight!.rows, 'evil')).toEqual([[160]]);
+  });
+
+  test('is played only when no Good row holds a Unit and Elrond leads none', () => {
+    const orcs = unit(142, 'orcs', 300, { ...EVIL, position: CALEMBEL });
+    expect(
+      fightOf(
+        [character(15, 'FARAMIR', 10, 5, { position: CALEMBEL }), orcs],
+        15
+      )
+    ).toBe(true);
+    expect(
+      fightOf([character(3, 'ELROND', 10, 5, { position: CALEMBEL }), orcs], 3)
+    ).toBe(false);
+    expect(
+      fightOf(
+        [
+          character(15, 'FARAMIR', 10, 5, { position: CALEMBEL }),
+          unit(16, 'Rangers', 200, { leader: 15 }),
+          orcs
+        ],
+        15
+      )
+    ).toBe(false);
   });
 });
 
