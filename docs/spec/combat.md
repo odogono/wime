@@ -58,6 +58,11 @@ side's (finding:forces-roster-order). The Encounters, entries 152 to
 - When the Good side lists more than 19 rows, it is listed once more
   without each follower Character whose own followers added no row,
   then cut. (finding:combat-rows-relisted-without-lone-followers)
+- A fight found while the Animation Level is showing is listed there,
+  with the watched Character first, only when the watched Character is
+  the attacked Good party. Any other fight is listed with nobody
+  watched, so the watched Character never joins a fight elsewhere.
+  (finding:combat-remote-fight-on-animation-level-listed-later)
 - A row's strength is the sum of its entries' current strength. Its
   fighting strength, health, byte 24 and objects are those of its
   first entry. A row that started at strength 1 is a Character for
