@@ -84,6 +84,7 @@ export {
   MIRROR_HEADING,
   MIRROR_ROW_LIMIT,
   mirrorListing,
+  statusLine,
   type MirrorListing,
   type MirrorRow
 } from './mirror';

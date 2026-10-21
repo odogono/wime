@@ -56,8 +56,37 @@ talks and fights shown here are in `docs/spec/encounters.md`.
   centred on its point. The map goes up to the Campaign Level.
   (finding:ui-animation-level-icons)
 - The sack opens Put Down, Take and Use; see `docs/spec/objects.md`.
-  (finding:objects-handled-on-animation-level) `provisional`: the eye
-  does nothing yet (#161).
+  (finding:objects-handled-on-animation-level)
+
+## Selecting and status
+
+- A click hits the nearest figure whose current frame holds the point:
+  the highest depth, and of equal depth the one added first. An icon or
+  an open box takes the click before any figure behind it.
+  (finding:ui-animation-level-click-takes-the-frontmost-figure)
+- A figure clicked shows its entry's status line, the line Galadriel's
+  Mirror gives it, in a box at (10, 5), 208 by 24, with no buttons,
+  which closes after 200 frames (60 on Very Hasty). If the entry is
+  one of roster entries 1 to 78 it becomes the selected Character.
+  Nothing happens during a fight. The watched Character does not
+  change. (finding:ui-animation-level-clicking-a-figure-selects-it)
+- The selected Character is one for the whole game: a figure clicked,
+  the magnifying glass's pick, or the sack's Character. A new or
+  loaded game starts with none.
+- The eye, or S, shows the selected Character's status in a box at
+  (10, 5), 260 wide: "Through the mist swirling within the glass you
+  perceive..." in colour 8, then its status line; for a Character
+  "He is" and its health, of "near death" to "hale and hardy", and
+  what it carries, four names to a line and at most eight; for a Unit
+  "They have" and its morale, of "poor" to "excellent". A dead entry
+  gets only its status line. With nobody selected it reads "Please
+  select someone before requesting status." It has no buttons and
+  closes as the click's box does.
+  (finding:ui-animation-level-eye-shows-the-selected-status)
+- `provisional`: the original's click point is the hand pointer's
+  fingertip; the port's is the browser pointer's. The status line of
+  an Evil or Encounter figure is assumed to read as a Good one's.
+
 - Every colour comes from the Animation Level palette.
   (finding:graphics-animation-level-palette)
 - Windows use the shared frame with AMaps.res IMAG 12.
