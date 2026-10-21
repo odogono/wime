@@ -1,17 +1,24 @@
-import { measureText } from './font';
-import type { SlotSummary } from './save-slots';
 import {
-  FRAME_TILE_HEIGHT,
-  drawWindowFrame,
-  windowText,
-  type WindowStyle
-} from './window-frame';
+  NARROW_WIDTH,
+  WIDE_WIDTH,
+  drawMenu,
+  layoutMenu,
+  menuRowAt,
+  moveSelection,
+  newestFirst,
+  slotRow,
+  type MenuColours,
+  type MenuLayout,
+  type MenuView
+} from './menu-window';
+import type { SlotSummary } from './save-slots';
+import type { WindowStyle } from './window-frame';
 
 // The title menu over the title screen once the boot sequence is over
 // (docs/spec/title-menu.md): Resume, New Game and Load. The original
 // has none, so this is the port's own, framed as the game's windows
-// are (finding:ui-window-frame-tiles). A pure state machine over keys
-// and clicks; main.ts carries out what it chooses.
+// are (menu-window.ts). A pure state machine over keys and clicks;
+// main.ts carries out what it chooses.
 
 export type TitleChoice =
   | { id: number; kind: 'load' }
@@ -79,32 +86,48 @@ export const LOAD_FAILED: Record<'other-version' | 'other', string[]> = {
 };
 
 // The Load list: the autosave first, then the named slots, newest first.
-const loadList = (saves: TitleSaves): SlotSummary[] => [
+export const loadList = (saves: TitleSaves): SlotSummary[] => [
   ...(saves.autosave ? [saves.autosave] : []),
-  ...[...saves.slots].sort(
-    (a, b) => (b.savedAt ?? -Infinity) - (a.savedAt ?? -Infinity)
-  )
+  ...newestFirst(saves.slots)
 ];
 
-// The rows a menu offers, as lettered; the Load list ends with Back.
-const rowCount = (menu: TitleMenu): number => {
+export type TitleStep = { choice?: TitleChoice; menu: TitleMenu };
+
+// What a menu shows.
+export const titleMenuView = (menu: TitleMenu): MenuView => {
   switch (menu.kind) {
     case 'main': {
-      return menu.items.length;
+      return {
+        lines: [],
+        rows: menu.items.map(item => ({ label: MAIN_LABELS[item] })),
+        selected: menu.selected,
+        width: NARROW_WIDTH
+      };
     }
     case 'confirm': {
-      return CONFIRM_ITEMS.length;
+      return {
+        lines: CONFIRM_LINES,
+        rows: CONFIRM_ITEMS.map(label => ({ label })),
+        selected: menu.selected,
+        width: WIDE_WIDTH
+      };
     }
     case 'load': {
-      return menu.slots.length + 1;
+      return {
+        lines: menu.slots.length > 0 ? [] : ['There are no saves to load.'],
+        rows: [...menu.slots.map(slotRow), { label: 'Back' }],
+        selected: menu.selected,
+        width: WIDE_WIDTH
+      };
     }
     case 'message': {
-      return 0;
+      return { lines: menu.lines, rows: [], selected: null, width: WIDE_WIDTH };
     }
   }
 };
 
-export type TitleStep = { choice?: TitleChoice; menu: TitleMenu };
+export const layoutTitleMenu = (menu: TitleMenu): MenuLayout =>
+  layoutMenu(titleMenuView(menu));
 
 // Choose the selected row.
 const choose = (menu: TitleMenu, saves: TitleSaves): TitleStep => {
@@ -156,14 +179,15 @@ export const pressTitleMenuKey = (
   if (menu.kind === 'message') {
     return { menu: openTitleMenu(saves) };
   }
-  const rows = rowCount(menu);
+  const moved = moveSelection(
+    menu.selected,
+    titleMenuView(menu).rows.length,
+    key
+  );
+  if (moved !== null) {
+    return { menu: select(menu, moved) };
+  }
   switch (key) {
-    case 'ArrowUp': {
-      return { menu: select(menu, (menu.selected + rows - 1) % rows) };
-    }
-    case 'ArrowDown': {
-      return { menu: select(menu, (menu.selected + 1) % rows) };
-    }
     case 'Enter':
     case ' ': {
       return choose(menu, saves);
@@ -177,145 +201,12 @@ export const pressTitleMenuKey = (
   }
 };
 
-export interface TitleMenuRow {
-  // Lettered in grey: a save this build cannot load.
-  dim: boolean;
-  height: number;
-  label: string;
-  // Lettered at the right of the row: a save's in-game date.
-  note: string | null;
-  width: number;
-  x: number;
-  y: number;
-}
-
-export interface TitleMenuLayout {
-  box: { height: number; width: number; x: number; y: number };
-  // Lines lettered above the rows.
-  lines: string[];
-  rows: TitleMenuRow[];
-}
-
-// The menu's measures, centred on the 320 by 200 screen.
-const INSET_X = 16;
-const INSET_Y = 8;
-const LINE_HEIGHT = 10;
-const LINE_GAP = 6;
-const ROW_HEIGHT = 12;
-const MAIN_WIDTH = 112;
-const WIDE_WIDTH = 224;
-// The screen the menu is centred on.
-const SCREEN = { height: 200, width: 320 };
-// The title screen is dimmed behind the menu, so the window stands out.
-export const TITLE_DIM = 'rgba(0, 0, 0, 0.5)';
-// The Load list shows this many rows, scrolling to keep the selected
-// one in view.
-export const LOAD_ROWS = 6;
-
-const fitRows = (
-  labels: { dim?: boolean; label: string; note?: string | null }[],
-  lines: string[],
-  width: number
-): TitleMenuLayout => {
-  const x = (SCREEN.width - width) / 2;
-  // A gap parts the lines from the rows.
-  const linesHeight =
-    lines.length > 0 && labels.length > 0
-      ? lines.length * LINE_HEIGHT + LINE_GAP
-      : lines.length * LINE_HEIGHT;
-  const height = INSET_Y * 2 + linesHeight + labels.length * ROW_HEIGHT;
-  // The frame rounds the height up to whole tiles, so the top is found
-  // from the rounded height.
-  const top = Math.floor(
-    (SCREEN.height -
-      Math.ceil(height / FRAME_TILE_HEIGHT) * FRAME_TILE_HEIGHT) /
-      2
-  );
-  const rowsTop = top + INSET_Y + linesHeight;
-  return {
-    box: { height, width, x, y: top },
-    lines,
-    rows: labels.map(({ dim = false, label, note = null }, i) => ({
-      dim,
-      height: ROW_HEIGHT,
-      label,
-      note,
-      width: width - 2 * INSET_X,
-      x: x + INSET_X,
-      y: rowsTop + i * ROW_HEIGHT
-    }))
-  };
-};
-
-// The first Load row on show, given the selected one.
-export const loadScroll = (selected: number, rows: number): number =>
-  Math.max(0, Math.min(selected - LOAD_ROWS + 1, rows - LOAD_ROWS));
-
-export const layoutTitleMenu = (menu: TitleMenu): TitleMenuLayout => {
-  switch (menu.kind) {
-    case 'main': {
-      return fitRows(
-        menu.items.map(item => ({ label: MAIN_LABELS[item] })),
-        [],
-        MAIN_WIDTH
-      );
-    }
-    case 'confirm': {
-      return fitRows(
-        CONFIRM_ITEMS.map(label => ({ label })),
-        CONFIRM_LINES,
-        WIDE_WIDTH
-      );
-    }
-    case 'load': {
-      const all = [
-        ...menu.slots.map(slot => ({
-          dim: !slot.loadable,
-          label: slot.name,
-          note: slot.gameDate
-        })),
-        { label: 'Back' }
-      ];
-      const first = loadScroll(menu.selected, all.length);
-      return fitRows(
-        all.slice(first, first + LOAD_ROWS),
-        menu.slots.length > 0 ? [] : ['There are no saves to load.'],
-        WIDE_WIDTH
-      );
-    }
-    case 'message': {
-      return fitRows([], menu.lines, WIDE_WIDTH);
-    }
-  }
-};
-
-// The row index under a point, counting from the top of the whole list.
-const rowAt = (
-  menu: TitleMenu,
-  point: { x: number; y: number }
-): number | null => {
-  const { rows } = layoutTitleMenu(menu);
-  const i = rows.findIndex(
-    row =>
-      point.x >= row.x &&
-      point.x < row.x + row.width &&
-      point.y >= row.y &&
-      point.y < row.y + row.height
-  );
-  if (i < 0) {
-    return null;
-  }
-  return menu.kind === 'load'
-    ? i + loadScroll(menu.selected, menu.slots.length + 1)
-    : i;
-};
-
 // The pointer over a row selects it.
 export const hoverTitleMenu = (
   menu: TitleMenu,
   point: { x: number; y: number }
 ): TitleMenu => {
-  const row = rowAt(menu, point);
+  const row = menuRowAt(titleMenuView(menu), point);
   return row === null ? menu : select(menu, row);
 };
 
@@ -328,71 +219,15 @@ export const clickTitleMenu = (
   if (menu.kind === 'message') {
     return { menu: openTitleMenu(saves) };
   }
-  const row = rowAt(menu, point);
+  const row = menuRowAt(titleMenuView(menu), point);
   return row === null ? { menu } : choose(select(menu, row), saves);
 };
-
-// The selected row on show, as an index into the layout's rows.
-const selectedRow = (menu: TitleMenu): number | null => {
-  switch (menu.kind) {
-    case 'message': {
-      return null;
-    }
-    case 'load': {
-      return menu.selected - loadScroll(menu.selected, menu.slots.length + 1);
-    }
-    default: {
-      return menu.selected;
-    }
-  }
-};
-
-// The menu's own colours on the parchment: the selected row, and a save
-// this build cannot load.
-export interface TitleMenuColours {
-  dim: string;
-  selected: string;
-}
 
 export const drawTitleMenu = (
   ctx: CanvasRenderingContext2D,
   style: WindowStyle,
-  colours: TitleMenuColours,
+  colours: MenuColours,
   menu: TitleMenu
 ): void => {
-  const layout = layoutTitleMenu(menu);
-  ctx.fillStyle = TITLE_DIM;
-  ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-  const box = drawWindowFrame(ctx, style, layout.box);
-  layout.lines.forEach((line, i) => {
-    windowText(
-      ctx,
-      style,
-      line,
-      box.x + INSET_X,
-      box.y + INSET_Y + i * LINE_HEIGHT
-    );
-  });
-  const selected = selectedRow(menu);
-  layout.rows.forEach((row, i) => {
-    const colour =
-      i === selected
-        ? colours.selected
-        : row.dim
-          ? colours.dim
-          : style.colours.text;
-    windowText(ctx, style, row.label, row.x, row.y + 1, colour);
-    if (row.note) {
-      // Set against the row's right end.
-      const width = measureText(style.font.metrics, row.note);
-      windowText(
-        ctx,
-        style,
-        row.note,
-        row.x + row.width - width,
-        row.y + 1,
-        colour
-      );
-    }
-  });
+  drawMenu(ctx, style, colours, titleMenuView(menu));
 };

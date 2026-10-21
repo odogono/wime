@@ -134,6 +134,20 @@ import {
   type FullMapLevel
 } from './full-map-level';
 import {
+  AUTOSAVE_FAILED,
+  SAVED,
+  clickGameMenu,
+  drawGameMenu,
+  gameMenuMessage,
+  hoverGameMenu,
+  loadFailed,
+  openGameMenu,
+  pressGameMenuKey,
+  saveFailed,
+  type GameMenu,
+  type GameMenuStep
+} from './game-menu';
+import {
   drawGandalfsLetter,
   stepGandalfsLetter,
   type GandalfsLetter
@@ -194,7 +208,6 @@ import {
 } from './speed-window';
 import { createTickDriver } from './tick-driver';
 import {
-  LOAD_FAILED,
   clickTitleMenu,
   drawTitleMenu,
   hoverTitleMenu,
@@ -359,23 +372,28 @@ const run = (
   );
   const placements = iconPlacements(assets.icons);
   const driver = createTickDriver();
-  let sim: SimState = createSim(0x14_18, assets.startingState, assets.tilemap);
+  const newSim = (): SimState =>
+    createSim(0x14_18, assets.startingState, assets.tilemap);
+  let sim: SimState = newSim();
   // Open on the Ring-bearer's Force at Hobbiton, the one Force the
   // player commands at the start (docs/spec/starting-state.md). The
   // game itself opens on the Animation Level; this view starts on
   // the Campaign Level.
-  const opening = forcesOnMap(sim.roster).find(
-    force => force.leader.index === sim.ringBearer
-  );
-  let camera: Camera = opening
-    ? clampCamera(
-        {
-          x: opening.position.x + 8 - viewWidthPx(assets.tilemap) / 2,
-          y: opening.position.y + 8 - viewHeightPx(assets.tilemap) / 2
-        },
-        assets.tilemap
-      )
-    : { x: 0, y: 0 };
+  const openingCamera = (): Camera => {
+    const opening = forcesOnMap(sim.roster).find(
+      force => force.leader.index === sim.ringBearer
+    );
+    return opening
+      ? clampCamera(
+          {
+            x: opening.position.x + 8 - viewWidthPx(assets.tilemap) / 2,
+            y: opening.position.y + 8 - viewHeightPx(assets.tilemap) / 2
+          },
+          assets.tilemap
+        )
+      : { x: 0, y: 0 };
+  };
+  let camera: Camera = openingCamera();
   let fit: Fit = screen.resize();
   let pointer: Camera | null = null;
   let drag: { camera: Camera; pointer: Camera } | null = null;
@@ -940,6 +958,10 @@ const run = (
 
   canvas.style.cursor = 'grab';
   canvas.addEventListener('pointerdown', event => {
+    if (gameMenu) {
+      chooseInGame(clickGameMenu(gameMenu, toNative(event), titleSaves()));
+      return;
+    }
     if (titleMenu) {
       chooseOnTitle(clickTitleMenu(titleMenu, toNative(event), titleSaves()));
       return;
@@ -1077,6 +1099,10 @@ const run = (
     }
   });
   canvas.addEventListener('pointermove', event => {
+    if (gameMenu) {
+      gameMenu = hoverGameMenu(gameMenu, toNative(event));
+      return;
+    }
     if (titleMenu) {
       titleMenu = hoverTitleMenu(titleMenu, toNative(event));
       return;
@@ -1135,6 +1161,18 @@ const run = (
     // magnifying glass, T opens the Game Speed window and P pauses
     // (finding:ui-key-bindings). The Campaign Level's magnifying
     // glass waits for the Animation Level.
+    if (gameMenu) {
+      if (event.key.toLowerCase() === 'q' && gameMenu.kind !== 'name') {
+        audio?.toggle();
+      }
+      chooseInGame(pressGameMenuKey(gameMenu, event.key, titleSaves()));
+      return;
+    }
+    // Escape opens the in-game menu when there is nothing else for it
+    // to close.
+    if (event.key === 'Escape' && !otherWindowOpen() && openInGameMenu()) {
+      return;
+    }
     if (onTitle() || councilWindow) {
       return;
     }
@@ -1375,21 +1413,162 @@ const run = (
         ? saveSlots.loadAutosave(assets.tilemap)
         : saveSlots.load(choice.id, assets.tilemap);
     if (!result.ok) {
-      titleMenu = {
-        kind: 'message',
-        lines:
-          LOAD_FAILED[
-            result.reason === 'other-version' ? 'other-version' : 'other'
-          ]
-      };
+      titleMenu = { kind: 'message', lines: loadFailed(result.reason) };
       return;
     }
     sim = result.value;
     startGame(false);
   };
+  // The in-game menu (docs/spec/game-menu.md). While it is open the game
+  // stands still: the frame loop shows the scene as it was when it
+  // opened, dimmed, and nothing ticks.
+  let gameMenu: GameMenu | null = null;
+  const backdrop = document.createElement('canvas');
+  backdrop.width = NATIVE_WIDTH;
+  backdrop.height = NATIVE_HEIGHT;
+  const backdropCtx = backdrop.getContext('2d')!;
+  backdropCtx.imageSmoothingEnabled = false;
+  const menuButton = document.querySelector<HTMLButtonElement>('#menu');
+  // Windows that Escape closes before it opens the menu.
+  const otherWindowOpen = (): boolean =>
+    Boolean(
+      speedWindow ||
+      infoWindow ||
+      mirror ||
+      archive ||
+      zooming ||
+      lookingDown ||
+      order.kind !== 'idle'
+    );
+  // The menu waits while a fight, a talk, a meeting, the Council or
+  // the ending holds the game, as the autosave does.
+  const openInGameMenu = (): boolean => {
+    if (
+      onTitle() ||
+      !autosaveView().settled ||
+      sim.meeting ||
+      sim.council ||
+      sim.ending ||
+      meetingUi ||
+      councilWindow
+    ) {
+      return false;
+    }
+    // What is on screen, the Full Map Level's hi-res frame squeezed to
+    // the same 320 by 200 as it is shown.
+    backdropCtx.drawImage(
+      level === 'full-map' ? screen.hires.canvas : screen.buffer.canvas,
+      0,
+      0,
+      NATIVE_WIDTH,
+      NATIVE_HEIGHT
+    );
+    drag = null;
+    gameMenu = openGameMenu();
+    return true;
+  };
+  menuButton?.addEventListener('click', () => {
+    if (!gameMenu) {
+      openInGameMenu();
+    }
+  });
+  // Every window and notice of the game in play, closed for a game
+  // loaded over it or a return to the title.
+  const clearWindows = (): void => {
+    mirror = null;
+    archive = null;
+    speedWindow = null;
+    infoWindow = null;
+    setOrder(IDLE_ORDER);
+    zooming = false;
+    lookingDown = false;
+    canvas.style.cursor = 'default';
+    drag = null;
+    warMessage = null;
+    meetingUi = null;
+    councilWindow = null;
+    passingMessage = null;
+    talk = null;
+    provisions = null;
+    combat = null;
+    battle = null;
+    ending = null;
+    letter = null;
+    driver.paused = false;
+  };
+  // Back to the title menu, the game autosaved first; if it cannot be,
+  // the game stays in play.
+  const returnToTitle = (): void => {
+    if (!saveSlots.autosave(sim).ok) {
+      gameMenu = gameMenuMessage(AUTOSAVE_FAILED);
+      return;
+    }
+    gameMenu = null;
+    clearWindows();
+    sim = newSim();
+    camera = openingCamera();
+    level = 'animation';
+    audio?.play(PIECE.title);
+    titleMenu = openTitleMenu(titleSaves());
+  };
+  // Carry out what the in-game menu chose.
+  const chooseInGame = (step: GameMenuStep): void => {
+    gameMenu = step.menu;
+    const choice = step.choice;
+    switch (choice?.kind) {
+      case undefined: {
+        return;
+      }
+      case 'close': {
+        gameMenu = null;
+        // The Animation Level's figures carry on from where they stood.
+        stage = resumeStage(stage, performance.now());
+        return;
+      }
+      case 'title': {
+        returnToTitle();
+        return;
+      }
+      case 'save-new':
+      case 'save-over': {
+        const result =
+          choice.kind === 'save-new'
+            ? saveSlots.save(choice.name, sim)
+            : saveSlots.saveOver(choice.id, sim);
+        gameMenu = gameMenuMessage(
+          result.ok ? SAVED(result.value.name) : saveFailed(result.reason)
+        );
+        return;
+      }
+      case 'load': {
+        const result =
+          choice.id === AUTOSAVE_ID
+            ? saveSlots.loadAutosave(assets.tilemap)
+            : saveSlots.load(choice.id, assets.tilemap);
+        if (!result.ok) {
+          gameMenu = gameMenuMessage(loadFailed(result.reason));
+          return;
+        }
+        gameMenu = null;
+        clearWindows();
+        sim = result.value;
+        startGame(false);
+      }
+    }
+  };
   const frame = (now: number): void => {
     const elapsedMs = Math.min(1000, now - lastTime);
     lastTime = now;
+    if (menuButton) {
+      menuButton.hidden = onTitle() || gameMenu !== null;
+    }
+    if (gameMenu) {
+      screen.buffer.drawImage(backdrop, 0, 0);
+      drawGameMenu(screen.buffer, title.window, title.menuColours, gameMenu);
+      screen.present();
+      requestAnimationFrame(frame);
+      return;
+    }
     if (boot) {
       boot = stepBoot(boot, now, audio?.playing ?? false);
       if (!boot.done) {

@@ -52,4 +52,5 @@ The port also saves the game by itself to a reserved autosave slot
 - A failed autosave is dropped without a message, and play goes on; the
   previous autosave is kept.
 - The title menu resumes from the autosave or a named slot
-  (docs/spec/title-menu.md).
+  (docs/spec/title-menu.md), and the in-game menu saves to and loads
+  from the slots during play (docs/spec/game-menu.md).
