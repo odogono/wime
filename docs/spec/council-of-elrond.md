@@ -23,9 +23,11 @@ recovered from the Reference Build for #94.
   (docs/spec/war-events.md, "Triggers"), so a Gandalf following
   someone counts where he stood when he began following, or nowhere if
   he has followed from the start.
-- `provisional`: the original also needs the pointer to be shown
-  (data+0x4c72), which it is in play on the Campaign Level; the sim
-  does not model it (#171).
+- The original also needs the pointer to be shown (data+0x4c72). That
+  only keeps it from being held as the Campaign Level is entered: on
+  the hour on the Campaign Level the pointer is always shown. The sim
+  tests the Council only on the hour, so it needs no such test.
+  (finding:ai-council-not-held-on-entering-the-campaign-level)
 
 ## What it does
 

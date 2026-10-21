@@ -38,8 +38,14 @@ rest of the Level (`finding:time-stops-on-full-map-level`).
 - An Evil row is the name only, with the summed strength in front for
   more than one. A single figure's name starts with a capital: "The
   NAZGUL LORD".
-- Each column shows at most 19 rows and drops the rest without saying so.
-  This is provisional (`finding:ui-galadriels-mirror-row-limit`, #171).
+- The Good column shows at most 19 rows and the Evil column 20, and the
+  rest are dropped without a word. Too many Good rows are listed again
+  without lone follower Characters before they are cut. Followers of
+  followers are listed, and a follower merges only with a row of its own
+  Leader's. (`finding:ui-galadriels-mirror-row-limits`)
+- The original lowers the limit to 7 Good and 8 Evil rows after a fight
+  against a balrog, since it reads the last fight's enemy; the sim keeps
+  no last enemy, so the port leaves this out.
 - At the start of the game the window shows "FRODO is going to GREEN
   HILLS.", "SAM is following FRODO." and "PIPPIN is following FRODO." on
   the left and the nine Nazgûl on the right.

@@ -61,15 +61,11 @@ Only entries 1 to 151 take part in the main loop. Entries 152 to 195 are Encount
 
 ## Unconfirmed
 
-These facts are provisional or not yet recovered, and the simulation should treat them as open (#171):
+Every roster byte now has a meaning: byte 37 is padding (finding:data-formats-roster-byte-37-is-padding). Allegiance is the chance a Force accepts an Order (finding:movement-orders-accepted-by-allegiance-roll), and only the trigger, the Council of Elrond, the Silver Orb and the 3rd Nazgûl's call wake a sleeping entry (finding:ai-what-wakes-an-entry). Game Speed is in `docs/spec/time.md`. These facts are still open, and the simulation should treat them as such (#200):
 
-- Roster bytes 19, 24 and 37, and byte 29 for entries 1 to 151, have no settled meaning (finding:data-formats-roster-unsettled-fields). The JSON carries them raw.
 - Named Places have no kind of their own in the data. `tile_kind` is inferred from the generic kind of the tile underneath, and 41 of the 69 named Places stand on no such tile (finding:places-kinds-matched-by-map-tile).
 - Bree's position is one tile west of its town graphic on the map (finding:map-positions-are-campaign-pixels); whether the game uses it as is has not been observed.
-- How Game Speed sets the real time per quarter-hour has not been traced (finding:time-clock-advances-after-each-roster-sweep, finding:time-game-speed-settings).
-- Allegiance values other than 0, 1 and 99 (Boromir 70, Gollum 40, Glorfindel 4, the advisors 3, the Ents 2) have no settled meaning (finding:mobilisation-allegiance-byte).
-- Which picture each Animation Level figure number selects has not been matched to the extracted graphics. The Campaign Level icons are matched (finding:graphics-campaign-icon-sheet-is-imag-100), but how the original masks an icon onto the map, and the rate at which active Forces flash, have not been traced.
-- Other code may wake entries directly. The Council of Elrond wakes Gandalf and puts the Nazgûl to sleep (`docs/spec/council-of-elrond.md`); other such code has not been looked for (finding:ai-trigger-conditions).
+- Which picture each Animation Level figure number selects was matched by eye (finding:graphics-animation-level-figure-sets). The Campaign Level icons are matched (finding:graphics-campaign-icon-sheet-is-imag-100), but how the original masks an icon onto the map, and the rate at which active Forces flash, have not been traced.
 
 ## Places at the start
 
