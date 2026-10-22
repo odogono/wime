@@ -62,6 +62,11 @@ export const turnEndingPage = (
   return { ...screen, page, until: page < last ? now + PAGE_MS : null };
 };
 
+// The original quits to AmigaDOS when X is pressed on the last page
+// (finding:ui-ending-pages); the port leaves for the title menu instead.
+export const endingLeftBy = (screen: EndingScreen, key: string): boolean =>
+  screen.page === screen.pages.length - 1 && key.toLowerCase() === 'x';
+
 export const stepEndingScreen = (
   screen: EndingScreen,
   now: number

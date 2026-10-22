@@ -129,6 +129,7 @@ import {
 } from './ending-scene';
 import {
   drawEndingScreen,
+  endingLeftBy,
   endingScreen,
   stepEndingScreen,
   turnEndingPage,
@@ -857,6 +858,9 @@ const run = (
       drawEndingFigures(ctx, animation.figures, endingFigures(end, choose));
     }
     ending = endingScreen(end, assets.texts, now);
+    // An ended game cannot be resumed: the autosave, written before the
+    // ending, goes (docs/spec/saving.md). Named slots are kept.
+    saveSlots.clearAutosave();
   };
 
   const startAnimationFight = (now: number, attacked = false): BattleStage => {
@@ -1645,6 +1649,12 @@ const run = (
     if (onTitle() || councilWindow) {
       return;
     }
+    // X on the ending's last page leaves for the title menu, where the
+    // original quits (docs/spec/winning-and-losing.md).
+    if (ending && endingLeftBy(ending, event.key)) {
+      showTitle();
+      return;
+    }
     const key = event.key.toLowerCase();
     if (answerBoxKey(key)) {
       return;
@@ -2020,6 +2030,10 @@ const run = (
       return;
     }
     leaveGameMenu();
+    showTitle();
+  };
+  // The title menu over a fresh game, the one in play dropped unsaved.
+  const showTitle = (): void => {
     clearWindows();
     sim = newSim();
     camera = openingCamera();
@@ -2081,7 +2095,7 @@ const run = (
       return;
     }
     if (menuButton) {
-      menuButton.hidden = onTitle() || gameMenu !== null;
+      menuButton.hidden = onTitle() || gameMenu !== null || ending !== null;
     }
     if (gameMenu) {
       screen.buffer.drawImage(backdrop, 0, 0);

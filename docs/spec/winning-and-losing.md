@@ -135,9 +135,11 @@ Build for #103. Carrying, taking and dropping objects in general is in
   seconds pass; the last page stays and ignores every other key and
   click. (finding:ui-ending-pages,
   finding:ui-ending-scenes-are-still-pictures)
-- The original then quits when X is pressed. The port instead stays on
-  the last page; a new game is the view's to offer.
-  (finding:ui-ending-pages)
+- The original then quits when X is pressed. The port instead returns
+  to the title menu when X is pressed on the last page, the ended game
+  dropped unsaved; New Game and the named slots are offered there. The
+  Menu button is hidden and Escape does nothing while the ending is
+  shown. (finding:ui-ending-pages)
 - The view shows the ending once any fight's windows have closed.
 
 ## Saving

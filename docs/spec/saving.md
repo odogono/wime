@@ -51,6 +51,10 @@ The port also saves the game by itself to a reserved autosave slot
   passed then is saved once they are over. Meetings, the Council and
   messages do not hold it back: a restore already gives a restored
   meeting or Council a fresh window and drops the messages on screen.
+- When the ending starts, the autosave is deleted, so Resume cannot
+  return to a game that has ended or is about to end; the original has
+  no way back into an ended game (finding:ui-ending-pages). Named slots
+  are kept.
 - Game Speed and the camera are not saved, as for the named slots.
 - A failed autosave is dropped without a message, and play goes on; the
   previous autosave is kept.

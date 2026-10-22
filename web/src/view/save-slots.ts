@@ -115,6 +115,8 @@ export interface SaveSlots {
   autosave: (state: SimState) => SlotResult<SlotSummary>;
   // The autosave slot, or null when there is none.
   autosaved: () => SlotResult<SlotSummary | null>;
+  // Drops the autosave, as for a game that has ended.
+  clearAutosave: () => SlotResult<void>;
   list: () => SlotResult<SlotSummary[]>;
   load: (id: number, tilemap: SimState['tilemap']) => SlotResult<SimState>;
   loadAutosave: (tilemap: SimState['tilemap']) => SlotResult<SimState>;
@@ -301,6 +303,20 @@ export const createSaveSlots = (
       }
       const entry = index.value.autosave;
       return { ok: true, value: entry ? summary(entry) : null };
+    },
+
+    clearAutosave: () => {
+      const index = readIndex();
+      if (!index.ok) {
+        return index;
+      }
+      try {
+        writeIndex({ ...index.value, autosave: undefined });
+        storage!.removeItem(AUTOSAVE_KEY);
+      } catch (error) {
+        return failWith(error);
+      }
+      return { ok: true, value: undefined };
     },
 
     list: () => {
