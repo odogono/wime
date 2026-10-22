@@ -125,7 +125,7 @@ talks and fights shown here are in `docs/spec/encounters.md`.
 - A figure byte below 20 names the FRML figure set; 20 or more is a
   still picture with that IMAG id.
   (finding:ui-animation-level-figures-walk-off,
-  finding:graphics-animation-level-figure-sets)
+  finding:graphics-figure-byte-is-the-frml-id)
 - A frame is placed with its hot spot on the figure's position.
   (finding:data-formats-frml-frame-lists)
 - Figures are moved by their set's script: frames, steps, waits,

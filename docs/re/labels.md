@@ -62,6 +62,7 @@ Where each part of the game sits in the code hunk, from the labels below. Start 
 | `code+0x0b102` | `animationLoop`      | the Animation Level loop                                                        |
 | `code+0x0b7de` | `adviceTip`          | one of BScene CSTR 8–27 not yet given                                           |
 | `code+0x0bf84` | `runFigureScript`    | steps a figure's animation script                                               |
+| `code+0x0d1d0` | `redrawCampaign`     | redraws the map, toggles `blinkPhase`, then draws the icons                     |
 | `code+0x0d26c` | `drawCampaignForces` | draws each awake leader's icon; blinks the player's                             |
 | `code+0x0d452` | `drawFullMap`        | blits AMaps IMAG 2, then the dots                                               |
 | `code+0x0d4c2` | `drawFullMapDots`    | one dot per awake leader at (x/4, y/8)                                          |
@@ -93,6 +94,12 @@ Where each part of the game sits in the code hunk, from the labels below. Start 
 | `code+0x12d9c` | `reassignFollowers`  | followers of dead Leaders                                                       |
 | `code+0x13098` | `passTheRing`        | hands a dropped Ring to the winners                                             |
 | `code+0x134cc` | `checkStrongholds`   | three dead Garrisons lose; entry 148 dead wins                                  |
+| `code+0x16398` | `blitImage`          | clips, mirrors if flagged, then `blitMasked`                                    |
+| `code+0x16ef6` | `blitMasked`         | cookie-cut blit, minterm 0xCA, colour 0 clear                                   |
+| `code+0x18264` | `blitPlane`          | one blitter pass from arguments                                                 |
+| `code+0x18308` | `buildBlitMask`      | ORs a bitmap's planes into `blitMask`                                           |
+| `code+0x1840a` | `buildBitReverse`    | fills `bitReverse`                                                              |
+| `code+0x1843c` | `mirrorBitmap`       | `bitReverse` each byte, right to left, into `mirrorBuffer`                      |
 | `code+0x1afb0` | `start`              | C runtime start: clears BSS, opens libraries                                    |
 | `code+0x1b022` | `setA4`              | `lea data+0x7ffe, a4`                                                           |
 | `code+0x1b48a` | `udiv32`             | d0 / d1, unsigned                                                               |
@@ -143,7 +150,7 @@ Where each part of the game sits in the code hunk, from the labels below. Start 
 | `data+0x4ac8` | `fullMapPalette`       | 16 RGB4 words                                                           |
 | `data+0x4b48` | `animationPalette`     | the Animation Level's 32 RGB4 colours                                   |
 | `data+0x4c72` | `pointerShown`         | byte, written as sprite DMA is switched; presumably the pointer is on   |
-| `data+0x4f40` | `blinkPhase`           | flips once per Campaign Level redraw (code+0x0d240), not per frame      |
+| `data+0x4f40` | `blinkPhase`           | flips at each `redrawCampaign` (code+0x0d240); 0 hides the player's icons |
 | `data+0x4fec` | `frameCounter`         | compared with `data+0x08c2` before a clock step                         |
 | `data+0x4fee` | `vblankCount`          | word, 50 Hz                                                             |
 | `data+0x4ff0` | `fightState`           | 1 Go there, 2 fight on the Animation Level, 3 Ignore it; 4–7 meetings   |
@@ -165,3 +172,6 @@ Where each part of the game sits in the code hunk, from the labels below. Start 
 | `data+0x56b3` | `tickEntry`            | roster entry the tick is on, 1–151                                      |
 | `data+0x56b8` | `rowOptions`           | 20 words: 0 Charge, 1 Engage, 2 Withdraw, 3 Retreat, 4 gone, −1 charged |
 | `data+0x56e0` | `sideTotals`           | 2 words, Good then Evil: strength still fighting                        |
+| `data+0x5808` | `mirrorBuffer`         | a bitmap's planes, mirrored, when its flag byte 2 is set                |
+| `data+0x580c` | `blitMask`             | the mask plane `buildBlitMask` ORs from the image's planes              |
+| `data+0x5810` | `bitReverse`           | 256 bytes, each byte with its bits reversed                             |

@@ -59,17 +59,18 @@ Only entries 1 to 151 take part in the main loop. Entries 152 to 195 are Encount
 
 - The port has no copy protection. The original asks for the map coordinates of a Place from day 92 and ends the game on a wrong answer (finding:places-grid-reference-byte); the port never asks. The grid references stay in the starting state as data only.
 
-## Unconfirmed
+## Settled points
 
-Every roster byte now has a meaning: byte 37 is padding (finding:data-formats-roster-byte-37-is-padding). Allegiance is the chance a Force accepts an Order (finding:movement-orders-accepted-by-allegiance-roll), and only the trigger, the Council of Elrond, the Silver Orb and the 3rd Nazgûl's call wake a sleeping entry (finding:ai-what-wakes-an-entry). Game Speed is in `docs/spec/time.md`. These facts are still open, and the simulation should treat them as such (#200):
+Every roster byte now has a meaning: byte 37 is padding (finding:data-formats-roster-byte-37-is-padding). Allegiance is the chance a Force accepts an Order (finding:movement-orders-accepted-by-allegiance-roll), and only the trigger, the Council of Elrond, the Silver Orb and the 3rd Nazgûl's call wake a sleeping entry (finding:ai-what-wakes-an-entry). Game Speed is in `docs/spec/time.md`. The last open points were settled in #200:
 
-- Named Places have no kind of their own in the data. `tile_kind` is inferred from the generic kind of the tile underneath, and 41 of the 69 named Places stand on no such tile (finding:places-kinds-matched-by-map-tile).
-- Bree's position is one tile west of its town graphic on the map (finding:map-positions-are-campaign-pixels); whether the game uses it as is has not been observed.
-- Which picture each Animation Level figure number selects was matched by eye (finding:graphics-animation-level-figure-sets). The Campaign Level icons are matched (finding:graphics-campaign-icon-sheet-is-imag-100), but how the original masks an icon onto the map, and the rate at which active Forces flash, have not been traced.
+- Named Places have no kind, and the original never shows one: wherever it shows a Place it prints only the record's name. A kind is only the name of a generic record 70 to 84, which names a point on its tile that is not a named Place (finding:places-named-places-show-only-their-name, finding:places-kinds-matched-by-map-tile). The "Kind from tile" column below is the port's own inference, not an attribute of the original, and the simulation must not rely on it.
+- Bree's town graphic covers two small-town tiles, and its Place position is the western one. The game uses the position as it is: a point on the eastern tile is "a small town" (finding:map-bree-place-is-the-town-west-tile).
+- A roster entry's Animation Level figure byte below 20 is the id of its FRML figure set (finding:graphics-figure-byte-is-the-frml-id).
+- A Campaign Level icon (finding:graphics-campaign-icon-sheet-is-imag-100) is cut onto the map with colour 0 clear, its top-left corner 4 pixels above the Force's position (finding:graphics-campaign-icons-cookie-cut-on-colour-0). The icons of leaders with allegiance above 2 flip between shown and hidden at each Campaign Level redraw: every 64 frames while the clock waits, at each quarter-hour step on Hasty, each hour on Very Hasty, and about every 4 frames while the map scrolls (finding:ui-campaign-icons-flash-at-each-redraw).
 
 ## Places at the start
 
-Positions and grid references from finding:places-named-places-matched-by-position and finding:places-grid-reference-byte. "Kind from tile" is the inference noted under Unconfirmed.
+Positions and grid references from finding:places-named-places-matched-by-position and finding:places-grid-reference-byte. "Kind from tile" is the port's inference noted under Settled points.
 
 | Place | Name               | x, y       | Grid | Attacks announced | Kind from tile  |
 | ----: | ------------------ | ---------- | ---- | ----------------- | --------------- |
