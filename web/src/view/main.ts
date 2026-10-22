@@ -92,6 +92,7 @@ import {
   iconPlacements,
   isOverIcons,
   stepCamera,
+  topLeftWindow,
   viewHeightPx,
   viewWidthPx,
   type Camera,
@@ -1791,21 +1792,36 @@ const run = (
       }
     }
     // Hovering names the Place, Character or Unit under the pointer
-    // in the same top-left window a click would open.
-    if (
-      !messages.combat &&
-      !messages.info &&
-      !speedWindow &&
-      !drag &&
-      order.kind === 'idle'
-    ) {
+    // in the same top-left window a click would open; the name takes
+    // the place of the paused box rather than drawing over it.
+    if (order.kind === 'idle') {
+      const hovering =
+        !messages.combat && !messages.info && !speedWindow && !drag;
       const overIcons = pointer !== null && isOverIcons(pointer, placements);
-      const target = overIcons ? null : targetAt(pointer, forces);
-      if (target) {
+      const target = hovering && !overIcons ? targetAt(pointer, forces) : null;
+      const topLeft = topLeftWindow({
+        hoverName: target?.name ?? null,
+        paused: driver.paused
+      });
+      if (topLeft?.kind === 'hover') {
         drawInfoWindow(
           ctx,
           assets.window,
-          layoutInfoWindow(assets.window.font.metrics, [target.name])
+          layoutInfoWindow(assets.window.font.metrics, [topLeft.name])
+        );
+      } else if (topLeft?.kind === 'paused') {
+        const box = drawWindowFrame(ctx, assets.window, {
+          height: 24,
+          width: 128,
+          x: 8,
+          y: 8
+        });
+        windowText(
+          ctx,
+          assets.window,
+          'The Game is Paused.',
+          box.x + 10,
+          box.y + 8
         );
       }
     }
