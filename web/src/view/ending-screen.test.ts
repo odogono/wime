@@ -4,7 +4,7 @@ import { textKey } from './assets';
 import {
   PAGE_MS,
   SCENE_ALONE_MS,
-  endingLeftBy,
+  endingAwaitsMenu,
   endingScreen,
   stepEndingScreen,
   turnEndingPage
@@ -66,16 +66,13 @@ describe('the ending screen', () => {
     expect(turnEndingPage(screen, 8)).toBe(screen);
   });
 
-  test('only X on the last page leaves the ending', () => {
+  test('only the last page waits for the menu', () => {
     let screen = endingScreen('lost-barad-dur', texts, 0);
     for (let page = -1; page < 2; page++) {
-      expect(endingLeftBy(screen, 'x')).toBe(false);
+      expect(endingAwaitsMenu(screen)).toBe(false);
       screen = turnEndingPage(screen, 0);
     }
     expect(screen.page).toBe(2);
-    expect(endingLeftBy(screen, 'x')).toBe(true);
-    expect(endingLeftBy(screen, 'X')).toBe(true);
-    expect(endingLeftBy(screen, ' ')).toBe(false);
-    expect(endingLeftBy(screen, 'Escape')).toBe(false);
+    expect(endingAwaitsMenu(screen)).toBe(true);
   });
 });

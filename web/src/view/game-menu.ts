@@ -18,6 +18,9 @@ import type { WindowStyle } from './window-frame';
 // none; its Archive window keeps its own single slot
 // (finding:ui-archive-window). A pure state machine over keys and
 // clicks, as the title menu is; main.ts carries out what it chooses.
+// After the ending's last page a shorter menu, Return to title and Load,
+// is the way out (docs/spec/winning-and-losing.md). Each step takes the
+// menu that Back and Escape return to, the in-game menu by default.
 
 export type GameMenuChoice =
   | { id: number; kind: 'load' }
@@ -28,6 +31,7 @@ export type GameMenuChoice =
 
 type MainItem = 'close' | 'load' | 'save' | 'title';
 const MAIN_ITEMS: MainItem[] = ['save', 'load', 'title', 'close'];
+const ENDED_ITEMS: MainItem[] = ['title', 'load'];
 const MAIN_LABELS: Record<MainItem, string> = {
   close: 'Close',
   load: 'Load',
@@ -36,7 +40,7 @@ const MAIN_LABELS: Record<MainItem, string> = {
 };
 
 export type GameMenu =
-  | { kind: 'main'; selected: number }
+  | { ended?: true; kind: 'main'; selected: number }
   // The named slots to save into; the autosave is not offered.
   | { kind: 'save'; selected: number; slots: SlotSummary[] }
   // Naming a new save, typed in.
@@ -53,6 +57,15 @@ export type GameMenu =
   | { kind: 'message'; lines: string[] };
 
 export const openGameMenu = (): GameMenu => ({ kind: 'main', selected: 0 });
+
+export const openEndedMenu = (): GameMenu => ({
+  ended: true,
+  kind: 'main',
+  selected: 0
+});
+
+const mainItems = (menu: { ended?: true }): MainItem[] =>
+  menu.ended ? ENDED_ITEMS : MAIN_ITEMS;
 
 export const NAME_LIMIT = 24;
 const NAME_ITEMS = ['Save', 'Back'];
@@ -84,7 +97,7 @@ export const gameMenuView = (menu: GameMenu): MenuView => {
     case 'main': {
       return {
         lines: [],
-        rows: MAIN_ITEMS.map(item => ({ label: MAIN_LABELS[item] })),
+        rows: mainItems(menu).map(item => ({ label: MAIN_LABELS[item] })),
         selected: menu.selected,
         width: NARROW_WIDTH
       };
@@ -143,10 +156,14 @@ export const gameMenuView = (menu: GameMenu): MenuView => {
 
 export type GameMenuStep = { choice?: GameMenuChoice; menu: GameMenu };
 
-const choose = (menu: GameMenu, saves: TitleSaves): GameMenuStep => {
+const choose = (
+  menu: GameMenu,
+  saves: TitleSaves,
+  home: GameMenu
+): GameMenuStep => {
   switch (menu.kind) {
     case 'main': {
-      switch (MAIN_ITEMS[menu.selected]) {
+      switch (mainItems(menu)[menu.selected]) {
         case 'save': {
           return {
             menu: {
@@ -178,16 +195,16 @@ const choose = (menu: GameMenu, saves: TitleSaves): GameMenuStep => {
         ? {
             menu: { action: 'save-over', kind: 'confirm', selected: 1, slot }
           }
-        : { menu: openGameMenu() };
+        : { menu: home };
     }
     case 'name': {
       return menu.selected === 0
         ? { choice: { kind: 'save-new', name: menu.text }, menu }
-        : { menu: openGameMenu() };
+        : { menu: home };
     }
     case 'confirm': {
       if (menu.selected !== 0) {
-        return { menu: openGameMenu() };
+        return { menu: home };
       }
       return {
         choice: {
@@ -200,14 +217,14 @@ const choose = (menu: GameMenu, saves: TitleSaves): GameMenuStep => {
     case 'load': {
       const slot = menu.slots[menu.selected];
       if (!slot) {
-        return { menu: openGameMenu() };
+        return { menu: home };
       }
       return slot.loadable
         ? { menu: { action: 'load', kind: 'confirm', selected: 1, slot } }
         : { menu: gameMenuMessage(LOAD_FAILED['other-version']) };
     }
     case 'message': {
-      return { menu: openGameMenu() };
+      return { menu: home };
     }
   }
 };
@@ -235,10 +252,11 @@ const typeName = (
 export const pressGameMenuKey = (
   menu: GameMenu,
   key: string,
-  saves: TitleSaves
+  saves: TitleSaves,
+  home: GameMenu = openGameMenu()
 ): GameMenuStep => {
   if (menu.kind === 'message') {
-    return { menu: openGameMenu() };
+    return { menu: home };
   }
   const moved = moveSelection(
     menu.selected,
@@ -249,17 +267,18 @@ export const pressGameMenuKey = (
     return { menu: select(menu, moved) };
   }
   if (key === 'Enter') {
-    return choose(menu, saves);
+    return choose(menu, saves, home);
   }
   if (key === 'Escape') {
-    return menu.kind === 'main'
-      ? { choice: { kind: 'close' }, menu }
-      : { menu: openGameMenu() };
+    if (menu.kind !== 'main') {
+      return { menu: home };
+    }
+    return menu.ended ? { menu } : { choice: { kind: 'close' }, menu };
   }
   if (menu.kind === 'name') {
     return { menu: typeName(menu, key) ?? menu };
   }
-  return key === ' ' ? choose(menu, saves) : { menu };
+  return key === ' ' ? choose(menu, saves, home) : { menu };
 };
 
 export const hoverGameMenu = (
@@ -274,13 +293,14 @@ export const hoverGameMenu = (
 export const clickGameMenu = (
   menu: GameMenu,
   point: { x: number; y: number },
-  saves: TitleSaves
+  saves: TitleSaves,
+  home: GameMenu = openGameMenu()
 ): GameMenuStep => {
   if (menu.kind === 'message') {
-    return { menu: openGameMenu() };
+    return { menu: home };
   }
   const row = menuRowAt(gameMenuView(menu), point);
-  return row === null ? { menu } : choose(select(menu, row), saves);
+  return row === null ? { menu } : choose(select(menu, row), saves, home);
 };
 
 export const drawGameMenu = (
