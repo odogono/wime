@@ -45,6 +45,11 @@ under a position is (x ÷ 16, y ÷ 16)
   Arrival is tested exactly on the destination pixel at a tile
   origin, so a destination that is not tile-aligned can never be
   arrived at.
+- A Leader among roster entries 1 to 78 arriving at a Place shows a
+  box: "<name> has reached <Place>.", with "have" for a strength
+  above 1. Nothing is shown at the Grey Havens, the Barrow Downs,
+  Rivendell or Lórien, nor for the Nazgûl and the Evil Units
+  (`finding:movement-arrival-announced-except-at-four-places`).
 - Ordering part of a Force: clicking a Character in the Order
   window gives the Order to that Character and all of its
   followers, splitting them off from the rest of the Force
