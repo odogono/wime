@@ -18,7 +18,8 @@ import {
   iconPlacements,
   iconSourceRect,
   maxCamera,
-  stepCamera
+  stepCamera,
+  topLeftWindow
 } from './campaign-level';
 import { fixedFont } from './test-font';
 import { windowStyle } from './window-frame';
@@ -401,5 +402,22 @@ describe('manifest lookup', () => {
     expect(assetByKind(manifest, 'text')).toBeUndefined();
     expect(assetBySource(manifest, 'AMaps.res', 'IMAG', 99)).toBeUndefined();
     expect(assetBySource(manifest, 'BScene.res', 'IMAG', 26)).toBeUndefined();
+  });
+});
+
+describe('topLeftWindow', () => {
+  test('a hover name replaces the paused box rather than overdrawing it', () => {
+    expect(topLeftWindow({ hoverName: 'ETHRING', paused: true })).toEqual({
+      kind: 'hover',
+      name: 'ETHRING'
+    });
+    expect(topLeftWindow({ hoverName: null, paused: true })).toEqual({
+      kind: 'paused'
+    });
+    expect(topLeftWindow({ hoverName: 'infantry', paused: false })).toEqual({
+      kind: 'hover',
+      name: 'infantry'
+    });
+    expect(topLeftWindow({ hoverName: null, paused: false })).toBeNull();
   });
 });
