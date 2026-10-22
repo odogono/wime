@@ -420,4 +420,10 @@ describe('topLeftWindow', () => {
     });
     expect(topLeftWindow({ hoverName: null, paused: false })).toBeNull();
   });
+
+  test('an open box, such as a clicked Force, replaces the paused box', () => {
+    expect(
+      topLeftWindow({ boxOpen: true, hoverName: null, paused: true })
+    ).toBeNull();
+  });
 });
