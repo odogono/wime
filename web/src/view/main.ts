@@ -52,8 +52,7 @@ import {
   figureAt,
   figureStatus,
   insideStatusBox,
-  isSelectable,
-  type StatusBox
+  isSelectable
 } from './animation-status';
 import {
   ARCHIVE_MESSAGES,
@@ -110,9 +109,7 @@ import {
   openCombatWindow,
   pressCombatUi,
   rowLabel,
-  startCombatUi,
-  stepCombatUi,
-  type CombatUi
+  stepCombatUi
 } from './combat-window';
 import {
   drawCouncilMessage,
@@ -148,8 +145,7 @@ import { drawText } from './font';
 import {
   drawInfoWindow,
   forceWindowLines,
-  layoutInfoWindow,
-  type InfoWindow
+  layoutInfoWindow
 } from './force-window';
 import {
   BLINK_PHASE_MS,
@@ -173,16 +169,23 @@ import {
   type GameMenu,
   type GameMenuStep
 } from './game-menu';
-import { drawGandalfsLetter, type GandalfsLetter } from './gandalfs-letter';
+import { drawGandalfsLetter } from './gandalfs-letter';
 import {
   drawMeetingUi,
   meetingHoldsTime,
-  openMeetingUi,
   pressMeetingUi,
-  stepMeetingUi,
-  type MeetingUi
+  stepMeetingUi
 } from './meeting-window';
-import { openBox, stepBox, type MessageBox } from './message-box';
+import {
+  NO_MESSAGES,
+  closeMessage,
+  showMessage,
+  stepMessages,
+  syncMessage,
+  type MessageContext,
+  type MessageKind,
+  type Messages
+} from './message-box';
 import {
   drawMirrorWindow,
   layoutMirrorWindow,
@@ -202,7 +205,6 @@ import {
   type OrderState,
   type OrderWindow
 } from './order-window';
-import { takePassingMessage, type PassingMessage } from './passing-message';
 import {
   GLASS_TOGGLES,
   PRESS_TOGGLES,
@@ -247,11 +249,7 @@ import {
   type TitleStep
 } from './title-menu';
 import { WALK_PAST_MS, dropPassers, walkPast } from './walk-past';
-import {
-  drawWarEventMessage,
-  takeWarEventMessage,
-  type WarEventMessage
-} from './war-event-message';
+import { drawWarEventMessage } from './war-event-message';
 import {
   drawWindowFrame,
   windowStyle,
@@ -313,19 +311,6 @@ const CLICK_TOLERANCE_PX = 3;
 // The Level on show; the game opens on the Animation Level
 // (finding:ui-game-starts-on-animation-level).
 type Level = 'animation' | 'campaign' | 'full-map';
-// What the one message box shows (message-box.ts): the fight's
-// announcement or an ignored fight's boxes, a Force's or a Place's
-// window, Gandalf's letter, the meeting window or its notice, a pass-by,
-// the provisions sack's windows, a status line or a War Event.
-type BoxKind =
-  | 'fight'
-  | 'info'
-  | 'letter'
-  | 'meeting'
-  | 'passing'
-  | 'provisions'
-  | 'status'
-  | 'war';
 // The empty roster entry 0, watched when the Animation Level shows a
 // spot with nobody there.
 const NOBODY = 0;
@@ -407,19 +392,15 @@ const run = (
     sim = watchEntry(result.value, level === 'animation' ? watched : null);
     // A message already on screen was shown; the restored game's own
     // waiting announcements follow.
-    warMessage = null;
     // A restored meeting or Council gets a fresh window.
-    meetingUi = null;
+    messages = {
+      ...NO_MESSAGES,
+      combat: messages.combat,
+      letter: messages.letter
+    };
     councilWindow = null;
-    passingMessage = null;
     talk = null;
-    provisions = null;
-    statusBox = null;
-    infoWindow = null;
     putDownMessage = null;
-    landedMessage = null;
-    box = null;
-    boxWaiting = false;
     return archiveMessage(ARCHIVE_MESSAGES.restored);
   };
   // The Archive window, from the scroll or A (finding:ui-archive-window).
@@ -482,18 +463,8 @@ const run = (
     | null = null;
   let pressEvent: PointerEvent | null = null;
   let replaying = false;
-  let infoWindow: InfoWindow | null = null;
   let order: OrderState = IDLE_ORDER;
-  // The fight's announcement or combat window, while a fight is on
-  // (docs/spec/combat.md).
-  let combat: CombatUi | null = null;
   let battle: BattleStage | null = null;
-  // The War Event announcement on screen, if any
-  // (docs/spec/war-events.md).
-  let warMessage: WarEventMessage | null = null;
-  // The meeting window, or the notice an answer leaves
-  // (docs/spec/forces.md).
-  let meetingUi: MeetingUi | null = null;
   // The Council of Elrond's message, while it holds the game
   // (docs/spec/council-of-elrond.md).
   let councilWindow: CouncilMessageWindow | null = null;
@@ -501,9 +472,8 @@ const run = (
   // The clock stands while an Encounter walks past
   // (finding:forces-pass-by-walks-past-on-animation-level).
   let walkPastUntil = 0;
-  // The provisions sack's window, the Force on screen's members and the
-  // Character who last acted (docs/spec/objects.md).
-  let provisions: ProvisionsWindow | null = null;
+  // The Force on screen's members and the Character who last acted
+  // (docs/spec/objects.md).
   let party: number[] = [];
   // The selected Character, one for the whole game: a figure clicked on
   // the Animation Level, the glass's pick or the sack's
@@ -512,15 +482,13 @@ const run = (
   // Put Down's message, waiting for the object to be down, and then to
   // be raised.
   let putDownMessage: ProvisionsWindow | null = null;
-  let landedMessage: ProvisionsWindow | null = null;
-  // The status box a figure click or the eye opened.
-  let statusBox: StatusBox | null = null;
-  let passingMessage: PassingMessage | null = null;
-  // The one message box open, and whether a box raised since waits for
-  // its deadline, holding the game
-  // (finding:ui-message-box-opening-waits-for-the-open-box).
-  let box: MessageBox<BoxKind> | null = null;
-  let boxWaiting = false;
+  // The one message box and every window it shows: the fight's
+  // announcement or combat window (docs/spec/combat.md), a War Event
+  // (docs/spec/war-events.md), the meeting window or its notice
+  // (docs/spec/forces.md), the provisions sack's windows
+  // (docs/spec/objects.md), Gandalf's letter, a status box and a
+  // Force's or a Place's window (message-box.ts).
+  let messages: Messages = { ...NO_MESSAGES };
   // Deliberately survives Archive restores, and is never saved.
   const givenTips = new Set<number>();
   // The game's ending, once a fight has ended it.
@@ -592,8 +560,6 @@ const run = (
     boot = pressBootKey(boot, viewNow());
     startTitle(started);
   });
-  // Gandalf's letter, waiting for the new game's first Animation Level.
-  let letter: GandalfsLetter | null = null;
   const soundView = (): SoundView => {
     if (level !== soundLevel) {
       soundLevel = level;
@@ -602,13 +568,13 @@ const run = (
     const meeting = sim.meeting;
     return {
       boxes: [
-        infoWindow && `info:${infoWindow.lines.join('|')}`,
-        combat && `combat:${combat.kind}`,
-        meetingUi && `meeting:${meetingUi.kind}`,
+        messages.info && `info:${messages.info.lines.join('|')}`,
+        messages.combat && `combat:${messages.combat.kind}`,
+        messages.meeting && `meeting:${messages.meeting.kind}`,
         councilWindow && 'council',
-        passingMessage && `passing:${passingMessage.text}`,
-        warMessage && `war:${warMessage.event}`,
-        provisions && `provisions:${provisions.kind}`,
+        messages.passing && `passing:${messages.passing.text}`,
+        messages.war && `war:${messages.war.event}`,
+        messages.provisions && `provisions:${messages.provisions.kind}`,
         archive && `archive:${archive.kind}`,
         mirror && 'mirror',
         speedWindow && 'speed',
@@ -622,19 +588,19 @@ const run = (
           : ending.page === ending.pages.length - 1
             ? 'won-last-page'
             : 'won',
-      fight: !combat
+      fight: !messages.combat
         ? 'none'
-        : combat.kind === 'announcement'
+        : messages.combat.kind === 'announcement'
           ? 'announced'
-          : combat.kind === 'boxes'
+          : messages.combat.kind === 'boxes'
             ? 'ignored'
-            : combat.message === GOOD_WON
+            : messages.combat.message === GOOD_WON
               ? 'good-won'
-              : combat.message === EVIL_WON
+              : messages.combat.message === EVIL_WON
                 ? 'evil-won'
                 : 'fought',
       following:
-        meetingUi?.kind === 'window' && meeting?.kind === 'follow'
+        messages.meeting?.kind === 'window' && meeting?.kind === 'follow'
           ? meeting.b
           : null,
       level,
@@ -733,186 +699,42 @@ const run = (
     return true;
   };
 
-  // The one message box (message-box.ts). What a box of each kind shows,
-  // if anything; a combat window is not a message box.
-  const boxContent = (kind: BoxKind): object | null => {
-    switch (kind) {
-      case 'fight':
-        return combat?.kind === 'window' ? null : combat;
-      case 'info':
-        return infoWindow;
-      case 'letter':
-        return letter?.kind === 'open' ? letter : null;
-      case 'meeting':
-        return meetingUi;
-      case 'passing':
-        return passingMessage;
-      case 'provisions':
-        return provisions;
-      case 'status':
-        return statusBox;
-      case 'war':
-        return warMessage;
-    }
+  // The one message box (message-box.ts), on this Level, at `now`.
+  const messageContext = (now: number): MessageContext => ({
+    choose,
+    font: assets.window.font.metrics,
+    level,
+    now,
+    speed: driver.speed
+  });
+  const showBox = (kind: MessageKind, now: number): void => {
+    messages = showMessage(messages, kind, messageContext(now));
   };
-  const hasButtons = (kind: BoxKind): boolean =>
-    (kind === 'fight' && combat?.kind === 'announcement') ||
-    (kind === 'meeting' && meetingHoldsTime(meetingUi)) ||
-    (kind === 'provisions' && holdsClock(provisions));
-  // Open the box for what a kind now shows, at once.
-  const showBox = (kind: BoxKind, now: number): void => {
-    const ref = boxContent(kind);
-    box = ref
-      ? openBox(kind, ref, hasButtons(kind), now, level, driver.speed)
-      : null;
-  };
-  // Follow the open box once it is answered, or turned into the next box
-  // of its kind: a list chosen from, a meeting's notice, a fight's boxes.
   const syncBox = (now: number): void => {
-    if (box && boxContent(box.kind) !== box.ref) {
-      showBox(box.kind, now);
-    }
+    messages = syncMessage(messages, messageContext(now));
   };
-  // Close the open box, pressing its default if it has buttons, as a
-  // timeout, a later box, a click on a Force or a Place and leaving a
-  // Level do (finding:ui-message-box-opening-waits-for-the-open-box,
-  // finding:ui-message-box-closed-on-leaving-a-level). Pressing "Ignore it"
-  // leaves the fight's own boxes open.
   const closeBox = (now: number): void => {
-    syncBox(now);
-    if (!box) {
-      return;
-    }
-    const kind = box.kind;
-    box = null;
-    switch (kind) {
-      case 'fight':
-        if (combat?.kind === 'announcement') {
-          ({ sim, ui: combat } = stepCombatUi(
-            combat,
-            sim,
-            combat.deadline,
-            choose,
-            driver.speed
-          ));
-          showBox('fight', now);
-        } else {
-          combat = null;
-        }
-        return;
-      case 'meeting':
-        // "Continue on"; a notice it leaves is dropped with the box.
-        if (meetingUi?.kind === 'window') {
-          sim = stepMeetingUi(meetingUi, sim, meetingUi.deadline).sim;
-        }
-        meetingUi = null;
-        return;
-      case 'info':
-        infoWindow = null;
-        return;
-      case 'letter':
-        letter = null;
-        return;
-      case 'passing':
-        passingMessage = null;
-        return;
-      case 'provisions':
-        provisions = null;
-        return;
-      case 'status':
-        statusBox = null;
-        return;
-      case 'war':
-        warMessage = null;
-        return;
-    }
-  };
-  // The next box the game has raised and not yet shown. Within a tick,
-  // pass-bys are raised during the roster sweep, before the meeting or
-  // fight that stops it, and War Events at its end (sim/state.ts). The
-  // Campaign Level opens meetings and fights; the Animation Level shows
-  // Gandalf's letter and Put Down's message.
-  const raisedBox = (): BoxKind | null => {
-    if (
-      level === 'full-map' ||
-      talk ||
-      ending ||
-      sim.ending ||
-      councilWindow ||
-      sim.council ||
-      combatHoldsTime(combat)
-    ) {
-      return null;
-    }
-    if (level === 'animation' && letter?.kind === 'pending') {
-      return 'letter';
-    }
-    if (level === 'animation' && landedMessage) {
-      return 'provisions';
-    }
-    if (sim.passings.length > 0) {
-      return 'passing';
-    }
-    if (level === 'campaign' && sim.meeting && !meetingUi) {
-      return 'meeting';
-    }
-    if (level === 'campaign' && sim.fight && !combat) {
-      return 'fight';
-    }
-    return sim.announcements.length > 0 ? 'war' : null;
-  };
-  const raiseBox = (kind: BoxKind, now: number): void => {
-    switch (kind) {
-      case 'letter':
-        letter = { kind: 'open' };
-        break;
-      case 'provisions':
-        provisions = landedMessage;
-        landedMessage = null;
-        break;
-      case 'passing':
-        ({ message: passingMessage, sim } = takePassingMessage(sim));
-        break;
-      case 'war':
-        ({ message: warMessage, sim } = takeWarEventMessage(sim));
-        break;
-      case 'meeting':
-      case 'fight':
-        // A decision window drops any half-given Order or open window
-        // (finding:ui-pointer-and-icon-column).
-        if (kind === 'meeting') {
-          meetingUi = openMeetingUi(assets.window.font.metrics, sim, now);
-        } else {
-          combat = startCombatUi(sim, now);
-        }
-        speedWindow = null;
-        drag = null;
-        setOrder(IDLE_ORDER);
-        break;
-      default:
-        break;
-    }
-    showBox(kind, now);
+    ({ messages, sim } = closeMessage({ messages, sim }, messageContext(now)));
   };
   // Time the open box out and open the boxes raised, one at a time, in
-  // order. A box raised before the open box's deadline waits, and
-  // `boxWaiting` holds the game until it opens.
+  // order, the game held while one waits. Figures held by a wait take up
+  // their scripts from now.
   const stepBoxes = (now: number): void => {
-    syncBox(now);
-    for (;;) {
-      const raised = raisedBox();
-      const step = stepBox(box, now, level, raised !== null);
-      boxWaiting = step.waiting;
-      if (step.close) {
-        closeBox(now);
-      }
-      if (!step.open || box || !raised) {
-        return;
-      }
-      raiseBox(raised, now);
-      if (!box) {
-        return;
-      }
+    const step = stepMessages(
+      { messages, sim },
+      messageContext(now),
+      Boolean(talk || ending || councilWindow)
+    );
+    ({ messages, sim } = step);
+    if (step.decision) {
+      // A decision window drops any half-given Order or open window
+      // (finding:ui-pointer-and-icon-column).
+      speedWindow = null;
+      drag = null;
+      setOrder(IDLE_ORDER);
+    }
+    if (step.resumed && level === 'animation') {
+      stage = resumeStage(stage, now);
     }
   };
 
@@ -980,10 +802,10 @@ const run = (
       levelEntries += 1;
     }
     party = members.map(member => member.index);
-    if (box?.kind === 'provisions') {
+    if (messages.box?.kind === 'provisions') {
       closeBox(viewNow());
     }
-    provisions = null;
+    messages.provisions = null;
     stage = spawnParty(
       members.map(member => ({
         figure: member.figure,
@@ -1001,10 +823,10 @@ const run = (
       pictures: groundPictures(sim.objectPlacements, position, choose)
     };
     putDownMessage = null;
-    landedMessage = null;
+    messages.landed = null;
     level = 'animation';
     lookingDown = false;
-    infoWindow = null;
+    messages.info = null;
     speedWindow = null;
     drag = null;
     setOrder(IDLE_ORDER);
@@ -1047,10 +869,10 @@ const run = (
     // The combat window closes the open box itself
     // (finding:ui-message-box-opening-waits-for-the-open-box).
     closeBox(now);
-    combat = openCombatWindow(sim, now);
-    if (attacked && combat.kind === 'window') {
-      combat = {
-        ...combat,
+    messages.combat = openCombatWindow(sim, now);
+    if (attacked && messages.combat.kind === 'window') {
+      messages.combat = {
+        ...messages.combat,
         message: `${sim.roster[watched]!.name} is attacked by ${rowLabel(
           sim.roster[fight.evil]!.name,
           sim.roster[fight.evil]!.strength
@@ -1066,7 +888,7 @@ const run = (
     // (finding:ui-message-box-closed-on-leaving-a-level).
     closeBox(viewNow());
     talk = null;
-    provisions = null;
+    messages.provisions = null;
     const position = sim.roster[watched]?.position;
     if (position) {
       camera = clampCamera(
@@ -1145,7 +967,7 @@ const run = (
     const point = toNative(event);
     const icon = animationIconAt(animation.icons, point);
     const now = viewNow();
-    if (holdsClock(provisions)) {
+    if (holdsClock(messages.provisions)) {
       // While a box with buttons is up only its buttons answer: a press
       // off them, the icons included, does nothing
       // (finding:ui-message-box-presses-off-the-buttons).
@@ -1162,15 +984,15 @@ const run = (
     } else if (icon?.name === 'sack' && !battle && !talk && !sim.fight) {
       // The sack is ignored during a fight (finding:ui-provisions-window).
       closeBox(now);
-      provisions = openProvisions(
+      messages.provisions = openProvisions(
         assets.window.font.metrics,
         sim,
         party,
         chosenCharacter,
         now
       );
-      if (provisions.kind === 'menu') {
-        chosenCharacter = provisions.chosen;
+      if (messages.provisions.kind === 'menu') {
+        chosenCharacter = messages.provisions.chosen;
       }
       showBox('provisions', now);
     } else if (talk) {
@@ -1179,7 +1001,7 @@ const run = (
       !icon &&
       !battle &&
       !sim.fight &&
-      !(statusBox && insideStatusBox(statusBox, point))
+      !(messages.status && insideStatusBox(messages.status, point))
     ) {
       // A figure clicked shows its status line and, on the Good side,
       // becomes the selected Character; nothing during a fight
@@ -1187,7 +1009,7 @@ const run = (
       const owner = figureAt(stage, figureWorld.frames, point);
       if (owner !== null) {
         closeBox(now);
-        statusBox = figureStatus(sim.roster, sim.places, owner);
+        messages.status = figureStatus(sim.roster, sim.places, owner);
         showBox('status', now);
         if (isSelectable(owner)) {
           chosenCharacter = owner;
@@ -1197,18 +1019,18 @@ const run = (
   };
   // A press on the provisions sack's buttons.
   const pressProvisions = (point: Camera, now: number): void => {
-    if (!provisions || provisions.kind === 'message') {
+    if (!messages.provisions || messages.provisions.kind === 'message') {
       return;
     }
-    const pressed = provisionsButtonAt(provisions, point);
+    const pressed = provisionsButtonAt(messages.provisions, point);
     const position = sim.roster[watched]?.position;
     if (!pressed || !position || pressFlashes(pressed)) {
       return;
     }
     if (typeof pressed.value === 'number') {
-      if (provisions.kind !== 'menu') {
-        const { chosen, kind } = provisions;
-        ({ sim, window: provisions } = chooseObject(
+      if (messages.provisions.kind !== 'menu') {
+        const { chosen, kind } = messages.provisions;
+        ({ sim, window: messages.provisions } = chooseObject(
           assets.window.font.metrics,
           sim,
           chosen,
@@ -1226,18 +1048,18 @@ const run = (
           const sent = startErrand(stage, kind, chosen, pressed.value);
           if (sent) {
             stage = sent;
-            if (kind === 'put-down' && provisions) {
-              putDownMessage = provisions;
-              provisions = null;
+            if (kind === 'put-down' && messages.provisions) {
+              putDownMessage = messages.provisions;
+              messages.provisions = null;
             }
           }
         }
       }
     } else {
-      provisions = openObjectList(
+      messages.provisions = openObjectList(
         assets.window.font.metrics,
         sim,
-        provisions.chosen,
+        messages.provisions.chosen,
         pressed.value,
         position,
         now
@@ -1249,7 +1071,7 @@ const run = (
   // (finding:ui-animation-level-eye-shows-the-selected-status).
   const openEye = (now: number): void => {
     closeBox(now);
-    statusBox = eyeStatus(sim.roster, sim.places, chosenCharacter);
+    messages.status = eyeStatus(sim.roster, sim.places, chosenCharacter);
     showBox('status', now);
   };
 
@@ -1260,7 +1082,7 @@ const run = (
   // up, and entering it closes the Campaign Level's box
   // (finding:ui-message-box-closed-on-leaving-a-level).
   const goUp = (): void => {
-    if (box?.buttons) {
+    if (messages.box?.buttons) {
       return;
     }
     closeBox(viewNow());
@@ -1269,7 +1091,7 @@ const run = (
     mirror = null;
     archive = null;
     speedWindow = null;
-    infoWindow = null;
+    messages.info = null;
     drag = null;
     pointer = null;
     setOrder(IDLE_ORDER);
@@ -1417,7 +1239,7 @@ const run = (
         const now = viewNow();
         closeBox(now);
         // A refusal shows as the same plain notice as a pass-by.
-        passingMessage = { text: ORDER_REFUSED };
+        messages.passing = { text: ORDER_REFUSED };
         showBox('passing', now);
       }
     } else if (order.kind === 'pick-destination') {
@@ -1467,17 +1289,23 @@ const run = (
   // A press on the fight's announcement or combat window; returns
   // whether it answered the announcement.
   const pressFight = (point: Camera): boolean => {
-    if (!combat) {
+    if (!messages.combat) {
       return false;
     }
     const now = viewNow();
-    const before = combat;
-    const result = pressCombatUi(combat, sim, point, now, driver.speed);
+    const before = messages.combat;
+    const result = pressCombatUi(
+      messages.combat,
+      sim,
+      point,
+      now,
+      driver.speed
+    );
     sim = result.sim;
-    combat = result.ui;
+    messages.combat = result.ui;
     if (
       before.kind === 'announcement' &&
-      combat?.kind === 'window' &&
+      messages.combat?.kind === 'window' &&
       sim.fight
     ) {
       if (fightOnAnimationLevel(sim)) {
@@ -1493,18 +1321,18 @@ const run = (
       }
     }
     syncBox(now);
-    return before.kind === 'announcement' && combat !== before;
+    return before.kind === 'announcement' && messages.combat !== before;
   };
   // A press on the meeting window; returns whether it answered it.
   const pressMeeting = (point: Camera): boolean => {
-    if (!meetingUi) {
+    if (!messages.meeting) {
       return false;
     }
     const now = viewNow();
-    const result = pressMeetingUi(meetingUi, sim, point);
+    const result = pressMeetingUi(messages.meeting, sim, point);
     const meeting = sim.meeting;
     sim = result.sim;
-    meetingUi = result.ui;
+    messages.meeting = result.ui;
     syncBox(now);
     if (result.choice === 'go-there' && meeting) {
       goDownToAnimation(meeting.a);
@@ -1521,19 +1349,19 @@ const run = (
       speedWindow = null;
       return true;
     }
-    if (!box?.buttons || (key !== 'n' && key !== 'y')) {
+    if (!messages.box?.buttons || (key !== 'n' && key !== 'y')) {
       return false;
     }
-    if (combat?.kind === 'announcement') {
+    if (messages.combat?.kind === 'announcement') {
       const choice = key === 'n' ? 'ignore-it' : 'go-there';
       pressFight(
         centre(ANNOUNCEMENT_BUTTONS.find(button => button.choice === choice)!)
       );
-    } else if (meetingUi?.kind === 'window') {
+    } else if (messages.meeting?.kind === 'window') {
       const button =
         key === 'n'
-          ? meetingUi.buttons.find(b => b.choice === 'continue-on')
-          : meetingUi.buttons.find(b => b.choice !== 'continue-on');
+          ? messages.meeting.buttons.find(b => b.choice === 'continue-on')
+          : messages.meeting.buttons.find(b => b.choice !== 'continue-on');
       if (button) {
         pressMeeting(centre(button));
       }
@@ -1570,13 +1398,13 @@ const run = (
     // Fight options take presses on either Level. A press off the
     // announcement's buttons does nothing, unless it is a click on a
     // Force or a Place (finding:ui-message-box-presses-off-the-buttons).
-    if (level !== 'full-map' && combatHoldsTime(combat)) {
+    if (level !== 'full-map' && combatHoldsTime(messages.combat)) {
       if (battle?.phase === 'approach') {
         return;
       }
       const point = toNative(event);
       const button =
-        combat?.kind === 'announcement'
+        messages.combat?.kind === 'announcement'
           ? ANNOUNCEMENT_BUTTONS.find(b => inside(b, point))
           : undefined;
       if (button && pressFlashes(button)) {
@@ -1584,7 +1412,7 @@ const run = (
       }
       if (
         !pressFight(point) &&
-        combat?.kind === 'announcement' &&
+        messages.combat?.kind === 'announcement' &&
         level === 'campaign' &&
         !iconAt(placements, point)
       ) {
@@ -1604,11 +1432,11 @@ const run = (
     // While the meeting window is up its buttons answer it, the icons do
     // nothing and a click on a Force or a Place replaces it
     // (finding:ui-message-box-presses-off-the-buttons).
-    if (meetingHoldsTime(meetingUi)) {
+    if (meetingHoldsTime(messages.meeting)) {
       const at = pointer;
       const button =
-        meetingUi?.kind === 'window'
-          ? meetingUi.buttons.find(b => inside(b, at))
+        messages.meeting?.kind === 'window'
+          ? messages.meeting.buttons.find(b => inside(b, at))
           : undefined;
       if (button && pressFlashes(button)) {
         return;
@@ -1678,7 +1506,7 @@ const run = (
     }
     // The arrow starts or cancels an Order (#10).
     if (icon?.icon.name === 'arrow') {
-      infoWindow = null;
+      messages.info = null;
       setOrder(toggleOrder(order));
       return;
     }
@@ -1745,8 +1573,8 @@ const run = (
           closeBox(now);
         }
         // "Ignore it" leaves the fight's own boxes up instead.
-        if (target && !box) {
-          infoWindow = layoutInfoWindow(
+        if (target && !messages.box) {
+          messages.info = layoutInfoWindow(
             assets.window.font.metrics,
             target.kind === 'force'
               ? forceWindowLines(target.force)
@@ -1798,13 +1626,13 @@ const run = (
     if (answerBoxKey(key)) {
       return;
     }
-    if (combatHoldsTime(combat)) {
+    if (combatHoldsTime(messages.combat)) {
       return;
     }
     if (level === 'animation') {
       // U, like the icons, does nothing under a box with buttons
       // (finding:ui-message-box-closed-on-leaving-a-level).
-      if (key === 'u' && !box?.buttons) {
+      if (key === 'u' && !messages.box?.buttons) {
         goUpFromAnimation();
       } else if (key === 's') {
         openEye(viewNow());
@@ -1857,7 +1685,11 @@ const run = (
     }
     // Nothing else is open to the player while a fight or meeting holds
     // the game.
-    if (combatHoldsTime(combat) || meetingHoldsTime(meetingUi) || sim.meeting) {
+    if (
+      combatHoldsTime(messages.combat) ||
+      meetingHoldsTime(messages.meeting) ||
+      sim.meeting
+    ) {
       return;
     }
     if (key === 'u') {
@@ -1874,7 +1706,7 @@ const run = (
       driver.paused = !driver.paused;
     } else if (event.key === 'Escape') {
       speedWindow = null;
-      infoWindow = null;
+      messages.info = null;
       setOrder(IDLE_ORDER);
     }
   });
@@ -1938,8 +1770,8 @@ const run = (
     // Hovering names the Place, Character or Unit under the pointer
     // in the same top-left window a click would open.
     if (
-      !combat &&
-      !infoWindow &&
+      !messages.combat &&
+      !messages.info &&
       !speedWindow &&
       !drag &&
       order.kind === 'idle'
@@ -1954,22 +1786,22 @@ const run = (
         );
       }
     }
-    if (infoWindow) {
-      drawInfoWindow(ctx, assets.window, infoWindow);
+    if (messages.info) {
+      drawInfoWindow(ctx, assets.window, messages.info);
     }
     if (speedWindow) {
       drawSpeedWindow(ctx, assets.window, speedWindow, driver.speed);
     }
-    if (combat) {
-      drawCombatUi(ctx, assets.window, combat, sim);
-    } else if (meetingUi) {
-      drawMeetingUi(ctx, assets.window, meetingUi);
+    if (messages.combat) {
+      drawCombatUi(ctx, assets.window, messages.combat, sim);
+    } else if (messages.meeting) {
+      drawMeetingUi(ctx, assets.window, messages.meeting);
     } else if (councilWindow) {
       drawCouncilMessage(ctx, assets.window, councilWindow);
-    } else if (passingMessage) {
-      drawEncounterNotice(ctx, assets.window, passingMessage.text);
-    } else if (warMessage) {
-      drawWarEventMessage(ctx, assets.window, warMessage);
+    } else if (messages.passing) {
+      drawEncounterNotice(ctx, assets.window, messages.passing.text);
+    } else if (messages.war) {
+      drawWarEventMessage(ctx, assets.window, messages.war);
     }
   };
 
@@ -1980,7 +1812,7 @@ const run = (
   const autosaveView = (): AutosaveView => ({
     clock: sim.clock,
     level,
-    settled: !sim.fight && !combat && !battle && !talk && !ending
+    settled: !sim.fight && !messages.combat && !battle && !talk && !ending
   });
   let autosavedAt = autosavePoint(autosaveView());
   const autosaveNow = (view: AutosaveView): void => {
@@ -2016,7 +1848,7 @@ const run = (
     sim = watchEntry(sim, null);
     if (watch !== null) {
       const down = goDownToAnimation(watch);
-      letter = isNew && down ? { kind: 'pending' } : null;
+      messages.letter = isNew && down ? { kind: 'pending' } : null;
     }
     autosavedAt = autosavePoint(autosaveView());
   };
@@ -2087,7 +1919,7 @@ const run = (
   const otherWindowOpen = (): boolean =>
     Boolean(
       speedWindow ||
-      infoWindow ||
+      messages.info ||
       mirror ||
       archive ||
       zooming ||
@@ -2103,7 +1935,7 @@ const run = (
       sim.meeting ||
       sim.council ||
       sim.ending ||
-      meetingHoldsTime(meetingUi) ||
+      meetingHoldsTime(messages.meeting) ||
       councilWindow
     ) {
       return false;
@@ -2133,27 +1965,17 @@ const run = (
     mirror = null;
     archive = null;
     speedWindow = null;
-    infoWindow = null;
     setOrder(IDLE_ORDER);
     zooming = false;
     lookingDown = false;
     canvas.style.cursor = 'default';
     drag = null;
-    warMessage = null;
-    meetingUi = null;
+    messages = { ...NO_MESSAGES };
     councilWindow = null;
-    passingMessage = null;
     talk = null;
-    provisions = null;
     putDownMessage = null;
-    landedMessage = null;
-    box = null;
-    boxWaiting = false;
-    combat = null;
     battle = null;
     ending = null;
-    letter = null;
-    statusBox = null;
     chosenCharacter = null;
     driver.paused = false;
   };
@@ -2289,14 +2111,7 @@ const run = (
       autosaveNow(view);
     }
     updateSound();
-    // The message box: the open box times out and the boxes raised open
-    // in turn, the game held while one waits (message-box.ts). Figures
-    // held by a wait take up their scripts from now.
-    const wasWaiting = boxWaiting;
     stepBoxes(now);
-    if (wasWaiting && !boxWaiting && level === 'animation') {
-      stage = resumeStage(stage, now);
-    }
     // Game time does not pass on the Full Map Level
     // (finding:time-stops-on-full-map-level).
     if (level === 'full-map') {
@@ -2350,7 +2165,7 @@ const run = (
       const watchedEntry = sim.roster[watched];
       const paced = advanceAnimationPace(
         animationPaceState,
-        driver.paused || boxWaiting ? 0 : elapsedMs,
+        driver.paused || messages.waiting ? 0 : elapsedMs,
         watchedEntry?.destination !== null &&
           watchedEntry?.destination !== undefined &&
           watchedEntry.state === 1,
@@ -2363,8 +2178,8 @@ const run = (
         i < ticks &&
         !talk &&
         now >= walkPastUntil &&
-        !holdsClock(provisions) &&
-        !boxWaiting &&
+        !holdsClock(messages.provisions) &&
+        !messages.waiting &&
         !speedWindow &&
         !sim.fight &&
         !sim.meeting;
@@ -2400,23 +2215,36 @@ const run = (
         } else {
           endTalk(talk);
         }
-      } else if (battle && sim.fight && combat) {
+      } else if (battle && sim.fight && messages.combat) {
         const previousPhase = battle.phase;
         battle = stepBattle(battle, sim.fight, vblankAt(now));
         if (battle.phase === 'fighting') {
-          if (previousPhase === 'approach' && combat.kind === 'window') {
-            combat = { ...combat, until: now + ORDERS_MS };
+          if (
+            previousPhase === 'approach' &&
+            messages.combat.kind === 'window'
+          ) {
+            messages.combat = { ...messages.combat, until: now + ORDERS_MS };
           }
           const fight = sim.fight;
-          const result = stepCombatUi(combat, sim, now, choose, driver.speed);
+          const result = stepCombatUi(
+            messages.combat,
+            sim,
+            now,
+            choose,
+            driver.speed
+          );
           sim = result.sim;
-          combat = result.ui;
+          messages.combat = result.ui;
           if (!sim.fight) {
             stage = walkAfterBattle(battle, fight, vblankAt(now));
             battle = null;
           }
         }
-      } else if (!sim.fight && !holdsClock(provisions) && !boxWaiting) {
+      } else if (
+        !sim.fight &&
+        !holdsClock(messages.provisions) &&
+        !messages.waiting
+      ) {
         stage = dropPassers(
           stepStage(stage, figureWorld, vblankAt(now)),
           party
@@ -2424,7 +2252,7 @@ const run = (
         const landed = takeLanded(stage);
         stage = landed.stage;
         if (landed.due && putDownMessage) {
-          landedMessage = putDownMessage;
+          messages.landed = putDownMessage;
           putDownMessage = null;
         }
       }
@@ -2460,32 +2288,40 @@ const run = (
             drawEncounterTalk(screen.buffer, animation, talk);
           } else {
             drawFigures(screen.buffer, animation, stage);
-            if (letter?.kind === 'open') {
+            if (messages.letter?.kind === 'open') {
               drawGandalfsLetter(screen.buffer, animation.window, assets.texts);
             }
-            if (statusBox) {
-              drawStatusBox(screen.buffer, animation.window, statusBox);
+            if (messages.status) {
+              drawStatusBox(screen.buffer, animation.window, messages.status);
             }
-            if (passingMessage) {
+            if (messages.passing) {
               drawEncounterNotice(
                 screen.buffer,
                 animation.window,
-                passingMessage.text
+                messages.passing.text
               );
             }
-            if (warMessage) {
-              drawWarEventMessage(screen.buffer, animation.window, warMessage);
+            if (messages.war) {
+              drawWarEventMessage(
+                screen.buffer,
+                animation.window,
+                messages.war
+              );
             }
           }
           drawAnimationIcons(screen.buffer, animation.icons);
-          if (provisions) {
-            drawProvisionsWindow(screen.buffer, animation.window, provisions);
+          if (messages.provisions) {
+            drawProvisionsWindow(
+              screen.buffer,
+              animation.window,
+              messages.provisions
+            );
           }
-          if (combat) {
+          if (messages.combat) {
             drawCombatUi(
               screen.buffer,
               assets.window,
-              combat,
+              messages.combat,
               sim,
               battle?.phase === 'approach'
             );
@@ -2499,13 +2335,23 @@ const run = (
     // A fight's announcement and a meeting's window open as raised boxes
     // (stepBoxes), a fight met while watching another Character after
     // returning to the Campaign Level.
-    if (combat) {
-      const result = stepCombatUi(combat, sim, now, choose, driver.speed);
+    if (messages.combat) {
+      const result = stepCombatUi(
+        messages.combat,
+        sim,
+        now,
+        choose,
+        driver.speed
+      );
       sim = result.sim;
-      combat = result.ui;
+      messages.combat = result.ui;
     }
-    if (meetingUi) {
-      ({ sim, ui: meetingUi } = stepMeetingUi(meetingUi, sim, now));
+    if (messages.meeting) {
+      ({ sim, ui: messages.meeting } = stepMeetingUi(
+        messages.meeting,
+        sim,
+        now
+      ));
     }
     syncBox(now);
     // The Council of Elrond's message holds the game until its time is
@@ -2516,7 +2362,7 @@ const run = (
       closeBox(now);
       driver.speed = 'normal';
       speedWindow = null;
-      infoWindow = null;
+      messages.info = null;
       drag = null;
       setOrder(IDLE_ORDER);
     }
@@ -2528,9 +2374,9 @@ const run = (
     ));
     // Once a fight has ended the game and its windows have closed, the
     // ending takes the screen for good.
-    if (!ending && !combatHoldsTime(combat) && sim.ending) {
+    if (!ending && !combatHoldsTime(messages.combat) && sim.ending) {
       closeBox(now);
-      combat = null;
+      messages.combat = null;
       startEnding(now);
     }
     if (ending) {
@@ -2549,9 +2395,9 @@ const run = (
     for (
       let i = 0;
       i < ticks &&
-      !boxWaiting &&
+      !messages.waiting &&
       !speedWindow &&
-      !combatHoldsTime(combat) &&
+      !combatHoldsTime(messages.combat) &&
       !sim.fight &&
       !sim.meeting &&
       !sim.council;
