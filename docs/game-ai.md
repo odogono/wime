@@ -6,6 +6,9 @@ combat, with particular attention to the Nazgûl. The final section points to th
 browser port and identifies gaps. This is an overview of existing evidence, not
 a new Spec; the linked Findings retain their sources and confidence levels.
 
+For every Force's initial position and membership, including the Nazgûl, see
+[Starting positions](starting-positions.md).
+
 ## What makes the computer's decisions
 
 The behaviour recovered so far combines **Default Orders, one-off triggers,
