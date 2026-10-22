@@ -32,9 +32,12 @@ under a position is (x ÷ 16, y ÷ 16)
   Force under the click, as the original takes the first Good row in
   roster order, so a Force parked on a Stronghold is picked over its
   Garrison. (`finding:movement-orders-accepted-by-allegiance-roll`)
-- `provisional`: the original keeps the refused pick and seems to roll
-  again once the refusal's box has had its time; the port drops the
-  pick instead, and the player picks again.
+- Accepted for 1.0: the original keeps the refused pick and seems to
+  roll again once the refusal's box has had its time; the port drops
+  the pick instead, and the player picks again. The re-roll is read
+  from code but not observed, re-picking takes one click, and each
+  attempt rolls the same odds.
+  (`finding:movement-orders-accepted-by-allegiance-roll`)
 - An Order's destination is the clicked spot rounded down to its
   tile origin, so a click in a Place's tile lands on the Place.
   Clicking near Bree set (784, 384); clicking near Osgiliath set

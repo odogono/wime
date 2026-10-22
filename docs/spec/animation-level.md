@@ -29,8 +29,12 @@ talks and fights shown here are in `docs/spec/encounters.md`.
   Game Speed: a sweep every 151 frames while the watched Character
   travels, and a quarter-hour every 256 frames when it rests or has
   nowhere to go. Pause still stops it.
-  `provisional`: the original moves one roster entry a frame; the port
-  runs the whole sweep at once at the end of those frames.
+  Accepted for 1.0: the original moves one roster entry a frame; the
+  port runs the whole sweep at once at the end of those frames. The
+  order of moves, Encounters and meetings within a sweep is the same,
+  and only off-screen Forces' timing within the sweep differs.
+  (finding:time-clock-advances-after-each-roster-sweep,
+  finding:time-animation-level-holds-the-sweep-at-the-watched-character)
 - A fight with a Unit on the Good side, a meeting other than a watched
   advisor talk, or the game's end brings the Campaign Level up. A
   Character fight involving the watched Character and advisor talks
@@ -85,9 +89,13 @@ talks and fights shown here are in `docs/spec/encounters.md`.
   select someone before requesting status." It has no buttons and
   closes as the click's box does.
   (finding:ui-animation-level-eye-shows-the-selected-status)
-- `provisional`: the original's click point is the hand pointer's
-  fingertip; the port's is the browser pointer's. The status line of
-  an Evil or Encounter figure is assumed to read as a Good one's.
+- Accepted for 1.0: the original's click point is the hand pointer's
+  fingertip; the port's is the browser pointer's, a deliberate
+  platform difference. An Evil or Encounter figure's status line reads
+  as a Good one's, as the original formats every clicked entry with
+  one routine (code+0x04528).
+  (finding:ui-animation-level-click-takes-the-frontmost-figure,
+  finding:ui-animation-level-eye-shows-the-selected-status)
 
 - Every colour comes from the Animation Level palette.
   (finding:graphics-animation-level-palette)
