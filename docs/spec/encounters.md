@@ -25,7 +25,7 @@ in `docs/spec/combat.md`.
     (finding:combat-evil-encounters-attack)
   - 1: the two pass by. Met only on the Animation Level by the watched
     Character, except the Rohirrim scouts.
-    (finding:forces-anonymous-encounters-pass-by)
+    (finding:forces-pass-by-walks-past-on-animation-level)
   - 3, an advisor: an invitation to talk.
 - An advisor is used up when met, whatever the answer: its chance drops
   from 100 to 0. Radagast instead returns 10 to 15 days later. Bilbo
@@ -51,30 +51,50 @@ in `docs/spec/combat.md`.
 
 ## The talk
 
-(finding:ui-advisors-share-advice)
+(finding:ui-advisor-talk-has-two-boxes,
+finding:ui-advisor-talk-follows-the-advisors-script)
 
-- The advisor comes to the party; Círdan, Galadriel and Tom Bombadil
-  stand as still pictures at the right.
-- It speaks three boxes: a greeting with the watched Character's name,
-  one tip from BScene.res CSTR 8 to 27 not yet given this session, and
-  a parting with a proverb or a further tip and a farewell.
-- Talking changes no game state. Which tips have been given is the
-  view's, not the sim's, and is not saved.
-- `provisional`: the view holds game time during a talk. The arrival
-  box lasts four seconds, and each advice box at least four seconds
-  (longer for longer text); a click, Space or Enter advances it. The
-  advisor's approach and the party's placement are provisional. Once
-  all twenty tips are spent, proverbs fill the remaining advice boxes.
-  CSTR 8, also a parting prefix, shares the same once-per-session rule.
-  (#169)
+- The scene is set again, the party walking in from the left. Met on
+  the Animation Level, it walks to x 70, or to 160 if a figure had
+  already reached 70; after "Go there", to 70. A walking advisor
+  enters mirrored from the right and walks to 100 pixels past the
+  party's line, or to 150 after "Go there". Círdan, Galadriel and Tom
+  Bombadil stand as still pictures at x 158, their feet at y 174.
+- Met on the Animation Level, "<A> meets <B>." shows first and stays
+  until the first box replaces it.
+- The advisor speaks two boxes at (10, 5), 256 wide. The first is a
+  greeting with the watched Character's name and one of BScene.res
+  CSTR 0 to 3, then a tip, one of CSTR 8 to 27. The second is one of
+  CSTR 4 to 7, then three times in four a proverb (CSTR 28 to 33) and
+  otherwise a tip, and a farewell.
+- A tip is rerolled up to 50 times to find one not yet given this
+  session, then given anyway, so tips repeat once all 20 are spent.
+  The second box draws and spends a tip even when it shows a proverb.
+  Which tips have been given is the view's, not the sim's, and is not
+  saved.
+- A walking advisor's script paces the talk: once at its line it
+  holds the party, opens the first box, gestures a while, opens the
+  second, sets the party walking on and walks off the left edge. A
+  still picture's first box opens when the party reaches its line and
+  the second 600 frames later; the party is not held, standing 750 to
+  1,499 frames before walking on.
+- The first box can't be pressed away. The second closes on a press,
+  Space or Enter, or after 1,500 frames, and the talk ends with it.
+  The clock stands until then.
+- Talking changes no game state.
 
 ## Passing by
 
 - A one-line message, "<A> passes <B>.", "<n> <A> pass by <B>." for a
-  Unit, or "<A> is challenged by 20 Rohirrim scouts.". Nothing changes.
-  (finding:forces-anonymous-encounters-pass-by)
-- `provisional`: what the scouts' challenge does on the Campaign Level
-  is not known; it does nothing here (#169).
+  Unit, or "<A> is challenged by 20 Rohirrim scouts.". Nothing
+  changes, and the figure's chance is not spent; the scouts' challenge
+  is a message like any other.
+  (finding:forces-pass-by-walks-past-on-animation-level)
+- When the watched Character passes by on the Animation Level, the
+  scene is set again: the party walks on while the figures passed by
+  enter mirrored from the right and walk past it, off the left edge.
+  The clock stands for 420 frames.
+  (finding:forces-pass-by-walks-past-on-animation-level)
 - A pass-by message is a box without buttons, shown like any other
   message box (docs/spec/time.md, "Message boxes"): one at a time in
   the order raised, a later box waiting out its 200-frame deadline (60
@@ -105,15 +125,27 @@ finding:combat-where-a-fight-is-fought)
   each side holds at most 9 rows, or 7 against a balrog, the Evil side
   one more. (finding:combat-animation-level-lists-the-fight-again,
   finding:combat-rows-capped-by-level-and-enemy)
-- The view places the two sides, walks them to battle lines 25 and 85
-  pixels past the rightmost Good figure (100 when a balrog leads the
-  Evil side), and shows charges and falls in proportion to the losses.
+- The figures act the fight out through fixed entries of their
+  scripts. Each side walks at its figures' own pace to its battle line,
+  25 and 85 pixels past the rightmost Good figure (100 when a balrog
+  leads the Evil side), and holds its stance; the first round follows
+  once both have arrived.
+  (finding:combat-animation-level-figures-follow-fight-entries)
+- Each round a row that Charges swings three times and one that
+  Engages twice, in place. A wounded individual's side recoils, and the
+  first row on the other side that Charges or Engages lunges.
+- A loss fells losses × 10 / the row's starting strength of its
+  figures, or the losses themselves for a row that began 10 strong or
+  less; a killed Character's row falls entire. The fallen play their
+  fall and lie where they fell. At the end the winners stand, and a
+  beaten Evil side falls.
+  (finding:combat-animation-level-figures-follow-fight-entries)
+- Only messages pace it: 300 frames before the first round, at least
+  180 for each casualty message and 300 after the result. A round
+  without a message takes no time.
+  (finding:combat-animation-level-round-pacing)
 - When the watched Character is attacked on the Animation Level,
   "<A> is attacked by <B>." shows with no buttons and the fight starts.
   (finding:combat-evil-encounters-attack)
 - After the fight the surviving Good figures walk on.
   (finding:combat-character-fights-on-animation-level)
-- `provisional`: approach speed, fighting lunges and rotated fall poses
-  are view choreography until the fight script entries are specified.
-  Rounds without messages stay visible for 800 ms; the combat window's
-  orders, messages and result pacing otherwise apply (#169).

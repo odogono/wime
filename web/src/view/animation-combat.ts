@@ -18,6 +18,7 @@ import {
   SPELL_FLASH,
   STOPPED,
   newFigure,
+  runEntries,
   startScript,
   type Figure,
   type ScriptWorld
@@ -29,16 +30,31 @@ export const fightOnAnimationLevel = (sim: SimState): boolean =>
   !!sim.fight && playedOnAnimationLevel(sim.fight, sim.roster);
 
 export interface BattleStage {
+  // Whether the winners stand and the beaten Evil side has fallen.
+  ended: boolean;
   fallen: boolean[];
-  homes: number[];
   // Each fight row's figure indices, fixed when the battle is spawned.
   members: number[][];
   phase: 'approach' | 'fighting';
+  // The last round the rows swung in, and each row's strength then.
+  round: number;
   rows: number[];
   stage: Stage;
-  vbl: number;
+  strengths: number[];
   world: World;
 }
+
+// Script entries (finding:combat-animation-level-figures-follow-fight-entries):
+// each side walks to its line, then holds its stance; a swing; a fall;
+// and standing still.
+const GOOD_APPROACH = 0xa0;
+const EVIL_APPROACH = 0xb8;
+const STANCE = 0x18;
+const SWING = 0x2a;
+const LUNGE = 0x1a;
+const RECOIL = 0x4c;
+const FALL = 0x4f;
+const STAND = 0x00;
 
 export const spawnBattle = (
   sim: SimState,
@@ -50,11 +66,8 @@ export const spawnBattle = (
   const figures: Figure[] = [];
   const rows: number[] = [];
   const members: number[][] = fight.rows.map(() => []);
-  const slotOf: number[] = [];
   const slots = { evil: 0, good: 0 };
   const spawnWorld = { ...world, laggardLine: 1000 };
-  // Losses are scaled against the starting figure count, rather than
-  // spawning a figure per soldier.
   fight.rows.forEach((row, r) => {
     const entry = sim.roster[row.entries[0]!]!;
     if (entry.figure >= 20) {
@@ -77,103 +90,171 @@ export const spawnBattle = (
         entry.index
       );
       members[r]!.push(figures.length);
-      slotOf.push(slot);
-      figures.push({ ...figure, flipped: !good, next: vbl });
+      figures.push({
+        ...runEntries(figure, [good ? GOOD_APPROACH : EVIL_APPROACH, STANCE]),
+        flipped: !good,
+        next: vbl
+      });
       rows.push(r);
     }
   });
-  const rightmost = figures.reduce(
-    (x, figure, i) =>
-      fight.rows[rows[i]!]!.side === 'good' ? Math.max(x, figure.x) : x,
-    0
-  );
+  // The lines are 25 and 85 pixels past the rightmost Good figure, or
+  // past x 100 when the first Evil row is a balrog (code+0x0b34a).
+  const firstEvil = fight.rows.find(row => row.side === 'evil')?.entries[0];
+  const balrog =
+    firstEvil !== undefined && firstEvil >= 183 && firstEvil <= 187;
+  const rightmost = balrog
+    ? 100
+    : figures.reduce(
+        (x, figure, i) =>
+          fight.rows[rows[i]!]!.side === 'good' ? Math.max(x, figure.x) : x,
+        0
+      );
   const line1 = rightmost + 25;
-  const line2 = rightmost + (fight.evil >= 183 && fight.evil <= 187 ? 100 : 85);
-  const homes = figures.map((_, i) => {
-    const offset = (slotOf[i]! % 5) * 8;
-    return fight.rows[rows[i]!]!.side === 'good'
-      ? line1 - offset
-      : line2 + offset;
-  });
+  const line2 = rightmost + 85;
   return {
+    ended: false,
     fallen: figures.map(() => false),
-    homes,
     members,
     phase: 'approach',
+    round: fight.round,
     rows,
     stage: { figures, party: slots.good },
-    vbl,
+    strengths: fight.rows.map(row => row.strength),
     world: { ...world, fighting: true, line1, line2 }
   };
 };
 
-// Keep a proportional number of each row's original figures standing.
-export const markFallen = (battle: BattleStage, fight: Fight): BattleStage => {
-  const fallen = battle.fallen.slice();
-  fight.rows.forEach((row, r) => {
-    const indices = battle.members[r]!;
-    const living = Math.ceil(
-      (indices.length * row.strength) / Math.max(1, row.startStrength)
-    );
-    indices.forEach((index, k) => {
-      fallen[index] = k >= living;
-    });
-  });
-  return { ...battle, fallen };
+// How many of a row's figures fall for a loss: losses × 10 / its
+// strength when the fight began, or the losses themselves for a row
+// that began 10 strong or less (code+0x11b10).
+export const fallsFor = (start: number, losses: number): number => {
+  const share = start > 10 ? Math.floor((losses * 20) / start) : losses * 2;
+  return share > 1 ? share >> 1 : 0;
 };
 
-// Approach speed, lunges and fall poses are provisional choreography;
-// they never decide when a blow lands or consume the sim's RNG.
+// Set figures on a script entry list from this vertical blank.
+const queue = (
+  figures: Figure[],
+  indices: readonly number[],
+  entries: number[],
+  vbl: number
+): void => {
+  for (const i of indices) {
+    figures[i] = { ...runEntries(figures[i]!, entries), next: vbl };
+  }
+};
+
+// The rows' swings each round, recoils and lunges for a wound, falls
+// for each loss, and at the end the winners standing and a beaten Evil
+// side falling
+// (finding:combat-animation-level-figures-follow-fight-entries). It never decides
+// a blow or consumes the sim's RNG.
+const react = (battle: BattleStage, fight: Fight, vbl: number): BattleStage => {
+  const figures = battle.stage.figures.slice();
+  const fallen = battle.fallen.slice();
+  const living = (r: number): number[] =>
+    battle.members[r]!.filter(i => !fallen[i]);
+  fight.rows.forEach((row, r) => {
+    const losses = battle.strengths[r]! - row.strength;
+    // A killed Character's row falls entire (code+0x117ca).
+    const falls =
+      losses > 0 && row.strength === 0
+        ? living(r).length
+        : fallsFor(row.startStrength, losses);
+    const falling = falls > 0 ? living(r).slice(-falls) : [];
+    queue(figures, falling, [FALL], vbl);
+    for (const i of falling) {
+      fallen[i] = true;
+    }
+  });
+  if (battle.phase === 'fighting' && fight.round > battle.round) {
+    fight.rows.forEach((row, r) => {
+      // Charge swings three times a round, Engage twice (code+0x1101c,
+      // code+0x11150).
+      const swings =
+        row.option === 'charge' || row.option === 'charged'
+          ? 3
+          : row.option === 'engage'
+            ? 2
+            : 0;
+      if (swings > 0) {
+        queue(
+          figures,
+          living(r),
+          [...Array.from({ length: swings }, () => SWING), STANCE],
+          vbl
+        );
+      }
+    });
+    // A wounded individual's side recoils and the first row on the
+    // other side that Charges or Engages lunges (code+0x117f6).
+    for (const event of fight.events) {
+      if (event.wounded === 0 || event.killed > 0) {
+        continue;
+      }
+      const side = fight.rows[event.row]!.side;
+      fight.rows.forEach((row, r) => {
+        if (row.side === side) {
+          queue(figures, living(r), [RECOIL, STANCE], vbl);
+        }
+      });
+      const lunging = fight.rows.findIndex(
+        row =>
+          row.side !== side &&
+          (row.option === 'charge' ||
+            row.option === 'charged' ||
+            row.option === 'engage')
+      );
+      if (lunging >= 0) {
+        queue(figures, living(lunging), [LUNGE, STANCE], vbl);
+      }
+    }
+  }
+  let ended = battle.ended;
+  if (fight.winner && !ended) {
+    ended = true;
+    fight.rows.forEach((row, r) => {
+      if (fight.winner === 'good' && row.side === 'evil') {
+        queue(figures, living(r), [FALL], vbl);
+        for (const i of living(r)) {
+          fallen[i] = true;
+        }
+      } else if (row.side === fight.winner) {
+        queue(figures, living(r), [STAND], vbl);
+      }
+    });
+  }
+  return {
+    ...battle,
+    ended,
+    fallen,
+    round: Math.max(battle.round, fight.round),
+    stage: { ...battle.stage, figures },
+    strengths: fight.rows.map(row => row.strength)
+  };
+};
+
+// Each side walks to its line at its figures' own pace and holds its
+// stance; the fight starts once every figure has
+// (finding:combat-character-fights-on-animation-level).
 export const stepBattle = (
   battle: BattleStage,
   fight: Fight,
   vbl: number
 ): BattleStage => {
-  const stepped = stepStage(battle.stage, battle.world, vbl);
-  const elapsed = Math.max(0, vbl - battle.vbl);
-  const { fallen } = markFallen(battle, fight);
-  const figures = stepped.figures.map((figure, i) => {
-    // Flashes follow their own scripts, outside the fight rows.
-    if (figure.frml === SPELL_FLASH) {
-      return figure;
-    }
-    if (fallen[i]) {
-      return { ...battle.stage.figures[i]!, next: STOPPED };
-    }
-    const row = fight.rows[battle.rows[i]!]!;
-    const good = row.side === 'good';
-    figure = { ...figure, flipped: !good };
-    const home = battle.homes[i]!;
-    if (battle.phase === 'approach') {
-      const before = battle.stage.figures[i]!.x;
-      const distance = home - before;
-      return {
-        ...figure,
-        x:
-          before +
-          Math.sign(distance) * Math.min(Math.abs(distance), elapsed * 0.8)
-      };
-    }
-    const direction = good ? 1 : -1;
-    const charging = row.option === 'charge' || row.option === 'charged';
-    const active = charging || row.option === 'engage';
-    const lunge =
-      active && fight.round > 0
-        ? Math.max(0, Math.sin((vbl + i * 7) / 8)) * (charging ? 40 : 12)
-        : 0;
-    const retreat = row.option === 'retreat' || row.option === 'withdraw';
-    return { ...figure, x: home + direction * (retreat ? -35 : lunge) };
-  });
-  const arrived = figures.every(
+  const reacted = react(battle, fight, vbl);
+  const stage = stepStage(reacted.stage, reacted.world, vbl);
+  const arrived = stage.figures.every(
     (figure, i) =>
-      figure.frml === SPELL_FLASH || fallen[i] || figure.x === battle.homes[i]
+      figure.frml === SPELL_FLASH ||
+      reacted.fallen[i] ||
+      figure.next === STOPPED
   );
   return {
-    ...battle,
-    fallen,
-    phase: battle.phase === 'fighting' || arrived ? 'fighting' : 'approach',
-    stage: { ...stepped, figures },
-    vbl
+    ...reacted,
+    phase: reacted.phase === 'fighting' || arrived ? 'fighting' : 'approach',
+    stage
   };
 };
 
@@ -182,29 +263,7 @@ export const drawBattle = (
   assets: AnimationAssets,
   battle: BattleStage
 ): void => {
-  // Fallen figures lie behind the living. Their last frame is rotated
-  // about its feet, keeping a fall visible while the round is reported.
-  battle.stage.figures.forEach((figure, i) => {
-    if (!battle.fallen[i]) {
-      return;
-    }
-    const frame = assets.figures.get(figure.frml)?.frames[figure.frame];
-    if (!frame) {
-      return;
-    }
-    ctx.save();
-    ctx.translate(figure.x, figure.y + frame.height);
-    ctx.rotate(-Math.PI / 2);
-    drawFigures(ctx, assets, {
-      figures: [{ ...figure, x: 0, y: -frame.height }],
-      party: 0
-    });
-    ctx.restore();
-  });
-  drawFigures(ctx, assets, {
-    ...battle.stage,
-    figures: battle.stage.figures.filter((_, i) => !battle.fallen[i])
-  });
+  drawFigures(ctx, assets, battle.stage);
 };
 
 // Only surviving Good figures walk on; casualties and the Evil figures

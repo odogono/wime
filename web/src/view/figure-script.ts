@@ -77,7 +77,14 @@ export interface ScriptWorld {
   objectEvent?: (event: 1 | 2 | 4, figure: Figure) => void;
   random: (n: number) => number;
   script: (frml: number) => number[];
+  // The talk's events: 3 holds the party, 5 sets it walking on, 6 and
+  // 7 report a side at its line, 12 opens the greeting and 13 the
+  // parting (finding:ui-advisor-talk-runs-on-the-advisors-script).
+  talkEvent?: (event: TalkEvent, figure: Figure) => void;
 }
+
+export type TalkEvent = 3 | 5 | 6 | 7 | 12 | 13;
+const TALK_EVENTS: readonly number[] = [3, 5, 6, 7, 12, 13];
 
 // A new figure, standing with its first frame's hot spot on (x, y)
 // (code+0x037d8). It runs from script entry `entry`.
@@ -119,6 +126,17 @@ export const startScript = (figure: Figure, entry: number): Figure => ({
     figure.next === STOPPED
       ? figure.returns
       : [figure.pc, ...figure.returns].slice(0, RETURN_DEPTH)
+});
+
+// Queue script entries on a figure, as the original's queue does
+// (code+0x0a5ce): run the first now, then each next as the one before
+// returns.
+export const runEntries = (figure: Figure, entries: number[]): Figure => ({
+  ...figure,
+  clamp: 0,
+  next: 0,
+  pc: (entries[0]! - 1) & 0xff,
+  returns: entries.slice(1, RETURN_DEPTH + 1)
 });
 
 // Show frame `frame`, keeping the anchor still: the hot spot, or for a
@@ -231,6 +249,15 @@ export const stepFigure = (
           figure = { ...figure, ...scriptEvent(n, figure) };
           if (n === 1 || n === 2 || n === 4) {
             world.objectEvent?.(n, { ...figure, flipped, pc, returns, x });
+          }
+          if (TALK_EVENTS.includes(n)) {
+            world.talkEvent?.(n as TalkEvent, {
+              ...figure,
+              flipped,
+              pc,
+              returns,
+              x
+            });
           }
           if (n === 0x10) {
             castSpell({ ...figure, flipped, x }, world);

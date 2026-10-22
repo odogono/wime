@@ -8,12 +8,16 @@ import {
 } from '../sim/index';
 import { type Stage } from './animation-level';
 import {
-  NOTICE_MS,
-  advanceEncounterTalk,
-  adviceBoxes,
+  BOX_MS,
+  PICTURE_PARTING_MS,
   drawTip,
+  greetingText,
+  partingText,
+  partyAfterTalk,
+  pressEncounterTalk,
   startEncounterTalk,
-  stepEncounterTalk
+  stepEncounterTalk,
+  talkLines
 } from './encounter-talk';
 import { STOPPED, newFigure, type ScriptWorld } from './figure-script';
 import { passingText, takePassingMessage } from './passing-message';
@@ -64,157 +68,154 @@ const texts = new Map(
 const zero = (): number => 0;
 
 describe('advisor advice', () => {
-  test('greets the watched Character and speaks three boxes from the shared pool', () => {
-    const picks = [1, 2, 3, 2, 1, 5, 3];
+  test('greets the watched Character, then gives a tip in the same box', () => {
+    const picks = [2, 1, 3];
     expect(
-      adviceBoxes('FRODO', texts, new Set(), n => {
+      greetingText('FRODO', texts, new Set(), n => {
         const pick = picks.shift()!;
         expect(pick).toBeLessThan(n);
         return pick;
       })
-    ).toEqual([
-      'Hello FRODO, greeting 2.',
-      'CSTR 11.',
-      'CSTR 6. CSTR 33. Goodbye!'
-    ]);
+    ).toBe('Hello FRODO, greeting 2.\nCSTR 11.');
     expect(picks).toEqual([]);
   });
 
-  test('draws each of twenty tips once, including with a constant RNG', () => {
-    for (const random of [zero, (n: number) => n - 1]) {
-      const given = new Set<number>();
-      const drawn = Array.from({ length: 20 }, () => drawTip(given, random));
-      expect(new Set(drawn).size).toBe(20);
-      expect([...given].sort((a, b) => a - b)).toEqual(
-        Array.from({ length: 20 }, (_, i) => i + 8)
-      );
-      expect(
-        drawTip(given, () => {
-          throw new Error('exhausted pool draws no random number');
-        })
-      ).toBeNull();
-    }
-  });
-
-  test('parting may give a second unused tip, sharing the same history', () => {
+  test('parts with one of CSTR 4 to 7, a proverb three times in four, and a farewell', () => {
     const given = new Set<number>();
-    expect(adviceBoxes('SAM', texts, given, zero)).toEqual([
-      'Greetings SAM, greeting 0.',
-      'CSTR 8.',
-      'CSTR 4. CSTR 9. Farewell!'
-    ]);
-    expect([...given]).toEqual([8, 9]);
-    expect(adviceBoxes('FRODO', texts, given, zero)[1]).toBe('CSTR 10.');
-  });
-
-  test('CSTR 8 as a parting prefix is counted, and never repeats', () => {
-    const given = new Set<number>([9]);
-    const picks = [0, 0, 1, 4, 1, 0, 0];
-    const boxes = adviceBoxes('FRODO', texts, given, () => picks.shift()!);
-    expect(boxes[1]).toBe('CSTR 10.');
-    expect(boxes[2]).toBe('CSTR 8. CSTR 28. Farewell!');
-    expect(given.has(8)).toBe(true);
-    const repeated = [0, 0, 0, 4, 1, 0, 0];
-    expect(adviceBoxes('SAM', texts, given, () => repeated.shift()!)[2]).toBe(
-      'CSTR 4. CSTR 28. Farewell!'
+    // Prefix, tip, proverb-or-tip, farewell, proverb.
+    const picks = [3, 1, 2, 3, 5];
+    expect(partingText(texts, given, () => picks.shift()!)).toBe(
+      'CSTR 7. CSTR 33. Goodbye!'
     );
+    // The tip is spent though the proverb was shown.
+    expect([...given]).toEqual([9]);
+    expect(partingText(texts, given, zero)).toBe('CSTR 4. CSTR 8. Farewell!');
   });
 
-  test('exhausted tips fall back to proverbs without resetting the session', () => {
-    const given = new Set(Array.from({ length: 20 }, (_, i) => i + 8));
-    expect(adviceBoxes('FRODO', texts, given, zero)).toEqual([
-      'Greetings FRODO, greeting 0.',
-      'CSTR 28.',
-      'CSTR 4. CSTR 28. Farewell!'
-    ]);
-    expect(given.size).toBe(20);
+  test('rerolls a given tip up to 50 times, then repeats the last roll', () => {
+    const given = new Set([8]);
+    let rolls = 0;
+    expect(
+      drawTip(given, () => {
+        rolls++;
+        return 0;
+      })
+    ).toBe(8);
+    expect(rolls).toBe(50);
+    const fresh = new Set<number>();
+    expect(drawTip(fresh, n => n - 1)).toBe(27);
+    expect([...fresh]).toEqual([27]);
   });
 });
 
+// A script whose entries stand for the original's: the party's walk to
+// its line raises event 6, and the advisor's talk holds the party, opens
+// the greeting, waits 25 frames, opens the parting, waits, and sets the
+// party walking on.
+const talkScript = (): number[] => {
+  const bytes = Array.from({ length: 256 }, () => 0x60);
+  bytes[0] = 0;
+  bytes[0x02] = 0x00;
+  bytes[0x03] = 0xa0;
+  bytes[0x04] = 0x02;
+  bytes.splice(0xa0, 2, 0x86, 0xbf);
+  bytes.splice(0xb8, 2, 0x87, 0xbf);
+  bytes.splice(0xe6, 6, 0x83, 0x8c, 0x61, 0x8d, 0x61, 0x85);
+  return bytes;
+};
 const world: ScriptWorld = {
   frames: () => [{ height: 20, hot_x: 0, hot_y: 20, width: 12 }],
   laggardLine: 0,
   line1: 1000,
   line2: 1000,
   random: zero,
-  script: () => [0, 0, 0xe1, 0x41, 0, 0xa0, 2]
+  script: talkScript
 };
 const party: Stage = {
   figures: [newFigure(world, 0, 0, -10, 165, 150, 0)],
   party: 1
 };
 const frodo = entry(0, 'FRODO');
+const lines = { line1: 70, line2: 170 };
 
 describe('Animation Level talk', () => {
-  test('starts with one meeting line, then advances three boxes and finishes', () => {
-    const advisor = entry(153, 'TOM BOMBADIL', { allegiance: 3, figure: 82 });
-    const before = JSON.stringify([frodo, advisor, party]);
-    const talk = startEncounterTalk(
-      frodo,
-      advisor,
-      party,
-      world,
-      texts,
-      new Set(),
-      zero,
-      100
-    );
-    expect(talk.text).toBe('FRODO meets TOM BOMBADIL.');
-    expect(talk.picture).toBe(82);
-    expect(talk.advisor.figures).toEqual([]);
-    expect(talk.party.figures[0]!.x).toBeGreaterThan(0);
-    expect(stepEncounterTalk(talk, world, 100 + NOTICE_MS - 1)?.page).toBe(-1);
-    const greeting = stepEncounterTalk(talk, world, 100 + NOTICE_MS)!;
-    expect(greeting.page).toBe(0);
-    const tip = advanceEncounterTalk(greeting, 5000)!;
-    const parting = advanceEncounterTalk(tip, 6000)!;
-    expect([greeting.text, tip.text, parting.text]).toEqual(talk.boxes);
-    expect(advanceEncounterTalk(parting, 7000)).toBeNull();
-    expect(stepEncounterTalk(parting, world, parting.until)).toBeNull();
-    expect(JSON.stringify([frodo, advisor, party])).toBe(before);
+  test('stops the party at x 70, or 160 when it had walked past 70', () => {
+    expect(talkLines(null)).toEqual({ line1: 70, line2: 150 });
+    expect(talkLines(party)).toEqual({ line1: 70, line2: 170 });
+    const past = {
+      ...party,
+      figures: [{ ...party.figures[0]!, x: 70 }]
+    };
+    expect(talkLines(past)).toEqual({ line1: 160, line2: 260 });
   });
 
-  test('a talk left early spends only the tips it showed', () => {
+  test("a walking advisor's script holds the party, greets, parts and lets it walk on", () => {
     const given = new Set<number>();
+    const radagast = entry(157, 'RADAGAST', { figure: 4 });
+    const before = JSON.stringify([frodo, radagast, party]);
     const talk = startEncounterTalk(
       frodo,
-      entry(157, 'RADAGAST', { figure: 4 }),
+      radagast,
       party,
+      lines,
       world,
       texts,
       given,
       zero,
-      0
+      0,
+      true
     );
-    expect(given.size).toBe(0);
-    const greeting = advanceEncounterTalk(talk, 1)!;
-    expect(given.size).toBe(0);
-    advanceEncounterTalk(greeting, 2);
-    expect([...given]).toEqual([8]);
+    expect(talk.box?.text).toBe('FRODO meets RADAGAST.');
+    expect(talk.stage.figures[1]).toMatchObject({ flipped: true, owner: 157 });
+    const greeting = stepEncounterTalk(talk, world, 0)!;
+    expect(greeting.box?.text).toBe('Greetings FRODO, greeting 0.\nCSTR 8.');
+    expect(greeting.stage.figures[0]!.next).toBe(STOPPED);
+    expect(given.size).toBe(1);
+    // The greeting stays until the script parts; a press does nothing.
+    expect(pressEncounterTalk(greeting)).toBe(greeting);
+    const parting = stepEncounterTalk(greeting, world, 25 * 20)!;
+    expect(parting.parting).toBe(true);
+    // A roll of 0 gives a tip, here a repeat once every reroll fails.
+    expect(parting.box?.text).toBe('CSTR 4. CSTR 8. Farewell!');
+    expect(parting.stage.lines?.line2).toBe(-50);
+    const walking = stepEncounterTalk(parting, world, 50 * 20)!;
+    expect(walking.stage.figures[0]!.next).not.toBe(STOPPED);
+    expect(pressEncounterTalk(walking)).toBeNull();
+    expect(stepEncounterTalk(walking, world, 25 * 20 + BOX_MS)).toBeNull();
+    expect(partyAfterTalk(walking).figures.map(f => f.owner)).toEqual([0]);
+    expect(JSON.stringify([frodo, radagast, party])).toBe(before);
   });
 
-  test('a walking advisor approaches from the right and stops beside the party', () => {
+  test('a still picture greets when the party reaches its line and parts 600 frames later', () => {
     const talk = startEncounterTalk(
       frodo,
-      entry(157, 'RADAGAST', { figure: 4 }),
+      entry(153, 'TOM BOMBADIL', { allegiance: 3, figure: 82 }),
       party,
+      lines,
       world,
       texts,
       new Set(),
       zero,
-      0
+      0,
+      false,
+      44
     );
-    expect(talk.picture).toBeNull();
-    expect(talk.advisor.figures[0]).toMatchObject({
-      flipped: true,
-      owner: 157,
-      x: 330
-    });
-    const halfway = stepEncounterTalk(talk, world, NOTICE_MS / 2)!;
-    expect(halfway.advisor.figures[0]!.x).toBe(255);
-    const arrived = stepEncounterTalk(halfway, world, NOTICE_MS)!;
-    expect(arrived.advisor.figures[0]).toMatchObject({ next: STOPPED, x: 180 });
-    expect(arrived.party).toEqual(talk.party);
+    expect(talk.box).toBeNull();
+    expect(talk.picture).toEqual({ id: 82, x: 158, y: 130 });
+    expect(talk.stage.figures).toHaveLength(1);
+    const greeting = stepEncounterTalk(talk, world, 0)!;
+    expect(greeting.box?.text).toContain('Greetings FRODO');
+    const waiting = stepEncounterTalk(
+      greeting,
+      world,
+      PICTURE_PARTING_MS - 20
+    )!;
+    expect(waiting.parting).toBe(false);
+    const parting = stepEncounterTalk(waiting, world, PICTURE_PARTING_MS)!;
+    expect(parting.parting).toBe(true);
+    expect(
+      stepEncounterTalk(parting, world, PICTURE_PARTING_MS + BOX_MS)
+    ).toBeNull();
   });
 });
 

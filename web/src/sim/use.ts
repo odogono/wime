@@ -4,7 +4,7 @@
 // (finding:objects-use-table). The sim applies the effect and says
 // what happened; the view words it, and draws the advisor's tip when
 // the Palantír gives one, since the tips given belong to the session,
-// not the saved game (finding:ui-advisors-share-advice).
+// not the saved game (finding:ui-advisor-talk-has-two-boxes).
 
 import { RING } from './objects';
 import { nextRandom } from './rng';
