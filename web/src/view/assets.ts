@@ -227,6 +227,14 @@ const loadFont = async (manifest: Manifest, base: string): Promise<Font> => {
 // figures and badges are outlined in other colours, so clearing black
 // to transparent keeps every icon's shape. How the original masked
 // its blit has not been traced; this is provisional.
+//
+// Browsers that guard against fingerprinting (Safari's Advanced
+// Fingerprinting Protection, Firefox's resistFingerprinting) perturb
+// what getImageData reads back by a step or two, so black is matched
+// to within half an RGB4 step (17), which still keeps colour 2, #100.
+const NEAR_BLACK = 9;
+export const isNearBlack = (r: number, g: number, b: number): boolean =>
+  r < NEAR_BLACK && g < NEAR_BLACK && b < NEAR_BLACK;
 export const blackToTransparent = (
   image: HTMLImageElement
 ): HTMLCanvasElement => {
@@ -241,9 +249,7 @@ export const blackToTransparent = (
   const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height);
   for (let i = 0; i < pixels.data.length; i += 4) {
     if (
-      pixels.data[i] === 0 &&
-      pixels.data[i + 1] === 0 &&
-      pixels.data[i + 2] === 0
+      isNearBlack(pixels.data[i]!, pixels.data[i + 1]!, pixels.data[i + 2]!)
     ) {
       pixels.data[i + 3] = 0;
     }

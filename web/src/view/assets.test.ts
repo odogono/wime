@@ -1,6 +1,7 @@
 import { afterAll, afterEach, expect, spyOn, test } from 'bun:test';
 
 import {
+  isNearBlack,
   loadFullMapAssets,
   type FullMapPalette,
   type Manifest,
@@ -148,4 +149,11 @@ test('Full Map Level refuses an incomplete icon column', async () => {
     'Asset manifest has no Full Map Level scroll icon; run bun run export:web'
   );
   expect(loadedImages).toEqual([]);
+});
+
+test('black read back with fingerprinting noise is still black, colour 2 is not', () => {
+  expect(isNearBlack(0, 0, 0)).toBe(true);
+  expect(isNearBlack(1, 0, 2)).toBe(true);
+  expect(isNearBlack(17, 0, 0)).toBe(false);
+  expect(isNearBlack(17, 17, 17)).toBe(false);
 });
