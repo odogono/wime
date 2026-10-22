@@ -28,7 +28,10 @@ under a position is (x ÷ 16, y ÷ 16)
   mobilised Force, 99, always obeys and an unmobilised one, 1, never
   does; Boromir, 70, obeys 68 times in 96. Otherwise "The force will
   not accept your orders." shows, and the arrow stays armed for another
-  pick. (`finding:movement-orders-accepted-by-allegiance-roll`)
+  pick. Where icons overlap, the pick is the lowest-numbered Good
+  Force under the click, as the original takes the first Good row in
+  roster order, so a Force parked on a Stronghold is picked over its
+  Garrison. (`finding:movement-orders-accepted-by-allegiance-roll`)
 - `provisional`: the original keeps the refused pick and seems to roll
   again once the refusal's box has had its time; the port drops the
   pick instead, and the player picks again.
