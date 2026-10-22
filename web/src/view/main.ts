@@ -221,6 +221,7 @@ import {
 } from './save-slots';
 import { NATIVE_HEIGHT, NATIVE_WIDTH, createScreen, type Fit } from './screen';
 import { QUIET, figureEffects, soundCues, type SoundView } from './sound-cues';
+import { togglesSound } from './sound-key';
 import { placeScenery } from './special-scenery';
 import {
   drawSpeedWindow,
@@ -1659,6 +1660,12 @@ const run = (
     if (onTitle() || councilWindow) {
       return;
     }
+    // Q switches sound off and on, on every Level
+    // (finding:sound-q-toggles-sound).
+    if (togglesSound(event.key, level)) {
+      audio?.toggle();
+      return;
+    }
     // Any key on the ending's last page opens the menu after the
     // ending (docs/spec/winning-and-losing.md).
     if (ending && endingAwaitsMenu(ending)) {
@@ -1742,9 +1749,6 @@ const run = (
       canvas.style.cursor = lookingDown ? 'zoom-in' : 'grab';
     } else if (event.key === 't' || event.key === 'T') {
       toggleSpeedWindow();
-    } else if (event.key === 'q' || event.key === 'Q') {
-      // Q switches sound off and on (finding:sound-q-toggles-sound).
-      audio?.toggle();
     } else if (event.key === 'p' || event.key === 'P') {
       driver.paused = !driver.paused;
     } else if (event.key === 'Escape') {
