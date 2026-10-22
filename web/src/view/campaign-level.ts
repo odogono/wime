@@ -211,14 +211,21 @@ export type TopLeftWindow =
 // The paused box and the hover name share the top-left window, so
 // only one is drawn: the hover name replaces the paused box while the
 // pointer is over something, and the box returns when it leaves. How
-// the original treats a hover while paused has not been traced.
+// the original treats a hover while paused has not been traced. An
+// open message box, such as a clicked Force's window, takes the spot
+// over both.
 export const topLeftWindow = ({
+  boxOpen = false,
   hoverName,
   paused
 }: {
+  boxOpen?: boolean;
   hoverName: string | null;
   paused: boolean;
 }): TopLeftWindow => {
+  if (boxOpen) {
+    return null;
+  }
   if (hoverName !== null) {
     return { kind: 'hover', name: hoverName };
   }

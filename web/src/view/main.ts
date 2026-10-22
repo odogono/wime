@@ -1812,21 +1812,6 @@ const run = (
       line
     );
     ctx.restore();
-    if (driver.paused && order.kind === 'idle') {
-      const box = drawWindowFrame(ctx, assets.window, {
-        height: 24,
-        width: 128,
-        x: 8,
-        y: 8
-      });
-      windowText(
-        ctx,
-        assets.window,
-        'The Game is Paused.',
-        box.x + 10,
-        box.y + 8
-      );
-    }
     if (order.kind === 'pick-force') {
       drawInfoWindow(
         ctx,
@@ -1854,6 +1839,7 @@ const run = (
       const overIcons = pointer !== null && isOverIcons(pointer, placements);
       const target = hovering && !overIcons ? targetAt(pointer, forces) : null;
       const topLeft = topLeftWindow({
+        boxOpen: messages.box !== null || messages.info !== null,
         hoverName: target?.name ?? null,
         paused: driver.paused
       });
