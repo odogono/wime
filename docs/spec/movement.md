@@ -42,6 +42,13 @@ under a position is (x ÷ 16, y ÷ 16)
 - On arrival the entry turns resting and takes the next stop off its
   Default Orders route; the destination only clears when that route
   is empty (`finding:movement-arrival-pops-next-route-stop`).
+- A Nazgûl, entries 79 to 87, whose orders end on Place 22, the Ford
+  of Bruinen, goes to sleep (state 0) instead of resting, with its
+  trigger set to the Ring-bearer test: it has no Full Map dot or
+  Campaign Level icon, takes no part in fights, and wakes when the
+  Ring-bearer's Force comes within 9 pixels on each axis
+  (`finding:forces-nazgul-hide-at-ford-of-bruinen`,
+  `finding:ai-trigger-distances-are-square`).
   Arrival is tested exactly on the destination pixel at a tile
   origin, so a destination that is not tile-aligned can never be
   arrived at.
