@@ -14,7 +14,7 @@ import {
   type TalkEvent
 } from './figure-script';
 import { measureLines, wrapText } from './font';
-import { LINGER_FRAMES } from './message-box';
+import { LINGER_FRAMES } from './message-timing';
 import { FRAME_MS } from './tick-driver';
 import { drawWindowFrame, windowText, type WindowStyle } from './window-frame';
 

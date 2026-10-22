@@ -1,5 +1,5 @@
 import { measureText, type FontMetrics } from './font';
-import { BUTTONS_DEADLINE_FRAMES } from './message-box';
+import { BUTTONS_DEADLINE_FRAMES } from './message-timing';
 import { FRAME_MS, type GameSpeed } from './tick-driver';
 import {
   drawWindowFrame,
