@@ -8,7 +8,10 @@
 // data offset it reaches, and addresses named in docs/re/labels.md are
 // labelled, so `rg 'data\+0x1de8' extracted_asm/code.asm` finds every access
 // to a table. A call through the jump table also names the routine it
-// reaches (`; data+0x0252 jt_mulu32 -> code+0x1bb76 mulu32`). code.bin and data.bin hold the raw hunk contents.
+// reaches (`; data+0x0252 jt_mulu32 -> code+0x1bb76 mulu32`), and so does a
+// direct `jsr`, `bsr` or `jmp` (`; -> code+0x00396`), so
+// `rg 'code\+0x00396' extracted_asm/code.asm` finds every caller. code.bin
+// and data.bin hold the raw hunk contents.
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
@@ -53,6 +56,20 @@ export const a4Targets = (operands: string): number[] =>
   [...operands.matchAll(/(-?)\$([\da-f]+)\(a4\)/g)].map(
     ([, sign, hex]) => A4_BIAS + (sign ? -1 : 1) * Number.parseInt(hex!, 16)
   );
+
+// Code offset a direct `jsr`, `bsr` or `jmp` reaches. Capstone prints the
+// target itself for the `$396(pc)` and `$1940c.l` forms; an indexed
+// `$564(pc,d0.w)` is a switch, not a call.
+export const callTarget = (
+  mnemonic: string,
+  operands: string
+): number | undefined => {
+  if (!/^(?:jsr|jmp|bsr(?:\.[bw])?)$/.test(mnemonic)) {
+    return undefined;
+  }
+  const hex = /^\$([\da-f]+)(?:\(pc\)|\.l)?$/.exec(operands)?.[1];
+  return hex === undefined ? undefined : Number.parseInt(hex, 16);
+};
 
 // Capstone.js throws, rather than returning nothing, when the first word is
 // not an instruction.
@@ -145,6 +162,12 @@ export const formatListing = (
       const calleeName = labels.get(callee);
       return `${note} -> ${callee}${calleeName ? ` ${calleeName}` : ''}`;
     });
+    const call = callTarget(mnemonic, operands);
+    if (call !== undefined) {
+      const callee = codeAddress(call);
+      const calleeName = labels.get(callee);
+      notes.push(`-> ${callee}${calleeName ? ` ${calleeName}` : ''}`);
+    }
     const hex = bytes.map(byte => byte.toString(16).padStart(2, '0')).join('');
     const text = `${mnemonic} ${operands}`.trim();
     lines.push(

@@ -143,7 +143,7 @@ Where each part of the game sits in the code hunk, from the labels below. Start 
 | `data+0x4ac8` | `fullMapPalette`       | 16 RGB4 words                                                           |
 | `data+0x4b48` | `animationPalette`     | the Animation Level's 32 RGB4 colours                                   |
 | `data+0x4c72` | `pointerShown`         | byte, written as sprite DMA is switched; presumably the pointer is on   |
-| `data+0x4f40` | `blinkPhase`           | toggles each frame                                                      |
+| `data+0x4f40` | `blinkPhase`           | flips once per Campaign Level redraw (code+0x0d240), not per frame      |
 | `data+0x4fec` | `frameCounter`         | compared with `data+0x08c2` before a clock step                         |
 | `data+0x4fee` | `vblankCount`          | word, 50 Hz                                                             |
 | `data+0x4ff0` | `fightState`           | 1 Go there, 2 fight on the Animation Level, 3 Ignore it; 4–7 meetings   |

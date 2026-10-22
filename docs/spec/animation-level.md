@@ -44,8 +44,8 @@ talks and fights shown here are in `docs/spec/encounters.md`.
   nobody watched; no figures walk, and it stays until the map icon is
   pressed
   (finding:ui-magnifying-glass-watches-the-first-good-leader-near-the-spot).
-  `provisional`: the original flashes the chosen row's icon four times
-  first, which the port does not.
+  When there are rows, the first row's icon flashes four times first
+  (docs/spec/time.md, finding:ui-press-flash).
 
 ## The screen
 

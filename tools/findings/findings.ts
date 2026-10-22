@@ -3,7 +3,9 @@
 // them, as docs/findings/README.md describes.
 //
 //   bun tools/findings/findings.ts check          validate every Finding, its
-//       `supersedes` and every `finding:<slug>` a Spec cites
+//       `supersedes` and every `finding:<slug>` a Spec cites, and, where
+//       `bun run disasm` has run, that each routine a `disasm:code+0x…`
+//       source sits in is named in docs/re/labels.md
 //   bun tools/findings/findings.ts build [FILE]   write the document to FILE,
 //       or print it
 import {
@@ -15,6 +17,8 @@ import {
 } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 
+import { ASM_FILE, routineAround, routineStarts } from '../asm';
+import { LABELS_FILE, codeAddress, parseLabels } from '../disasm';
 import {
   SLUG,
   TOPICS,
@@ -27,6 +31,8 @@ const ROOT = resolve(import.meta.dir, '../..');
 const DIR = join(ROOT, 'docs/findings');
 const TOPIC_DIR = join(DIR, 'topics');
 const SPECS = join(ROOT, 'docs/spec');
+// Routines Findings cited before the labels check, still to be named.
+const UNLABELLED = join(import.meta.dir, 'unlabelled-routines.txt');
 
 export type Entry = Finding & { slug: string };
 
@@ -68,6 +74,52 @@ export const crossCheck = (
   }
   return problems;
 };
+
+// Problems with the routines Findings cite: one with no label in labels.md,
+// unless it is in the backlog of `unlabelled` ones, and a backlog entry that
+// is now labelled or no longer cited.
+export const labelCheck = (
+  entries: Entry[],
+  listing: string,
+  labels: Map<string, string>,
+  unlabelled: Set<string>
+): string[] => {
+  const problems: string[] = [];
+  const starts = routineStarts(listing);
+  const cited = new Set<string>();
+  for (const { slug, sources } of entries) {
+    for (const source of sources) {
+      const hex = /^disasm:code\+0x([\da-f]+)$/.exec(source)?.[1];
+      if (hex === undefined) {
+        continue;
+      }
+      const routine = codeAddress(
+        routineAround(starts, Number.parseInt(hex, 16)).start
+      );
+      cited.add(routine);
+      if (!labels.has(routine) && !unlabelled.has(routine)) {
+        problems.push(
+          `${slug}: cites ${source}, in the routine at ${routine}, which docs/re/labels.md doesn't name`
+        );
+      }
+    }
+  }
+  for (const routine of unlabelled) {
+    if (labels.has(routine) || !cited.has(routine)) {
+      problems.push(
+        `${routine} is labelled or uncited: remove it from tools/findings/unlabelled-routines.txt`
+      );
+    }
+  }
+  return [...new Set(problems)];
+};
+
+const readUnlabelled = (): Set<string> =>
+  new Set(
+    readFileSync(UNLABELLED, 'utf8')
+      .split('\n')
+      .filter(line => line.startsWith('code+'))
+  );
 
 const TITLES: Record<Topic, string> = {
   ai: 'The computer opponent',
@@ -213,6 +265,17 @@ if (import.meta.main) {
       text: readFileSync(path, 'utf8')
     }));
     problems.push(...crossCheck(entries, specs));
+    const listing = join(ROOT, ASM_FILE);
+    if (existsSync(listing)) {
+      problems.push(
+        ...labelCheck(
+          entries,
+          readFileSync(listing, 'utf8'),
+          parseLabels(readFileSync(LABELS_FILE, 'utf8')),
+          readUnlabelled()
+        )
+      );
+    }
     for (const problem of problems) {
       console.error(`findings: ${problem}`);
     }

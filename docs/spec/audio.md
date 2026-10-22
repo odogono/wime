@@ -70,8 +70,9 @@ are laid out is in the Findings of #130; how the browser plays them is
   (finding:sound-fight-effects)
 - On the Animation Level, a figure turning to frame 9 or 11 of its set
   plays Whoosh or Sword at random, and a figure's script casting a spell
-  plays Magic. The original also draws the spell's flash, a figure of
-  set 18, which the port does not yet. (finding:sound-fight-effects)
+  plays Magic, as the spell's flash, a figure of set 18, sets off
+  (docs/spec/animation-level.md). (finding:sound-fight-effects,
+  finding:graphics-spell-flash)
 - The original's Sword never sounds: its Disk 2 copy cannot play the
   note asked for. The port departs from this and plays Disk 1's sword,
   so every blow is heard. (finding:sound-disk-2-sword-is-silent)

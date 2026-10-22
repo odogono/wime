@@ -272,9 +272,9 @@ const effectMessage = (
 
 // Choose an object from a list: act on the sim and show what happened
 // (finding:objects-take-message,
-// finding:objects-put-down-message-after-the-animation). provisional:
-// the walk to the object and the putting down are not animated, so the
-// put-down message shows at once.
+// finding:objects-put-down-message-after-the-animation). The caller
+// sends the figure on its errand and holds Put Down's message until the
+// object is down (main.ts, startErrand).
 export const chooseObject = (
   font: FontMetrics,
   sim: SimState,
