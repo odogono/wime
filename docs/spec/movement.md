@@ -38,6 +38,12 @@ under a position is (x ÷ 16, y ÷ 16)
   from code but not observed, re-picking takes one click, and each
   attempt rolls the same odds.
   (`finding:movement-orders-accepted-by-allegiance-roll`)
+- Port additions, not in the original: pressing the arrow while a
+  Good Force's info window is open picks that Force at once, rolling
+  as above; with no Force shown, "Click a Force to order" asks for
+  one. Once the destination is clicked, the ordered entry's status
+  line ("ÉOMER is going to EDORAS.", or "heading <direction>." away
+  from a Place) shows as a plain notice to confirm the Order.
 - An Order's destination is the clicked spot rounded down to its
   tile origin, so a click in a Place's tile lands on the Place.
   Clicking near Bree set (784, 384); clicking near Osgiliath set

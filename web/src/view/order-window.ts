@@ -69,6 +69,26 @@ export const pickForceAt = (
   };
 };
 
+// The arrow pressed while a Force's info window is open orders that
+// Force straight away rather than asking for one: a port convenience,
+// not the original's flow. Only a Good Force on the map can be picked;
+// otherwise the arrow asks for a Force as usual.
+export const pickForceByLeader = (
+  forces: Force[],
+  leaderIndex: number
+): OrderState => {
+  const picked = forces.find(
+    force =>
+      force.onMap &&
+      force.leader.index === leaderIndex &&
+      leaderIndex >= 1 &&
+      leaderIndex <= LAST_GOOD_ENTRY
+  );
+  return picked
+    ? { kind: 'pick-destination', leaderIndex, selected: leaderIndex }
+    : { kind: 'pick-force' };
+};
+
 export const pickMember = (
   state: OrderState,
   memberIndex: number

@@ -8,6 +8,7 @@ import {
   glassWatches,
   listFightOnAnimationLevel,
   mirrorListing,
+  statusLine,
   takesOrder,
   tickSim,
   watchEntry,
@@ -197,6 +198,7 @@ import {
   layoutOrderWindow,
   orderWindowOptionAt,
   pickForceAt,
+  pickForceByLeader,
   pickMember,
   toggleOrder,
   type OrderState,
@@ -307,6 +309,9 @@ const CLICK_TOLERANCE_PX = 3;
 type Level = 'animation' | 'campaign' | 'full-map';
 // The original's refusal of an Order (code+0x0751f).
 const ORDER_REFUSED = 'The force will not accept your orders.';
+// The port's prompt while the arrow waits for a Force; the original
+// shows none.
+const PICK_FORCE_PROMPT = 'Click a Force to order';
 
 // `run` holds the whole view's state and handlers, in this order; search for
 // the name to jump to a part:
@@ -471,6 +476,8 @@ const run = (
   // (docs/spec/objects.md), Gandalf's letter, a status box and a
   // Force's or a Place's window (message-box.ts).
   let messages: Messages = { ...NO_MESSAGES };
+  // The leader of the Force whose info window is open, for the arrow.
+  let infoForce: number | null = null;
   // Deliberately survives Archive restores, and is never saved.
   const givenTips = new Set<number>();
   // The game's ending, once a fight has ended it.
@@ -1271,25 +1278,39 @@ const run = (
     }
     if (order.kind === 'pick-force') {
       const picked = pickForceAt(order, forcesOnMap(sim.roster), point);
-      if (picked.kind !== 'pick-destination') {
-        return;
-      }
-      // The Force takes the Order only on the roll; otherwise the arrow
-      // stays armed (finding:movement-orders-accepted-by-allegiance-roll).
-      const result = takesOrder(sim, picked.selected);
-      sim = result.world;
-      if (result.taken) {
-        setOrder(picked);
-      } else {
-        const now = viewNow();
-        closeBox(now);
-        // A refusal shows as the same plain notice as a pass-by.
-        messages.passing = { text: ORDER_REFUSED };
-        showBox('passing', now);
+      if (picked.kind === 'pick-destination') {
+        rollForOrder(picked);
       }
     } else if (order.kind === 'pick-destination') {
-      sim = giveOrder(sim, order.selected, point);
+      const selected = order.selected;
+      sim = giveOrder(sim, selected, point);
       setOrder(IDLE_ORDER);
+      // The port confirms the Order in the status line's words; the
+      // original shows nothing.
+      showNotice(statusLine(sim.roster, sim.places, selected));
+    }
+  };
+  // A plain notice, shown as a pass-by is.
+  const showNotice = (text: string): void => {
+    const now = viewNow();
+    closeBox(now);
+    messages.passing = { text };
+    showBox('passing', now);
+  };
+  // The picked Force takes the Order only on the roll; otherwise the
+  // arrow stays armed (finding:movement-orders-accepted-by-allegiance-roll).
+  const rollForOrder = (picked: OrderState): void => {
+    if (picked.kind !== 'pick-destination') {
+      setOrder(picked);
+      return;
+    }
+    const result = takesOrder(sim, picked.selected);
+    sim = result.world;
+    if (result.taken) {
+      setOrder(picked);
+    } else {
+      setOrder({ kind: 'pick-force' });
+      showNotice(ORDER_REFUSED);
     }
   };
 
@@ -1556,9 +1577,17 @@ const run = (
       lookingDown = !lookingDown;
       canvas.style.cursor = lookingDown ? 'zoom-in' : 'grab';
     } else if (icon.icon.name === 'arrow') {
-      // The arrow starts or cancels an Order (#10).
+      // The arrow starts or cancels an Order (#10). With a Force's
+      // window open it orders that Force at once (a port addition).
+      const shown = messages.info ? infoForce : null;
       messages.info = null;
-      setOrder(toggleOrder(order));
+      infoForce = null;
+      const next = toggleOrder(order);
+      if (next.kind === 'pick-force' && shown !== null) {
+        rollForOrder(pickForceByLeader(forcesOnMap(sim.roster), shown));
+      } else {
+        setOrder(next);
+      }
     } else if (icon.icon.name === 'hourglass') {
       toggleSpeedWindow();
     }
@@ -1610,6 +1639,8 @@ const run = (
         }
         // "Ignore it" leaves the fight's own boxes up instead.
         if (target && !messages.box) {
+          infoForce =
+            target.kind === 'force' ? target.force.leader.index : null;
           messages.info = layoutInfoWindow(
             assets.window.font.metrics,
             target.kind === 'force'
@@ -1800,7 +1831,7 @@ const run = (
       drawInfoWindow(
         ctx,
         assets.window,
-        layoutInfoWindow(assets.window.font.metrics, ['Select a Force'])
+        layoutInfoWindow(assets.window.font.metrics, [PICK_FORCE_PROMPT])
       );
     }
     if (order.kind === 'pick-destination') {

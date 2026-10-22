@@ -7,6 +7,7 @@ import {
   layoutOrderWindow,
   orderWindowOptionAt,
   pickForceAt,
+  pickForceByLeader,
   pickMember,
   toggleOrder
 } from './order-window';
@@ -111,6 +112,17 @@ describe('order flow', () => {
         y: 370
       })
     ).toEqual({ kind: 'pick-destination', leaderIndex: 13, selected: 13 });
+  });
+
+  test('the arrow with a Good Force selected orders that Force at once', () => {
+    expect(pickForceByLeader([force], 7)).toEqual({
+      kind: 'pick-destination',
+      leaderIndex: 7,
+      selected: 7
+    });
+    const evil = { ...force, leader: entry({ index: 100, name: 'ORCS' }) };
+    expect(pickForceByLeader([evil], 100)).toEqual({ kind: 'pick-force' });
+    expect(pickForceByLeader([force], 8)).toEqual({ kind: 'pick-force' });
   });
 
   test('clicking a member name selects that member for the Order', () => {
