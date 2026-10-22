@@ -399,6 +399,15 @@ describe('the message', () => {
     const held = tickSim(arrival());
     const restored = restoreSave(serialiseSave(held), null);
     expect(restored).toEqual({ ok: true, state: held });
+    const playOn = (state: SimState) => tickSim(tickSim(closeCouncil(state)));
+    expect(restored.ok && playOn(restored.state)).toEqual(playOn(held));
+  });
+
+  test('a save just before the hour holds the Council when restored', () => {
+    const before = arrival();
+    const restored = restoreSave(serialiseSave(before), null);
+    expect(restored.ok && restored.state.councilPending).toBe(true);
+    expect(restored.ok && tickSim(restored.state)).toEqual(tickSim(before));
   });
 
   test('holdCouncil leaves the message naming the Ring-bearer', () => {
