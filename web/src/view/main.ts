@@ -47,10 +47,11 @@ import {
 import {
   drawStatusBox,
   eyeStatus,
-  figureAt,
   figureStatus,
   insideStatusBox,
-  isSelectable
+  isSelectable,
+  objectNameBox,
+  thingAt
 } from './animation-status';
 import {
   ARCHIVE_MESSAGES,
@@ -1025,14 +1026,25 @@ const run = (
     ) {
       // A figure clicked shows its status line and, on the Good side,
       // becomes the selected Character; nothing during a fight
-      // (finding:ui-animation-level-clicking-a-figure-selects-it).
-      const owner = figureAt(progress.stage, figureWorld.frames, point);
-      if (owner !== null) {
+      // (finding:ui-animation-level-clicking-a-figure-selects-it). An
+      // object's picture shows its name; with a list open the press
+      // never gets here (finding:objects-lying-on-the-ground-are-pictures).
+      const clicked = thingAt(
+        progress.stage,
+        figureWorld.frames,
+        object => animation.objectPictures.get(object) ?? null,
+        point
+      );
+      if (clicked?.kind === 'object') {
         closeBox(now);
-        messages.status = figureStatus(sim.roster, sim.places, owner);
+        messages.status = objectNameBox(clicked.object);
         showBox('status', now);
-        if (isSelectable(owner)) {
-          chosenCharacter = owner;
+      } else if (clicked) {
+        closeBox(now);
+        messages.status = figureStatus(sim.roster, sim.places, clicked.owner);
+        showBox('status', now);
+        if (isSelectable(clicked.owner)) {
+          chosenCharacter = clicked.owner;
         }
       }
     }

@@ -427,7 +427,7 @@ export interface AnimationAssets {
   // Objects lying on the ground, by object: BScene.res IMAG 50 plus the
   // object, colour 0 clear
   // (finding:objects-lying-on-the-ground-are-pictures).
-  objectPictures: Map<number, CanvasImageSource>;
+  objectPictures: Map<number, HTMLCanvasElement>;
   // The 32 colours (finding:graphics-animation-level-palette).
   palette: string[];
   // Scenery strips by IMAG id, colour 0 clear.

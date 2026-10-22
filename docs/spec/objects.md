@@ -90,8 +90,11 @@ and "Use an object". (finding:objects-handled-on-animation-level)
   every figure, and only then the message shows
   (finding:objects-put-down-is-a-stoop-in-place). Without a figure on
   screen, or for Take without the picture, the message shows at once.
-- `provisional`: these were read from the code, not played. Clicking
-  an object's picture to see its name is not built.
+- Clicking an object's picture, with no object list open, shows the
+  object's name in a box without buttons at (10, 5), 100 by 24, in
+  colour 5; a figure in front of the picture takes the click instead
+  (finding:objects-lying-on-the-ground-are-pictures).
+- `provisional`: these were read from the code, not played.
 
 The **chosen** Character is the party member selected; the
 **position** is the watched Character's position, the Force on
