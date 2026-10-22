@@ -80,7 +80,6 @@ import {
   bootView,
   createBootRenderer,
   pressBootKey,
-  startBoot,
   stepBoot,
   type BootSequence
 } from './boot-sequence';
@@ -503,9 +502,9 @@ const run = (
   };
   window.addEventListener('pointerdown', () => {
     if (boot) {
-      const result = startBoot(boot, viewNow());
-      boot = result.boot;
-      startTitle(result.started);
+      const started = boot.startedAt === null;
+      boot = pressBootKey(boot, viewNow());
+      startTitle(started);
     }
   });
   // The title menu, once the boot sequence is over

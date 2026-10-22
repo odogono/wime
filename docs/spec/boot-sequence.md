@@ -107,6 +107,9 @@ The port's own departures, since a browser page is not a floppy boot.
 - Browsers play sound only after the player's first input, so the page
   opens on the Melbourne House screen, fading in, and the timetable and
   Title start with the first key or click. That input skips nothing.
+- After that a click does what a key does, and a key or click on the
+  Ring verse ends the sequence, so every screen can be skipped; in the
+  original clicks do nothing and nothing moves past the verse.
 - The Animation Level loads at once, so the Ring verse is held for at
   least 150 frames, 3 seconds, where the original showed it while
   loading. Without sound, or with Q switching it off, nothing else
