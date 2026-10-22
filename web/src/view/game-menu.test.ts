@@ -5,6 +5,7 @@ import {
   clickGameMenu,
   gameMenuView,
   hoverGameMenu,
+  openEndedMenu,
   openGameMenu,
   pressGameMenuKey,
   type GameMenu,
@@ -157,5 +158,49 @@ describe('the in-game menu', () => {
       kind: 'close'
     });
     expect(clickGameMenu(menu, { x: 0, y: 0 }, SAVES).menu).toBe(menu);
+  });
+});
+
+describe('the menu after the ending', () => {
+  const ended = openEndedMenu();
+  const endedKeys = (...pressed: string[]): GameMenuStep => {
+    let step: GameMenuStep = { menu: ended };
+    for (const key of pressed) {
+      if (step.choice) {
+        break;
+      }
+      step = pressGameMenuKey(step.menu, key, SAVES, ended);
+    }
+    return step;
+  };
+
+  test('offers only Return to title and Load', () => {
+    expect(labels(ended)).toEqual(['Return to title', 'Load']);
+  });
+
+  test('Return to title is chosen at once', () => {
+    expect(endedKeys('Enter').choice).toEqual({ kind: 'title' });
+  });
+
+  test('Escape does not close it', () => {
+    expect(endedKeys('Escape')).toEqual({ menu: ended });
+  });
+
+  test('Load opens the slots, and backing out returns to it', () => {
+    const load = endedKeys('ArrowDown', 'Enter').menu;
+    expect(load.kind).toBe('load');
+    expect(endedKeys('ArrowDown', 'Enter', 'Escape').menu).toEqual(ended);
+    expect(endedKeys('ArrowDown', 'Enter', 'ArrowUp', 'Enter').menu).toEqual(
+      ended
+    );
+    const back = centre(load, labels(load).length - 1);
+    expect(clickGameMenu(load, back, SAVES, ended).menu).toEqual(ended);
+    // Going back from the question to load also returns to it.
+    expect(endedKeys('ArrowDown', 'Enter', 'Enter', 'Enter').menu).toEqual(
+      ended
+    );
+    expect(
+      endedKeys('ArrowDown', 'Enter', 'Enter', 'ArrowUp', 'Enter').choice
+    ).toEqual({ id: AUTOSAVE_ID, kind: 'load' });
   });
 });

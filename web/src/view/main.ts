@@ -130,6 +130,7 @@ import {
 } from './ending-scene';
 import {
   drawEndingScreen,
+  endingAwaitsMenu,
   endingScreen,
   stepEndingScreen,
   turnEndingPage,
@@ -158,6 +159,7 @@ import {
   gameMenuMessage,
   hoverGameMenu,
   loadFailed,
+  openEndedMenu,
   openGameMenu,
   pressGameMenuKey,
   saveFailed,
@@ -858,6 +860,9 @@ const run = (
       drawEndingFigures(ctx, animation.figures, endingFigures(end, choose));
     }
     ending = endingScreen(end, assets.texts, now);
+    // An ended game cannot be resumed: the autosave, written before the
+    // ending, goes (docs/spec/saving.md). Named slots are kept.
+    saveSlots.clearAutosave();
   };
 
   const startAnimationFight = (now: number, attacked = false): BattleStage => {
@@ -1412,7 +1417,9 @@ const run = (
   canvas.style.cursor = 'grab';
   const handlePointerDown = (event: PointerEvent): void => {
     if (gameMenu) {
-      chooseInGame(clickGameMenu(gameMenu, toNative(event), titleSaves()));
+      chooseInGame(
+        clickGameMenu(gameMenu, toNative(event), titleSaves(), gameMenuHome())
+      );
       return;
     }
     if (titleMenu) {
@@ -1423,7 +1430,11 @@ const run = (
       return;
     }
     if (ending) {
-      ending = turnEndingPage(ending, viewNow());
+      if (endingAwaitsMenu(ending)) {
+        openMenuAfterEnding();
+      } else {
+        ending = turnEndingPage(ending, viewNow());
+      }
       return;
     }
     // The Council's message cannot be dismissed, and nothing else
@@ -1635,7 +1646,9 @@ const run = (
       if (event.key.toLowerCase() === 'q' && gameMenu.kind !== 'name') {
         audio?.toggle();
       }
-      chooseInGame(pressGameMenuKey(gameMenu, event.key, titleSaves()));
+      chooseInGame(
+        pressGameMenuKey(gameMenu, event.key, titleSaves(), gameMenuHome())
+      );
       return;
     }
     // Escape opens the in-game menu when there is nothing else for it
@@ -1644,6 +1657,12 @@ const run = (
       return;
     }
     if (onTitle() || councilWindow) {
+      return;
+    }
+    // Any key on the ending's last page opens the menu after the
+    // ending (docs/spec/winning-and-losing.md).
+    if (ending && endingAwaitsMenu(ending)) {
+      openMenuAfterEnding();
       return;
     }
     const key = event.key.toLowerCase();
@@ -1984,20 +2003,32 @@ const run = (
     ) {
       return false;
     }
-    // What is on screen, the Full Map Level's hi-res frame squeezed to
-    // the same 320 by 200 as it is shown.
+    openMenuOver(openGameMenu());
+    return true;
+  };
+  // Behind the menu, what is on screen: the Full Map Level's hi-res
+  // frame squeezed to the same 320 by 200 as it is shown.
+  const openMenuOver = (menu: GameMenu): void => {
     backdropCtx.drawImage(
-      level === 'full-map' ? screen.hires.canvas : screen.buffer.canvas,
+      level === 'full-map' && !ending
+        ? screen.hires.canvas
+        : screen.buffer.canvas,
       0,
       0,
       NATIVE_WIDTH,
       NATIVE_HEIGHT
     );
     drag = null;
-    gameMenu = openGameMenu();
+    gameMenu = menu;
     menuOpenedAt = performance.now();
-    return true;
   };
+  // After the ending's last page: Return to title or Load; nothing goes
+  // back to the ended game.
+  const openMenuAfterEnding = (): void => {
+    openMenuOver(openEndedMenu());
+  };
+  const gameMenuHome = (): GameMenu =>
+    ending ? openEndedMenu() : openGameMenu();
   menuButton?.addEventListener('click', () => {
     if (!gameMenu) {
       openInGameMenu();
@@ -2031,11 +2062,21 @@ const run = (
   // Back to the title menu, the game autosaved first; if it cannot be,
   // the game stays in play.
   const returnToTitle = (): void => {
+    // An ended game is not saved: its autosave is already gone.
+    if (ending) {
+      leaveGameMenu();
+      showTitle();
+      return;
+    }
     if (!saveSlots.autosave(sim).ok) {
       gameMenu = gameMenuMessage(AUTOSAVE_FAILED);
       return;
     }
     leaveGameMenu();
+    showTitle();
+  };
+  // The title menu over a fresh game, the one in play dropped unsaved.
+  const showTitle = (): void => {
     clearWindows();
     sim = newSim();
     camera = openingCamera();
@@ -2097,7 +2138,7 @@ const run = (
       return;
     }
     if (menuButton) {
-      menuButton.hidden = onTitle() || gameMenu !== null;
+      menuButton.hidden = onTitle() || gameMenu !== null || ending !== null;
     }
     if (gameMenu) {
       screen.buffer.drawImage(backdrop, 0, 0);

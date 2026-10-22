@@ -265,6 +265,21 @@ describe('save slots', () => {
     });
   });
 
+  test('a game that has ended clears the autosave, keeping the named slots', () => {
+    const storage = fakeStorage();
+    const slots = createSaveSlots(storage);
+    slots.save('Named', createSim(7));
+    slots.autosave(later(4));
+    expect(slots.clearAutosave()).toEqual({ ok: true, value: undefined });
+    expect(slots.autosaved()).toEqual({ ok: true, value: null });
+    expect(createSaveSlots(storage).loadAutosave(null)).toEqual({
+      ok: false,
+      reason: 'missing'
+    });
+    expect(slots.list()).toMatchObject({ value: [{ id: 1, name: 'Named' }] });
+    expect(slots.clearAutosave()).toEqual({ ok: true, value: undefined });
+  });
+
   test('a failed autosave keeps the old one, without throwing', () => {
     const sim = createSim(7);
     const storage = fakeStorage(serialiseSave(sim).length * 1.5);
