@@ -205,14 +205,7 @@ import {
   type OrderState,
   type OrderWindow
 } from './order-window';
-import {
-  GLASS_TOGGLES,
-  PRESS_TOGGLES,
-  flashOver,
-  flashSwapped,
-  swapColours,
-  type PressFlash
-} from './press-flash';
+import { GLASS_TOGGLES, createPresses, swapColours } from './press-flash';
 import {
   chooseObject,
   drawProvisionsWindow,
@@ -284,6 +277,18 @@ const iconAt = (
       pointer.y >= y &&
       pointer.y < y + icon.image.height
   );
+
+// A placed icon's area, which flashes when it is pressed.
+const placedBox = (placed: {
+  icon: { image: { height: number; width: number } };
+  x: number;
+  y: number;
+}) => ({
+  height: placed.icon.image.height,
+  width: placed.icon.image.width,
+  x: placed.x,
+  y: placed.y
+});
 
 // How long an active Force's icon stays in each half of its flash
 // (finding:ui-campaign-level-display). The original's rate has not
@@ -451,18 +456,10 @@ const run = (
   let speedWindow: SpeedWindow | null = null;
   // Presses on a button or an icon, each ringing ReverbBells
   // (finding:sound-reverb-bells-ring-on-a-press).
-  let presses = 0;
-  // The flash of a pressed icon or button, while it runs; the press is
-  // handled again once it is over (finding:ui-press-flash).
-  let flash:
-    | (PressFlash & {
-        original: ImageData;
-        replay: () => void;
-        resolution: 'hires' | 'lores';
-      })
-    | null = null;
-  let pressEvent: PointerEvent | null = null;
-  let replaying = false;
+  let pressCount = 0;
+  // The flashed area as it was before its flash, while it flashes.
+  let flashed: { original: ImageData; resolution: 'hires' | 'lores' } | null =
+    null;
   let order: OrderState = IDLE_ORDER;
   let battle: BattleStage | null = null;
   // The Council of Elrond's message, while it holds the game
@@ -606,7 +603,7 @@ const run = (
       level,
       levelEntries,
       placeTile: level === 'animation' ? placeTile : null,
-      presses
+      presses: pressCount
     };
   };
   const updateSound = (): void => {
@@ -666,37 +663,61 @@ const run = (
     point.x < box.x + box.width &&
     point.y >= box.y &&
     point.y < box.y + box.height;
-  // Ring the bell and flash `area` before a press acts. True when the
-  // press waits for the flash: the caller stops, and the press is
-  // handled again once the flash is over, when this is false
+  // A pressed icon or button rings the bell and flashes, and acts once
+  // the flash is over; the game stands still meanwhile
   // (finding:ui-press-flash, finding:sound-reverb-bells-ring-on-a-press).
-  const pressFlashes = (
-    area: { height: number; width: number; x: number; y: number },
-    toggles = PRESS_TOGGLES
-  ): boolean => {
-    const event = pressEvent;
-    if (replaying || !event) {
-      return false;
+  // The screen stands still too, so the area is read on its first frame.
+  const presses = createPresses({
+    now: viewNow,
+    ring: () => {
+      pressCount += 1;
+    },
+    show: (area, shows) => {
+      if (!flashed) {
+        const resolution = level === 'full-map' ? 'hires' : 'lores';
+        const ctx = resolution === 'hires' ? screen.hires : screen.buffer;
+        flashed = {
+          original: ctx.getImageData(area.x, area.y, area.width, area.height),
+          resolution
+        };
+      }
+      const { original, resolution } = flashed;
+      const ctx = resolution === 'hires' ? screen.hires : screen.buffer;
+      if (shows === 'over') {
+        ctx.putImageData(original, area.x, area.y);
+        flashed = null;
+        return;
+      }
+      const shown = new ImageData(
+        new Uint8ClampedArray(original.data),
+        original.width,
+        original.height
+      );
+      if (shows === 'swapped') {
+        swapColours(
+          shown.data,
+          level === 'full-map'
+            ? fullMap.palette.hex
+            : level === 'animation'
+              ? animation.palette
+              : assets.palette
+        );
+      }
+      ctx.putImageData(shown, area.x, area.y);
+      screen.present(resolution);
     }
-    presses += 1;
-    const resolution = level === 'full-map' ? 'hires' : 'lores';
-    const ctx = resolution === 'hires' ? screen.hires : screen.buffer;
-    flash = {
-      area,
-      original: ctx.getImageData(area.x, area.y, area.width, area.height),
-      replay: () => {
-        replaying = true;
-        try {
-          handlePointerDown(event);
-        } finally {
-          replaying = false;
-        }
-      },
-      resolution,
-      start: viewNow(),
-      toggles
-    };
-    return true;
+  });
+  // Run `act` once `area`'s flash is over, or at once with no area.
+  const pressThen = (
+    area: { height: number; width: number; x: number; y: number } | undefined,
+    act: () => void,
+    toggles?: number
+  ): void => {
+    if (area) {
+      presses.press(area, act, toggles);
+    } else {
+      act();
+    }
   };
 
   // The one message box (message-box.ts), on this Level, at `now`.
@@ -966,17 +987,20 @@ const run = (
   const handleAnimationPress = (event: PointerEvent): void => {
     const point = toNative(event);
     const icon = animationIconAt(animation.icons, point);
-    const now = viewNow();
     if (holdsClock(messages.provisions)) {
       // While a box with buttons is up only its buttons answer: a press
       // off them, the icons included, does nothing
       // (finding:ui-message-box-presses-off-the-buttons).
-      pressProvisions(point, now);
+      pressProvisions(point);
       return;
     }
-    if (icon && pressFlashes(iconBox(icon))) {
-      return;
-    }
+    pressThen(icon && iconBox(icon), () => actOnAnimation(icon, point));
+  };
+  const actOnAnimation = (
+    icon: ReturnType<typeof animationIconAt>,
+    point: Camera
+  ): void => {
+    const now = viewNow();
     if (icon?.name === 'map') {
       goUpFromAnimation();
     } else if (icon?.name === 'eye') {
@@ -1018,15 +1042,27 @@ const run = (
     }
   };
   // A press on the provisions sack's buttons.
-  const pressProvisions = (point: Camera, now: number): void => {
+  const pressProvisions = (point: Camera): void => {
     if (!messages.provisions || messages.provisions.kind === 'message') {
       return;
     }
     const pressed = provisionsButtonAt(messages.provisions, point);
+    if (pressed && sim.roster[watched]?.position) {
+      presses.press(pressed, () => actOnProvisions(pressed));
+    }
+  };
+  const actOnProvisions = (
+    pressed: NonNullable<ReturnType<typeof provisionsButtonAt>>
+  ): void => {
     const position = sim.roster[watched]?.position;
-    if (!pressed || !position || pressFlashes(pressed)) {
+    if (
+      !messages.provisions ||
+      messages.provisions.kind === 'message' ||
+      !position
+    ) {
       return;
     }
+    const now = viewNow();
     if (typeof pressed.value === 'number') {
       if (messages.provisions.kind !== 'menu') {
         const { chosen, kind } = messages.provisions;
@@ -1117,14 +1153,13 @@ const run = (
     // A press on a button acts on it; anywhere else clears the window.
     if (archive) {
       const button = archiveButtonAt(archive, point);
-      if (button && pressFlashes(button)) {
-        return;
-      }
-      archive = button
-        ? button.choice === 'save'
-          ? saveGame()
-          : restoreGame()
-        : null;
+      pressThen(button, () => {
+        archive = button
+          ? button.choice === 'save'
+            ? saveGame()
+            : restoreGame()
+          : null;
+      });
       return;
     }
     // A press anywhere clears the Mirror.
@@ -1139,17 +1174,12 @@ const run = (
       return;
     }
     const icon = fullMapIconAt(fullMapPlacements, point);
-    if (
-      icon &&
-      pressFlashes({
-        height: icon.icon.image.height,
-        width: icon.icon.image.width,
-        x: icon.x,
-        y: icon.y
-      })
-    ) {
-      return;
-    }
+    pressThen(icon && placedBox(icon), () => actOnFullMap(icon, point));
+  };
+  const actOnFullMap = (
+    icon: ReturnType<typeof fullMapIconAt>,
+    point: Camera
+  ): void => {
     if (icon?.icon.name === 'scroll') {
       openArchive();
     } else if (icon?.icon.name === 'eye') {
@@ -1270,15 +1300,14 @@ const run = (
       button && level === 'full-map'
         ? { ...button, width: button.width * 2, x: button.x * 2 }
         : button;
-    if (area && pressFlashes(area)) {
-      return;
-    }
-    const speed = button?.speed;
-    if (speed) {
-      driver.speed = speed;
-      driver.paused = false;
-      speedWindow = null;
-    }
+    pressThen(area, () => {
+      const speed = button?.speed;
+      if (speed) {
+        driver.speed = speed;
+        driver.paused = false;
+        speedWindow = null;
+      }
+    });
   };
 
   const startDrag = (event: PointerEvent, at: Camera): void => {
@@ -1372,8 +1401,6 @@ const run = (
     return true;
   };
   canvas.style.cursor = 'grab';
-  // A press, handled again once its icon's or button's flash is over
-  // (finding:ui-press-flash).
   const handlePointerDown = (event: PointerEvent): void => {
     if (gameMenu) {
       chooseInGame(clickGameMenu(gameMenu, toNative(event), titleSaves()));
@@ -1407,7 +1434,8 @@ const run = (
         messages.combat?.kind === 'announcement'
           ? ANNOUNCEMENT_BUTTONS.find(b => inside(b, point))
           : undefined;
-      if (button && pressFlashes(button)) {
+      if (button) {
+        presses.press(button, () => pressFight(point));
         return;
       }
       if (
@@ -1438,7 +1466,8 @@ const run = (
         messages.meeting?.kind === 'window'
           ? messages.meeting.buttons.find(b => inside(b, at))
           : undefined;
-      if (button && pressFlashes(button)) {
+      if (button) {
+        presses.press(button, () => pressMeeting(at));
         return;
       }
       if (!pressMeeting(pointer) && !iconAt(placements, pointer)) {
@@ -1451,84 +1480,70 @@ const run = (
       return;
     }
     const icon = iconAt(placements, pointer);
-    if (
-      icon &&
-      pressFlashes({
-        height: icon.icon.image.height,
-        width: icon.icon.image.width,
-        x: icon.x,
-        y: icon.y
-      })
-    ) {
-      return;
-    }
-    if (icon?.icon.name === 'map') {
-      goUp();
-      return;
-    }
-    if (icon?.icon.name === 'magnifying-glass') {
-      lookingDown = !lookingDown;
-      canvas.style.cursor = lookingDown ? 'zoom-in' : 'grab';
+    if (icon) {
+      presses.press(placedBox(icon), () => actOnCampaignIcon(icon));
       return;
     }
     // The magnifying glass watches the first Good Leader near the spot,
     // or else shows the spot with nobody watched
     // (finding:ui-magnifying-glass-watches-the-first-good-leader-near-the-spot).
-    if (lookingDown && !icon) {
+    if (lookingDown) {
       const spot = mapPoint(pointer);
       if (spot) {
-        const index = glassWatches(sim.roster, spot);
         // The glass rings as it finds Forces near the spot, and flashes
         // the first one's icon (finding:sound-reverb-bells-ring-on-a-press,
         // finding:ui-press-flash).
         const first = combatRows(sim.roster, spot)[0];
         const at = first && sim.roster[first.entries[0]!]?.position;
-        if (
-          at &&
-          pressFlashes(
-            {
-              height: 16,
-              width: 16,
-              x: at.x - camera.x,
-              y: at.y - camera.y - 4
-            },
-            GLASS_TOGGLES
-          )
-        ) {
-          return;
-        }
-        chosenCharacter = index;
-        if (index === null || !goDownToAnimation(index)) {
-          goDownToSpot(spot);
-        }
+        pressThen(
+          at
+            ? {
+                height: 16,
+                width: 16,
+                x: at.x - camera.x,
+                y: at.y - camera.y - 4
+              }
+            : undefined,
+          () => {
+            const index = glassWatches(sim.roster, spot);
+            chosenCharacter = index;
+            if (index === null || !goDownToAnimation(index)) {
+              goDownToSpot(spot);
+            }
+          },
+          GLASS_TOGGLES
+        );
       }
-      return;
-    }
-    // The arrow starts or cancels an Order (#10).
-    if (icon?.icon.name === 'arrow') {
-      messages.info = null;
-      setOrder(toggleOrder(order));
       return;
     }
     // While an Order is being given, presses pick the Force, a
     // member or the destination instead of panning the map; edge
     // scrolling still reaches a distant destination.
-    if (order.kind !== 'idle' && !icon) {
+    if (order.kind !== 'idle') {
       handleOrderClick(pointer);
       return;
     }
-    if (icon?.icon.name === 'hourglass') {
+    startDrag(event, pointer);
+  };
+  // A press on one of the Campaign Level's icons, once its flash is over.
+  const actOnCampaignIcon = (
+    icon: NonNullable<ReturnType<typeof iconAt>>
+  ): void => {
+    if (icon.icon.name === 'map') {
+      goUp();
+    } else if (icon.icon.name === 'magnifying-glass') {
+      lookingDown = !lookingDown;
+      canvas.style.cursor = lookingDown ? 'zoom-in' : 'grab';
+    } else if (icon.icon.name === 'arrow') {
+      // The arrow starts or cancels an Order (#10).
+      messages.info = null;
+      setOrder(toggleOrder(order));
+    } else if (icon.icon.name === 'hourglass') {
       toggleSpeedWindow();
-      return;
-    }
-    // Drags starting on an icon are for the icon, not the map.
-    if (!icon) {
-      startDrag(event, pointer);
     }
   };
   canvas.addEventListener('pointerdown', event => {
-    if (!flash) {
-      pressEvent = event;
+    if (!presses.holding) {
       handlePointerDown(event);
     }
   });
@@ -1600,7 +1615,7 @@ const run = (
   });
   window.addEventListener('keydown', event => {
     // A flash holds the game, keys included (finding:ui-press-flash).
-    if (flash) {
+    if (presses.holding) {
       return;
     }
     // The original's keys: U goes up a Level, M picks up the
@@ -2049,34 +2064,9 @@ const run = (
     lastTime = now;
     // While a pressed icon or button flashes the game stands still; then
     // the press is handled (finding:ui-press-flash).
-    if (flash) {
-      const { area, original, resolution } = flash;
-      const ctx = resolution === 'hires' ? screen.hires : screen.buffer;
-      if (!flashOver(flash, now)) {
-        const shown = new ImageData(
-          new Uint8ClampedArray(original.data),
-          original.width,
-          original.height
-        );
-        if (flashSwapped(flash, now)) {
-          swapColours(
-            shown.data,
-            level === 'full-map'
-              ? fullMap.palette.hex
-              : level === 'animation'
-                ? animation.palette
-                : assets.palette
-          );
-        }
-        ctx.putImageData(shown, area.x, area.y);
-        screen.present(resolution);
-        requestAnimationFrame(frame);
-        return;
-      }
-      ctx.putImageData(original, area.x, area.y);
-      const { replay } = flash;
-      flash = null;
-      replay();
+    if (presses.frame(now)) {
+      requestAnimationFrame(frame);
+      return;
     }
     if (menuButton) {
       menuButton.hidden = onTitle() || gameMenu !== null;

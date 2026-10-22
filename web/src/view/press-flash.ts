@@ -18,14 +18,66 @@ export interface PressFlash {
   toggles: number;
 }
 
-export const flashOver = (flash: PressFlash, now: number): boolean =>
+const flashOver = (flash: PressFlash, now: number): boolean =>
   now >= flash.start + flash.toggles * FLASH_STEP_MS;
 
 // Whether the area shows swapped at `now`: after the first toggle, the
 // third and the fifth.
-export const flashSwapped = (flash: PressFlash, now: number): boolean => {
+const flashSwapped = (flash: PressFlash, now: number): boolean => {
   const step = Math.floor((now - flash.start) / FLASH_STEP_MS);
   return step >= 0 && step < flash.toggles && step % 2 === 0;
+};
+
+// What a flashing area shows on a frame; 'over' once, as it ends.
+export type FlashShows = 'swapped' | 'plain' | 'over';
+
+export interface Presses {
+  // Show the flash at `now`, and act once it is over. True while the
+  // flash holds the game, when the frame goes no further.
+  frame(now: number): boolean;
+  // Whether a flash holds the game: other presses and keys do nothing.
+  readonly holding: boolean;
+  // Ring the bell and flash `area`; `act` runs once the flash is over.
+  // Ignored while another flash holds the game.
+  press(area: Box, act: () => void, toggles?: number): void;
+}
+
+export const createPresses = ({
+  now,
+  ring,
+  show
+}: {
+  now: () => number;
+  ring: () => void;
+  show: (area: Box, shows: FlashShows) => void;
+}): Presses => {
+  let flash: (PressFlash & { act: () => void }) | null = null;
+  return {
+    frame(at) {
+      if (!flash) {
+        return false;
+      }
+      if (!flashOver(flash, at)) {
+        show(flash.area, flashSwapped(flash, at) ? 'swapped' : 'plain');
+        return true;
+      }
+      const { act, area } = flash;
+      show(area, 'over');
+      flash = null;
+      act();
+      return false;
+    },
+    get holding() {
+      return flash !== null;
+    },
+    press(area, act, toggles = PRESS_TOGGLES) {
+      if (flash) {
+        return;
+      }
+      ring();
+      flash = { act, area, start: now(), toggles };
+    }
+  };
 };
 
 const rgb = (hex: string): number => Number.parseInt(hex.replace('#', ''), 16);
