@@ -94,7 +94,13 @@ and "Use an object". (finding:objects-handled-on-animation-level)
   object's name in a box without buttons at (10, 5), 100 by 24, in
   colour 5; a figure in front of the picture takes the click instead
   (finding:objects-lying-on-the-ground-are-pictures).
-- `provisional`: these were read from the code, not played.
+- These were read from the code and then played in the port's 1.0
+  acceptance run: Take, Use (a blue potion healed Frodo), Put Down,
+  clicking a picture for its name, and the Elven cloak letting a Force
+  slip past a Nazgûl
+  ([#218](https://github.com/odogono/wime/issues/218#issuecomment-6343132455)).
+  Giving an object to another Character, by one putting it down and
+  the other taking it, has not been played.
 
 The **chosen** Character is the party member selected; the
 **position** is the watched Character's position, the Force on

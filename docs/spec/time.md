@@ -85,9 +85,10 @@ knowledge of them (ADR-0002).
   (finding:ui-message-box-timeouts-by-level).
 - Leaving a Level closes its box, pressing its default, and the Full
   Map Level cannot be entered while a box with buttons is up
-  (finding:ui-message-box-closed-on-leaving-a-level). `provisional`:
-  the port also closes the box on leaving the Animation Level, which
-  the Finding does not cover.
+  (finding:ui-message-box-closed-on-leaving-a-level). Accepted for
+  1.0: the port also closes the box on leaving the Animation Level,
+  which the Finding does not cover. It matches the other Levels, and
+  pressing the default loses no state.
 - A press off a box's buttons does nothing. A click on a Force or a
   Place on the Campaign Level closes the box, pressing its default, and
   opens that Force's or Place's window in its place; the combat window
