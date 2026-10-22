@@ -34,6 +34,10 @@ export const toggleOrder = (state: OrderState): OrderState =>
 // Clicking a Good Force while picking one moves to choosing its
 // destination, whole Force selected by default; whether it takes the
 // Order is the sim's roll (finding:movement-orders-accepted-by-allegiance-roll).
+// The original picks the first Good row listed near the click, and
+// rows are in roster order, so where icons overlap the lowest-numbered
+// Good Force is picked, not the one drawn on top: a Force parked on a
+// Stronghold is picked over its higher-numbered Garrison.
 export const pickForceAt = (
   state: OrderState,
   forces: Force[],
@@ -42,19 +46,26 @@ export const pickForceAt = (
   if (state.kind !== 'pick-force') {
     return state;
   }
-  const force = forceAtPoint(forces, point);
-  if (
-    !force ||
-    !force.onMap ||
-    force.leader.index < 1 ||
-    force.leader.index > LAST_GOOD_ENTRY
-  ) {
+  const picked = forces
+    .filter(
+      force =>
+        force.onMap &&
+        force.leader.index >= 1 &&
+        force.leader.index <= LAST_GOOD_ENTRY &&
+        forceAtPoint([force], point)
+    )
+    .reduce<Force | null>(
+      (best, force) =>
+        !best || force.leader.index < best.leader.index ? force : best,
+      null
+    );
+  if (!picked) {
     return state;
   }
   return {
     kind: 'pick-destination',
-    leaderIndex: force.leader.index,
-    selected: force.leader.index
+    leaderIndex: picked.leader.index,
+    selected: picked.leader.index
   };
 };
 

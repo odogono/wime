@@ -95,6 +95,24 @@ describe('order flow', () => {
     ).toBe('pick-destination');
   });
 
+  // finding:movement-orders-accepted-by-allegiance-roll: the pick is
+  // the first Good row near the click, rows in roster order (#230).
+  test('where Forces overlap, the lowest-numbered Good Force is picked', () => {
+    const eomer = { ...force, leader: entry({ index: 13, name: 'EOMER' }) };
+    const garrison = {
+      ...force,
+      active: false,
+      leader: entry({ index: 68, isUnit: true, name: 'lt. infantry' })
+    };
+    const evil = { ...force, leader: entry({ index: 100, name: 'ORCS' }) };
+    expect(
+      pickForceAt({ kind: 'pick-force' }, [eomer, garrison, evil], {
+        x: 645,
+        y: 370
+      })
+    ).toEqual({ kind: 'pick-destination', leaderIndex: 13, selected: 13 });
+  });
+
   test('clicking a member name selects that member for the Order', () => {
     const state = {
       kind: 'pick-destination',
