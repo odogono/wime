@@ -338,6 +338,23 @@ export const canOrder = (
   );
 };
 
+// Whether a Force takes an Order when it is picked through
+// `memberIndex`: that entry's allegiance must beat a roll of 2 to 97,
+// drawn at every attempt, so 99 always obeys and 1 never
+// (finding:movement-orders-accepted-by-allegiance-roll). Draws from the
+// world's RNG.
+export const takesOrder = <T extends MovementWorld>(
+  world: T,
+  memberIndex: number
+): { taken: boolean; world: T } => {
+  const next = nextRandom(world.rng);
+  const roll = Math.floor(next.value * 96) + 2;
+  return {
+    taken: (world.roster[memberIndex]?.allegiance ?? 0) > roll,
+    world: { ...world, rng: next.state }
+  };
+};
+
 // Give a movement Order to one member of a Force and everyone who
 // follows it, splitting them off when the member is not the Force's
 // Leader (finding:forces-ordering-a-follower-splits-it). The member
