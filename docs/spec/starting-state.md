@@ -2,6 +2,9 @@
 
 What the simulation holds when a new game begins: the clock, every Character and Unit, how they are grouped into Forces, the Places and the objects. Rules that later change this state, such as movement, triggers and Encounters, belong to their own Specs. This Spec only fixes the values and their meaning at the start.
 
+For a complete position index, including follower roster IDs and Encounter
+areas, see [Starting positions](../starting-positions.md).
+
 ## Source
 
 The starting state comes from the Reference Build's data hunk, which the game loads as its starting state with no code to build it (finding:data-formats-archive-dat-is-roster-dump). `bun run export:web` writes it to `web/public/assets/starting-state.json` through `tools/extract-starting-state.ts`. The simulation must load that file rather than copy its values into code, so the starting state can't drift from the Reference Build. The tables below are generated from the same file, for review.
