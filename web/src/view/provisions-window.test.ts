@@ -258,7 +258,8 @@ const use = (
   sim: SimState,
   object: number,
   resources: Map<string, string>,
-  given = new Set<number>()
+  given = new Set<number>(),
+  random: (n: number) => number = () => 0
 ) =>
   chooseObject(
     FIXED_FONT,
@@ -269,7 +270,7 @@ const use = (
     HERE,
     resources,
     given,
-    () => 0,
+    random,
     0
   );
 const lines = (result: ReturnType<typeof use>) =>
@@ -351,31 +352,27 @@ describe('Use with Tokens and the Palantír', () => {
     expect(given).toEqual(new Set([8]));
   });
 
-  test('the Palantír spends only tips not yet given by advisors', () => {
-    // finding:ui-advisors-share-advice
+  test('the Palantír rerolls tips already given by advisors', () => {
+    // finding:ui-advisor-talk-has-two-boxes
     const sim = { ...carrying(7), rng: seedFor(false) };
     const given = new Set([8]);
-    const resources = new Map([
-      [textKey('BScene.res', 9), 'A fresh tip.'],
-      [textKey('BScene.res', 10), 'Another tip.']
-    ]);
-    const first = use(sim, 7, resources, given);
+    const resources = new Map([[textKey('BScene.res', 9), 'A fresh tip.']]);
+    const rolls = [0, 1];
+    const first = use(sim, 7, resources, given, () => rolls.shift()!);
     expect(lines(first)?.[1]).toBe('A fresh tip.');
     expect(given).toEqual(new Set([8, 9]));
-    expect(lines(use(sim, 7, resources, given))?.[1]).toBe('Another tip.');
-    expect(given).toEqual(new Set([8, 9, 10]));
   });
 
-  test('the Palantír uses a proverb once the session has spent every tip', () => {
+  test('the Palantír repeats a tip once the session has spent every tip', () => {
     const sim = { ...carrying(7), rng: seedFor(false) };
     const given = new Set(Array.from({ length: 20 }, (_, i) => i + 8));
     const result = use(
       sim,
       7,
-      new Map([[textKey('BScene.res', 28), 'A proverb.']]),
+      new Map([[textKey('BScene.res', 8), 'A repeated tip.']]),
       given
     );
-    expect(lines(result)?.[1]).toBe('A proverb.');
+    expect(lines(result)?.[1]).toBe('A repeated tip.');
     expect(given.size).toBe(20);
   });
 });

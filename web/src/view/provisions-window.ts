@@ -204,7 +204,7 @@ export const openObjectList = (
 
 // What Use shows, in its box's width and depth
 // (finding:objects-use-message-boxes). The Palantír shares the session's
-// tip history with advisors (finding:ui-advisors-share-advice). The
+// tip history with advisors (finding:ui-advisor-talk-has-two-boxes). The
 // texts keep their own line breaks, which fit these boxes in lord/10.
 const effectMessage = (
   font: FontMetrics,
@@ -253,10 +253,7 @@ const effectMessage = (
       );
     }
     case 'palantir': {
-      // As with advisors, use a proverb once all tips have been given.
-      const id = outcome.vision
-        ? VISION_TEXT
-        : (drawTip(givenTips, random) ?? 28 + random(6));
+      const id = outcome.vision ? VISION_TEXT : drawTip(givenTips, random);
       return message(
         [
           `Looking deep into the crystal, ${name} sees a vision:`,

@@ -41,9 +41,6 @@ export const ANNOUNCEMENT_MS = 720 * FRAME_MS;
 export const ORDERS_MS = 300 * FRAME_MS;
 export const MESSAGE_MS = 180 * FRAME_MS;
 export const RESULT_MS = 300 * FRAME_MS;
-// `provisional`: how long a round with no messages stays up on the
-// Animation Level (docs/spec/encounters.md).
-export const ANIMATION_ROUND_MS = 800;
 
 export const GOOD_WON = 'The good forces are victorious!';
 export const EVIL_WON = 'The forces of EVIL have won.';
@@ -274,7 +271,6 @@ export const stepCombatUi = (
   sim: SimState,
   now: number,
   choose: Choose,
-  roundMs = 0,
   speed: GameSpeed = 'normal'
 ): { sim: SimState; ui: CombatUi | null } => {
   if (ui.kind === 'announcement') {
@@ -329,10 +325,6 @@ export const stepCombatUi = (
         pending,
         until: Math.max(window.until, now) + MESSAGE_MS
       };
-    } else if (roundMs > 0) {
-      // The Animation Level must show each round, including a round
-      // without a casualty message. This changes presentation only.
-      window = { ...window, until: now + roundMs };
     }
   }
   return { sim: next, ui: window };

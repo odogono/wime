@@ -61,7 +61,7 @@ export interface SimState {
   // (docs/spec/objects.md).
   objectPlacements: (ObjectPlacement | null)[];
   // Encounters passed by, oldest first, until the view takes them
-  // (takePassing) (finding:forces-anonymous-encounters-pass-by).
+  // (takePassing) (finding:forces-pass-by-walks-past-on-animation-level).
   passings: Passing[];
   placeKinds: PlaceKind[];
   places: Place[];

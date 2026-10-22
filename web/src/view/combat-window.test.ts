@@ -8,13 +8,13 @@ import {
   type SimState
 } from '../sim/index';
 import {
+  fallsFor,
   fightOnAnimationLevel,
   spawnBattle,
   stepBattle,
   walkAfterBattle
 } from './animation-combat';
 import {
-  ANIMATION_ROUND_MS,
   ANNOUNCEMENT_BUTTONS,
   ANNOUNCEMENT_MS,
   EVIL_WON,
@@ -32,7 +32,7 @@ import {
   stepCombatUi,
   type CombatUi
 } from './combat-window';
-import type { ScriptWorld } from './figure-script';
+import { STOPPED, type ScriptWorld } from './figure-script';
 
 // The fights of docs/re/combat-reference.md, on synthetic rosters with
 // the entries at their real indices, as in the sim's combat tests.
@@ -216,21 +216,20 @@ describe('the announcement', () => {
     );
     expect(ignored.ui).toMatchObject({ kind: 'boxes', until: 1300 });
     expect(
-      stepCombatUi(ignored.ui!, ignored.sim, 1299, first, 0, 'very-hasty').ui
+      stepCombatUi(ignored.ui!, ignored.sim, 1299, first, 'very-hasty').ui
     ).toBe(ignored.ui);
     const next = stepCombatUi(
       ignored.ui!,
       ignored.sim,
       1300,
       first,
-      0,
       'very-hasty'
     );
     expect(next.ui).toMatchObject({ kind: 'boxes', until: 2500 });
     // The last box stays until the message box closes it.
-    expect(
-      stepCombatUi(next.ui!, next.sim, 2500, first, 0, 'very-hasty').ui
-    ).toBe(next.ui);
+    expect(stepCombatUi(next.ui!, next.sim, 2500, first, 'very-hasty').ui).toBe(
+      next.ui
+    );
     // finding:ui-message-box-presses-off-the-buttons
     const pressed = pressCombatUi(
       ignored.ui!,
@@ -245,7 +244,6 @@ describe('the announcement', () => {
       sim,
       ANNOUNCEMENT_MS,
       first,
-      0,
       'very-hasty'
     );
     expect(timedOut.ui).toMatchObject({ until: ANNOUNCEMENT_MS + 1200 });
@@ -472,14 +470,28 @@ describe('loss messages', () => {
   });
 });
 
-// A small looping walking script keeps presentation tests independent
-// of the extracted, gitignored assets.
+// A small script with the fight's entries keeps presentation tests
+// independent of the extracted, gitignored assets: a walk to each line,
+// the stance, a lunge, a swing, a recoil and a fall.
+const battleScript = (): number[] => {
+  const bytes = Array.from({ length: 256 }, () => 0x60);
+  bytes.splice(0, 6, 0, 0x60, 0x42, 0, 0xa0, 2);
+  bytes.splice(0x0a, 4, 0x42, 0, 0xa0, 0x0a);
+  bytes.splice(0x18, 2, 0x07, 0x60);
+  bytes.splice(0x1a, 7, 0x08, 0x09, 0x43, 0x08, 0x43, 0x07, 0xbf);
+  bytes.splice(0x2a, 5, 0x08, 0x09, 0x08, 0x07, 0xbf);
+  bytes.splice(0x4c, 3, 0x0c, 0x27, 0xbf);
+  bytes.splice(0x4f, 5, 0x0c, 0x0d, 0x0e, 0xa0, 0x51);
+  bytes.splice(0xa0, 4, 0x88, 0xa1, 0x0a, 0xbf);
+  bytes.splice(0xb8, 4, 0x8b, 0xa1, 0x0a, 0xbf);
+  return bytes;
+};
 const battleWorld: Omit<ScriptWorld, 'laggardLine'> = {
   frames: () => [{ height: 20, hot_x: 0, hot_y: 20, width: 12 }],
   line1: 1000,
   line2: 1000,
   random: n => n - 1,
-  script: () => [0, 0, 0x42, 0, 0xa0, 2]
+  script: battleScript
 };
 
 const characterFight = (seed = 1): SimState =>
@@ -513,19 +525,38 @@ describe('fights on the Animation Level', () => {
     expect(initial.world.line1).toBe(rightmost + 25);
     expect(initial.world.line2).toBe(rightmost + 85);
     expect(initial.phase).toBe('approach');
-    const atLines = stepBattle(initial, sim.fight!, 10_000);
+    let atLines = initial;
+    for (let vbl = 100; atLines.phase === 'approach' && vbl < 5000; vbl++) {
+      atLines = stepBattle(atLines, sim.fight!, vbl);
+    }
     expect(atLines.phase).toBe('fighting');
-    expect(atLines.stage.figures.map(figure => figure.x)).toEqual(
-      atLines.homes
-    );
-    expect(atLines.stage.figures.at(-1)!.flipped).toBe(true);
+    // Each side stops at its line in its stance, frame 7.
+    atLines.stage.figures.forEach((figure, i) => {
+      const good = sim.fight!.rows[atLines.rows[i]!]!.side === 'good';
+      expect(figure).toMatchObject({ flipped: !good, frame: 7, next: STOPPED });
+      expect(
+        good ? figure.x >= rightmost + 25 : figure.x <= rightmost + 85
+      ).toBe(true);
+    });
+    // A balrog leading the Evil side puts the lines past x 100.
     const balrog = spawnBattle(
-      { ...sim, fight: { ...sim.fight!, evil: 183 } },
+      {
+        ...sim,
+        fight: {
+          ...sim.fight!,
+          rows: sim.fight!.rows.map(row =>
+            row.side === 'evil' ? { ...row, entries: [183] } : row
+          )
+        },
+        roster: Object.assign([...sim.roster], {
+          183: { ...sim.roster[142]!, index: 183 }
+        })
+      },
       battleWorld,
       first,
       100
     );
-    expect(balrog.world.line2).toBe(rightmost + 100);
+    expect([balrog.world.line1, balrog.world.line2]).toEqual([125, 185]);
   });
 
   test('falls scale with row losses and only living Good figures walk on', () => {
@@ -550,7 +581,15 @@ describe('fights on the Animation Level', () => {
     const sim = characterFight();
     const spellWorld = {
       ...battleWorld,
-      script: (id: number) => (id === 18 ? [0, 0x60] : [0, 0, 0x90, 0x60])
+      script: (id: number) => {
+        if (id === 18) {
+          return [0, 0x60];
+        }
+        const bytes = battleScript();
+        bytes.splice(0xa0, 2, 0x90, 0x60);
+        bytes.splice(0xb8, 2, 0x90, 0x60);
+        return bytes;
+      }
     };
     const initial = spawnBattle(sim, spellWorld, first, 0);
     // Keep every launch onscreen so subsequent casts retain the flashes.
@@ -576,19 +615,81 @@ describe('fights on the Animation Level', () => {
     expect(sim).toEqual(characterFight());
   });
 
-  test('charges move further forward than engaging and leave the sim untouched', () => {
+  test('a round swings Charge rows three times and Engage rows twice, in place, leaving the sim untouched', () => {
     const sim = characterFight();
     const initial = spawnBattle(sim, battleWorld, first, 0);
-    const ready = stepBattle(initial, sim.fight!, 1000);
-    const engaged = { ...sim.fight!, round: 1 };
-    const charging = {
-      ...engaged,
-      rows: engaged.rows.map(row => ({ ...row, option: 'charge' as const }))
+    const ready = {
+      ...stepBattle(initial, sim.fight!, 1000),
+      phase: 'fighting' as const
     };
-    const a = stepBattle(ready, engaged, 1010);
-    const b = stepBattle(ready, charging, 1010);
-    expect(b.stage.figures[0]!.x).toBeGreaterThan(a.stage.figures[0]!.x);
+    const round = (option: 'charge' | 'engage' | 'withdraw') =>
+      stepBattle(
+        ready,
+        {
+          ...sim.fight!,
+          round: 1,
+          rows: sim.fight!.rows.map(row => ({ ...row, option }))
+        },
+        1010
+      ).stage.figures[0]!;
+    expect(round('charge')).toMatchObject({
+      frame: 8,
+      returns: [0x2a, 0x2a, 0x18]
+    });
+    expect(round('engage')).toMatchObject({ frame: 8, returns: [0x2a, 0x18] });
+    expect(round('withdraw').frame).toBe(ready.stage.figures[0]!.frame);
+    expect(round('charge').x).toBe(ready.stage.figures[0]!.x);
     expect(sim.fight!.round).toBe(0);
+  });
+
+  test('a loss fells losses × 10 / starting strength figures, or the losses for a row that began 10 strong or less', () => {
+    expect(fallsFor(30, 15)).toBe(5);
+    expect(fallsFor(500, 40)).toBe(0);
+    expect(fallsFor(500, 50)).toBe(1);
+    expect(fallsFor(1, 1)).toBe(1);
+    expect(fallsFor(8, 3)).toBe(3);
+  });
+
+  test("a wound makes its side recoil and the other side's first Charging or Engaging row lunge", () => {
+    const sim = characterFight();
+    const initial = spawnBattle(sim, battleWorld, first, 0);
+    const ready = {
+      ...stepBattle(initial, sim.fight!, 1000),
+      phase: 'fighting' as const
+    };
+    const good = sim.fight!.rows.findIndex(row => row.side === 'good');
+    const evil = sim.fight!.rows.findIndex(row => row.side === 'evil');
+    const wounded = stepBattle(
+      ready,
+      {
+        ...sim.fight!,
+        events: [{ blow: 'share', killed: 0, row: good, wounded: 1 }],
+        round: 1,
+        rows: sim.fight!.rows.map(row => ({ ...row, option: 'engage' }))
+      },
+      1010
+    );
+    const entry = (r: number) =>
+      wounded.stage.figures[ready.members[r]![0]!]!.returns;
+    expect(entry(good)).toEqual([0x18]);
+    expect(wounded.stage.figures[ready.members[good]![0]!]!.frame).toBe(0x0c);
+    expect(entry(evil)).toEqual([0x18]);
+    expect(wounded.stage.figures[ready.members[evil]![0]!]!.frame).toBe(8);
+  });
+
+  test('a beaten Evil side falls and the winners stand', () => {
+    const sim = characterFight();
+    const ready = stepBattle(
+      spawnBattle(sim, battleWorld, first, 0),
+      sim.fight!,
+      1000
+    );
+    const won = stepBattle(ready, { ...sim.fight!, winner: 'good' }, 1010);
+    won.stage.figures.forEach((figure, i) => {
+      const good = sim.fight!.rows[won.rows[i]!]!.side === 'good';
+      expect(won.fallen[i]).toBe(!good);
+      expect(figure.frame).toBe(good ? 0 : 0x0c);
+    });
   });
 
   test('matches the combat window for the same seeds and orders, regardless of visual randomness', () => {
@@ -606,13 +707,7 @@ describe('fights on the Animation Level', () => {
       let battle = spawnBattle(actual, battleWorld, n => seed % n, 0);
       battle = stepBattle(battle, actual.fight!, 1000);
       for (let now = 0; ui && now < 3_600_000; now += 20) {
-        const result = stepCombatUi(
-          ui,
-          actual,
-          now,
-          n => seed % n,
-          ANIMATION_ROUND_MS
-        );
+        const result = stepCombatUi(ui, actual, now, n => seed % n);
         actual = result.sim;
         ui = result.ui;
         if (actual.fight) {

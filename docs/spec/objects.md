@@ -184,9 +184,10 @@ position and the ruler is awake. (finding:mobilisation-token-shown-to-ruler)
   Lord's armies march forth!". (finding:objects-palantir-vision-or-tip,
   finding:ai-war-events-set-once,
   finding:mobilisation-tripwires-follow-arrival)
-- Otherwise it shows one of the advisors' tips not yet given, as an
-  advisor would. (finding:objects-palantir-vision-or-tip,
-  finding:ui-advisors-share-advice)
+- Otherwise it shows one of the advisors' tips, drawn as an advisor
+  draws one: rerolled up to 50 times to find one not yet given, so
+  repeating once all have been. (finding:objects-palantir-vision-or-tip,
+  finding:ui-advisor-talk-has-two-boxes)
 - The Palantír is never used up. (finding:objects-palantir-vision-or-tip)
 
 ## Dropping on death

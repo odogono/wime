@@ -21,7 +21,6 @@ import {
 import {
   drawBattle,
   fightOnAnimationLevel,
-  markFallen,
   spawnBattle,
   stepBattle,
   walkAfterBattle,
@@ -101,7 +100,6 @@ import {
   type IconPlacement
 } from './campaign-level';
 import {
-  ANIMATION_ROUND_MS,
   ANNOUNCEMENT_BUTTONS,
   EVIL_WON,
   GOOD_WON,
@@ -122,11 +120,13 @@ import {
   type CouncilMessageWindow
 } from './council-message';
 import {
-  advanceEncounterTalk,
   drawEncounterNotice,
   drawEncounterTalk,
+  partyAfterTalk,
+  pressEncounterTalk,
   startEncounterTalk,
   stepEncounterTalk,
+  talkLines,
   type EncounterTalk
 } from './encounter-talk';
 import {
@@ -245,6 +245,7 @@ import {
   type TitleSaves,
   type TitleStep
 } from './title-menu';
+import { WALK_PAST_MS, dropPassers, walkPast } from './walk-past';
 import {
   drawWarEventMessage,
   takeWarEventMessage,
@@ -496,6 +497,9 @@ const run = (
   // (docs/spec/council-of-elrond.md).
   let councilWindow: CouncilMessageWindow | null = null;
   let talk: EncounterTalk | null = null;
+  // The clock stands while an Encounter walks past
+  // (finding:forces-pass-by-walks-past-on-animation-level).
+  let walkPastUntil = 0;
   // The provisions sack's window, the Force on screen's members and the
   // Character who last acted (docs/spec/objects.md).
   let provisions: ProvisionsWindow | null = null;
@@ -607,7 +611,7 @@ const run = (
         archive && `archive:${archive.kind}`,
         mirror && 'mirror',
         speedWindow && 'speed',
-        talk && `talk:${talk.page}`,
+        talk && `talk:${talk.box?.text ?? ''}`,
         ending && ending.page >= 0 && `ending:${ending.page}`
       ].filter((box): box is string => typeof box === 'string'),
       ending: !ending
@@ -788,7 +792,6 @@ const run = (
             sim,
             combat.deadline,
             choose,
-            0,
             driver.speed
           ));
           showBox('fight', now);
@@ -1078,26 +1081,62 @@ const run = (
     setOrder(IDLE_ORDER);
   };
 
-  const beginTalk = (meeting: Meeting, now: number): void => {
+  // A talk rebuilds the scene with the party walking in from the left
+  // (code+0x0b496, code+0x0af20). Met on the Animation Level, where the
+  // party had walked to picks its line.
+  const beginTalk = (meeting: Meeting, now: number, meets: boolean): void => {
+    const lines = talkLines(meets ? stage : null);
+    if (meets) {
+      goDownToAnimation(meeting.a, true);
+    }
+    const b = sim.roster[meeting.b]!;
     talk = startEncounterTalk(
       sim.roster[meeting.a]!,
-      sim.roster[meeting.b]!,
+      b,
       stage,
+      lines,
       figureWorld,
       assets.texts,
       givenTips,
       choose,
-      now
+      now,
+      meets,
+      animation.strips.get(b.figure)?.height ?? 0
     );
-    stage = talk.party;
   };
 
-  const advanceTalk = (now: number): void => {
-    if (talk) {
-      talk = advanceEncounterTalk(talk, now);
-      if (!talk) {
-        stage = resumeStage(stage, now);
+  // Encounters the watched Character passed by since `raised` walk past
+  // a scene set again, the party walking in from the left
+  // (code+0x0b534).
+  const walkPastRaised = (
+    raised: number,
+    now: number,
+    rebuilt = false
+  ): void => {
+    for (const passing of sim.passings.slice(raised)) {
+      if (!('kind' in passing) && passing.a === watched) {
+        if (!rebuilt) {
+          goDownToAnimation(watched, true);
+        }
+        stage = walkPast(
+          stage,
+          sim.roster[passing.b]!,
+          figureWorld,
+          vblankAt(now)
+        );
+        walkPastUntil = now + WALK_PAST_MS;
       }
+    }
+  };
+
+  const endTalk = (ended: EncounterTalk): void => {
+    stage = partyAfterTalk(ended);
+    talk = null;
+  };
+
+  const advanceTalk = (): void => {
+    if (talk && !pressEncounterTalk(talk)) {
+      endTalk(talk);
     }
   };
 
@@ -1134,7 +1173,7 @@ const run = (
       }
       showBox('provisions', now);
     } else if (talk) {
-      advanceTalk(viewNow());
+      advanceTalk();
     } else if (
       !icon &&
       !battle &&
@@ -1469,7 +1508,7 @@ const run = (
     if (result.choice === 'go-there' && meeting) {
       goDownToAnimation(meeting.a);
       if (meeting.kind === 'talk') {
-        beginTalk(meeting, now);
+        beginTalk(meeting, now, false);
       }
     }
     return result.choice !== null;
@@ -1771,7 +1810,7 @@ const run = (
       } else if (key === 'p') {
         driver.paused = !driver.paused;
       } else if (key === ' ' || key === 'enter') {
-        advanceTalk(viewNow());
+        advanceTalk();
       }
       return;
     }
@@ -2291,6 +2330,7 @@ const run = (
         let i = 0;
         i < ticks &&
         !talk &&
+        now >= walkPastUntil &&
         !holdsClock(provisions) &&
         !boxWaiting &&
         !speedWindow &&
@@ -2298,7 +2338,9 @@ const run = (
         !sim.meeting;
         i++
       ) {
+        const raised = sim.passings.length;
         sim = tickSim(sim);
+        walkPastRaised(raised, now);
         stepBoxes(now);
       }
       // Returning to the Campaign Level below must not tick again in
@@ -2307,7 +2349,7 @@ const run = (
       if (sim.meeting?.kind === 'talk' && sim.meeting.a === watched) {
         const meeting = sim.meeting;
         sim = answerMeeting(sim, 'go-there').world;
-        beginTalk(meeting, now);
+        beginTalk(meeting, now, true);
       }
       if (sim.fight && !battle) {
         const watchingFight = sim.fight.rows.some(
@@ -2320,9 +2362,11 @@ const run = (
         }
       }
       if (talk) {
-        talk = stepEncounterTalk(talk, figureWorld, now);
-        if (!talk) {
-          stage = resumeStage(stage, now);
+        const stepped = stepEncounterTalk(talk, figureWorld, now);
+        if (stepped) {
+          talk = stepped;
+        } else {
+          endTalk(talk);
         }
       } else if (battle && sim.fight && combat) {
         const previousPhase = battle.phase;
@@ -2332,25 +2376,19 @@ const run = (
             combat = { ...combat, until: now + ORDERS_MS };
           }
           const fight = sim.fight;
-          const result = stepCombatUi(
-            combat,
-            sim,
-            now,
-            choose,
-            ANIMATION_ROUND_MS,
-            driver.speed
-          );
+          const result = stepCombatUi(combat, sim, now, choose, driver.speed);
           sim = result.sim;
           combat = result.ui;
-          if (sim.fight) {
-            battle = markFallen(battle, sim.fight);
-          } else {
+          if (!sim.fight) {
             stage = walkAfterBattle(battle, fight, vblankAt(now));
             battle = null;
           }
         }
       } else if (!sim.fight && !holdsClock(provisions) && !boxWaiting) {
-        stage = stepStage(stage, figureWorld, vblankAt(now));
+        stage = dropPassers(
+          stepStage(stage, figureWorld, vblankAt(now)),
+          party
+        );
         const landed = takeLanded(stage);
         stage = landed.stage;
         if (landed.due && putDownMessage) {
@@ -2376,8 +2414,10 @@ const run = (
           // watched Character takes its held step and the next scene is
           // built where it now stands
           // (finding:movement-watched-character-advances-as-its-figures-walk-off).
+          const raised = sim.passings.length;
           sim = releaseWatched(sim);
           goDownToAnimation(watched, true);
+          walkPastRaised(raised, now, true);
           requestAnimationFrame(frame);
           return;
         } else {
@@ -2428,7 +2468,7 @@ const run = (
     // (stepBoxes), a fight met while watching another Character after
     // returning to the Campaign Level.
     if (combat) {
-      const result = stepCombatUi(combat, sim, now, choose, 0, driver.speed);
+      const result = stepCombatUi(combat, sim, now, choose, driver.speed);
       sim = result.sim;
       combat = result.ui;
     }

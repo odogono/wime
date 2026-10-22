@@ -531,7 +531,7 @@ export const findMatch = (
       }
       if (other.allegiance !== ADVISOR) {
         // On the Animation Level only the watched Character's passing
-        // is told (finding:forces-anonymous-encounters-pass-by).
+        // is told (finding:forces-pass-by-walks-past-on-animation-level).
         if (world.watching !== null && world.watching !== moverIndex) {
           return null;
         }
