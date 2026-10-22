@@ -219,7 +219,7 @@ describe('rendering', () => {
   });
 
   test('icons stack right-aligned from the top right', () => {
-    const image = { height: 12, width: 21 } as HTMLImageElement;
+    const image = { height: 12, width: 21 } as HTMLCanvasElement;
     const placements = iconPlacements([
       { image, name: 'eye' },
       { image, name: 'map' }

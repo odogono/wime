@@ -56,7 +56,7 @@ export interface TilesMeta {
 }
 
 export interface CampaignIcon {
-  image: HTMLImageElement;
+  image: HTMLCanvasElement;
   name: string;
 }
 
@@ -223,10 +223,9 @@ const loadFont = async (manifest: Manifest, base: string): Promise<Font> => {
   return font;
 };
 
-// Pure black is colour 0 of the sheet's palette, its background. The
-// figures and badges are outlined in other colours, so clearing black
-// to transparent keeps every icon's shape. How the original masked
-// its blit has not been traced; this is provisional.
+// Pure black is colour 0 of the palette, which the original's image
+// blitter leaves clear (finding:graphics-campaign-icons-cookie-cut-on-colour-0).
+// Clearing it keeps the artwork and outlines in the other colours.
 //
 // Browsers that guard against fingerprinting (Safari's Advanced
 // Fingerprinting Protection, Firefox's resistFingerprinting) perturb
@@ -320,7 +319,10 @@ export const loadCampaignAssets = async (
   for (const { id, name } of CAMPAIGN_ICONS) {
     const asset = assetBySource(manifest, 'AMaps.res', 'IMAG', id);
     if (asset) {
-      icons.push({ image: await loadImage(base + asset.path), name });
+      icons.push({
+        image: blackToTransparent(await loadImage(base + asset.path)),
+        name
+      });
     }
   }
 
