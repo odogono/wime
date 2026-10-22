@@ -2,11 +2,17 @@ import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, test } from 'bun:test';
 
 import type { Clock } from './clock';
-import type { CombatEvent, CombatRow, Fight } from './combat';
-import type { CouncilMessage } from './council';
-import type { Passing } from './encounters';
+import {
+  fightRound,
+  resolveFight,
+  type CombatEvent,
+  type CombatRow,
+  type Fight
+} from './combat';
+import { RIVENDELL, closeCouncil, type CouncilMessage } from './council';
+import { isEncounter, type Passing } from './encounters';
 import { answerMeeting, type Meeting } from './meetings';
-import { giveOrder } from './movement';
+import { giveOrder, type Tilemap } from './movement';
 import { SAVE_VERSION, restoreSave, serialiseSave } from './save';
 import type {
   ObjectPlacement,
@@ -152,8 +158,18 @@ const tilemap = { height: 1, indices: [0], width: 1 };
 
 // Encounters can stop this journey for a talk. Model the view's
 // default answer so the continuation actually advances time.
-const playTick = (state: SimState): SimState =>
-  tickSim(state.meeting ? answerMeeting(state, 'continue-on').world : state);
+const playTick = (state: SimState): SimState => {
+  if (state.meeting) {
+    return answerMeeting(state, 'continue-on').world;
+  }
+  if (state.fight) {
+    return resolveFight(state);
+  }
+  if (state.council) {
+    return closeCouncil(state);
+  }
+  return tickSim(state);
+};
 
 describe('save', () => {
   test('the saved shape matches the one pinned for SAVE_VERSION', () => {
@@ -176,6 +192,34 @@ describe('save', () => {
     });
     expect(restoreSave('', null)).toEqual({ ok: false, reason: 'invalid' });
     expect(restoreSave('null', null)).toEqual({ ok: false, reason: 'invalid' });
+  });
+
+  test('refuses a damaged save rather than loading part of it', () => {
+    const damaged = (state: unknown) =>
+      restoreSave(JSON.stringify({ state, version: SAVE_VERSION }), null);
+    const invalid = { ok: false, reason: 'invalid' } as const;
+    expect(damaged(null)).toEqual(invalid);
+    expect(damaged([])).toEqual(invalid);
+    expect(damaged({})).toEqual(invalid);
+    const { roster: _roster, ...noRoster } = JSON.parse(
+      serialiseSave(createSim(7))
+    ).state as Record<string, unknown>;
+    expect(damaged(noRoster)).toEqual(invalid);
+    expect(damaged({ ...noRoster, clock: null, roster: [] })).toEqual(invalid);
+    expect(restoreSave('{"state":{', null)).toEqual(invalid);
+  });
+
+  // 0.9.0 wrote version 8: its saves load while that is still the
+  // version, and are refused whole, never loaded in part, once it isn't.
+  test('a 0.9.0 save loads, or is refused as another version', () => {
+    const file = JSON.parse(serialiseSave(createSim(7))) as {
+      version: number;
+    };
+    file.version = 8;
+    const restored = restoreSave(JSON.stringify(file), null);
+    expect(restored.ok || restored.reason).toBe(
+      SAVE_VERSION === 8 ? true : 'other-version'
+    );
   });
 
   // The exported starting state is gitignored and absent in CI.
@@ -216,6 +260,64 @@ describe('save', () => {
         replayed = playTick(replayed);
       }
       expect(replayed).toEqual(played);
+    }
+  );
+
+  // Release acceptance (#221): a real game, saved at
+  // each moment that waits on the player or interrupts the sweep, loads
+  // to the same state and plays on exactly as the unsaved game does.
+  // Seed 12 meets a following Character and seed 3 an Encounter's talk;
+  // both later fight and queue a passing.
+  test.skipIf(!existsSync(startingStatePath) || !existsSync(tilemapPath))(
+    'saved mid-meeting, mid-encounter, mid-fight or with a passing queued, the game continues identically',
+    () => {
+      const startingState: unknown = JSON.parse(
+        readFileSync(startingStatePath, 'utf8')
+      );
+      const map = JSON.parse(readFileSync(tilemapPath, 'utf8')) as Tilemap;
+      const checked = new Set<string>();
+      const check = (kind: string, state: SimState) => {
+        if (checked.has(kind)) {
+          return;
+        }
+        checked.add(kind);
+        const restored = restoreSave(serialiseSave(state), map);
+        expect(restored).toEqual({ ok: true, state });
+        let played = state;
+        let replayed = restored.ok ? restored.state : state;
+        for (let i = 0; i < 300; i++) {
+          played = playTick(played);
+          replayed = playTick(replayed);
+        }
+        expect(replayed).toEqual(played);
+      };
+      for (const seed of [3, 12]) {
+        let sim = createSim(seed, startingState, map);
+        const frodo = sim.roster.find(entry => entry.name === 'FRODO')!;
+        sim = giveOrder(sim, frodo.index, RIVENDELL);
+        while (!sim.ending && sim.clock.day < 60) {
+          const { fight, meeting } = sim;
+          if (meeting) {
+            const encounter = isEncounter(meeting.a) || isEncounter(meeting.b);
+            check(`${meeting.kind}${encounter ? ' encounter' : ''}`, sim);
+          }
+          if (fight) {
+            check('fight', sim);
+            check('fight after a round', fightRound(sim));
+          }
+          if (sim.passings.length > 0) {
+            check('passing', sim);
+          }
+          sim = playTick(sim);
+        }
+      }
+      expect([...checked].sort()).toEqual([
+        'fight',
+        'fight after a round',
+        'follow',
+        'passing',
+        'talk encounter'
+      ]);
     }
   );
 });
