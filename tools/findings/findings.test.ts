@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test';
 
-import { crossCheck, renderDocument, type Entry } from './findings';
+import { crossCheck, labelCheck, renderDocument, type Entry } from './findings';
 
 const entry = (fields: Partial<Entry>): Entry => ({
   body: '**X.** More.',
@@ -96,4 +96,29 @@ test('renders chapters in topic order, headlines footnoted, superseded last', ()
       ].join('\n')
     ].join('\n\n') + '\n'
   );
+});
+
+const cites = (hex: string) =>
+  entry({ slug: `cites-${hex}`, sources: [`disasm:code+0x${hex}`] });
+
+test('flags a cited routine labels.md does not name', () => {
+  const listing = [
+    'code+0x00000  4e55fffc  link.w a5, #$fffc',
+    'code+0x00004  4e75      rts',
+    'code+0x00006  4e55fffc  link.w a5, #$fffc',
+    'code+0x0000a  4e75      rts'
+  ].join('\n');
+  const named = new Map([['code+0x00000', 'first']]);
+  expect(labelCheck([cites('4')], listing, named, new Set())).toEqual([]);
+  expect(labelCheck([cites('a')], listing, named, new Set())).toEqual([
+    "cites-a: cites disasm:code+0xa, in the routine at code+0x00006, which docs/re/labels.md doesn't name"
+  ]);
+  expect(
+    labelCheck([cites('a')], listing, named, new Set(['code+0x00006']))
+  ).toEqual([]);
+  expect(
+    labelCheck([cites('4')], listing, named, new Set(['code+0x00000']))
+  ).toEqual([
+    'code+0x00000 is labelled or uncited: remove it from tools/findings/unlabelled-routines.txt'
+  ]);
 });

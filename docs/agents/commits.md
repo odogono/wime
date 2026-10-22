@@ -15,6 +15,9 @@ type(scope)!: Sentence-case imperative description (#issue)
   - `fix`: a behaviour that was wrong.
   - `perf`: the same behaviour, faster or smaller.
   - `refactor`, `docs`, `test`, `build`, `ci`, `chore`, `revert`: no change a player would notice. Analysis of the original game is `docs(re)`.
+
+  Pick the type from what the diff does, not from the branch name or the issue's wording: a `fix/issue-141` branch that adds a behaviour the port never had is `feat`.
+
 - **scope**, optional, one of:
   - `sim`: the headless simulation, `web/src/sim/`.
   - `view`: rendering, UI and the tick driver, `web/src/view/`.

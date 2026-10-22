@@ -119,6 +119,7 @@ import {
   stepCouncilMessage,
   type CouncilMessageWindow
 } from './council-message';
+import { snapCanvas } from './dev-hook';
 import {
   drawEncounterNotice,
   drawEncounterTalk,
@@ -2041,6 +2042,37 @@ const run = (
     sim = result.value;
     startGame(false);
   };
+  // Under `bun run dev` only, `window.wime` drives the view from the
+  // console or the preview (docs/agents/port-preview.md).
+  if (import.meta.env.DEV) {
+    Object.assign(window, {
+      wime: {
+        // The page point, for preview_click, at the middle of native
+        // pixel (x, y): the inverse of toNative.
+        at: (x: number, y: number) => {
+          const rect = canvas.getBoundingClientRect();
+          return {
+            x:
+              rect.left +
+              ((fit.x + (x + 0.5) * fit.scale) * rect.width) / canvas.width,
+            y:
+              rect.top +
+              ((fit.y + (y + 0.5) * fit.scale) * rect.height) / canvas.height
+          };
+        },
+        newGame: () => {
+          boot = null;
+          startGame(true);
+        },
+        setSim: (change: (state: SimState) => SimState) => {
+          sim = change(sim);
+        },
+        sim: () => sim,
+        snap: (name: string, width?: number) =>
+          snapCanvas(canvas, fit, name, width)
+      }
+    });
+  }
   // The in-game menu (docs/spec/game-menu.md). While it is open the game
   // stands still: the frame loop shows the scene as it was when it
   // opened, dimmed, and nothing ticks.

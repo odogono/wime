@@ -39,8 +39,14 @@ The code uses the Aztec C small-data model: register A4 holds the data hunk's ad
 code+0x003a6  41ec9dea              lea.l -$6216(a4), a0  ; data+0x1de8 roster
 ```
 
-Each `d(a4)` operand is annotated with the data offset it reaches, and every address named in [`labels.md`](labels.md) gets its label, so searching for an address finds every access to it: `rg 'data\+0x1de8' extracted_asm/code.asm`. Name new addresses in `labels.md` and rerun `bun run disasm` to see them in the listing. A call through the jump table also names the routine it reaches (`; data+0x0252 jt_mulu32 -> code+0x1bb76 mulu32`).
+Each `d(a4)` operand is annotated with the data offset it reaches, and every address named in [`labels.md`](labels.md) gets its label, so searching for an address finds every access to it: `rg 'data\+0x1de8' extracted_asm/code.asm`. A call, direct or through the jump table, names the routine it reaches (`; -> code+0x00396 figureStep`, `; data+0x0252 jt_mulu32 -> code+0x1bb76 mulu32`).
 
-Read a routine with `bun run asm <address|label> [lines]`, for example `bun run asm pickUpObject 80` or `bun run asm 6a00`. The address need not start an instruction, so it works where an exact-match range such as `awk '/^code\+0x06a00/,…/'` prints nothing or runs to the end of the file. To find where a subsystem lives, start from the [code ranges in `labels.md`](labels.md#subsystems).
+Read the listing with `bun run asm`, never an `awk` or `sed` range over `code.asm`: the address need not start an instruction, where a range prints nothing or runs to the end of the file.
 
-`extracted_asm/code.bin` and `data.bin` hold the raw hunk contents for hex dumps. Never commit anything extracted from `artifacts/`.
+- `bun run asm pickUpObject 80`, `bun run asm 6a00 40 --before 20`: a slice, from a label or an address.
+- `bun run asm --routine 6a00`: the whole routine holding an address.
+- `bun run asm --refs figureStep`, `--refs roster`, `--refs data+0x1de8`: every call to a routine, or every A4 access to a data address, each tagged with the routine it sits in.
+
+To find where a subsystem lives, start from the [code ranges in `labels.md`](labels.md#subsystems). When you identify a routine or a variable, name it in `labels.md` in the same PR and rerun `bun run disasm`, so the next search finds it by name.
+
+`extracted_asm/code.bin` and `data.bin` hold the raw hunk contents for hex dumps. `bun run figure-script <frml> [entry]` decodes a figure set's Animation Level script from `data.bin`. Never commit anything extracted from `artifacts/`.

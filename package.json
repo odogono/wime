@@ -18,6 +18,7 @@
     "extract-manual": "bun tools/extract-manual.ts",
     "disasm": "bun tools/disasm.ts",
     "asm": "bun tools/asm.ts",
+    "figure-script": "bun tools/figure-script.ts",
     "render-campaign-map": "bun tools/render-campaign-map.ts",
     "export:web": "bun tools/export-web.ts",
     "extract-all": "bun tools/extract-all.ts",

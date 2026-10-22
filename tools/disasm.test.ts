@@ -2,6 +2,7 @@ import { expect, test } from 'bun:test';
 
 import {
   a4Targets,
+  callTarget,
   disassembleCode,
   formatListing,
   jumpTargets,
@@ -69,4 +70,19 @@ test('names the routine a jump table call reaches', async () => {
     jumpTargets(data)
   );
   expect(listing).toContain('; data+0x0006 -> code+0x00008 target');
+});
+
+test('names the routine a direct call reaches', async () => {
+  expect(callTarget('jsr', '$396(pc)')).toBe(0x3_96);
+  expect(callTarget('jsr', '$1940c.l')).toBe(0x1_94_0c);
+  expect(callTarget('bsr.b', '$2012')).toBe(0x20_12);
+  expect(callTarget('jmp', '$564(pc,d0.w)')).toBeUndefined();
+  expect(callTarget('bra.b', '$40')).toBeUndefined();
+  // bsr.b +2 at code+0x00000 reaches code+0x00004.
+  const code = new Uint8Array([0x61, 0x02, 0x4e, 0x71, 0x4e, 0x75]);
+  const listing = formatListing(
+    await disassembleCode(code),
+    new Map([['code+0x00004', 'target']])
+  );
+  expect(listing).toContain('bsr.b $4  ; -> code+0x00004 target');
 });

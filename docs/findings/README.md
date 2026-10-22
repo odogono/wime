@@ -33,7 +33,7 @@ code+0x01a2c4 gives ...
   - `confirmed`: shown in the code or data.
 - `sources`: one or more, as `kind:reference`:
   - `manual:pdf-p11`: a page of `artifacts/WarinMiddleEarth-InstructionManual.pdf`. `bun run extract-manual` writes its text, marked by page, and page images to `extracted_text/`.
-  - `observed:<run>`: a Reference run played in vAmiga.
+  - `observed:<run>`: a Reference run played in FS-UAE ([docs/re/fs-uae.md](../re/fs-uae.md)).
   - `resource:<file>#<type> <id>`: a resource in the Reference Build.
   - `disasm:code+0x<offset>` or `disasm:data+0x<offset>`: an offset into the code or data hunk of the Reference Build's executable ([docs/re](../re/README.md) explains the layout).
   - `strings:0x<offset>`: an offset in the executable's string scan.
@@ -50,4 +50,4 @@ The text opens with a bold headline sentence stating the fact, then explains it 
 
 ## Checks
 
-`bun run findings:check`, part of `bun run check`, validates every Finding, every `supersedes`, and every `finding:<slug>` cited in `docs/spec/`. The pre-commit hook runs it whenever a commit touches `docs/findings/`. CI requires a PR scoped `re` to add or change a Finding ([commit conventions](../agents/commits.md)).
+`bun run findings:check`, part of `bun run check`, validates every Finding, every `supersedes`, and every `finding:<slug>` cited in `docs/spec/`. Where `bun run disasm` has run, it also requires each routine a `disasm:code+0x…` source sits in to be named in [`docs/re/labels.md`](../re/labels.md), apart from the backlog in `tools/findings/unlabelled-routines.txt`. The pre-commit hook runs it whenever a commit touches `docs/findings/`. CI requires a PR scoped `re` to add or change a Finding ([commit conventions](../agents/commits.md)).
