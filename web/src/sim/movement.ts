@@ -142,8 +142,29 @@ const steer = (
   return bestFacing;
 };
 
+// The nine Nazgûl and the Ford of Bruinen, where they hide
+// (finding:forces-nazgul-hide-at-ford-of-bruinen).
+const FIRST_NAZGUL = 79;
+const LAST_NAZGUL = 87;
+const FORD_OF_BRUINEN = 22;
+// The Ring-bearer proximity trigger (finding:ai-trigger-conditions).
+const RING_BEARER_TRIGGER = 0x01;
+
+const atFord = (world: MovementWorld, entry: RosterEntry): boolean => {
+  const ford = world.places.find(place => place.index === FORD_OF_BRUINEN);
+  return (
+    ford !== undefined &&
+    entry.position !== null &&
+    entry.position.x === ford.position.x &&
+    entry.position.y === ford.position.y
+  );
+};
+
 // Arrival (finding:movement-arrival-pops-next-route-stop): turn
-// resting and pop the next Default Orders stop, if any.
+// resting and pop the next Default Orders stop, if any. A Nazgûl
+// whose orders end at the Ford of Bruinen goes to sleep instead,
+// until the Ring-bearer comes near
+// (finding:forces-nazgul-hide-at-ford-of-bruinen).
 const arrive = (world: MovementWorld, entry: RosterEntry): RosterEntry => {
   const route = world.routes[entry.route] ?? [];
   const [next, ...rest] = route;
@@ -153,6 +174,20 @@ const arrive = (world: MovementWorld, entry: RosterEntry): RosterEntry => {
       : world.places.find(candidate => candidate.index === next);
   if (next !== undefined) {
     world.routes[entry.route] = rest;
+  }
+  if (
+    next === undefined &&
+    entry.index >= FIRST_NAZGUL &&
+    entry.index <= LAST_NAZGUL &&
+    atFord(world, entry)
+  ) {
+    return {
+      ...entry,
+      destination: null,
+      state: 0,
+      trigger: { event_bit: 0, kind: 'near-ring-bearer' },
+      triggerByte: RING_BEARER_TRIGGER
+    };
   }
   return {
     ...entry,

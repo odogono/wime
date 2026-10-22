@@ -215,11 +215,10 @@ The implementation distributes these rules across the simulation:
 - [council.ts](../web/src/sim/council.ts): the Council's changes to the roster,
   including putting the Nazgûl to sleep.
 
-Two limitations are visible in the current implementation. The arrival function
-in `movement.ts` applies ordinary resting and queue advancement without the
-special Ford hiding rule. The Evil Encounter branch in `ring.ts` can give the
-Ring to an already-awake 3rd Nazgûl, but does not itself wake or revive him.
-These are implementation gaps, not alternate explanations of the original's AI.
+One limitation is visible in the current implementation. The Evil Encounter
+branch in `ring.ts` can give the Ring to an already-awake 3rd Nazgûl, but does
+not itself wake or revive him. This is an implementation gap, not an alternate
+explanation of the original's AI.
 
 The port uses a seeded random-number generator and aims to reproduce rules and
 distributions, rather than the original's exact random sequence. See

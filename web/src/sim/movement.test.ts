@@ -518,6 +518,34 @@ describe('orders', () => {
   });
 });
 
+// Entries 1 to 79 with Frodo (1, the Ring-bearer) at frodoAt and
+// the given entry, one step short of Place 22, the Ford of Bruinen.
+const fordSim = (index: number, frodoAt: { x: number; y: number }) => {
+  const entries = [];
+  for (let i = 1; i <= 79; i++) {
+    entries.push(
+      i === 1
+        ? entry({ index: 1, position: frodoAt, stamina: 0, state: 3 })
+        : i === index
+          ? entry({
+              destination: { x: 176, y: 160 },
+              facing: 2,
+              index: i,
+              position: { x: 160, y: 160 },
+              speed: 5
+            })
+          : entry({ index: i, state: 0, strength: 0, ticked: false })
+    );
+  }
+  return makeSim({
+    entries,
+    places: [place(22, 'FORD OF BRUINEN', 176, 160)],
+    routes: [[]],
+    terrainByTile: { 1: 100 },
+    tileAt: () => 1
+  });
+};
+
 describe('rest and arrival', () => {
   test('resting regains 2 a tick and only resumes in the morning window', () => {
     // finding:movement-stamina-and-rest
@@ -577,6 +605,39 @@ describe('rest and arrival', () => {
     expect(sim.roster[1]!.position).toEqual({ x: 176, y: 160 });
     expect(sim.roster[1]!.destination).toEqual({ x: 640, y: 320 });
     expect(sim.routes[1]).toEqual([]);
+  });
+
+  test('a Nazgûl ending its orders at the Ford of Bruinen hides until the Ring-bearer nears', () => {
+    // finding:forces-nazgul-hide-at-ford-of-bruinen
+    let sim = fordSim(79, { x: 800, y: 800 });
+    sim = tickUntil(sim, s => s.roster[79]!.destination === null, 40);
+    const nazgul = sim.roster[79]!;
+    expect(nazgul.position).toEqual({ x: 176, y: 160 });
+    expect(nazgul.state).toBe(0);
+    expect(nazgul.triggerByte).toBe(1);
+    expect(forcesOf(sim.roster).find(f => f.leader.index === 79)!.onMap).toBe(
+      false
+    );
+    sim = tickN(sim, 20);
+    expect(sim.roster[79]!.state).toBe(0);
+    // Frodo comes within 9 px on each axis
+    // (finding:ai-trigger-distances-are-square).
+    sim = {
+      ...sim,
+      roster: sim.roster.map(e =>
+        e.index === 1 ? { ...e, position: { x: 185, y: 169 } } : e
+      )
+    };
+    sim = tickSim(sim);
+    expect(sim.roster[79]!.state).not.toBe(0);
+    expect(sim.roster[79]!.triggerByte).toBe(0);
+  });
+
+  test('any other entry arriving at the Ford of Bruinen rests', () => {
+    let sim = fordSim(78, { x: 800, y: 800 });
+    sim = tickUntil(sim, s => s.roster[78]!.destination === null, 40);
+    expect(sim.roster[78]!.state).toBe(3);
+    expect(sim.roster[78]!.triggerByte).toBe(0);
   });
 
   test('stamina 255 never drains and class 0 never moves', () => {
