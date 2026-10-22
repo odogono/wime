@@ -87,12 +87,13 @@ are in `docs/spec/combat.md`.
   and the clock runs on under it.
   (finding:forces-gollum-sneaks-away-from-a-wizard,
   finding:time-game-speed-clock-limits, finding:ui-war-event-messages)
-- Accepted for 1.0: the one-line box would leave its buttons, at 30,
-  outside its 24 pixels, so it is drawn 44 high like the two-line
-  box. The original opens it 24 high with its buttons drawn at 30;
-  how that shows on screen needs a capture (#171). The difference is
-  cosmetic, as the box has no buttons to press.
-  (finding:forces-gollum-sneaks-away-from-a-wizard)
+- Accepted for 1.0: a plain meeting's one-line box would leave its
+  "Go there" and "Continue on" buttons, at 30, outside its 24 pixels,
+  so it is drawn 44 high like the two-line box and both buttons stay
+  inside the frame. The original opens it 24 high with its buttons at
+  30; how that shows and where its buttons take clicks needs a
+  capture. Gollum's notice above has no buttons and is not affected.
+  (finding:ui-meeting-window)
 - In the original the deadline counts real frames, and the Full Map
   Level cannot be entered while the window is up, so no time there
   counts against it (finding:ui-message-box-timeouts-by-level,

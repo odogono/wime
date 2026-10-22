@@ -31,8 +31,11 @@ talks and fights shown here are in `docs/spec/encounters.md`.
   nowhere to go. Pause still stops it.
   Accepted for 1.0: the original moves one roster entry a frame; the
   port runs the whole sweep at once at the end of those frames. The
-  order of moves, Encounters and meetings within a sweep is the same,
-  and only off-screen Forces' timing within the sweep differs.
+  order of moves within a sweep is the same, and both stop at a fight
+  or meeting and hold at the watched Character. An Encounter, meeting
+  or fight can still come up at a different moment, and the player's
+  clicks can fall between moves differently, so the same clicks need
+  not give the same game.
   (finding:time-clock-advances-after-each-roster-sweep,
   finding:time-animation-level-holds-the-sweep-at-the-watched-character)
 - A fight with a Unit on the Good side, a meeting other than a watched
@@ -91,11 +94,12 @@ talks and fights shown here are in `docs/spec/encounters.md`.
   (finding:ui-animation-level-eye-shows-the-selected-status)
 - Accepted for 1.0: the original's click point is the hand pointer's
   fingertip; the port's is the browser pointer's, a deliberate
-  platform difference. An Evil or Encounter figure's status line reads
-  as a Good one's, as the original formats every clicked entry with
-  one routine (code+0x04528).
+  platform difference. An Evil or Encounter figure shows its status
+  line as a Good one does, from the same routine (code+0x04528), but
+  leaves the selection alone. Whether a still-picture Encounter figure
+  shows one at all was not traced.
   (finding:ui-animation-level-click-takes-the-frontmost-figure,
-  finding:ui-animation-level-eye-shows-the-selected-status)
+  finding:ui-animation-level-clicking-a-figure-selects-it)
 
 - Every colour comes from the Animation Level palette.
   (finding:graphics-animation-level-palette)
