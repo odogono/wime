@@ -18,11 +18,11 @@ import { drawWindowFrame, windowText, type WindowStyle } from './window-frame';
 // The figure under a point: the nearest, highest depth first, and of
 // equal depth the one added first; its box is its current frame
 // (finding:ui-animation-level-click-takes-the-frontmost-figure).
-export const figureAt = (
+const frontmostFigure = (
   stage: Stage,
   frames: (frml: number) => readonly FrameRecord[],
   point: { x: number; y: number }
-): number | null => {
+): { depth: number; owner: number } | null => {
   let best: { depth: number; owner: number } | null = null;
   for (const figure of stage.figures) {
     const frame = frames(figure.frml)[figure.frame];
@@ -39,7 +39,50 @@ export const figureAt = (
       best = { depth: figure.depth, owner: figure.owner };
     }
   }
-  return best?.owner ?? null;
+  return best;
+};
+
+export const figureAt = (
+  stage: Stage,
+  frames: (frml: number) => readonly FrameRecord[],
+  point: { x: number; y: number }
+): number | null => frontmostFigure(stage, frames, point)?.owner ?? null;
+
+// What a click on the Animation Level hits: a figure, or an object's
+// picture lying on the ground, the nearest first as for figures; of
+// equal depth a figure wins, as figures are added before pictures
+// (finding:objects-lying-on-the-ground-are-pictures).
+export type Clicked =
+  { kind: 'figure'; owner: number } | { kind: 'object'; object: number };
+
+export const thingAt = (
+  stage: Stage,
+  frames: (frml: number) => readonly FrameRecord[],
+  pictureSize: (object: number) => { height: number; width: number } | null,
+  point: { x: number; y: number }
+): Clicked | null => {
+  const figure = frontmostFigure(stage, frames, point);
+  const figureDepth = figure?.depth ?? -1;
+  let best: { depth: number; object: number } | null = null;
+  for (const picture of stage.pictures ?? []) {
+    const size = pictureSize(picture.object);
+    if (
+      !size ||
+      point.x < picture.x ||
+      point.x >= picture.x + size.width ||
+      point.y < picture.y ||
+      point.y >= picture.y + size.height
+    ) {
+      continue;
+    }
+    if (picture.depth > figureDepth && (!best || picture.depth > best.depth)) {
+      best = { depth: picture.depth, object: picture.object };
+    }
+  }
+  if (best) {
+    return { kind: 'object', object: best.object };
+  }
+  return figure && { kind: 'figure', owner: figure.owner };
 };
 
 // A clicked entry becomes the selected Character when it is one of
@@ -75,6 +118,14 @@ export const figureStatus = (
   height: 24,
   lines: [{ text: statusLine(roster, places, index), x: TEXT_X, y: 8 }],
   width: 208
+});
+
+// The name of an object clicked on the ground, with no list open
+// (code+0x074d6, finding:objects-lying-on-the-ground-are-pictures).
+export const objectNameBox = (object: number): StatusBox => ({
+  height: 24,
+  lines: [{ text: OBJECTS[object]?.name ?? '', x: TEXT_X, y: 8 }],
+  width: 100
 });
 
 export const EYE_HEADING =

@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 
-import type { RosterEntry } from '../sim/index';
+import { OBJECTS, type RosterEntry } from '../sim/index';
 import type { Stage } from './animation-level';
 import {
   EYE_HEADING,
@@ -10,7 +10,9 @@ import {
   figureAt,
   figureStatus,
   insideStatusBox,
-  isSelectable
+  isSelectable,
+  objectNameBox,
+  thingAt
 } from './animation-status';
 import type { Figure } from './figure-script';
 
@@ -57,6 +59,53 @@ const roster = (...entries: RosterEntry[]): RosterEntry[] => {
   }
   return all;
 };
+
+const size = () => ({ height: 8, width: 12 });
+const withPicture = (figures: Figure[]): Stage => ({
+  figures,
+  party: 1,
+  pictures: [{ depth: 0x99, object: 3, x: 200, y: 165 }]
+});
+
+describe('clicking an object on the ground', () => {
+  test('hits the picture that holds the point', () => {
+    const s = withPicture([]);
+    expect(thingAt(s, frames, size, { x: 200, y: 165 })).toEqual({
+      kind: 'object',
+      object: 3
+    });
+    expect(thingAt(s, frames, size, { x: 211, y: 172 })).toEqual({
+      kind: 'object',
+      object: 3
+    });
+    expect(thingAt(s, frames, size, { x: 212, y: 165 })).toBeNull();
+  });
+
+  test('a nearer figure in front of the picture takes the click', () => {
+    const s = withPicture([figure({ depth: 0x9a, x: 195, y: 160 })]);
+    expect(thingAt(s, frames, size, { x: 200, y: 166 })).toEqual({
+      kind: 'figure',
+      owner: 7
+    });
+  });
+
+  test('the picture takes the click from a figure behind it', () => {
+    const s = withPicture([figure({ depth: 0x95, x: 195, y: 160 })]);
+    expect(thingAt(s, frames, size, { x: 200, y: 166 })).toEqual({
+      kind: 'object',
+      object: 3
+    });
+  });
+
+  test("shows the object's name in a box 100 by 24", () => {
+    const box = objectNameBox(1);
+    expect(box.width).toBe(100);
+    expect(box.height).toBe(24);
+    expect(box.lines).toHaveLength(1);
+    expect(box.lines[0]!.heading).toBeFalsy();
+    expect(box.lines[0]!.text).toBe(OBJECTS[1]!.name);
+  });
+});
 
 describe('clicking a figure', () => {
   test('hits the figure whose current frame holds the point', () => {
