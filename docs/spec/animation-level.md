@@ -51,6 +51,9 @@ talks and fights shown here are in `docs/spec/encounters.md`.
   nobody watched; no figures walk, and it stays until the map icon is
   pressed
   (finding:ui-magnifying-glass-watches-the-first-good-leader-near-the-spot).
+  With Glass shows Evil on in the settings (docs/spec/game-menu.md), an
+  Evil Force under the glass shows its figures walking past instead,
+  still with nobody watched.
   When there are rows, the first row's icon flashes four times first
   (docs/spec/time.md, finding:ui-press-flash).
 

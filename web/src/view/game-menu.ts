@@ -70,7 +70,8 @@ export type GameMenu =
       slot: SlotSummary;
     }
   | { kind: 'load'; selected: number; slots: SlotSummary[] }
-  // Sound, Window size, Debug views where they are offered, and Back.
+  // Sound, Window size, Glass shows Evil, Debug views where they are
+  // offered, and Back.
   | {
       debug: boolean;
       kind: 'settings';
@@ -201,6 +202,9 @@ export const gameMenuView = (menu: GameMenu): MenuView => {
         rows: [
           { label: `Sound: ${menu.settings.sound ? 'On' : 'Off'}` },
           { label: `Window size: ${sizeLabel(menu.settings.size)}` },
+          {
+            label: `Glass shows Evil: ${menu.settings.glassShowsEvil ? 'On' : 'Off'}`
+          },
           ...(menu.debug ? [{ label: 'Debug views' }] : []),
           { label: 'Back' }
         ],
@@ -301,7 +305,7 @@ const choose = (
     }
     case 'settings': {
       const { settings } = menu;
-      if (menu.debug && menu.selected === 2) {
+      if (menu.debug && menu.selected === 3) {
         return { menu: { kind: 'debug', selected: 0, settings } };
       }
       const changed =
@@ -309,7 +313,9 @@ const choose = (
           ? { ...settings, sound: !settings.sound }
           : menu.selected === 1
             ? { ...settings, size: nextSize(settings.size) }
-            : null;
+            : menu.selected === 2
+              ? { ...settings, glassShowsEvil: !settings.glassShowsEvil }
+              : null;
       return changed
         ? {
             choice: { kind: 'set', settings: changed },
