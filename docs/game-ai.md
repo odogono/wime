@@ -93,16 +93,17 @@ An Evil Leader arriving at Barad-dûr with the Ring loses the game for the playe
 The manual mentions Orthanc as an alternative, but the recovered ending check
 only uses Barad-dûr. The bearer can be intercepted before it arrives.
 
-Sources: [Ring transfer and Nazgûl destinations](findings/objects-ring-taken-by-last-awake-winner.md),
+Sources: [Ring transfer and Nazgûl destinations](findings/objects-encounter-revives-third-nazgul.md),
 [Barad-dûr ending](findings/objects-ring-at-barad-dur-loses.md).
 
 ### The Council and defeat can remove them from play
 
 The Council of Elrond puts all nine Nazgûl to sleep and clears their triggers.
 They therefore do not wake through the ordinary trigger system afterwards.
-There is a separately recorded special case involving the 3rd Nazgûl when an
-Evil Encounter wins the Ring; this should not be generalised into a return
-mechanism for all nine.
+When an Evil Encounter wins a fight with the Ring lying at the fight's place,
+the 3rd Nazgûl is woken or revived, restored to full health and moved there to
+take it. This special case should not be generalised into a return mechanism
+for all nine.
 
 The manual says defeated Nazgûl reappear in Mordor. The repository has not found
 a general revival mechanism in the Reference Build: combat records a defeated
@@ -214,11 +215,6 @@ The implementation distributes these rules across the simulation:
   the other Nazgûl's random destinations.
 - [council.ts](../web/src/sim/council.ts): the Council's changes to the roster,
   including putting the Nazgûl to sleep.
-
-One limitation is visible in the current implementation. The Evil Encounter
-branch in `ring.ts` can give the Ring to an already-awake 3rd Nazgûl, but does
-not itself wake or revive him. This is an implementation gap, not an alternate
-explanation of the original's AI.
 
 The port uses a seeded random-number generator and aims to reproduce rules and
 distributions, rather than the original's exact random sequence. See

@@ -164,7 +164,7 @@ describe('the Ring passes after a fight', () => {
   });
 
   test('Good wins with no Hobbit: the last-listed awake row, Unit or not', () => {
-    // finding:objects-ring-taken-by-last-awake-winner, code+0x1327a.
+    // finding:objects-encounter-revives-third-nazgul, code+0x1327a.
     const sim = world([{ index: 7, state: 0, strength: 0 }]);
     const next = passRingAfterFight(
       after(sim, [row([1], 'good'), row([2], 'good', 20)], 'good')
@@ -212,22 +212,59 @@ describe('the Ring passes after a fight', () => {
     expect(next.routes[6]).toEqual([5]);
   });
 
-  test('Evil wins as an Encounter: the 3rd Nazgûl is sent and takes it', () => {
+  test.each([
+    { health: 3, state: 0, strength: 1 },
+    { health: 0, state: 0, strength: 0 },
+    { health: 3, state: 1, strength: 1 }
+  ])('an Encounter sends the 3rd Nazgûl to take the Ring from %j', over => {
     const sim = world([
       { index: 7, state: 0, strength: 0 },
-      { index: 81, state: 1 }
+      { index: 81, leader: 80, ...over }
     ]);
     const next = passRingAfterFight(
       after(sim, [row([7], 'good', 0)], 'evil', 160)
     );
     expect(next.ringBearer).toBe(81);
+    expect(next.roster[81]!.position).toEqual(HERE);
+    expect(next.roster[81]!.state).toBe(1);
+    expect(next.roster[81]!.strength).toBe(1);
+    expect(next.roster[81]!.health).toBe(next.roster[81]!.maxHealth);
     expect(next.roster[81]!.objects).toEqual([0]);
     expect(next.roster[81]!.destination).toEqual(BARAD_DUR);
+    expect(next.roster[81]!.leader).toBeNull();
+    expect(next.routes[3]).toEqual([]);
+    expect(next.objectPlacements[0]).toBeNull();
     expect(next.passings).toEqual([
       { kind: 'nazgul-sent' },
       { bearer: 81, kind: 'ring' }
     ]);
+    expect(sim.roster[81]).toMatchObject({
+      ...over,
+      objects: [],
+      position: { x: 1000, y: 1000 }
+    });
+    expect(sim.routes[3]).toEqual([5]);
   });
+
+  test.each([
+    { objectPlacements: [] },
+    { objectPlacements: [{ object: 0, position: MOUNT_DOOM }] }
+  ])(
+    'an Encounter does not revive the 3rd Nazgûl without the Ring at the fight: %j',
+    ({ objectPlacements }) => {
+      const sim = after(
+        {
+          ...world([{ health: 0, index: 81, strength: 0 }]),
+          objectPlacements: [...objectPlacements]
+        },
+        [row([7], 'good', 0)],
+        'evil',
+        160
+      );
+      expect(passRingAfterFight(sim)).toBe(sim);
+      expect(sim.passings).toEqual([]);
+    }
+  );
 
   test('a Ring lying elsewhere stays where it is', () => {
     const sim = world();
@@ -259,6 +296,36 @@ describe('the Ring passes after a fight', () => {
     expect(fought.roster[7]!.state).toBe(0);
     expect(fought.ringBearer).toBe(8);
     expect(fought.roster[8]!.objects).toEqual([0]);
+    expect(fought.objectPlacements.every(slot => slot === null)).toBe(true);
+  });
+
+  test('finishFight revives the 3rd Nazgûl when an Encounter kills the Ring-bearer', () => {
+    const sim = world([{ health: 0, index: 81, strength: 0 }]);
+    const fought = finishFight({
+      ...after(
+        sim,
+        [{ ...row([7], 'good', 0), startStrength: 1 }],
+        'evil',
+        160
+      ),
+      objectPlacements: sim.objectPlacements.map(() => null),
+      roster: sim.roster.map(e => (e.index === 7 ? { ...e, objects: [0] } : e))
+    });
+    expect(fought.roster[7]!.state).toBe(0);
+    expect(fought.roster[7]!.objects).toEqual([0]);
+    expect(fought.ringBearer).toBe(81);
+    expect(fought.roster[81]).toMatchObject({
+      destination: BARAD_DUR,
+      health: fought.roster[81]!.maxHealth,
+      objects: [0],
+      position: HERE,
+      state: 1,
+      strength: 1
+    });
+    expect(fought.passings).toEqual([
+      { kind: 'nazgul-sent' },
+      { bearer: 81, kind: 'ring' }
+    ]);
     expect(fought.objectPlacements.every(slot => slot === null)).toBe(true);
   });
 });

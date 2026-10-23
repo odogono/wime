@@ -30,14 +30,16 @@ Build for #103. Carrying, taking and dropping objects in general is in
   (finding:objects-dead-drop-their-objects)
 - At the end of the fight a Ring lying exactly at the fight's place is
   taken from the ground, and goes to one of the winners; with nobody
-  to take it, it is lost. (finding:objects-ring-taken-by-last-awake-winner)
+  to take it, it is lost. (finding:objects-encounter-revives-third-nazgul)
   - **Good wins:** the first living Hobbit in the Good rows; with no
     Hobbit, the last-listed awake row, Character or Unit alike. Gollum
     takes it only if he is all that is left of the Good side.
   - **Evil wins:** the last-listed awake Evil row. If the winner was
-    an Encounter, not a Force, "The 3rd NAZGUL is sent to the site."
-    and the 3rd Nazgûl takes it if awake, where he stands on the
-    Campaign Level.
+    an Encounter, the game shows "The 3rd NAZGUL is sent to the site."
+    The 3rd Nazgûl, entry 81, is moved to the Ring's place on the
+    Campaign Level, woken with state 1, restored to strength 1 and
+    maximum health, and always takes the Ring. This happens only
+    when the Ring lies at the fight's place.
 - The new bearer gets the Ring and becomes the Ring-bearer, with
   "<name> now has the RING." ("have" for a Unit). An Evil bearer is
   given Barad-dûr as its destination, leaves its Leader and loses its
@@ -45,7 +47,7 @@ Build for #103. Carrying, taking and dropping objects in general is in
   Orders and is sent to Dol Guldur, the Morannon or Minas Morgul, at
   random, with Minas Morgul twice as likely as each of the others.
   The messages share the notice box after the fight's windows close.
-  (finding:objects-ring-taken-by-last-awake-winner)
+  (finding:objects-encounter-revives-third-nazgul)
 
 ### Worn when wounded
 
