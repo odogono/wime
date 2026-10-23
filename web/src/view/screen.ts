@@ -40,6 +40,9 @@ export const fitScale = (
 export interface Screen {
   // The native-resolution buffer everything is drawn into.
   buffer: CanvasRenderingContext2D;
+  // Draw over the presented frame in native pixels, at the device's
+  // resolution, as the Debug views' lines and lettering are.
+  drawOver(draw: (ctx: CanvasRenderingContext2D) => void): void;
   // The 640 by 200 buffer for the Full Map Level.
   hires: CanvasRenderingContext2D;
   // Copy a buffer to the visible canvas, integer-scaled and centred.
@@ -91,5 +94,15 @@ export const createScreen = (canvas: HTMLCanvasElement): Screen => {
     );
   };
 
-  return { buffer, hires, present, resize };
+  const drawOver = (draw: (ctx: CanvasRenderingContext2D) => void): void => {
+    visible.save();
+    visible.setTransform(fit.scale, 0, 0, fit.scale, fit.x, fit.y);
+    visible.beginPath();
+    visible.rect(0, 0, NATIVE_WIDTH, NATIVE_HEIGHT);
+    visible.clip();
+    draw(visible);
+    visible.restore();
+  };
+
+  return { buffer, drawOver, hires, present, resize };
 };

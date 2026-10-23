@@ -1,4 +1,9 @@
 import {
+  DEBUG_VIEW_LABELS,
+  DEBUG_VIEW_ORDER,
+  type DebugViews
+} from './debug-views';
+import {
   NARROW_WIDTH,
   WIDE_WIDTH,
   drawMenu,
@@ -10,11 +15,12 @@ import {
   type MenuView
 } from './menu-window';
 import type { SlotFailure, SlotSummary } from './save-slots';
+import { nextSize, sizeLabel, type Settings } from './settings';
 import { LOAD_FAILED, loadList, type TitleSaves } from './title-menu';
 import type { WindowStyle } from './window-frame';
 
-// The in-game menu (docs/spec/game-menu.md): Save, Load, Return to
-// title and Close, opened during play on every Level. The original has
+// The in-game menu (docs/spec/game-menu.md): Save, Load, Settings,
+// Return to title and Close, opened during play on every Level. The original has
 // none; its Archive window keeps its own single slot
 // (finding:ui-archive-window). A pure state machine over keys and
 // clicks, as the title menu is; main.ts carries out what it chooses.
@@ -27,15 +33,20 @@ export type GameMenuChoice =
   | { id: number; kind: 'save-over' }
   | { kind: 'close' }
   | { kind: 'save-new'; name: string }
+  // Settings asked for its rows; main.ts opens them with what holds now.
+  | { kind: 'settings' }
+  // A setting changed, to be applied and stored.
+  | { kind: 'set'; settings: Settings }
   | { kind: 'title' };
 
-type MainItem = 'close' | 'load' | 'save' | 'title';
-const MAIN_ITEMS: MainItem[] = ['save', 'load', 'title', 'close'];
+type MainItem = 'close' | 'load' | 'save' | 'settings' | 'title';
+const MAIN_ITEMS: MainItem[] = ['save', 'load', 'settings', 'title', 'close'];
 const ENDED_ITEMS: MainItem[] = ['title', 'load'];
 const MAIN_LABELS: Record<MainItem, string> = {
   close: 'Close',
   load: 'Load',
   save: 'Save',
+  settings: 'Settings',
   title: 'Return to title'
 };
 
@@ -53,10 +64,29 @@ export type GameMenu =
       slot: SlotSummary;
     }
   | { kind: 'load'; selected: number; slots: SlotSummary[] }
+  // Sound, Window size, Debug views where they are offered, and Back.
+  | {
+      debug: boolean;
+      kind: 'settings';
+      selected: number;
+      settings: Settings;
+    }
+  // Each Debug view's switch, then Back to the settings.
+  | { kind: 'debug'; selected: number; settings: Settings }
   // What a save or load came to; any key or click goes back.
   | { kind: 'message'; lines: string[] };
 
 export const openGameMenu = (): GameMenu => ({ kind: 'main', selected: 0 });
+
+export const openSettingsMenu = (
+  settings: Settings,
+  debug = false
+): GameMenu => ({
+  debug,
+  kind: 'settings',
+  selected: 0,
+  settings
+});
 
 export const openEndedMenu = (): GameMenu => ({
   ended: true,
@@ -148,6 +178,32 @@ export const gameMenuView = (menu: GameMenu): MenuView => {
         width: WIDE_WIDTH
       };
     }
+    case 'settings': {
+      return {
+        lines: [],
+        rows: [
+          { label: `Sound: ${menu.settings.sound ? 'On' : 'Off'}` },
+          { label: `Window size: ${sizeLabel(menu.settings.size)}` },
+          ...(menu.debug ? [{ label: 'Debug views' }] : []),
+          { label: 'Back' }
+        ],
+        selected: menu.selected,
+        width: WIDE_WIDTH
+      };
+    }
+    case 'debug': {
+      return {
+        lines: [],
+        rows: [
+          ...DEBUG_VIEW_ORDER.map(key => ({
+            label: `${DEBUG_VIEW_LABELS[key]}: ${menu.settings.debug[key] ? 'On' : 'Off'}`
+          })),
+          { label: 'Back' }
+        ],
+        selected: menu.selected,
+        width: WIDE_WIDTH
+      };
+    }
     case 'message': {
       return { lines: menu.lines, rows: [], selected: null, width: WIDE_WIDTH };
     }
@@ -177,6 +233,9 @@ const choose = (
           return {
             menu: { kind: 'load', selected: 0, slots: loadList(saves) }
           };
+        }
+        case 'settings': {
+          return { choice: { kind: 'settings' }, menu };
         }
         case 'title': {
           return { choice: { kind: 'title' }, menu };
@@ -222,6 +281,39 @@ const choose = (
       return slot.loadable
         ? { menu: { action: 'load', kind: 'confirm', selected: 1, slot } }
         : { menu: gameMenuMessage(LOAD_FAILED['other-version']) };
+    }
+    case 'settings': {
+      const { settings } = menu;
+      if (menu.debug && menu.selected === 2) {
+        return { menu: { kind: 'debug', selected: 0, settings } };
+      }
+      const changed =
+        menu.selected === 0
+          ? { ...settings, sound: !settings.sound }
+          : menu.selected === 1
+            ? { ...settings, size: nextSize(settings.size) }
+            : null;
+      return changed
+        ? {
+            choice: { kind: 'set', settings: changed },
+            menu: { ...menu, settings: changed }
+          }
+        : { menu: home };
+    }
+    case 'debug': {
+      const key = DEBUG_VIEW_ORDER[menu.selected];
+      if (!key) {
+        return { menu: openSettingsMenu(menu.settings, true) };
+      }
+      const debug: DebugViews = {
+        ...menu.settings.debug,
+        [key]: !menu.settings.debug[key]
+      };
+      const changed = { ...menu.settings, debug };
+      return {
+        choice: { kind: 'set', settings: changed },
+        menu: { ...menu, settings: changed }
+      };
     }
     case 'message': {
       return { menu: home };
@@ -270,6 +362,9 @@ export const pressGameMenuKey = (
     return choose(menu, saves, home);
   }
   if (key === 'Escape') {
+    if (menu.kind === 'debug') {
+      return { menu: openSettingsMenu(menu.settings, true) };
+    }
     if (menu.kind !== 'main') {
       return { menu: home };
     }

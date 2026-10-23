@@ -116,6 +116,16 @@ import {
   stepCouncilMessage,
   type CouncilMessageWindow
 } from './council-message';
+import {
+  NO_DEBUG_VIEWS,
+  debugAllowed,
+  drawEncountersView,
+  drawLabelsView,
+  drawPathsView,
+  drawPointerView,
+  drawTerrainLegend,
+  drawTerrainView
+} from './debug-views';
 import { snapCanvas } from './dev-hook';
 import {
   drawEncounterNotice,
@@ -161,6 +171,7 @@ import {
   loadFailed,
   openEndedMenu,
   openGameMenu,
+  openSettingsMenu,
   pressGameMenuKey,
   saveFailed,
   type GameMenu,
@@ -221,6 +232,7 @@ import {
   type SlotSummary
 } from './save-slots';
 import { NATIVE_HEIGHT, NATIVE_WIDTH, createScreen, type Fit } from './screen';
+import { loadSettings, saveSettings, type Settings } from './settings';
 import { QUIET, figureEffects, soundCues, type SoundView } from './sound-cues';
 import { togglesSound } from './sound-key';
 import { placeScenery } from './special-scenery';
@@ -441,7 +453,25 @@ const run = (
       : { x: 0, y: 0 };
   };
   let camera: Camera = openingCamera();
+  // The player's settings, from the in-game menu's Settings.
+  let settings = loadSettings();
+  const applySettings = (next: Settings): void => {
+    settings = next;
+    saveSettings(next);
+    if (audio && audio.enabled !== next.sound) {
+      audio.toggle();
+    }
+    // A smaller window is centred, its pixels still whole.
+    canvas.style.width = `${next.size * 100}vw`;
+    canvas.style.height = `${next.size * 100}vh`;
+    fit = screen.resize();
+  };
+  // Q, as Sound in the settings, and remembered with them.
+  const toggleSound = (): void => {
+    applySettings({ ...settings, sound: !settings.sound });
+  };
   let fit: Fit = screen.resize();
+  applySettings(settings);
   let pointer: Camera | null = null;
   let drag: { camera: Camera; pointer: Camera } | null = null;
   let speedWindow: SpeedWindow | null = null;
@@ -531,7 +561,7 @@ const run = (
   window.addEventListener('keydown', event => {
     if (titleMenu) {
       if (event.key.toLowerCase() === 'q') {
-        audio?.toggle();
+        toggleSound();
       }
       chooseOnTitle(pressTitleMenuKey(titleMenu, event.key, titleSaves()));
       return;
@@ -541,7 +571,7 @@ const run = (
     }
     // Q switches sound off or on here too (finding:sound-q-toggles-sound).
     if (boot.startedAt !== null && event.key.toLowerCase() === 'q') {
-      audio?.toggle();
+      toggleSound();
     }
     const started = boot.startedAt === null;
     boot = pressBootKey(boot, viewNow());
@@ -1675,7 +1705,11 @@ const run = (
     // glass waits for the Animation Level.
     if (gameMenu) {
       if (event.key.toLowerCase() === 'q' && gameMenu.kind !== 'name') {
-        audio?.toggle();
+        toggleSound();
+        if (gameMenu.kind === 'settings' || gameMenu.kind === 'debug') {
+          gameMenu = { ...gameMenu, settings };
+        }
+        return;
       }
       chooseInGame(
         pressGameMenuKey(gameMenu, event.key, titleSaves(), gameMenuHome())
@@ -1693,7 +1727,7 @@ const run = (
     // Q switches sound off and on, on every Level
     // (finding:sound-q-toggles-sound).
     if (togglesSound(event.key, level)) {
-      audio?.toggle();
+      toggleSound();
       return;
     }
     // Any key on the ending's last page opens the menu after the
@@ -2120,6 +2154,14 @@ const run = (
         returnToTitle();
         return;
       }
+      case 'settings': {
+        gameMenu = openSettingsMenu(settings, debugAllowed());
+        return;
+      }
+      case 'set': {
+        applySettings(choice.settings);
+        return;
+      }
       case 'save-new':
       case 'save-over': {
         const result =
@@ -2384,9 +2426,37 @@ const run = (
     camera = stepCamera(camera, direction, elapsedMs / 1000, assets.tilemap);
     const forces = forcesOnMap(sim.roster);
     const flashOn = Math.floor(now / FLASH_INTERVAL_MS) % 2 === 0;
-    drawCampaignLevel(screen.buffer, assets, camera, forces, flashOn);
+    // The Debug views, offered only in a dev build or with ?debug.
+    const debug = debugAllowed() ? settings.debug : NO_DEBUG_VIEWS;
+    drawCampaignLevel(screen.buffer, assets, camera, forces, flashOn, () => {
+      if (debug.terrain) {
+        drawTerrainView(
+          screen.buffer,
+          sim,
+          clampCamera(camera, assets.tilemap)
+        );
+      }
+    });
     drawOverlay(forces);
     screen.present();
+    screen.drawOver(ctx => {
+      const shown = clampCamera(camera, assets.tilemap);
+      if (debug.encounters) {
+        drawEncountersView(ctx, sim, shown, assets.window.font);
+      }
+      if (debug.paths) {
+        drawPathsView(ctx, sim, forces, shown);
+      }
+      if (debug.labels) {
+        drawLabelsView(ctx, forces, shown, assets.window.font);
+      }
+      if (debug.terrain) {
+        drawTerrainLegend(ctx, assets.window.font);
+      }
+      if (debug.pointer) {
+        drawPointerView(ctx, sim, shown, pointer, assets.window.font);
+      }
+    });
     requestAnimationFrame(frame);
   };
   requestAnimationFrame(frame);

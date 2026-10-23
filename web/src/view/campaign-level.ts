@@ -247,7 +247,10 @@ export const drawCampaignLevel = (
   assets: CampaignAssets,
   cameraIn: Camera,
   forces: Force[] = [],
-  flashOn = true
+  flashOn = true,
+  // Drawn over the tiles and under the figures, as the Debug views'
+  // terrain is.
+  underForces?: () => void
 ): void => {
   const { atlas, forceIcons, icons, tilemap, tiles } = assets;
   const camera = clampCamera(cameraIn, tilemap);
@@ -289,6 +292,8 @@ export const drawCampaignLevel = (
       );
     }
   }
+
+  underForces?.();
 
   for (const force of forces) {
     if (force.active && !flashOn) {

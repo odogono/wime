@@ -40,6 +40,29 @@ save slots (docs/spec/saving.md), and shares the title menu's window
   resting on Go back, since the game in play is lost if not saved. A
   loaded game returns to its Level, as from the title menu
   (docs/spec/title-menu.md). A save of another version is refused with a message.
+- **Settings** lists Sound, Window size and Back, each showing what
+  holds now. Choosing Sound switches the music and effects off or on,
+  as Q does. Choosing Window size steps it from Full to 75% to 50% and
+  back: the game fills that share of the browser window, centred, at
+  the largest whole scale that fits. Both are kept in the browser's
+  storage, so they hold after a reload; sound starts on and the window
+  full.
+- **Debug views**, offered in Settings only in a dev build or with
+  `?debug` in the URL, are the port's own overlays on the Campaign
+  Level, each switched on and off by itself and kept with the settings.
+  None is on at first.
+  - **Terrain** tints each tile by its terrain percentage, red when
+    slow through yellow to green at 100%, and hatches 0% tiles, with a
+    legend below the map.
+  - **Paths** draws a dotted arrow from each Force to its destination,
+    then thinner dotted legs through the Default Orders stops still
+    queued, coloured by Side.
+  - **Encounter areas** outlines each Encounter figure's area with its
+    name, greyed once it can no longer be met or before its day.
+  - **Force labels** writes each Force's Leader's roster index and
+    name, and its strength, above it.
+  - **Pointer info** shows the tile, terrain percentage and Place under
+    the pointer.
 - **Return to title** autosaves the game, then goes back to the title
   menu, with Title playing. If the autosave fails, the game stays in
   play and a message says so.
