@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 
+import { NO_DEBUG_VIEWS } from './debug-views';
 import {
   NAME_LIMIT,
   clickGameMenu,
@@ -7,6 +8,7 @@ import {
   hoverGameMenu,
   openEndedMenu,
   openGameMenu,
+  openSettingsMenu,
   pressGameMenuKey,
   type GameMenu,
   type GameMenuStep
@@ -52,10 +54,11 @@ const centre = (menu: GameMenu, row: number) => {
 };
 
 describe('the in-game menu', () => {
-  test('offers Save, Load, Return to title and Close', () => {
+  test('offers Save, Load, Settings, Return to title and Close', () => {
     expect(labels(openGameMenu())).toEqual([
       'Save',
       'Load',
+      'Settings',
       'Return to title',
       'Close'
     ]);
@@ -69,9 +72,67 @@ describe('the in-game menu', () => {
   });
 
   test('Return to title is chosen at once', () => {
-    expect(keys(openGameMenu(), 'ArrowDown', 'ArrowDown', ' ').choice).toEqual({
+    expect(keys(openGameMenu(), 'ArrowUp', 'ArrowUp', ' ').choice).toEqual({
       kind: 'title'
     });
+  });
+
+  test('Settings is asked for, and opens with what holds now', () => {
+    expect(
+      keys(openGameMenu(), 'ArrowDown', 'ArrowDown', 'Enter').choice
+    ).toEqual({ kind: 'settings' });
+    expect(
+      labels(
+        openSettingsMenu({ debug: NO_DEBUG_VIEWS, size: 0.75, sound: false })
+      )
+    ).toEqual(['Sound: Off', 'Window size: 75%', 'Back']);
+  });
+
+  test('Settings switches sound and steps the window size', () => {
+    const open = openSettingsMenu({
+      debug: NO_DEBUG_VIEWS,
+      size: 1,
+      sound: true
+    });
+    const sound = keys(open, 'Enter');
+    expect(sound.choice).toEqual({
+      kind: 'set',
+      settings: { debug: NO_DEBUG_VIEWS, size: 1, sound: false }
+    });
+    expect(labels(sound.menu)[0]).toBe('Sound: Off');
+    let menu = keys(open, 'ArrowDown').menu;
+    const sizes: unknown[] = [];
+    for (let i = 0; i < 3; i++) {
+      const step = pressGameMenuKey(menu, 'Enter', SAVES);
+      sizes.push(step.choice?.kind === 'set' && step.choice.settings.size);
+      menu = step.menu;
+    }
+    expect(sizes).toEqual([0.75, 0.5, 1]);
+    expect(keys(open, 'ArrowUp', 'Enter').menu).toEqual(openGameMenu());
+    expect(keys(open, 'Escape').menu).toEqual(openGameMenu());
+  });
+
+  test('Debug views are offered only where allowed, each a switch', () => {
+    const plain = { debug: NO_DEBUG_VIEWS, size: 1, sound: true } as const;
+    expect(labels(openSettingsMenu(plain))).not.toContain('Debug views');
+    const open = openSettingsMenu(plain, true);
+    const debug = keys(open, 'ArrowDown', 'ArrowDown', 'Enter').menu;
+    expect(labels(debug)).toEqual([
+      'Terrain: Off',
+      'Paths: Off',
+      'Encounter areas: Off',
+      'Force labels: Off',
+      'Pointer info: Off',
+      'Back'
+    ]);
+    const paths = keys(debug, 'ArrowDown', 'Enter');
+    expect(paths.choice).toEqual({
+      kind: 'set',
+      settings: { ...plain, debug: { ...NO_DEBUG_VIEWS, paths: true } }
+    });
+    expect(labels(paths.menu)[1]).toBe('Paths: On');
+    expect(keys(debug, 'Escape').menu).toEqual(open);
+    expect(keys(debug, 'ArrowUp', 'Enter').menu).toEqual(open);
   });
 
   test('Save lists a new save, then the named slots newest first', () => {
@@ -154,7 +215,7 @@ describe('the in-game menu', () => {
     expect(hoverGameMenu(menu, centre(menu, 2))).toMatchObject({
       selected: 2
     });
-    expect(clickGameMenu(menu, centre(menu, 3), SAVES).choice).toEqual({
+    expect(clickGameMenu(menu, centre(menu, 4), SAVES).choice).toEqual({
       kind: 'close'
     });
     expect(clickGameMenu(menu, { x: 0, y: 0 }, SAVES).menu).toBe(menu);

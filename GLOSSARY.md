@@ -162,3 +162,7 @@ _Avoid_: Retrospective, learning
 **Spec**:
 A statement of what the reimplementation must do, citing the Findings it rests on.
 _Avoid_: Requirement doc, design doc
+
+**Debug view**:
+An overlay on the Campaign Level that shows the game's hidden workings, such as terrain or where Forces are heading, for those developing the port. Not part of the game as played.
+_Avoid_: Cheat, overlay mode
