@@ -1,6 +1,6 @@
 // The Ring's passing after a fight and the Ring's two endings
 // (docs/spec/winning-and-losing.md). The Ring left at a fight's place
-// goes to one of the winners (finding:objects-ring-taken-by-last-awake-winner);
+// goes to one of the winners (finding:objects-encounter-revives-third-nazgul);
 // the Ring-bearer's Leader on Mount Doom at the hour wins the game
 // (finding:objects-ring-at-mount-doom-checked-hourly), and an Evil
 // Leader carrying the Ring onto Barad-dûr loses it
@@ -26,12 +26,12 @@ const FIRST_NAZGUL = 79;
 const THIRD_NAZGUL = 81;
 const LAST_NAZGUL = 87;
 const LAST_FORCE_ENTRY = 151;
-// The Hobbits' Animation Level figure (finding:objects-ring-taken-by-last-awake-winner).
+// The Hobbits' Animation Level figure (finding:objects-encounter-revives-third-nazgul).
 const HOBBIT_FIGURE = 0;
 
 // Where the other awake Nazgûl are sent when an Evil bearer takes the
 // Ring, by a roll of 4: Dol Guldur, the Morannon, then Minas Morgul
-// twice (finding:objects-ring-taken-by-last-awake-winner).
+// twice (finding:objects-encounter-revives-third-nazgul).
 const NAZGUL_SCATTER: Point[] = [
   { x: 1456, y: 672 },
   { x: 1744, y: 1008 },
@@ -59,7 +59,7 @@ const isCharacter = (entry: RosterEntry): boolean =>
 // Good: the first living Hobbit, else the last-listed awake row, Gollum
 // only while Good's whole strength is his. Evil: the last-listed awake
 // Evil row. The rows are read through their first entry
-// (finding:objects-ring-taken-by-last-awake-winner).
+// (finding:objects-encounter-revives-third-nazgul).
 const newBearer = (
   roster: RosterEntry[],
   rows: CombatRow[],
@@ -97,8 +97,8 @@ const newBearer = (
 // even if nobody is left to take it, and goes to one of the winners. An
 // Evil bearer leaves its Force and sets off for Barad-dûr, and the
 // other awake Nazgûl scatter. With an Encounter for the winner, the 3rd
-// Nazgûl takes the Ring where he is
-// (finding:objects-ring-taken-by-last-awake-winner).
+// Nazgûl is revived and moved to the Ring's place to take it
+// (finding:objects-encounter-revives-third-nazgul).
 export const passRingAfterFight = <T extends RingWorld>(world: T): T => {
   const fight = world.fight;
   if (!fight?.winner) {
@@ -122,8 +122,16 @@ export const passRingAfterFight = <T extends RingWorld>(world: T): T => {
   };
   let bearer: number | null;
   if (fight.winner === 'evil' && fight.evil > LAST_FORCE_ENTRY) {
+    const nazgul = next.roster[THIRD_NAZGUL]!;
+    next.roster[THIRD_NAZGUL] = {
+      ...nazgul,
+      health: nazgul.maxHealth,
+      position: { ...fight.position },
+      state: 1,
+      strength: 1
+    };
     next.passings.push({ kind: 'nazgul-sent' });
-    bearer = next.roster[THIRD_NAZGUL]?.state ? THIRD_NAZGUL : null;
+    bearer = THIRD_NAZGUL;
   } else {
     bearer = newBearer(next.roster, fight.rows, fight.winner);
   }
