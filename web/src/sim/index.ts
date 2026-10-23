@@ -49,6 +49,29 @@ export {
   type CouncilMessage
 } from './council';
 export {
+  DEMO_VERSION,
+  campaignOver,
+  isGoodVictory,
+  replayDemo,
+  runToEnd,
+  sameClock,
+  startCampaign,
+  startDemo,
+  stepCampaign,
+  stepDemo,
+  type CampaignResult,
+  type CampaignRun,
+  type Command,
+  type DemoAssets,
+  type DemoInput,
+  type DemoPlan,
+  type DemoRun,
+  type DemoScript,
+  type Milestones,
+  type ObjectCommand,
+  type Player
+} from './demo';
+export {
   BILBO,
   FIRST_ENCOUNTER,
   isEncounter,
