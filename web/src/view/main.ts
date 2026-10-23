@@ -8,10 +8,13 @@ import {
   glassWatches,
   listFightOnAnimationLevel,
   mirrorListing,
+  startDemo,
   statusLine,
   takesOrder,
   tickSim,
   watchEntry,
+  type DemoRun,
+  type DemoScript,
   type Force,
   type SimState
 } from '../sim/index';
@@ -126,6 +129,7 @@ import {
   drawTerrainLegend,
   drawTerrainView
 } from './debug-views';
+import { demoDisplay, holdsDemo, playDemo, stepDemoMeeting } from './demo-mode';
 import { snapCanvas } from './dev-hook';
 import {
   drawEncounterNotice,
@@ -323,6 +327,8 @@ const ORDER_REFUSED = 'The force will not accept your orders.';
 // The port's prompt while the arrow waits for a Force; the original
 // shows none.
 const PICK_FORCE_PROMPT = 'Click a Force to order';
+// The seed of a New Game; a Demo starts from its own.
+const NEW_GAME_SEED = 0x14_18;
 
 // `run` holds the whole view's state and handlers, in this order; search for
 // the name to jump to a part:
@@ -431,9 +437,13 @@ const run = (
   );
   const placements = iconPlacements(assets.icons);
   const driver = createTickDriver();
-  const newSim = (): SimState =>
-    createSim(0x14_18, assets.startingState, assets.tilemap);
+  const newSim = (seed = NEW_GAME_SEED): SimState =>
+    createSim(seed, assets.startingState, assets.tilemap);
   let sim: SimState = newSim();
+  // The Demo playing, which owns the game while it plays: `sim` is then
+  // a copy of its state, for the view to show and its windows to play
+  // out on, and the view is read-only (demo-mode.ts).
+  let demo: DemoRun | null = null;
   // Open on the Ring-bearer's Force at Hobbiton, the one Force the
   // player commands at the start (docs/spec/starting-state.md). The
   // game itself opens on the Animation Level; this view starts on
@@ -821,7 +831,11 @@ const run = (
       closeBox(viewNow());
     }
     watched = index;
-    sim = watchEntry(sim, index);
+    // In Demo mode watching is the view's alone: the Demo's sim watches
+    // nobody, as the headless replay does.
+    if (!demo) {
+      sim = watchEntry(sim, index);
+    }
     // The Place's tile byte, when it has scenery of its own, picks its
     // music (finding:sound-place-music).
     placeTile = null;
@@ -898,8 +912,11 @@ const run = (
     }
     ending = endingScreen(end, assets.texts, now);
     // An ended game cannot be resumed: the autosave, written before the
-    // ending, goes (docs/spec/saving.md). Named slots are kept.
-    saveSlots.clearAutosave();
+    // ending, goes (docs/spec/saving.md). Named slots are kept. A Demo
+    // never touches the saves.
+    if (!demo) {
+      saveSlots.clearAutosave();
+    }
   };
 
   const startAnimationFight = (now: number, attacked = false): BattleStage => {
@@ -908,8 +925,11 @@ const run = (
       goDownToAnimation(fight.good);
     }
     // The scene lists the fight again around the watched Character
-    // (finding:combat-animation-level-lists-the-fight-again).
-    sim = listFightOnAnimationLevel(sim, watched);
+    // (finding:combat-animation-level-lists-the-fight-again). A Demo's
+    // fight is the headless replay's, unlisted.
+    if (!demo) {
+      sim = listFightOnAnimationLevel(sim, watched);
+    }
     const battle = spawnBattle(sim, figureWorld, choose, vblankAt(now));
     progress = { ...progress, battle };
     // The combat window closes the open box itself
@@ -947,7 +967,9 @@ const run = (
       );
     }
     level = 'campaign';
-    sim = watchEntry(sim, null);
+    if (!demo) {
+      sim = watchEntry(sim, null);
+    }
     setOrder(IDLE_ORDER);
   };
 
@@ -956,6 +978,9 @@ const run = (
   const progressHost: ProgressHost = {
     afterTick: stepBoxes,
     combatShown: () => messages.combat !== null,
+    get demo() {
+      return demo !== null;
+    },
     goUp: () => goUpFromAnimation(),
     holdsClock: () =>
       holdsClock(messages.provisions) || messages.waiting || !!speedWindow,
@@ -1042,6 +1067,7 @@ const run = (
       openEye(now);
     } else if (
       icon?.name === 'sack' &&
+      !demo &&
       !progress.battle &&
       !progress.talk &&
       !sim.fight
@@ -1232,7 +1258,10 @@ const run = (
     point: Camera
   ): void => {
     if (icon?.icon.name === 'scroll') {
-      openArchive();
+      // A Demo never reads or writes a save.
+      if (!demo) {
+        openArchive();
+      }
     } else if (icon?.icon.name === 'eye') {
       zooming = false;
       canvas.style.cursor = 'default';
@@ -1446,6 +1475,10 @@ const run = (
     if (!messages.box?.buttons || (key !== 'n' && key !== 'y')) {
       return false;
     }
+    // A Demo answers its own fights and meetings.
+    if (demo) {
+      return true;
+    }
     if (messages.combat?.kind === 'announcement') {
       const choice = key === 'n' ? 'ignore-it' : 'go-there';
       pressFight(
@@ -1497,7 +1530,8 @@ const run = (
     // announcement's buttons does nothing, unless it is a click on a
     // Force or a Place (finding:ui-message-box-presses-off-the-buttons).
     if (level !== 'full-map' && combatHoldsTime(messages.combat)) {
-      if (progress.battle?.phase === 'approach') {
+      // A Demo's fights are read-only: no options, no answer.
+      if (progress.battle?.phase === 'approach' || demo) {
         return;
       }
       const point = toNative(event);
@@ -1537,6 +1571,10 @@ const run = (
         messages.meeting?.kind === 'window'
           ? messages.meeting.buttons.find(b => inside(b, at))
           : undefined;
+      if (demo) {
+        startDrag(event, at);
+        return;
+      }
       if (button) {
         presses.press(button, () => pressMeeting(at));
         return;
@@ -1605,7 +1643,7 @@ const run = (
     } else if (icon.icon.name === 'magnifying-glass') {
       lookingDown = !lookingDown;
       canvas.style.cursor = lookingDown ? 'zoom-in' : 'grab';
-    } else if (icon.icon.name === 'arrow') {
+    } else if (icon.icon.name === 'arrow' && !demo) {
       // The arrow starts or cancels an Order (#10). With a Force's
       // window open it orders that Force at once (a port addition).
       const shown = messages.info ? infoForce : null;
@@ -1763,7 +1801,9 @@ const run = (
         return;
       }
       if (key === 'a') {
-        openArchive();
+        if (!demo) {
+          openArchive();
+        }
         return;
       }
       if (key === 's') {
@@ -1940,7 +1980,7 @@ const run = (
     const view = autosaveView();
     // Until a game starts there is nothing to save, and any save is
     // left as it was.
-    if (!onTitle() && view.settled) {
+    if (!onTitle() && !demo && view.settled) {
       autosaveNow(view);
     }
   };
@@ -2009,8 +2049,24 @@ const run = (
               ((fit.y + (y + 0.5) * fit.scale) * rect.height) / canvas.height
           };
         },
-        newGame: () => {
+        // Start a Demo by its plan's name: fellowship, muster or
+        // defensive.
+        demo: async (plan: string) => {
+          const response = await fetch(`/demos/${plan}.json`);
+          if (!response.ok) {
+            throw new Error(`no Demo ${plan}`);
+          }
+          startDemoMode((await response.json()) as DemoScript);
+        },
+        // The playing Demo's run, to read.
+        demoRun: () => demo,
+        // A New Game, from `seed` if given.
+        newGame: (seed?: number) => {
           boot = null;
+          if (seed !== undefined || demo) {
+            sim = newSim(seed);
+          }
+          demo = null;
           startGame(true);
         },
         setSim: (change: (state: SimState) => SimState) => {
@@ -2046,8 +2102,10 @@ const run = (
   // The menu waits while a fight, a talk, a meeting, the Council or
   // the ending holds the game, as the autosave does.
   const openInGameMenu = (): boolean => {
+    // The Demo's menu waits for #244's next part.
     if (
       onTitle() ||
+      demo ||
       !autosaveView().settled ||
       sim.meeting ||
       sim.council ||
@@ -2116,8 +2174,9 @@ const run = (
   // Back to the title menu, the game autosaved first; if it cannot be,
   // the game stays in play.
   const returnToTitle = (): void => {
-    // An ended game is not saved: its autosave is already gone.
-    if (ending) {
+    // An ended game is not saved: its autosave is already gone. Nor is
+    // a Demo.
+    if (ending || demo) {
       leaveGameMenu();
       showTitle();
       return;
@@ -2132,6 +2191,7 @@ const run = (
   // The title menu over a fresh game, the one in play dropped unsaved.
   const showTitle = (): void => {
     clearWindows();
+    demo = null;
     sim = newSim();
     camera = openingCamera();
     level = 'animation';
@@ -2164,6 +2224,9 @@ const run = (
       }
       case 'save-new':
       case 'save-over': {
+        if (demo) {
+          return;
+        }
         const result =
           choice.kind === 'save-new'
             ? saveSlots.save(choice.name, sim)
@@ -2174,6 +2237,9 @@ const run = (
         return;
       }
       case 'load': {
+        if (demo) {
+          return;
+        }
         const result =
           choice.id === AUTOSAVE_ID
             ? saveSlots.loadAutosave(assets.tilemap)
@@ -2188,6 +2254,40 @@ const run = (
         startGame(false);
       }
     }
+  };
+  // Demo mode (demo-mode.ts): the Demo's ticks, each shown as a copy
+  // with its boxes raised, held while a window plays out.
+  const playDemoFrame = (ticks: number, now: number): void => {
+    if (!demo) {
+      return;
+    }
+    demo = playDemo(demo, ticks, {
+      held: () =>
+        holdsDemo({
+          battle: progress.battle !== null,
+          combat: messages.combat,
+          council: councilWindow !== null,
+          other: speedWindow !== null,
+          sim,
+          talk: progress.talk !== null,
+          waiting: messages.waiting
+        }),
+      show: state => {
+        sim = state;
+        if (stepBoxes(now)) {
+          progress = { ...progress, stage: resumeStage(progress.stage, now) };
+        }
+      }
+    });
+  };
+  // Start a Demo as a New Game from its seed, at Very Hasty.
+  const startDemoMode = (script: DemoScript): void => {
+    boot = null;
+    clearWindows();
+    demo = startDemo(script, assets);
+    sim = demoDisplay(demo);
+    driver.speed = 'very-hasty';
+    startGame(true);
   };
   const frame = (realNow: number): void => {
     const now = realNow - menuMs;
@@ -2228,7 +2328,7 @@ const run = (
       return;
     }
     const view = autosaveView();
-    if (autosaveDue(autosavedAt, view)) {
+    if (!demo && autosaveDue(autosavedAt, view)) {
       autosaveNow(view);
     }
     updateSound();
@@ -2278,6 +2378,11 @@ const run = (
     // speed, at its deadline (finding:ui-game-speed-window).
     if (speedWindow && speedWindow.until !== null && now >= speedWindow.until) {
       speedWindow = null;
+    }
+    // A Demo ticks on every Level but the Full Map, at the Game Speed,
+    // while its copy shows nothing that holds it.
+    if (demo) {
+      playDemoFrame(driver.advance(elapsedMs), now);
     }
     let animationTicked = false;
     if (level === 'animation') {
@@ -2358,11 +2463,9 @@ const run = (
       messages.combat = result.ui;
     }
     if (messages.meeting) {
-      ({ sim, ui: messages.meeting } = stepMeetingUi(
-        messages.meeting,
-        sim,
-        now
-      ));
+      ({ sim, ui: messages.meeting } = demo
+        ? stepDemoMeeting(messages.meeting, sim, now, demo)
+        : stepMeetingUi(messages.meeting, sim, now));
     }
     syncBox(now);
     // The Council of Elrond's message holds the game until its time is
@@ -2371,7 +2474,10 @@ const run = (
     // (finding:ui-council-of-elrond-message), so the open box closes.
     if (sim.council && !councilWindow) {
       closeBox(now);
-      driver.speed = 'normal';
+      // A Demo plays on at the speed it was given.
+      if (!demo) {
+        driver.speed = 'normal';
+      }
       speedWindow = null;
       messages.info = null;
       drag = null;
@@ -2402,7 +2508,7 @@ const run = (
     // while a raised box waits for the open one's deadline
     // (finding:ui-message-box-opening-waits-for-the-open-box); the ticks
     // due are dropped. Each tick's boxes open, or wait, before the next.
-    const ticks = animationTicked ? 0 : driver.advance(elapsedMs);
+    const ticks = animationTicked || demo ? 0 : driver.advance(elapsedMs);
     for (
       let i = 0;
       i < ticks &&
