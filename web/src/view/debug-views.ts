@@ -17,9 +17,8 @@ import { drawText, measureText, type Font } from './font';
 // are not the original's and not part of the game as played; the
 // settings offer them only in a dev build or with ?debug in the URL.
 // Drawn in native pixels: the terrain into the screen buffer under the
-// figures, the rest over the presented frame, where a native pixel is
-// several device pixels wide and the lines stay sharp. Their lettering
-// is the game's own font, recoloured.
+// figures, the rest over the figures but under the message windows.
+// Their lettering is the game's own font, recoloured.
 
 export interface DebugViews {
   encounters: boolean;
