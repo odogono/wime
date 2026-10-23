@@ -104,7 +104,7 @@ export interface CampaignResult {
 export const sameClock = (a: Clock, b: Clock): boolean =>
   a.day === b.day && a.quarterHour === b.quarterHour;
 
-const sameMeeting = (a: Meeting, b: Meeting): boolean =>
+export const sameMeeting = (a: Meeting, b: Meeting): boolean =>
   a.a === b.a && a.b === b.b && a.kind === b.kind;
 
 export const startCampaign = (
