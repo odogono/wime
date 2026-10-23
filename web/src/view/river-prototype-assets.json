@@ -1,0 +1,32 @@
+{
+  "hills": {
+    "url": "https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/4052c05724187fdf4aa9c2b65eb58c7cf1ea1684/river-hills.png",
+    "sha256": "a234462033397eaac1c18ab07ec1da7f70d91dc49798a7e776cd1b10bb72d275",
+    "transparent": true
+  },
+  "river": {
+    "url": "https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/49916c105dac92a37f19e5739fda53fa5df0b1ff/river-river.png",
+    "sha256": "3d13315b01a2b45ad47328bdc6e70d7ef955ba6b888ece3e2de49fa914084e3b",
+    "transparent": true
+  },
+  "ground": {
+    "url": "https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/68f9ddfc0d05058f91165cdb59825c9eb30995f3/river-ground.png",
+    "sha256": "f509a94ae70f71970d98c1f672446c0ba740ae663947c5341051e626e37fee24",
+    "transparent": false
+  },
+  "foreground": {
+    "url": "https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/f4fdaf9014645ef3f55fdaabe7f323b3983be814/river-foreground.png",
+    "sha256": "bf24eff10ae811db4d9747759ed97d41829be1f93a89c63a3e7f1ced764e1bf0",
+    "transparent": true
+  },
+  "clouds": {
+    "url": "https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/e88113255b3f42809a0f887621a993a625596642/river-clouds.png",
+    "sha256": "1f9408ed087448d5013bece26ee39a545c6eba51b7582a8276776a8dc7520fac",
+    "transparent": true
+  },
+  "hobbit-walk": {
+    "url": "https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/68e67e884bf3fb5ed89c04e4f7ebb047caeae36e/river-hobbit-walk.png",
+    "sha256": "5ace17abd6e7e6ad742173a8230c2fc16c355bbf9799b498560a1fb2fe778a54",
+    "transparent": true
+  }
+}
