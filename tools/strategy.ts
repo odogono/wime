@@ -11,7 +11,7 @@
 // --open-war overrides the muster plan's openWar setting, --tokens
 // whether the plan carries the sceptre to Denethor (sceptreErrand), and
 // --avoid whether the road to Rivendell goes round the Encounter areas
-// (encounterAreas).
+// (encounterAreas), on by default for every plan.
 //
 // Three plans win:
 //
@@ -417,7 +417,7 @@ export interface PlanOptions {
 }
 
 export const DEFAULT_OPTIONS: PlanOptions = {
-  avoidEncounters: false,
+  avoidEncounters: true,
   fleeRadius: 96,
   tokens: false
 };
@@ -719,7 +719,6 @@ export interface MusterOptions extends PlanOptions {
 
 export const DEFAULT_MUSTER: MusterOptions = {
   ...DEFAULT_OPTIONS,
-  avoidEncounters: true,
   latestStrike: 140,
   openWar: true,
   rally: { x: 1792, y: 976 },
