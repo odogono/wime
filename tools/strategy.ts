@@ -427,14 +427,23 @@ const ringLeader = (state: SimState): RosterEntry =>
   topLeader(state.roster, state.roster[state.ringBearer ?? FRODO]!);
 
 // A command toward `to`, unless the Leader already stands there or is
-// already bound there.
-const toward = (state: SimState, member: number, to: Point): Command | null => {
+// already bound there. With `wake` set, a Leader resting with full
+// stamina is given its Order again, which sets it moving at once, as a
+// player clicking it again does; left alone it sets off only by a
+// 1-in-10 chance a step in the morning (finding:movement-stamina-and-rest).
+const toward = (
+  state: SimState,
+  member: number,
+  to: Point,
+  wake = false
+): Command | null => {
   const entry = state.roster[member]!;
   const destination = destinationForClick(to);
+  const rested = wake && entry.state === 3 && entry.stamina >= entry.maxStamina;
   if (
     !canOrder(state, member) ||
     same(entry.position, destination) ||
-    same(entry.destination, destination)
+    (same(entry.destination, destination) && !rested)
   ) {
     return null;
   }
@@ -506,6 +515,19 @@ const placeWalker = (
             chebyshev(entry.position!, at) <=
             (entry.state === 1 && entry.destination ? options.fleeRadius : 24)
         );
+    const repel: Point[] = threats.map(entry => entry.position!);
+    if (!charging) {
+      for (const entry of visibleEvil(state)) {
+        if (
+          entry.state === 1 &&
+          entry.destination &&
+          chebyshev(entry.position!, at) <= options.fleeRadius * 2 &&
+          chebyshev(entry.destination, at) <= options.fleeRadius
+        ) {
+          repel.push(entry.destination);
+        }
+      }
+    }
     if (options.avoidEncounters && detourLeg !== leg) {
       detourLeg = leg;
       detour = detourRound(state, at, goal);
@@ -513,24 +535,33 @@ const placeWalker = (
     while (detour.length > 0 && same(at, detour[0]!)) {
       detour.shift();
     }
-    if (threats.length === 0) {
+    if (repel.length === 0) {
       return toward(state, leader.index, detour[0] ?? goal);
     }
-    // Away from the threats, nearer ones counting for more.
+    // Away from the threats, nearer ones counting for more, and from
+    // where a moving Evil Force close by is bound when that is near:
+    // the Nazgûl's Default Orders stops north of the Shire are where
+    // fleeing them along the East Road would otherwise lead (seeds 20
+    // and 29). A Leader that ran out of stamina while fleeing is woken.
     let vx = 0;
     let vy = 0;
-    for (const threat of threats) {
-      const dx = at.x - threat.position!.x;
-      const dy = at.y - threat.position!.y;
+    for (const threat of repel) {
+      const dx = at.x - threat.x;
+      const dy = at.y - threat.y;
       const d2 = dx * dx + dy * dy || 1;
       vx += dx / d2;
       vy += dy / d2;
     }
     const n = Math.hypot(vx, vy) || 1;
-    return toward(state, leader.index, {
-      x: Math.round(at.x + (vx / n) * 48),
-      y: Math.round(at.y + (vy / n) * 48)
-    });
+    return toward(
+      state,
+      leader.index,
+      {
+        x: Math.round(at.x + (vx / n) * 48),
+        y: Math.round(at.y + (vy / n) * 48)
+      },
+      true
+    );
   };
 };
 

@@ -55,8 +55,8 @@ describe.skipIf(!assetsExist())('the sceptre errand', () => {
           : []
       )
     ).toEqual(['take 7 14', 'put-down 7 14', 'take 9 14', 'use 9 14']);
-    expect(milestones.council).toBe(26);
-    expect(milestones.mobilisation).toEqual({ day: 86, leader: 'DENETHOR' });
-    expect(milestones.warEvents).toEqual([{ day: 87, event: 3 }]);
+    expect(milestones.council).toBe(29);
+    expect(milestones.mobilisation).toEqual({ day: 89, leader: 'DENETHOR' });
+    expect(milestones.warEvents).toEqual([{ day: 90, event: 3 }]);
   });
 });
