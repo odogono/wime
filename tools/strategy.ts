@@ -5,9 +5,11 @@
 // a demo script that replays to the same ending.
 //
 //   bun tools/strategy.ts [--plan fellowship|muster|defensive] [--seeds N]
-//                         [--from SEED] [--open-war on|off] [--write]
+//                         [--from SEED] [--open-war on|off]
+//                         [--tokens on|off] [--write]
 //
-// --open-war overrides the muster plan's openWar setting.
+// --open-war overrides the muster plan's openWar setting, and --tokens
+// whether the plan carries the sceptre to Denethor (sceptreErrand).
 //
 // Three plans win:
 //
@@ -34,6 +36,10 @@
 //   their Forces holds the nearest of Minas Tirith, the Hornburg and
 //   Edoras, so the Strongholds' Garrisons stand sieges.
 //
+// With Tokens on, the default only for muster without the open war,
+// Frodo also picks up the sceptre on his way and Merry carries it to
+// Denethor, which wakes Gondor before the war (sceptreErrand).
+//
 // The policy plays as a player can: it reads only what the Campaign
 // Level shows (its own Forces, the awake Evil Forces on the map and
 // the terrain), gives Orders through the allegiance roll as the Order
@@ -50,14 +56,17 @@ import {
   QUARTER_HOURS_PER_DAY,
   RIVENDELL,
   answerMeeting,
+  applyObject,
   canOrder,
   closeCouncil,
   createSim,
   destinationForClick,
   giveOrder,
   hasWarEvent,
+  putDownObject,
   resolveFight,
   takeAnnouncement,
+  takeObject,
   takePassing,
   takesOrder,
   terrainAt,
@@ -87,6 +96,7 @@ export type PlanName = 'defensive' | 'fellowship' | 'muster';
 // as the window does when it times out.
 export type DemoInput =
   | { at: Clock; kind: 'order'; member: number; to: Point }
+  | ({ at: Clock; kind: 'object' } & ObjectCommand)
   | { answer: MeetingAnswer; at: Clock; kind: 'answer'; meeting: Meeting };
 
 export interface Milestones {
@@ -113,6 +123,9 @@ const FRODO = 7;
 const GANDALF = 1;
 const FARAMIR = 15;
 const THEODEN = 26;
+const MERRY = 9;
+const DENETHOR = 32;
+const SCEPTRE = 14;
 const FIRST_EVIL = LAST_GOOD_ENTRY + 1;
 const LAST_FORCE = 151;
 const TILE = 16;
@@ -318,10 +331,16 @@ const waypoints = (path: Point[], stride: number): Point[] => {
 
 // --- Policies ---------------------------------------------------------
 
-export interface Command {
+// An Order, or an action in the provisions sack: Take, Put Down or
+// Use, by the chosen Character at its Force's position, as the
+// provisions lists do (finding:objects-provisions-lists).
+export interface ObjectCommand {
+  act: 'put-down' | 'take' | 'use';
   member: number;
-  to: Point;
+  object: number;
 }
+
+export type Command = ObjectCommand | { member: number; to: Point };
 
 export interface Policy {
   answer: (state: SimState, meeting: Meeting) => MeetingAnswer;
@@ -333,9 +352,11 @@ export interface PlanOptions {
   // How near, in pixels, a moving Evil Force may come to the
   // Ring-bearer's Force before it turns away.
   fleeRadius: number;
+  // Carry the sceptre to Denethor before the war (sceptreErrand).
+  tokens: boolean;
 }
 
-export const DEFAULT_OPTIONS: PlanOptions = { fleeRadius: 96 };
+export const DEFAULT_OPTIONS: PlanOptions = { fleeRadius: 96, tokens: false };
 
 // The Ring-bearer's Force's Leader.
 const ringLeader = (state: SimState): RosterEntry =>
@@ -361,16 +382,18 @@ const toward = (state: SimState, member: number, to: Point): Command | null => {
 // from any Evil Force close by. With `charge` set, the last leg goes
 // straight on whatever is in the way.
 const placeWalker = (
-  names: string[],
+  names: (Point | string)[],
   options: PlanOptions & { chargeLastLeg: boolean }
 ) => {
   let leg = 0;
+  const point = (state: SimState, stop: Point | string): Point =>
+    typeof stop === 'string' ? place(state, stop) : stop;
   return (state: SimState, leader: RosterEntry): Command | null => {
     const at = leader.position!;
-    while (leg < names.length - 1 && same(at, place(state, names[leg]!))) {
+    while (leg < names.length - 1 && same(at, point(state, names[leg]!))) {
       leg++;
     }
-    const goal = place(state, names[leg]!);
+    const goal = point(state, names[leg]!);
     if (same(at, goal)) {
       return null;
     }
@@ -407,6 +430,106 @@ const placeWalker = (
 // Aragorn join him, to Rivendell, where Gandalf waits.
 const TO_RIVENDELL = ['BUCKLAND', 'BREE', 'RIVENDELL'];
 
+// The sceptre starts on the ground by Annuminas, a short way north of
+// Frodo (finding:objects-starting-placements), so with Tokens Frodo's
+// road to Rivendell starts there.
+const SCEPTRE_AT: Point = { x: 624, y: 272 };
+
+const roadToRivendell = (tokens: boolean): (Point | string)[] =>
+  tokens ? [SCEPTRE_AT, ...TO_RIVENDELL] : TO_RIVENDELL;
+
+// Before the war, the sceptre shown to Denethor mobilises him, and so
+// sets War Event 3, which brings Gondor's lords to Minas Tirith
+// (finding:mobilisation-token-shown-to-ruler,
+// finding:mobilisation-elves-and-dwarves-wait-for-war-event-7).
+//
+// Frodo takes it from the ground on his way. The courier, Merry, who
+// joins him on the road, goes with him to Rivendell. The Council is held only on
+// the hour (docs/spec/council-of-elrond.md), so a Force that arrives
+// between hours waits there a quarter-hour or more: Frodo hands the
+// courier the sceptre and both leave the Force, Frodo staying and the
+// courier making for Minas Tirith. The Council then puts every Leader
+// with a destination at it, so the courier arrives at once and shows
+// the sceptre to Denethor. A Force that arrives on the hour meets the
+// Council straight away; then Frodo hands the sceptre over after it,
+// and the courier walks.
+//
+// `step` gives the commands for this quarter-hour, after the plan's own
+// for the Ring-bearer's Force; `busy` says whether the courier is still
+// on the errand, when the plan leaves him alone.
+const sceptreErrand = (courier: number) => {
+  const route = router();
+  let done = false;
+  const step = (state: SimState): Command[] => {
+    const denethor = state.roster[DENETHOR]!;
+    const carrier = state.roster[courier]!;
+    const frodo = state.roster[FRODO]!;
+    const lying = state.objectPlacements.some(
+      slot => slot?.object === SCEPTRE && same(slot.position, SCEPTRE_AT)
+    );
+    const carried = carrier.objects.includes(SCEPTRE);
+    done ||=
+      carrier.strength === 0 ||
+      denethor.state === 0 ||
+      denethor.allegiance !== 1 ||
+      denethor.position === null ||
+      !(lying || carried || frodo.objects.includes(SCEPTRE));
+    if (done) {
+      return [];
+    }
+    const ringAt = topLeader(state.roster, frodo).position;
+    if (lying) {
+      return same(ringAt, SCEPTRE_AT)
+        ? [{ act: 'take', member: FRODO, object: SCEPTRE }]
+        : [];
+    }
+    const at = topLeader(state.roster, carrier).position;
+    const goal = denethor.position!;
+    if (!carried) {
+      // Frodo carries it: handed over where they stand together, at
+      // Rivendell before the Council.
+      const handOver =
+        carrier.state !== 0 &&
+        same(ringAt, at) &&
+        (!state.councilPending || same(ringAt, RIVENDELL));
+      if (!handOver) {
+        return [];
+      }
+      const commands: Command[] = [
+        { act: 'put-down', member: FRODO, object: SCEPTRE },
+        { act: 'take', member: courier, object: SCEPTRE }
+      ];
+      if (state.councilPending && frodo.leader !== null) {
+        commands.push({ member: FRODO, to: RIVENDELL });
+      }
+      const order = toward(state, courier, goal);
+      return order ? [...commands, order] : commands;
+    }
+    if (same(at, goal)) {
+      return [{ act: 'use', member: courier, object: SCEPTRE }];
+    }
+    const order =
+      carrier.leader === null && !state.councilPending
+        ? route(state, carrier, goal, true)
+        : toward(state, courier, goal);
+    return order ? [order] : [];
+  };
+  // Meetings with the courier on his way are passed by.
+  const answer =
+    (base: Policy['answer']): Policy['answer'] =>
+    (state, meeting) =>
+      !done &&
+      state.roster[courier]!.objects.includes(SCEPTRE) &&
+      (meeting.a === courier || meeting.b === courier)
+        ? 'continue-on'
+        : base(state, meeting);
+  return {
+    answer,
+    busy: (index: number) => !done && index === courier,
+    step
+  };
+};
+
 const followWhileQuesting = (
   state: SimState,
   meeting: Meeting
@@ -416,7 +539,7 @@ const followWhileQuesting = (
 export const fellowshipPolicy = (
   options: PlanOptions = DEFAULT_OPTIONS
 ): Policy => {
-  const toRivendell = placeWalker(TO_RIVENDELL, {
+  const toRivendell = placeWalker(roadToRivendell(options.tokens), {
     ...options,
     chargeLastLeg: false
   });
@@ -424,13 +547,19 @@ export const fellowshipPolicy = (
     ...options,
     chargeLastLeg: true
   });
+  const errand = sceptreErrand(MERRY);
   return {
-    answer: followWhileQuesting,
+    answer: options.tokens
+      ? errand.answer(followWhileQuesting)
+      : followWhileQuesting,
     decide: state => {
       const leader = ringLeader(state);
       const walk = state.councilPending ? toRivendell : toMountDoom;
       const command = walk(state, leader);
-      return command ? [command] : [];
+      return [
+        ...(command ? [command] : []),
+        ...(options.tokens ? errand.step(state) : [])
+      ];
     }
   };
 };
@@ -545,38 +674,45 @@ const router = () => {
   };
 };
 
+const musterAnswer: Policy['answer'] = (state, meeting) => {
+  if (state.councilPending) {
+    return followWhileQuesting(state, meeting);
+  }
+  // At the rally, the hosts join into one Force; Frodo's Force
+  // keeps to itself.
+  const frodoForce = topLeader(state.roster, state.roster[FRODO]!).index;
+  return meeting.kind === 'follow' &&
+    meeting.a !== frodoForce &&
+    meeting.b !== frodoForce
+    ? 'follow'
+    : 'continue-on';
+};
+
 export const musterPolicy = (
   options: MusterOptions = DEFAULT_MUSTER
 ): Policy => {
-  const toRivendell = placeWalker(TO_RIVENDELL, {
+  const toRivendell = placeWalker(roadToRivendell(options.tokens), {
     ...options,
     chargeLastLeg: false
   });
   const next = router();
+  const errand = sceptreErrand(MERRY);
   let frodoStays = false;
   let theodenRoused = false;
   let striking = false;
 
   return {
-    answer: (state, meeting) => {
-      if (state.councilPending) {
-        return followWhileQuesting(state, meeting);
-      }
-      // At the rally, the hosts join into one Force; Frodo's Force
-      // keeps to itself.
-      const frodoForce = topLeader(state.roster, state.roster[FRODO]!).index;
-      return meeting.kind === 'follow' &&
-        meeting.a !== frodoForce &&
-        meeting.b !== frodoForce
-        ? 'follow'
-        : 'continue-on';
-    },
+    answer: options.tokens ? errand.answer(musterAnswer) : musterAnswer,
     decide: state => {
       if (state.councilPending) {
-        const command = toRivendell(state, ringLeader(state));
-        return command ? [command] : [];
+        const leader = ringLeader(state);
+        const command = toRivendell(state, leader);
+        return [
+          ...(command ? [command] : []),
+          ...(options.tokens ? errand.step(state) : [])
+        ];
       }
-      const commands: Command[] = [];
+      const commands: Command[] = options.tokens ? errand.step(state) : [];
       // Frodo, with the Ring, leaves Gandalf's Force and stays.
       if (!frodoStays) {
         frodoStays = true;
@@ -595,6 +731,7 @@ export const musterPolicy = (
           entry =>
             entry.leader === null &&
             entry.index !== frodoForce &&
+            !(options.tokens && errand.busy(entry.index)) &&
             canOrder(state, entry.index)
         );
       const rally = destinationForClick(options.rally);
@@ -654,22 +791,28 @@ export const defensivePolicy = (
   options: DefensiveOptions = DEFAULT_DEFENSIVE
 ): Policy => {
   const walk = { ...options, chargeLastLeg: false };
-  const toRivendell = placeWalker(TO_RIVENDELL, walk);
+  const toRivendell = placeWalker(roadToRivendell(options.tokens), walk);
   const toHiding = placeWalker([options.wait], walk);
   const toMountDoom = placeWalker(['NORTH ITHILIEN', 'MT. DOOM'], {
     ...options,
     chargeLastLeg: true
   });
   const next = router();
+  const errand = sceptreErrand(MERRY);
   return {
-    answer: followWhileQuesting,
+    answer: options.tokens
+      ? errand.answer(followWhileQuesting)
+      : followWhileQuesting,
     decide: state => {
       const ring = ringLeader(state);
       if (state.councilPending) {
         const command = toRivendell(state, ring);
-        return command ? [command] : [];
+        return [
+          ...(command ? [command] : []),
+          ...(options.tokens ? errand.step(state) : [])
+        ];
       }
-      const commands: Command[] = [];
+      const commands: Command[] = options.tokens ? errand.step(state) : [];
       const setOut =
         hasWarEvent(state.warEvents, 7) &&
         ((state.clock.day - state.warEvents.days[7]!) & 0xff) >=
@@ -685,6 +828,7 @@ export const defensivePolicy = (
           entry =>
             entry.leader === null &&
             entry.index !== ring.index &&
+            !(options.tokens && errand.busy(entry.index)) &&
             canOrder(state, entry.index)
         );
       for (const leader of leaders) {
@@ -703,16 +847,39 @@ export const defensivePolicy = (
   };
 };
 
-// The plan's policy; `openWar`, when given, overrides the muster plan's.
-export const policyFor = (plan: PlanName, openWar?: boolean): Policy =>
-  plan === 'fellowship'
-    ? fellowshipPolicy()
-    : plan === 'muster'
-      ? musterPolicy({
-          ...DEFAULT_MUSTER,
-          openWar: openWar ?? DEFAULT_MUSTER.openWar
-        })
-      : defensivePolicy();
+// The plan's policy; `openWar` and `tokens`, when given, override the
+// plan's settings. Over seeds 1 to 40 the sceptre errand helped only the
+// muster plan without the open war, where Gondor otherwise waits for
+// day 149 (4 wins in place of 1); with the open war, event 7 wakes
+// Gondor within days of the Council anyway and the errand cost wins
+// (13 in place of 19), and it changed nothing for the fellowship (7)
+// and defensive (17) plans. So it is on only there.
+export const policyFor = (
+  plan: PlanName,
+  overrides: {
+    openWar?: boolean | undefined;
+    tokens?: boolean | undefined;
+  } = {}
+): Policy => {
+  if (plan === 'fellowship') {
+    return fellowshipPolicy({
+      ...DEFAULT_OPTIONS,
+      tokens: overrides.tokens ?? false
+    });
+  }
+  if (plan === 'muster') {
+    const openWar = overrides.openWar ?? DEFAULT_MUSTER.openWar;
+    return musterPolicy({
+      ...DEFAULT_MUSTER,
+      openWar,
+      tokens: overrides.tokens ?? !openWar
+    });
+  }
+  return defensivePolicy({
+    ...DEFAULT_DEFENSIVE,
+    tokens: overrides.tokens ?? false
+  });
+};
 
 // --- Playing and replaying ----------------------------------------------
 
@@ -808,14 +975,21 @@ const runCampaign = (
         commands.push(...driver.policy.decide(state));
       } else {
         while (
-          pending[0]?.kind === 'order' &&
+          (pending[0]?.kind === 'order' || pending[0]?.kind === 'object') &&
           sameClock(pending[0].at, state.clock)
         ) {
-          const input = pending.shift() as DemoInput & { kind: 'order' };
-          commands.push({ member: input.member, to: input.to });
+          const { at: _at, kind: _kind, ...command } = pending.shift()!;
+          commands.push(command as Command);
         }
       }
       for (const command of commands) {
+        if ('act' in command) {
+          if (driver.kind === 'policy') {
+            inputs.push({ at: { ...state.clock }, kind: 'object', ...command });
+          }
+          state = actOnObject(state, command);
+          continue;
+        }
         if (driver.kind === 'policy') {
           inputs.push({ at: { ...state.clock }, kind: 'order', ...command });
         }
@@ -830,6 +1004,21 @@ const runCampaign = (
     milestones,
     state
   };
+};
+
+// Take, Put Down or Use, at the position of the chosen Character's
+// Force (finding:objects-provisions-lists).
+const actOnObject = (state: SimState, command: ObjectCommand): SimState => {
+  const position = topLeader(
+    state.roster,
+    state.roster[command.member]!
+  ).position!;
+  const { act, member, object } = command;
+  return act === 'take'
+    ? takeObject(state, member, object, position)
+    : act === 'put-down'
+      ? putDownObject(state, member, object, position)
+      : applyObject(state, member, object, position).state;
 };
 
 const noteMilestones = (
@@ -920,6 +1109,7 @@ if (import.meta.main) {
       'open-war': { type: 'string' },
       plan: { default: 'fellowship', type: 'string' },
       seeds: { default: '40', type: 'string' },
+      tokens: { type: 'string' },
       write: { default: false, type: 'boolean' }
     }
   });
@@ -938,10 +1128,20 @@ if (import.meta.main) {
     process.exit(2);
   }
   const openWar = openWarFlag === undefined ? undefined : openWarFlag === 'on';
+  const tokensFlag = values.tokens;
+  if (tokensFlag !== undefined && tokensFlag !== 'on' && tokensFlag !== 'off') {
+    console.error('--tokens takes on or off');
+    process.exit(2);
+  }
+  const tokens = tokensFlag === undefined ? undefined : tokensFlag === 'on';
   const assets = loadSoakAssets();
   const from = Number(values.from);
   for (let seed = from; seed < from + Number(values.seeds); seed++) {
-    const result = playCampaign(seed, assets, policyFor(plan, openWar));
+    const result = playCampaign(
+      seed,
+      assets,
+      policyFor(plan, { openWar, tokens })
+    );
     console.log(describeRun(seed, result));
     if (values.write && isGoodVictory(result.state.ending)) {
       const script = demoScript(plan, seed, result);
