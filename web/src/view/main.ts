@@ -141,6 +141,7 @@ import {
   type DemoKind
 } from './demo-mode';
 import { snapCanvas } from './dev-hook';
+import { createDoubleTap } from './double-tap';
 import {
   drawEncounterNotice,
   drawEncounterTalk,
@@ -512,6 +513,9 @@ const run = (
   applySettings(settings);
   let pointer: Camera | null = null;
   let drag: { camera: Camera; pointer: Camera } | null = null;
+  const mapTaps = createDoubleTap();
+  const mapTapContext = (): string =>
+    level === 'campaign' ? `${level}:${camera.x}:${camera.y}` : level;
   let speedWindow: SpeedWindow | null = null;
   // Presses on a button or an icon, each ringing ReverbBells
   // (finding:sound-reverb-bells-ring-on-a-press).
@@ -1264,7 +1268,13 @@ const run = (
     setOrder(IDLE_ORDER);
   };
 
-  const handleFullMapPress = (event: PointerEvent): void => {
+  // The hires Full Map, without the panel beneath it.
+  const onFullMap = (point: Camera): boolean =>
+    inside(
+      { height: NATIVE_HEIGHT, width: NATIVE_WIDTH * 2, x: 0, y: 0 },
+      point
+    );
+  const handleFullMapPress = (event: PointerEvent): string | void => {
     const point = toHires(event);
     // A press on a button acts on it; anywhere else clears the window.
     if (archive) {
@@ -1290,7 +1300,9 @@ const run = (
       return;
     }
     const icon = fullMapIconAt(fullMapPlacements, point);
+    const canTap = !icon && !zooming && onFullMap(point);
     pressThen(icon && placedBox(icon), () => actOnFullMap(icon, point));
+    return canTap ? mapTapContext() : undefined;
   };
   const actOnFullMap = (
     icon: ReturnType<typeof fullMapIconAt>,
@@ -1537,8 +1549,36 @@ const run = (
     }
     return true;
   };
+  // The magnifying glass and the port's double tap watch the first Good
+  // Leader near the spot, or show the spot with nobody watched
+  // (finding:ui-magnifying-glass-watches-the-first-good-leader-near-the-spot).
+  const lookAtSpot = (spot: Camera): void => {
+    // The glass rings as it finds Forces near the spot, and flashes
+    // the first one's icon (finding:sound-reverb-bells-ring-on-a-press,
+    // finding:ui-press-flash).
+    const first = combatRows(sim.roster, spot)[0];
+    const at = first && sim.roster[first.entries[0]!]?.position;
+    pressThen(
+      at
+        ? {
+            height: 16,
+            width: 16,
+            x: at.x - camera.x,
+            y: at.y - camera.y - 4
+          }
+        : undefined,
+      () => {
+        const index = glassWatches(sim.roster, spot);
+        chosenCharacter = index;
+        if (index === null || !goDownToAnimation(index)) {
+          goDownToSpot(spot);
+        }
+      },
+      GLASS_TOGGLES
+    );
+  };
   canvas.style.cursor = 'grab';
-  const handlePointerDown = (event: PointerEvent): void => {
+  const handlePointerDown = (event: PointerEvent): string | void => {
     if (gameMenu) {
       chooseInGame(
         clickGameMenu(gameMenu, toNative(event), titleSaves(), gameMenuHome())
@@ -1593,8 +1633,7 @@ const run = (
       return;
     }
     if (level === 'full-map') {
-      handleFullMapPress(event);
-      return;
+      return handleFullMapPress(event);
     }
     if (level === 'animation') {
       // In a Demo a click closes Gandalf's letter before its time.
@@ -1637,35 +1676,10 @@ const run = (
       presses.press(placedBox(icon), () => actOnCampaignIcon(icon));
       return;
     }
-    // The magnifying glass watches the first Good Leader near the spot,
-    // or else shows the spot with nobody watched
-    // (finding:ui-magnifying-glass-watches-the-first-good-leader-near-the-spot).
     if (lookingDown) {
       const spot = mapPoint(pointer);
       if (spot) {
-        // The glass rings as it finds Forces near the spot, and flashes
-        // the first one's icon (finding:sound-reverb-bells-ring-on-a-press,
-        // finding:ui-press-flash).
-        const first = combatRows(sim.roster, spot)[0];
-        const at = first && sim.roster[first.entries[0]!]?.position;
-        pressThen(
-          at
-            ? {
-                height: 16,
-                width: 16,
-                x: at.x - camera.x,
-                y: at.y - camera.y - 4
-              }
-            : undefined,
-          () => {
-            const index = glassWatches(sim.roster, spot);
-            chosenCharacter = index;
-            if (index === null || !goDownToAnimation(index)) {
-              goDownToSpot(spot);
-            }
-          },
-          GLASS_TOGGLES
-        );
+        lookAtSpot(spot);
       }
       return;
     }
@@ -1677,6 +1691,7 @@ const run = (
       return;
     }
     startDrag(event, pointer);
+    return mapPoint(pointer) ? mapTapContext() : undefined;
   };
   // A press on one of the Campaign Level's icons, once its flash is over.
   const actOnCampaignIcon = (
@@ -1706,14 +1721,15 @@ const run = (
   canvas.addEventListener('pointerdown', event => {
     // Any click leaves an idle Demo for the title menu.
     if (demoKind === 'idle') {
+      mapTaps.cancel();
       showTitle();
       return;
     }
-    if (!presses.holding) {
-      handlePointerDown(event);
-    }
+    const context = !presses.holding ? handlePointerDown(event) : undefined;
+    mapTaps.begin(event, context ?? null);
   });
   canvas.addEventListener('pointermove', event => {
+    mapTaps.move(event);
     if (gameMenu) {
       gameMenu = hoverGameMenu(gameMenu, toNative(event));
       return;
@@ -1738,6 +1754,7 @@ const run = (
           Math.abs(pointer.y - drag.pointer.y)
         ) > CLICK_TOLERANCE_PX
       ) {
+        mapTaps.cancel();
         demoFollows = false;
       }
       camera = dragCamera(drag.camera, drag.pointer, pointer, assets.tilemap);
@@ -1750,6 +1767,9 @@ const run = (
         Math.abs(released.x - drag.pointer.x),
         Math.abs(released.y - drag.pointer.y)
       );
+      if (moved > CLICK_TOLERANCE_PX) {
+        mapTaps.cancel();
+      }
       // A press that did not pan is a click: it opens the window at
       // the top left naming what was clicked (manual, pdf-p16).
       // It closes the open box, pressing its default, and replaces it;
@@ -1779,8 +1799,38 @@ const run = (
     drag = null;
     canvas.style.cursor = order.kind === 'idle' ? 'grab' : 'crosshair';
   };
-  canvas.addEventListener('pointerup', endDrag);
-  canvas.addEventListener('pointercancel', endDrag);
+  canvas.addEventListener('pointerup', event => {
+    const blocked =
+      onTitle() ||
+      gameMenu ||
+      ending ||
+      councilWindow ||
+      speedWindow ||
+      archive ||
+      mirror ||
+      presses.holding ||
+      messages.box?.buttons ||
+      order.kind !== 'idle';
+    endDrag(event);
+    const paired = mapTaps.end(event, blocked ? null : mapTapContext());
+    if (paired && level === 'full-map') {
+      const point = toHires(event);
+      if (!fullMapIconAt(fullMapPlacements, point) && onFullMap(point)) {
+        goDown(point);
+      }
+    } else if (paired && level === 'campaign') {
+      const point = toNative(event);
+      const spot = mapPoint(point);
+      if (spot && !iconAt(placements, point)) {
+        lookAtSpot(spot);
+      }
+    }
+  });
+  canvas.addEventListener('pointercancel', () => {
+    mapTaps.cancel();
+    drag = null;
+    canvas.style.cursor = order.kind === 'idle' ? 'grab' : 'crosshair';
+  });
   canvas.addEventListener('pointerleave', () => {
     hiresPointer = null;
     if (!drag) {
@@ -1791,6 +1841,7 @@ const run = (
     fit = screen.resize();
   });
   window.addEventListener('keydown', event => {
+    mapTaps.cancel();
     // Any key leaves an idle Demo for the title menu.
     if (demoKind === 'idle') {
       showTitle();

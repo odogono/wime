@@ -267,9 +267,9 @@ describe('the menu after the ending', () => {
 });
 
 describe('the menus in a chosen Demo', () => {
-  test('the in-game menu offers only Resume and Return to title', () => {
+  test('the in-game menu offers only Resume, Settings and Return to title', () => {
     const menu = openGameMenu(true);
-    expect(labels(menu)).toEqual(['Resume', 'Return to title']);
+    expect(labels(menu)).toEqual(['Resume', 'Settings', 'Return to title']);
     expect(pressGameMenuKey(menu, 'Enter', SAVES, menu).choice).toEqual({
       kind: 'close'
     });
@@ -278,6 +278,10 @@ describe('the menus in a chosen Demo', () => {
     });
     const down = pressGameMenuKey(menu, 'ArrowDown', SAVES, menu).menu;
     expect(pressGameMenuKey(down, 'Enter', SAVES, menu).choice).toEqual({
+      kind: 'settings'
+    });
+    const last = pressGameMenuKey(menu, 'ArrowUp', SAVES, menu).menu;
+    expect(pressGameMenuKey(last, 'Enter', SAVES, menu).choice).toEqual({
       kind: 'title'
     });
   });
