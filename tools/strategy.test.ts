@@ -6,6 +6,8 @@ import {
   DEMO_VERSION,
   isGoodVictory,
   loadDemo,
+  playCampaign,
+  policyFor,
   replayDemo,
   type PlanName
 } from './strategy';
@@ -32,4 +34,29 @@ describe.skipIf(!assetsExist())('demo scripts', () => {
       expect(milestones.council).not.toBeNull();
     });
   }
+});
+
+// The sceptre errand: Frodo picks the sceptre up on his way, hands it
+// to Merry at Rivendell before the Council, and the Council puts Merry
+// at Minas Tirith, where showing it mobilises Denethor and so sets War
+// Event 3 before the war (finding:mobilisation-token-shown-to-ruler).
+describe.skipIf(!assetsExist())('the sceptre errand', () => {
+  test('mobilises Denethor and wakes Gondor before the war', () => {
+    const { inputs, milestones } = playCampaign(
+      1,
+      loadSoakAssets(),
+      policyFor('muster', { openWar: false }),
+      100
+    );
+    expect(
+      inputs.flatMap(input =>
+        input.kind === 'object'
+          ? [`${input.act} ${input.member} ${input.object}`]
+          : []
+      )
+    ).toEqual(['take 7 14', 'put-down 7 14', 'take 9 14', 'use 9 14']);
+    expect(milestones.council).toBe(22);
+    expect(milestones.mobilisation).toEqual({ day: 82, leader: 'DENETHOR' });
+    expect(milestones.warEvents).toEqual([{ day: 83, event: 3 }]);
+  });
 });
