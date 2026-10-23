@@ -42,13 +42,13 @@ the Demo driver in `web/src/sim/demo.ts`, which the headless replay in
 
 ## The two kinds
 
-|                   | Idle                                                   | Chosen                                                                                                 |
-| ----------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------ |
-| Speed             | Very Hasty                                             | starts at Very Hasty; the Game Speed window offers Normal, Hasty and Very Hasty                        |
-| After the opening | the Campaign Level only, the camera on the Ring-bearer | the camera follows the Ring-bearer until the player scrolls or takes up the magnifying glass, for good |
-| Levels            | none: input leaves                                     | the magnifying glass and the Level icons and keys work                                                 |
-| Leaving           | any key or click: the title menu, the idle wait anew   | only the in-game menu, opened by Escape, with Resume and Return to title; Return to title asks nothing |
-| The ending        | the ending screen, then the title after 10 s or a key  | the ending pages as in play, then a menu with Return to title alone                                    |
+|                   | Idle                                                   | Chosen                                                                                                           |
+| ----------------- | ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
+| Speed             | Very Hasty                                             | starts at Very Hasty; the Game Speed window offers Normal, Hasty and Very Hasty                                  |
+| After the opening | the Campaign Level only, the camera on the Ring-bearer | the camera follows the Ring-bearer until the player scrolls or takes up the magnifying glass, for good           |
+| Levels            | none: input leaves                                     | the magnifying glass and the Level icons and keys work                                                           |
+| Leaving           | any key or click: the title menu, the idle wait anew   | only the in-game menu, opened by Escape, with Resume, Settings and Return to title; Return to title asks nothing |
+| The ending        | the ending screen, then the title after 10 s or a key  | the ending pages as in play, then a menu with Return to title alone                                              |
 
 - Leaving a Demo goes to the title menu without the boot sequence, and
   the Game Speed returns to what it was before the Demo.

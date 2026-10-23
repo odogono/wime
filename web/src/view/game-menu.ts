@@ -27,7 +27,8 @@ import type { WindowStyle } from './window-frame';
 // After the ending's last page a shorter menu, Return to title and Load,
 // is the way out (docs/spec/winning-and-losing.md). Each step takes the
 // menu that Back and Escape return to, the in-game menu by default.
-// In a chosen Demo both are shorter still: Resume and Return to title,
+// In a chosen Demo both are shorter still: Resume, Settings and Return
+// to title,
 // and after the ending Return to title alone (docs/spec/demo-mode.md).
 
 export type GameMenuChoice =
@@ -44,7 +45,7 @@ export type GameMenuChoice =
 type MainItem = 'close' | 'load' | 'resume' | 'save' | 'settings' | 'title';
 const MAIN_ITEMS: MainItem[] = ['save', 'load', 'settings', 'title', 'close'];
 const ENDED_ITEMS: MainItem[] = ['title', 'load'];
-const DEMO_ITEMS: MainItem[] = ['resume', 'title'];
+const DEMO_ITEMS: MainItem[] = ['resume', 'settings', 'title'];
 const DEMO_ENDED_ITEMS: MainItem[] = ['title'];
 const MAIN_LABELS: Record<MainItem, string> = {
   close: 'Close',
