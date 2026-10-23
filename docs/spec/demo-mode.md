@@ -34,7 +34,20 @@ the Demo driver in `web/src/sim/demo.ts`, which the headless replay in
   shows a copy, and its fight, meeting and Council windows play out at
   their usual pace, read-only, with the outcome the Demo took.
 - Nothing can be ordered: no arrow, no Provisions, no combat options,
-  no answers to boxes, no Archive.
+  no Archive.
+- In a chosen Demo, the meeting and fight announcement boxes answer the
+  viewer, but only to choose what is watched. The Demo's own answer
+  still decides the outcome, and each box keeps its usual time and closes
+  by itself if left alone.
+  - "Go there" brings the place into view, and the camera stops
+    following the Ring-bearer, as a scroll does. A fight plays out in
+    full, read-only, as in play: it takes the Demo's dice and no
+    options, so it ends as the Demo resolved it. A meeting goes down to
+    the Animation Level; where the Demo passed it by there is no talk,
+    and the party walks on.
+  - "Ignore it" or "Continue on" closes the box. Where the Demo went
+    there, the view skips the Animation Level, and the fight or meeting
+    plays out as the Demo had it, out of sight.
 - A small DEMO label, in the game's font on parchment, stays in the
   bottom right corner throughout, on every Level and the ending.
 - A Demo never reads or writes a save, the autosave included. After it,
@@ -47,6 +60,7 @@ the Demo driver in `web/src/sim/demo.ts`, which the headless replay in
 | Speed             | Very Hasty                                             | starts at Very Hasty; the Game Speed window offers Normal, Hasty and Very Hasty                                  |
 | After the opening | the Campaign Level only, the camera on the Ring-bearer | the camera follows the Ring-bearer until the player scrolls or takes up the magnifying glass, for good           |
 | Levels            | none: input leaves                                     | the magnifying glass and the Level icons and keys work                                                           |
+| Boxes             | read-only: a click leaves                              | answered by the viewer, to choose what is watched                                                                |
 | Leaving           | any key or click: the title menu, the idle wait anew   | only the in-game menu, opened by Escape, with Resume, Settings and Return to title; Return to title asks nothing |
 | The ending        | the ending screen, then the title after 10 s or a key  | the ending pages as in play, then a menu with Return to title alone                                              |
 
