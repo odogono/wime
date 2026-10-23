@@ -40,13 +40,20 @@ save slots (docs/spec/saving.md), and shares the title menu's window
   resting on Go back, since the game in play is lost if not saved. A
   loaded game returns to its Level, as from the title menu
   (docs/spec/title-menu.md). A save of another version is refused with a message.
-- **Settings** lists Sound, Window size and Back, each showing what
-  holds now. Choosing Sound switches the music and effects off or on,
-  as Q does. Choosing Window size steps it from Full to 75% to 50% and
-  back: the game fills that share of the browser window, centred, at
-  the largest whole scale that fits. Both are kept in the browser's
-  storage, so they hold after a reload; sound starts on and the window
-  full.
+- **Settings** lists Sound, Window size, Glass shows Evil and Back,
+  each showing what holds now. Choosing Sound switches the music and
+  effects off or on, as Q does. Choosing Window size steps it from Full
+  to 75% to 50% and back: the game fills that share of the browser
+  window, centred, at the largest whole scale that fits. Glass shows
+  Evil is the port's own: the magnifying glass, or a double tap, on
+  Forces with no Good Leader in reach goes down showing the first Evil
+  Force's figures where it stood, walking in from the right and off the
+  left edge as passers do, instead of the empty spot
+  (`finding:ui-magnifying-glass-watches-the-first-good-leader-near-the-spot`).
+  Nobody is watched, as at the empty spot, so time stands still,
+  and no new scene follows them. All three are
+  kept in the browser's storage, so they hold after a reload; sound
+  starts on, the window full and Glass shows Evil off.
 - **Debug views**, offered in Settings only in a dev build or with
   `?debug` in the URL, are the port's own overlays on the Campaign
   Level, each switched on and off by itself and kept with the settings.

@@ -6,8 +6,9 @@ import {
 import { browserStorage, type SlotStorage } from './save-slots';
 
 // The player's settings (docs/spec/game-menu.md), the port's own: whether
-// sound plays, how much of the window the game fills and which Debug
-// views are on. Kept in
+// sound plays, how much of the window the game fills, whether the
+// magnifying glass shows an Evil Force and which Debug views are on.
+// Kept in
 // localStorage beside the saves, so they outlast a reload.
 
 export type WindowSize = 1 | 0.75 | 0.5;
@@ -15,12 +16,16 @@ export const WINDOW_SIZES: readonly WindowSize[] = [1, 0.75, 0.5];
 
 export interface Settings {
   debug: DebugViews;
+  // The glass, with no Good Leader in reach, shows the first Evil
+  // Force's figures where the original shows nobody.
+  glassShowsEvil: boolean;
   size: WindowSize;
   sound: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
   debug: NO_DEBUG_VIEWS,
+  glassShowsEvil: false,
   size: 1,
   sound: true
 };
@@ -41,7 +46,7 @@ export const loadSettings = (
     if (typeof raw !== 'object' || raw === null) {
       return DEFAULT_SETTINGS;
     }
-    const { debug, size, sound } = raw as Partial<
+    const { debug, glassShowsEvil, size, sound } = raw as Partial<
       Record<keyof Settings, unknown>
     >;
     const stored = (
@@ -51,6 +56,10 @@ export const loadSettings = (
       debug: Object.fromEntries(
         DEBUG_VIEW_ORDER.map(key => [key, stored[key] === true])
       ) as unknown as DebugViews,
+      glassShowsEvil:
+        typeof glassShowsEvil === 'boolean'
+          ? glassShowsEvil
+          : DEFAULT_SETTINGS.glassShowsEvil,
       size: WINDOW_SIZES.find(s => s === size) ?? DEFAULT_SETTINGS.size,
       sound: typeof sound === 'boolean' ? sound : DEFAULT_SETTINGS.sound
     };

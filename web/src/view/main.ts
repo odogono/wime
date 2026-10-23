@@ -13,6 +13,7 @@ import {
   takesOrder,
   tickSim,
   watchEntry,
+  type CombatRow,
   type DemoPlan,
   type DemoRun,
   type DemoScript,
@@ -269,6 +270,7 @@ import {
   type TitleSaves,
   type TitleStep
 } from './title-menu';
+import { walkPast } from './walk-past';
 import { drawWarEventMessage } from './war-event-message';
 import {
   drawWindowFrame,
@@ -861,6 +863,30 @@ const run = (
   // (finding:ui-magnifying-glass-watches-the-first-good-leader-near-the-spot).
   const goDownToSpot = (point: Camera): void => {
     goDownTo(NOBODY, { x: point.x & ~15, y: point.y & ~15 }, 0, []);
+  };
+  // Down to the Animation Level showing an Evil row's figures, the
+  // port's own (Glass shows Evil in the settings): nobody is watched,
+  // as at an empty spot, so time stands still, and they walk past from
+  // the right as passers do.
+  const goDownToEvil = (row: CombatRow | undefined): boolean => {
+    const index = row?.side === 'evil' ? row.entries[0] : undefined;
+    const leader = index === undefined ? undefined : sim.roster[index];
+    if (!leader?.position) {
+      return false;
+    }
+    const force = forcesOnMap(sim.roster).find(
+      candidate => candidate.leader.index === index
+    );
+    goDownTo(NOBODY, leader.position, leader.facing, []);
+    const vbl = vblankAt(viewNow());
+    progress = {
+      ...progress,
+      stage: (force?.members ?? [leader]).reduce(
+        (stage, member) => walkPast(stage, member, figureWorld, vbl),
+        progress.stage
+      )
+    };
+    return true;
   };
   const goDownTo = (
     index: number,
@@ -1570,7 +1596,10 @@ const run = (
       () => {
         const index = glassWatches(sim.roster, spot);
         chosenCharacter = index;
-        if (index === null || !goDownToAnimation(index)) {
+        if (index !== null && goDownToAnimation(index)) {
+          return;
+        }
+        if (!settings.glassShowsEvil || !goDownToEvil(first)) {
           goDownToSpot(spot);
         }
       },

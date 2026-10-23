@@ -83,21 +83,37 @@ describe('the in-game menu', () => {
     ).toEqual({ kind: 'settings' });
     expect(
       labels(
-        openSettingsMenu({ debug: NO_DEBUG_VIEWS, size: 0.75, sound: false })
+        openSettingsMenu({
+          debug: NO_DEBUG_VIEWS,
+          glassShowsEvil: false,
+          size: 0.75,
+          sound: false
+        })
       )
-    ).toEqual(['Sound: Off', 'Window size: 75%', 'Back']);
+    ).toEqual([
+      'Sound: Off',
+      'Window size: 75%',
+      'Glass shows Evil: Off',
+      'Back'
+    ]);
   });
 
-  test('Settings switches sound and steps the window size', () => {
+  test('Settings switches sound, steps the window size and switches the glass', () => {
     const open = openSettingsMenu({
       debug: NO_DEBUG_VIEWS,
+      glassShowsEvil: false,
       size: 1,
       sound: true
     });
     const sound = keys(open, 'Enter');
     expect(sound.choice).toEqual({
       kind: 'set',
-      settings: { debug: NO_DEBUG_VIEWS, size: 1, sound: false }
+      settings: {
+        debug: NO_DEBUG_VIEWS,
+        glassShowsEvil: false,
+        size: 1,
+        sound: false
+      }
     });
     expect(labels(sound.menu)[0]).toBe('Sound: Off');
     let menu = keys(open, 'ArrowDown').menu;
@@ -108,15 +124,37 @@ describe('the in-game menu', () => {
       menu = step.menu;
     }
     expect(sizes).toEqual([0.75, 0.5, 1]);
+    const glass = keys(open, 'ArrowDown', 'ArrowDown', 'Enter');
+    expect(glass.choice).toEqual({
+      kind: 'set',
+      settings: {
+        debug: NO_DEBUG_VIEWS,
+        glassShowsEvil: true,
+        size: 1,
+        sound: true
+      }
+    });
+    expect(labels(glass.menu)[2]).toBe('Glass shows Evil: On');
     expect(keys(open, 'ArrowUp', 'Enter').menu).toEqual(openGameMenu());
     expect(keys(open, 'Escape').menu).toEqual(openGameMenu());
   });
 
   test('Debug views are offered only where allowed, each a switch', () => {
-    const plain = { debug: NO_DEBUG_VIEWS, size: 1, sound: true } as const;
+    const plain = {
+      debug: NO_DEBUG_VIEWS,
+      glassShowsEvil: false,
+      size: 1,
+      sound: true
+    } as const;
     expect(labels(openSettingsMenu(plain))).not.toContain('Debug views');
     const open = openSettingsMenu(plain, true);
-    const debug = keys(open, 'ArrowDown', 'ArrowDown', 'Enter').menu;
+    const debug = keys(
+      open,
+      'ArrowDown',
+      'ArrowDown',
+      'ArrowDown',
+      'Enter'
+    ).menu;
     expect(labels(debug)).toEqual([
       'Terrain: Off',
       'Paths: Off',

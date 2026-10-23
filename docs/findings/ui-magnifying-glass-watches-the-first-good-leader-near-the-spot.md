@@ -11,6 +11,7 @@ sources:
   - disasm:code+0x028fc
   - disasm:code+0x04dde
   - observed:animation-level-frodo-from-the-glass
+  - observed:glass-on-a-lone-nazgul
 issue: 160
 ---
 
@@ -19,4 +20,4 @@ Clicking the glass arms it (data+0x5557 set to 1, code+0x07f84). The next click 
 
 The glass then sets the go-down button (code+0x06826). If no Character was selected, it first puts the empty roster entry 0 at the clicked spot, rounded down to 16 pixels (code+0x068e4). The main loop goes down watching the selected Character, or entry 0 (code+0x028fc). With entry 0 watched, the Animation Level never calls the tick (finding:time-animation-level-holds-the-sweep-at-the-watched-character). So an Evil Force under the glass, with no Good Leader in reach, is not watched. A follower is never chosen itself: its Leader is.
 
-In FS-UAE the glass, clicked between Frodo at (640, 384) and a Nazgûl at (630, 390), went down watching Frodo (entry 7), and data+0x5559 held 7. The empty-spot case was read from the code only.
+In FS-UAE the glass, clicked between Frodo at (640, 384) and a Nazgûl at (630, 390), went down watching Frodo (entry 7), and data+0x5559 held 7. With a lone Nazgûl (entry 84) moved to (2471, 74) and the glass clicked on it, the game went down to a scene with no figures: data+0x5559 held 0, and entry 0 stood at (2464, 64), the spot rounded down to 16 pixels.

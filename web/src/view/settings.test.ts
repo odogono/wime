@@ -18,9 +18,10 @@ const memory = (initial: Record<string, string> = {}) => {
 };
 
 describe('settings', () => {
-  test('start with sound on and the full window', () => {
+  test('start with sound on, the full window and the glass as in the original', () => {
     expect(loadSettings(memory())).toEqual({
       debug: NO_DEBUG_VIEWS,
+      glassShowsEvil: false,
       size: 1,
       sound: true
     });
@@ -28,9 +29,13 @@ describe('settings', () => {
 
   test('are kept between visits', () => {
     const storage = memory();
-    saveSettings({ debug: NO_DEBUG_VIEWS, size: 0.5, sound: false }, storage);
+    saveSettings(
+      { debug: NO_DEBUG_VIEWS, glassShowsEvil: true, size: 0.5, sound: false },
+      storage
+    );
     expect(loadSettings(storage)).toEqual({
       debug: NO_DEBUG_VIEWS,
+      glassShowsEvil: true,
       size: 0.5,
       sound: false
     });
@@ -51,8 +56,17 @@ describe('settings', () => {
       DEFAULT_SETTINGS
     );
     expect(
-      loadSettings(memory({ [SETTINGS_KEY]: '{"size":0.6,"sound":false}' }))
-    ).toEqual({ debug: NO_DEBUG_VIEWS, size: 1, sound: false });
+      loadSettings(
+        memory({
+          [SETTINGS_KEY]: '{"glassShowsEvil":1,"size":0.6,"sound":false}'
+        })
+      )
+    ).toEqual({
+      debug: NO_DEBUG_VIEWS,
+      glassShowsEvil: false,
+      size: 1,
+      sound: false
+    });
     expect(loadSettings(null)).toEqual(DEFAULT_SETTINGS);
   });
 });
