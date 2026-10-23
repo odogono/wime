@@ -13,6 +13,7 @@ import {
   takesOrder,
   tickSim,
   watchEntry,
+  type DemoPlan,
   type DemoRun,
   type DemoScript,
   type Force,
@@ -119,7 +120,16 @@ import {
   stepCouncilMessage,
   type CouncilMessageWindow
 } from './council-message';
-import { demoDisplay, holdsDemo, playDemo, stepDemoMeeting } from './demo-mode';
+import {
+  IDLE_DEMO_ENDING_MS,
+  demoDisplay,
+  demoLetterCloses,
+  holdsDemo,
+  pickDemoPlan,
+  playDemo,
+  stepDemoMeeting,
+  type DemoKind
+} from './demo-mode';
 import { snapCanvas } from './dev-hook';
 import {
   drawEncounterNotice,
@@ -141,7 +151,7 @@ import {
   type EndingScreen
 } from './ending-screen';
 import type { Figure } from './figure-script';
-import { drawText } from './font';
+import { drawText, measureText } from './font';
 import {
   drawInfoWindow,
   forceWindowLines,
@@ -233,13 +243,15 @@ import {
   openSpeedWindow,
   type SpeedWindow
 } from './speed-window';
-import { createTickDriver } from './tick-driver';
+import { createTickDriver, type GameSpeed } from './tick-driver';
 import {
   clickTitleMenu,
   drawTitleMenu,
   hoverTitleMenu,
+  idleDemoDue,
   openTitleMenu,
   pressTitleMenuKey,
+  stepTitleIdle,
   type TitleMenu,
   type TitleSaves,
   type TitleStep
@@ -432,23 +444,39 @@ const run = (
   // a copy of its state, for the view to show and its windows to play
   // out on, and the view is read-only (demo-mode.ts).
   let demo: DemoRun | null = null;
+  // How the Demo playing was started, and the plan that played last in
+  // the session, which the next Demo is not (docs/spec/demo-mode.md).
+  let demoKind: DemoKind | null = null;
+  let lastPlan: DemoPlan | null = null;
+  // Until the party first walks off the opening scene.
+  let demoOpening = false;
+  // Whether the Campaign Level's camera follows the Ring-bearer; a
+  // chosen Demo stops for good once the player scrolls or takes up the
+  // magnifying glass.
+  let demoFollows = false;
+  // When Gandalf's letter opened in a Demo, and an idle Demo's ending.
+  let letterOpenedAt: number | null = null;
+  let idleEndingAt: number | null = null;
+  // The Game Speed in play before the Demo, restored after it.
+  let speedBeforeDemo: GameSpeed = 'normal';
   // Open on the Ring-bearer's Force at Hobbiton, the one Force the
   // player commands at the start (docs/spec/starting-state.md). The
   // game itself opens on the Animation Level; this view starts on
   // the Campaign Level.
+  // The Campaign Level's camera centred over a figure's spot.
+  const cameraOver = (position: Camera): Camera =>
+    clampCamera(
+      {
+        x: position.x + 8 - viewWidthPx(assets.tilemap) / 2,
+        y: position.y + 8 - viewHeightPx(assets.tilemap) / 2
+      },
+      assets.tilemap
+    );
   const openingCamera = (): Camera => {
     const opening = forcesOnMap(sim.roster).find(
       force => force.leader.index === sim.ringBearer
     );
-    return opening
-      ? clampCamera(
-          {
-            x: opening.position.x + 8 - viewWidthPx(assets.tilemap) / 2,
-            y: opening.position.y + 8 - viewHeightPx(assets.tilemap) / 2
-          },
-          assets.tilemap
-        )
-      : { x: 0, y: 0 };
+    return opening ? cameraOver(opening.position) : { x: 0, y: 0 };
   };
   let camera: Camera = openingCamera();
   let fit: Fit = screen.resize();
@@ -520,6 +548,18 @@ const run = (
   // The title menu, once the boot sequence is over
   // (docs/spec/title-menu.md); Title plays on under it.
   let titleMenu: TitleMenu | null = null;
+  // The time idled at the main title menu, toward an idle Demo, and a
+  // count of the inputs there, so a Demo still loading when one comes
+  // is dropped.
+  let titleIdleMs = 0;
+  let titleInputs = 0;
+  const titleInput = (): void => {
+    titleIdleMs = 0;
+    titleInputs += 1;
+  };
+  window.addEventListener('keydown', titleInput);
+  window.addEventListener('pointerdown', titleInput);
+  window.addEventListener('pointermove', titleInput);
   // Until a game starts, the boot sequence or the title menu holds the
   // screen and the keys, and nothing is saved.
   const onTitle = (): boolean => boot !== null || titleMenu !== null;
@@ -881,6 +921,7 @@ const run = (
       drawEndingFigures(ctx, animation.figures, endingFigures(end, choose));
     }
     ending = endingScreen(end, assets.texts, now);
+    idleEndingAt = demoKind === 'idle' ? now : null;
     // An ended game cannot be resumed: the autosave, written before the
     // ending, goes (docs/spec/saving.md). Named slots are kept. A Demo
     // never touches the saves.
@@ -928,15 +969,10 @@ const run = (
     messages.provisions = null;
     const position = sim.roster[watched]?.position;
     if (position) {
-      camera = clampCamera(
-        {
-          x: position.x + 8 - viewWidthPx(assets.tilemap) / 2,
-          y: position.y + 8 - viewHeightPx(assets.tilemap) / 2
-        },
-        assets.tilemap
-      );
+      camera = cameraOver(position);
     }
     level = 'campaign';
+    demoOpening = false;
     if (!demo) {
       sim = watchEntry(sim, null);
     }
@@ -950,6 +986,9 @@ const run = (
     combatShown: () => messages.combat !== null,
     get demo() {
       return demo !== null;
+    },
+    get demoOpening() {
+      return demo !== null && demoOpening;
     },
     goUp: () => goUpFromAnimation(),
     holdsClock: () =>
@@ -1528,6 +1567,11 @@ const run = (
       return;
     }
     if (level === 'animation') {
+      // In a Demo a click closes Gandalf's letter before its time.
+      if (demo && messages.box?.kind === 'letter') {
+        closeBox(viewNow());
+        return;
+      }
       handleAnimationPress(event);
       return;
     }
@@ -1630,6 +1674,11 @@ const run = (
     }
   };
   canvas.addEventListener('pointerdown', event => {
+    // Any click leaves an idle Demo for the title menu.
+    if (demoKind === 'idle') {
+      showTitle();
+      return;
+    }
     if (!presses.holding) {
       handlePointerDown(event);
     }
@@ -1652,6 +1701,15 @@ const run = (
     }
     pointer = toNative(event);
     if (drag) {
+      // A drag that pans stops a chosen Demo's camera following.
+      if (
+        Math.max(
+          Math.abs(pointer.x - drag.pointer.x),
+          Math.abs(pointer.y - drag.pointer.y)
+        ) > CLICK_TOLERANCE_PX
+      ) {
+        demoFollows = false;
+      }
       camera = dragCamera(drag.camera, drag.pointer, pointer, assets.tilemap);
     }
   });
@@ -1703,6 +1761,11 @@ const run = (
     fit = screen.resize();
   });
   window.addEventListener('keydown', event => {
+    // Any key leaves an idle Demo for the title menu.
+    if (demoKind === 'idle') {
+      showTitle();
+      return;
+    }
     // A flash holds the game, keys included (finding:ui-press-flash).
     if (presses.holding) {
       return;
@@ -1726,6 +1789,11 @@ const run = (
       return;
     }
     if (onTitle() || councilWindow) {
+      return;
+    }
+    // In a Demo a key closes Gandalf's letter before its time.
+    if (demo && messages.box?.kind === 'letter') {
+      closeBox(viewNow());
       return;
     }
     // Q switches sound off and on, on every Level
@@ -1986,6 +2054,10 @@ const run = (
       startGame(true);
       return;
     }
+    if (choice.kind === 'demo') {
+      void startPlannedDemo('chosen');
+      return;
+    }
     const result =
       choice.id === AUTOSAVE_ID
         ? saveSlots.loadAutosave(assets.tilemap)
@@ -2022,7 +2094,7 @@ const run = (
           if (!response.ok) {
             throw new Error(`no Demo ${plan}`);
           }
-          startDemoMode((await response.json()) as DemoScript);
+          startDemoMode((await response.json()) as DemoScript, 'chosen');
         },
         // The playing Demo's run, to read.
         demoRun: () => demo,
@@ -2033,6 +2105,7 @@ const run = (
             sim = newSim(seed);
           }
           demo = null;
+          demoKind = null;
           startGame(true);
         },
         setSim: (change: (state: SimState) => SimState) => {
@@ -2068,10 +2141,10 @@ const run = (
   // The menu waits while a fight, a talk, a meeting, the Council or
   // the ending holds the game, as the autosave does.
   const openInGameMenu = (): boolean => {
-    // The Demo's menu waits for #244's next part.
+    // An idle Demo has no menu: any key or click leaves it.
     if (
       onTitle() ||
-      demo ||
+      demoKind === 'idle' ||
       !autosaveView().settled ||
       sim.meeting ||
       sim.council ||
@@ -2081,7 +2154,7 @@ const run = (
     ) {
       return false;
     }
-    openMenuOver(openGameMenu());
+    openMenuOver(openGameMenu(demo !== null));
     return true;
   };
   // Behind the menu, what is on screen: the Full Map Level's hi-res
@@ -2103,10 +2176,10 @@ const run = (
   // After the ending's last page: Return to title or Load; nothing goes
   // back to the ended game.
   const openMenuAfterEnding = (): void => {
-    openMenuOver(openEndedMenu());
+    openMenuOver(openEndedMenu(demo !== null));
   };
   const gameMenuHome = (): GameMenu =>
-    ending ? openEndedMenu() : openGameMenu();
+    ending ? openEndedMenu(demo !== null) : openGameMenu(demo !== null);
   menuButton?.addEventListener('click', () => {
     if (!gameMenu) {
       openInGameMenu();
@@ -2157,7 +2230,12 @@ const run = (
   // The title menu over a fresh game, the one in play dropped unsaved.
   const showTitle = (): void => {
     clearWindows();
+    if (demo) {
+      driver.speed = speedBeforeDemo;
+    }
     demo = null;
+    demoKind = null;
+    titleIdleMs = 0;
     sim = newSim();
     camera = openingCamera();
     level = 'animation';
@@ -2239,13 +2317,69 @@ const run = (
     });
   };
   // Start a Demo as a New Game from its seed, at Very Hasty.
-  const startDemoMode = (script: DemoScript): void => {
+  const startDemoMode = (script: DemoScript, kind: DemoKind): void => {
     boot = null;
     clearWindows();
+    if (!demo) {
+      speedBeforeDemo = driver.speed;
+    }
     demo = startDemo(script, assets);
+    demoKind = kind;
+    lastPlan = script.plan;
+    demoOpening = true;
+    demoFollows = true;
+    letterOpenedAt = null;
+    idleEndingAt = null;
     sim = demoDisplay(demo);
     driver.speed = 'very-hasty';
     startGame(true);
+  };
+  // Start a Demo picked at random from the title menu. One still loading
+  // when the title menu goes, or, for an idle Demo, when an input comes,
+  // is dropped; one that cannot load leaves the title menu as it was.
+  let demoLoading = false;
+  const startPlannedDemo = async (kind: DemoKind): Promise<void> => {
+    if (demoLoading) {
+      return;
+    }
+    demoLoading = true;
+    const inputs = titleInputs;
+    try {
+      const plan = pickDemoPlan(lastPlan, choose);
+      const response = await fetch(`/demos/${plan}.json`);
+      if (!response.ok) {
+        return;
+      }
+      const script = (await response.json()) as DemoScript;
+      if (titleMenu && (kind === 'chosen' || inputs === titleInputs)) {
+        startDemoMode(script, kind);
+      }
+    } catch {
+      // No Demo: the title menu stays.
+    } finally {
+      demoLoading = false;
+    }
+  };
+  // The DEMO label, in the game's font on a strip of parchment, in the
+  // bottom right corner throughout a Demo; `widthScale` 2 on the hi-res
+  // Full Map Level.
+  const DEMO_LABEL = 'DEMO';
+  const drawDemoLabel = (
+    ctx: CanvasRenderingContext2D,
+    widthScale = 1
+  ): void => {
+    if (!demo) {
+      return;
+    }
+    const { font } = assets.window;
+    const { fill, line } = assets.window.colours;
+    const width = measureText(font.metrics, DEMO_LABEL) + 6;
+    const height = font.metrics.height + 1;
+    const x = NATIVE_WIDTH - width;
+    const y = NATIVE_HEIGHT - height;
+    ctx.fillStyle = fill;
+    ctx.fillRect(x * widthScale, y, width * widthScale, height);
+    drawText(ctx, font, DEMO_LABEL, (x + 3) * widthScale, y, line, widthScale);
   };
   const frame = (realNow: number): void => {
     const now = realNow - menuMs;
@@ -2258,7 +2392,11 @@ const run = (
       return;
     }
     if (menuButton) {
-      menuButton.hidden = onTitle() || gameMenu !== null || ending !== null;
+      menuButton.hidden =
+        onTitle() ||
+        gameMenu !== null ||
+        ending !== null ||
+        demoKind === 'idle';
     }
     if (gameMenu) {
       screen.buffer.drawImage(backdrop, 0, 0);
@@ -2279,6 +2417,12 @@ const run = (
       titleMenu = openTitleMenu(titleSaves());
     }
     if (titleMenu) {
+      // Idle at the main title menu long enough, a Demo plays itself.
+      titleIdleMs = stepTitleIdle(titleIdleMs, titleMenu, elapsedMs);
+      if (idleDemoDue(titleIdleMs)) {
+        titleIdleMs = 0;
+        void startPlannedDemo('idle');
+      }
       drawBoot(screen.buffer, titleScreen);
       drawTitleMenu(screen.buffer, title.window, title.menuColours, titleMenu);
       screen.present();
@@ -2292,6 +2436,16 @@ const run = (
     updateSound();
     if (stepBoxes(now)) {
       progress = { ...progress, stage: resumeStage(progress.stage, now) };
+    }
+    // In a Demo, Gandalf's letter closes by itself after a while.
+    if (demo && messages.letter?.kind === 'open') {
+      letterOpenedAt ??= now;
+      if (
+        demoLetterCloses(letterOpenedAt, now) &&
+        messages.box?.kind === 'letter'
+      ) {
+        closeBox(now);
+      }
     }
     // Game time does not pass on the Full Map Level
     // (finding:time-stops-on-full-map-level).
@@ -2328,6 +2482,7 @@ const run = (
         );
         screen.hires.restore();
       }
+      drawDemoLabel(screen.hires, 2);
       screen.present('hires');
       requestAnimationFrame(frame);
       return;
@@ -2401,6 +2556,7 @@ const run = (
             progress.battle?.phase === 'approach'
           );
         }
+        drawDemoLabel(screen.buffer);
         screen.present();
         requestAnimationFrame(frame);
         return;
@@ -2455,8 +2611,15 @@ const run = (
       startEnding(now);
     }
     if (ending) {
+      // An idle Demo's ending gives way to the title menu.
+      if (idleEndingAt !== null && now - idleEndingAt >= IDLE_DEMO_ENDING_MS) {
+        showTitle();
+        requestAnimationFrame(frame);
+        return;
+      }
       ending = stepEndingScreen(ending, now);
       drawEndingScreen(screen.buffer, animation.window, scene, ending);
+      drawDemoLabel(screen.buffer);
       screen.present();
       requestAnimationFrame(frame);
       return;
@@ -2483,15 +2646,34 @@ const run = (
     }
     // Hovering the icon column does not scroll the map under it, and
     // dragging pans instead of edge scrolling.
+    // An idle Demo's pointer does not scroll.
     const direction =
-      drag || (pointer && isOverIcons(pointer, placements))
+      drag ||
+      demoKind === 'idle' ||
+      (pointer && isOverIcons(pointer, placements))
         ? { x: 0, y: 0 }
         : edgeScrollDirection(pointer, assets.tilemap);
-    camera = stepCamera(camera, direction, elapsedMs / 1000, assets.tilemap);
+    // A chosen Demo's camera follows the Ring-bearer until the player
+    // scrolls or takes up the magnifying glass; an idle Demo's always.
+    if (
+      demoKind === 'chosen' &&
+      (direction.x !== 0 || direction.y !== 0 || lookingDown || zooming)
+    ) {
+      demoFollows = false;
+    }
+    const bearer = sim.ringBearer;
+    const followed =
+      demo && demoFollows && bearer !== null
+        ? sim.roster[bearer]?.position
+        : undefined;
+    camera = followed
+      ? cameraOver(followed)
+      : stepCamera(camera, direction, elapsedMs / 1000, assets.tilemap);
     const forces = forcesOnMap(sim.roster);
     const flashOn = Math.floor(now / FLASH_INTERVAL_MS) % 2 === 0;
     drawCampaignLevel(screen.buffer, assets, camera, forces, flashOn);
     drawOverlay(forces);
+    drawDemoLabel(screen.buffer);
     screen.present();
     requestAnimationFrame(frame);
   };

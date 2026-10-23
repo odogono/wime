@@ -85,6 +85,9 @@ export interface ProgressHost {
   // In Demo mode the Level neither ticks the sim nor answers talks: the
   // Demo does both, and the Level shows its state (demo-mode.ts).
   readonly demo: boolean;
+  // A Demo's opening: the first time the party walks off the scene the
+  // Demo goes up to the Campaign Level instead of following it on.
+  readonly demoOpening: boolean;
   // Up to the Campaign Level.
   goUp(): void;
   // A box, window or wait holds the clock: no tick runs.
@@ -263,6 +266,10 @@ export const stepAnimationLevel = (
     return { outcome: 'up', progress: { ...progress, talk: null } };
   }
   if (!battle && !talk && host.watched !== NOBODY && walkedOff(stage)) {
+    if (host.demoOpening) {
+      host.goUp();
+      return { outcome: 'up', progress: { ...progress, talk: null } };
+    }
     // The figures have walked off on the way somewhere: the watched
     // Character takes its held step and the next scene is built where it
     // now stands

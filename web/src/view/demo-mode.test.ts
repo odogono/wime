@@ -16,9 +16,13 @@ import {
   type CouncilMessageWindow
 } from './council-message';
 import {
+  DEMO_LETTER_MS,
+  DEMO_PLANS,
   demoAnswer,
   demoDisplay,
+  demoLetterCloses,
   holdsDemo,
+  pickDemoPlan,
   playDemo,
   stepDemoMeeting,
   tickDemo
@@ -156,6 +160,36 @@ const playThroughView = (
   }
   return run;
 };
+
+describe('choosing a Demo', () => {
+  test('picks at even odds among the plans', () => {
+    const picks = [0, 1, 2].map(n => pickDemoPlan(null, () => n));
+    expect(picks).toEqual([...DEMO_PLANS]);
+  });
+
+  test('never the one that played last, the other two at even odds', () => {
+    for (const last of DEMO_PLANS) {
+      let offered = 0;
+      const picks = [0, 1].map(n =>
+        pickDemoPlan(last, count => {
+          offered = count;
+          return n;
+        })
+      );
+      expect(offered).toBe(2);
+      expect(picks).not.toContain(last);
+      expect(new Set(picks).size).toBe(2);
+    }
+  });
+});
+
+describe("a Demo's letter", () => {
+  test('closes by itself 15 s after it opens', () => {
+    expect(DEMO_LETTER_MS).toBe(15_000);
+    expect(demoLetterCloses(1000, 1000 + DEMO_LETTER_MS - 1)).toBe(false);
+    expect(demoLetterCloses(1000, 1000 + DEMO_LETTER_MS)).toBe(true);
+  });
+});
 
 describe.skipIf(!existsSync(STARTING_STATE) || !existsSync(TILEMAP))(
   'Demo mode',

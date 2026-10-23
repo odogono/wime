@@ -10,6 +10,7 @@ import {
   sameClock,
   sameMeeting,
   stepDemo,
+  type DemoPlan,
   type DemoRun,
   type MeetingAnswer,
   type SimState
@@ -126,3 +127,32 @@ export const stepDemoMeeting = (
   });
   return { sim: answered, ui: next };
 };
+
+// The recorded Demos (web/public/demos), by their plans' names.
+export const DEMO_PLANS: readonly DemoPlan[] = [
+  'fellowship',
+  'muster',
+  'defensive'
+];
+
+// How a Demo was started: by idling at the title menu, or from its Demo
+// entry (docs/spec/demo-mode.md).
+export type DemoKind = 'chosen' | 'idle';
+
+// The Demo to play: any but the one that played last in the session,
+// at even odds. `choose(n)` picks 0 to n - 1.
+export const pickDemoPlan = (
+  last: DemoPlan | null,
+  choose: (n: number) => number
+): DemoPlan => {
+  const plans = DEMO_PLANS.filter(plan => plan !== last);
+  return plans[choose(plans.length)]!;
+};
+
+// Gandalf's letter closes by itself this long after it opens in a Demo.
+export const DEMO_LETTER_MS = 15_000;
+export const demoLetterCloses = (openedAt: number, now: number): boolean =>
+  now - openedAt >= DEMO_LETTER_MS;
+
+// An idle Demo's ending screen gives way to the title menu after this.
+export const IDLE_DEMO_ENDING_MS = 10_000;

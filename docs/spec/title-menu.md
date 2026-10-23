@@ -16,6 +16,8 @@ port's own, built on its save slots (docs/spec/saving.md).
   or on (`finding:sound-q-toggles-sound`).
 - A key that skips the boot sequence brings the menu up at once.
 - Nothing is saved while the menu is up.
+- After 60 seconds with no input at the menu's first page, an idle Demo
+  starts (docs/spec/demo-mode.md).
 
 ## The choices
 
@@ -27,6 +29,9 @@ port's own, built on its save slots (docs/spec/saving.md).
   When there is a save to resume it asks first, its answer resting on
   Go back: named saves are kept, but the autosave is written over when
   it next runs.
+- **Demo** starts a chosen Demo at once, a recorded campaign playing
+  itself from a New Game, without asking: it touches no save
+  (docs/spec/demo-mode.md).
 - **Load** lists the autosave, then the named slots newest first, each
   with its in-game date, and ends with Back. A save of another version
   is lettered in grey, colour 22, and, chosen, answers with a message instead of
