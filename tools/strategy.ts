@@ -56,75 +56,53 @@ import { parseArgs } from 'node:util';
 import {
   BARAD_DUR,
   BARAD_DUR_GARRISON,
+  DEMO_VERSION,
   FIRST_ENCOUNTER,
-  INITIAL_WAR_EVENTS,
   LAST_ENCOUNTER,
   LAST_GOOD_ENTRY,
   QUARTER_HOURS_PER_DAY,
   RIVENDELL,
-  answerMeeting,
-  applyObject,
   canOrder,
-  closeCouncil,
-  createSim,
   destinationForClick,
-  giveOrder,
   hasWarEvent,
-  putDownObject,
-  resolveFight,
-  takeAnnouncement,
-  takeObject,
-  takePassing,
-  takesOrder,
+  isGoodVictory,
+  replayDemo,
+  runToEnd,
+  startCampaign,
+  stepCampaign,
   terrainAt,
-  tickSim,
   topLeader,
-  type Clock,
-  type Ending,
+  type CampaignResult,
+  type Command,
+  type DemoInput,
+  type DemoPlan,
+  type DemoScript,
   type Meeting,
   type MeetingAnswer,
+  type Player,
   type Point,
   type RosterEntry,
   type SimState
 } from '../web/src/sim';
 import { assetsExist, loadSoakAssets, type SoakAssets } from './soak';
 
-export const DEMO_VERSION = 1;
+// The script-driven replay is the Demo driver, shared with the browser.
+export {
+  DEMO_VERSION,
+  isGoodVictory,
+  replayDemo,
+  type CampaignResult,
+  type Command,
+  type DemoInput,
+  type DemoScript,
+  type Milestones,
+  type ObjectCommand
+} from '../web/src/sim';
 
 export const DEMOS_DIR = new URL('../web/public/demos/', import.meta.url)
   .pathname;
 
-export type PlanName = 'defensive' | 'fellowship' | 'muster';
-
-// One player input, applied at a clock time. Orders are applied at the
-// first decision point of their quarter-hour, in the listed order, each
-// through the allegiance roll. A meeting answer is matched to the
-// meeting it answers; meetings not listed are answered "Continue on",
-// as the window does when it times out.
-export type DemoInput =
-  | { at: Clock; kind: 'order'; member: number; to: Point }
-  | ({ at: Clock; kind: 'object' } & ObjectCommand)
-  | { answer: MeetingAnswer; at: Clock; kind: 'answer'; meeting: Meeting };
-
-export interface Milestones {
-  // The day the Council was held, before it moved the calendar on.
-  council: number | null;
-  // The first Leader the War Events or a trigger put under the
-  // player's command, and the day.
-  mobilisation: { day: number; leader: string } | null;
-  // War Events 3 to 7, in the order they were set, with their days.
-  warEvents: { day: number; event: number }[];
-}
-
-export interface DemoScript {
-  ending: Ending | null;
-  finalDay: number;
-  inputs: DemoInput[];
-  milestones: Milestones;
-  plan: PlanName;
-  seed: number;
-  version: number;
-}
+export type PlanName = DemoPlan;
 
 const FRODO = 7;
 const GANDALF = 1;
@@ -392,16 +370,6 @@ const waypoints = (path: Point[], stride: number): Point[] => {
 // --- Policies ---------------------------------------------------------
 
 // An Order, or an action in the provisions sack: Take, Put Down or
-// Use, by the chosen Character at its Force's position, as the
-// provisions lists do (finding:objects-provisions-lists).
-export interface ObjectCommand {
-  act: 'put-down' | 'take' | 'use';
-  member: number;
-  object: number;
-}
-
-export type Command = ObjectCommand | { member: number; to: Point };
-
 export interface Policy {
   answer: (state: SimState, meeting: Meeting) => MeetingAnswer;
   // Called once per quarter-hour, when nothing waits on the player.
@@ -1083,193 +1051,48 @@ export const policyFor = (
 
 // --- Playing and replaying ----------------------------------------------
 
-export interface CampaignResult {
-  inputs: DemoInput[];
-  milestones: Milestones;
-  state: SimState;
-}
-
-type Driver =
-  { kind: 'policy'; policy: Policy } | { kind: 'script'; script: DemoScript };
-
-const sameClock = (a: Clock, b: Clock): boolean =>
-  a.day === b.day && a.quarterHour === b.quarterHour;
-
-const sameMeeting = (a: Meeting, b: Meeting): boolean =>
-  a.a === b.a && a.b === b.b && a.kind === b.kind;
-
-// Plays one campaign to an ending or the day cap, driven by a policy
-// (recording its inputs) or by a demo script (replaying them).
-const runCampaign = (
-  seed: number,
-  assets: SoakAssets,
-  driver: Driver,
-  dayCap: number
-): CampaignResult => {
-  let state = createSim(seed, assets.startingState, assets.tilemap);
-  const inputs: DemoInput[] = [];
-  const pending =
-    driver.kind === 'script' ? [...driver.script.inputs] : ([] as DemoInput[]);
-  const milestones: Milestones = {
-    council: null,
-    mobilisation: null,
-    warEvents: []
-  };
-  const mobilised = new Set(
-    state.roster.filter(e => e.allegiance > 1).map(e => e.index)
-  );
-  let decided: Clock | null = null;
-  let steps = 0;
-  while (!state.ending && state.clock.day < dayCap) {
-    if (++steps > 20_000_000) {
-      throw new Error('the campaign stopped moving');
-    }
-    while (state.announcements.length > 0) {
-      state = takeAnnouncement(state).state;
-    }
-    while (state.passings.length > 0) {
-      state = takePassing(state).state;
-    }
-    if (state.council) {
-      state = closeCouncil(state);
-    }
-    if (state.fight) {
-      state = resolveFight(state);
-      continue;
-    }
-    if (state.meeting) {
-      const meeting = state.meeting;
-      let answer: MeetingAnswer = 'continue-on';
-      if (driver.kind === 'policy') {
-        answer = driver.policy.answer(state, meeting);
-        if (answer !== 'continue-on') {
-          inputs.push({
-            answer,
-            at: { ...state.clock },
-            kind: 'answer',
-            meeting: { ...meeting }
-          });
-        }
-      } else {
-        const input = pending[0];
-        if (
-          input?.kind === 'answer' &&
-          sameClock(input.at, state.clock) &&
-          sameMeeting(input.meeting, meeting)
-        ) {
-          answer = input.answer;
-          pending.shift();
-        }
-      }
-      state = answerMeeting(state, answer).world;
-      continue;
-    }
-    if (state.ending) {
-      break;
-    }
-    if (!decided || !sameClock(decided, state.clock)) {
-      noteMilestones(state, milestones, mobilised, decided?.day ?? 0);
-      decided = { ...state.clock };
-      const commands: Command[] = [];
-      if (driver.kind === 'policy') {
-        commands.push(...driver.policy.decide(state));
-      } else {
-        while (
-          (pending[0]?.kind === 'order' || pending[0]?.kind === 'object') &&
-          sameClock(pending[0].at, state.clock)
-        ) {
-          const { at: _at, kind: _kind, ...command } = pending.shift()!;
-          commands.push(command as Command);
-        }
-      }
-      for (const command of commands) {
-        if ('act' in command) {
-          if (driver.kind === 'policy') {
-            inputs.push({ at: { ...state.clock }, kind: 'object', ...command });
-          }
-          state = actOnObject(state, command);
-          continue;
-        }
-        if (driver.kind === 'policy') {
-          inputs.push({ at: { ...state.clock }, kind: 'order', ...command });
-        }
-        const { taken, world } = takesOrder(state, command.member);
-        state = taken ? giveOrder(world, command.member, command.to) : world;
-      }
-    }
-    state = tickSim(state);
-  }
-  return {
-    inputs: driver.kind === 'script' ? driver.script.inputs : inputs,
-    milestones,
-    state
-  };
-};
-
-// Take, Put Down or Use, at the position of the chosen Character's
-// Force (finding:objects-provisions-lists).
-const actOnObject = (state: SimState, command: ObjectCommand): SimState => {
-  const position = topLeader(
-    state.roster,
-    state.roster[command.member]!
-  ).position!;
-  const { act, member, object } = command;
-  return act === 'take'
-    ? takeObject(state, member, object, position)
-    : act === 'put-down'
-      ? putDownObject(state, member, object, position)
-      : applyObject(state, member, object, position).state;
-};
-
-const noteMilestones = (
-  state: SimState,
-  milestones: Milestones,
-  mobilised: Set<number>,
-  dayBefore: number
-): void => {
-  // The Council moves the calendar on (docs/spec/council-of-elrond.md),
-  // so it is dated by the last decision point before it.
-  if (milestones.council === null && !state.councilPending) {
-    milestones.council = dayBefore;
-  }
-  // Event 1, Gandalf's death, keeps no day (docs/spec/war-events.md).
-  for (let event = 3; event < 8; event++) {
-    if (
-      state.warEvents.mask & (1 << event) &&
-      !(INITIAL_WAR_EVENTS.mask & (1 << event)) &&
-      !milestones.warEvents.some(noted => noted.event === event)
-    ) {
-      milestones.warEvents.push({
-        day: state.warEvents.days[event]!,
-        event
+// Records the Policy's inputs as it plays them.
+const recording = (policy: Policy, inputs: DemoInput[]): Player => ({
+  answer: (state, meeting) => {
+    const answer = policy.answer(state, meeting);
+    if (answer !== 'continue-on') {
+      inputs.push({
+        answer,
+        at: { ...state.clock },
+        kind: 'answer',
+        meeting: { ...meeting }
       });
     }
-  }
-  for (const entry of state.roster.slice(1, LAST_GOOD_ENTRY + 1)) {
-    if (entry.allegiance > 1 && !mobilised.has(entry.index)) {
-      mobilised.add(entry.index);
-      milestones.mobilisation ??= { day: state.clock.day, leader: entry.name };
-    }
-  }
-};
+    return answer;
+  },
+  decide: state =>
+    policy.decide(state).map(command => {
+      inputs.push(
+        'act' in command
+          ? { at: { ...state.clock }, kind: 'object', ...command }
+          : { at: { ...state.clock }, kind: 'order', ...command }
+      );
+      return command;
+    })
+});
 
+// Plays one campaign to an ending or the day cap, driven by a policy,
+// and records its inputs as a demo script's.
 export const playCampaign = (
   seed: number,
   assets: SoakAssets,
   policy: Policy,
   dayCap = 400
-): CampaignResult =>
-  runCampaign(seed, assets, { kind: 'policy', policy }, dayCap);
-
-export const replayDemo = (
-  script: DemoScript,
-  assets: SoakAssets,
-  dayCap = 400
-): CampaignResult =>
-  runCampaign(script.seed, assets, { kind: 'script', script }, dayCap);
-
-export const isGoodVictory = (ending: Ending | null): boolean =>
-  ending === 'won-mount-doom' || ending === 'won-barad-dur';
+): CampaignResult => {
+  const inputs: DemoInput[] = [];
+  const player = recording(policy, inputs);
+  const { milestones, state } = runToEnd(
+    startCampaign(seed, assets),
+    run => stepCampaign(run, player),
+    dayCap
+  );
+  return { inputs, milestones, state };
+};
 
 export const demoScript = (
   plan: PlanName,
