@@ -6,10 +6,12 @@
 //
 //   bun tools/strategy.ts [--plan fellowship|muster|defensive] [--seeds N]
 //                         [--from SEED] [--open-war on|off]
-//                         [--tokens on|off] [--write]
+//                         [--tokens on|off] [--avoid on|off] [--write]
 //
-// --open-war overrides the muster plan's openWar setting, and --tokens
-// whether the plan carries the sceptre to Denethor (sceptreErrand).
+// --open-war overrides the muster plan's openWar setting, --tokens
+// whether the plan carries the sceptre to Denethor (sceptreErrand), and
+// --avoid whether the road to Rivendell goes round the Encounter areas
+// (encounterAreas).
 //
 // Three plans win:
 //
@@ -51,7 +53,9 @@ import { parseArgs } from 'node:util';
 import {
   BARAD_DUR,
   BARAD_DUR_GARRISON,
+  FIRST_ENCOUNTER,
   INITIAL_WAR_EVENTS,
+  LAST_ENCOUNTER,
   LAST_GOOD_ENTRY,
   QUARTER_HOURS_PER_DAY,
   RIVENDELL,
@@ -171,7 +175,55 @@ const chebyshev = (a: Point, b: Point): number =>
 
 // --- Route planning over the visible terrain -------------------------
 
+export interface Area {
+  bottom: number;
+  left: number;
+  right: number;
+  top: number;
+}
+
+// The Evil Encounter figures that a Force led by the Fellowship can
+// meet wait each in an area, and one met there attacks
+// (finding:forces-encounter-figures-wait-in-areas,
+// finding:combat-evil-encounters-attack). The areas are hidden from
+// a player, so this is knowledge the policy has and a player would not:
+// a player learns them only by losing Characters in them. Areas wider
+// or taller than this are not worth going round, as the wolves' between
+// Bree and Rivendell.
+const AVOIDABLE_SPAN = 256;
+const FELLOWSHIP_FIGURE = 99;
+
+export const encounterAreas = (state: SimState): Area[] =>
+  state.roster
+    .slice(FIRST_ENCOUNTER, LAST_ENCOUNTER + 1)
+    .filter(
+      entry =>
+        entry.allegiance === 0 &&
+        entry.strength <= FELLOWSHIP_FIGURE &&
+        entry.encounter !== null &&
+        entry.encounter.area.right - entry.encounter.area.left <=
+          AVOIDABLE_SPAN &&
+        entry.encounter.area.bottom - entry.encounter.area.top <= AVOIDABLE_SPAN
+    )
+    .map(entry => entry.encounter!.area);
+
+const inAnyArea = (p: Point, areas: Area[]): boolean =>
+  areas.some(
+    area =>
+      p.x >= area.left &&
+      p.x <= area.right &&
+      p.y >= area.top &&
+      p.y <= area.bottom
+  );
+
+// A step onto a tile in an avoided area costs this many times its pace,
+// so a route goes round one when a detour exists, and through it when
+// none does.
+const AVOID_COST = 20;
+
 interface RouteOptions {
+  // Areas to go round when a detour exists.
+  avoid?: Area[];
   // Keep out of the tripwire's corner.
   avoidMordor: boolean;
   // Tiles within this many pixels of a visible Evil Force are closed,
@@ -223,6 +275,9 @@ export const planRoute = (
   blocked[id(start.x / TILE, start.y / TILE)] = 0;
   blocked[id(goal.x / TILE, goal.y / TILE)] = 0;
   const closed = (x: number, y: number): boolean => blocked[id(x, y)] === 1;
+  const avoid = options.avoid ?? [];
+  const avoided = (x: number, y: number): boolean =>
+    inAnyArea({ x: x * TILE, y: y * TILE }, avoid);
   const cost = new Float64Array(width * height).fill(Infinity);
   const previous = new Int32Array(width * height).fill(-1);
   const done = new Uint8Array(width * height);
@@ -300,7 +355,9 @@ export const planRoute = (
         if (terrain <= 0) {
           continue;
         }
-        const step = ((dx && dy ? Math.SQRT2 : 1) * 100) / terrain;
+        const step =
+          (((dx && dy ? Math.SQRT2 : 1) * 100) / terrain) *
+          (avoided(nx, ny) ? AVOID_COST : 1);
         const n = id(nx, ny);
         if (c + step < cost[n]!) {
           cost[n] = c + step;
@@ -349,6 +406,9 @@ export interface Policy {
 }
 
 export interface PlanOptions {
+  // Route the road to Rivendell round the Encounter areas
+  // (encounterAreas).
+  avoidEncounters: boolean;
   // How near, in pixels, a moving Evil Force may come to the
   // Ring-bearer's Force before it turns away.
   fleeRadius: number;
@@ -356,7 +416,11 @@ export interface PlanOptions {
   tokens: boolean;
 }
 
-export const DEFAULT_OPTIONS: PlanOptions = { fleeRadius: 96, tokens: false };
+export const DEFAULT_OPTIONS: PlanOptions = {
+  avoidEncounters: false,
+  fleeRadius: 96,
+  tokens: false
+};
 
 // The Ring-bearer's Force's Leader.
 const ringLeader = (state: SimState): RosterEntry =>
@@ -377,15 +441,52 @@ const toward = (state: SimState, member: number, to: Point): Command | null => {
   return { member, to: destination };
 };
 
+// The tiles, short of the goal, of a route from `from` to `goal` round
+// the Encounter areas, or none when no area lies near the way. A Force
+// sent straight to its goal steers its own way, which may cut into an
+// area that a planned route skirts, so a leg near one is walked tile by
+// tile; as from Buckland to Bree, whose road runs along the wight's
+// area.
+const detourRound = (state: SimState, from: Point, goal: Point): Point[] => {
+  const areas = encounterAreas(state);
+  const near: Area = {
+    bottom: Math.max(from.y, goal.y) + TILE,
+    left: Math.min(from.x, goal.x) - TILE,
+    right: Math.max(from.x, goal.x) + TILE,
+    top: Math.min(from.y, goal.y) - TILE
+  };
+  if (
+    !areas.some(
+      area =>
+        area.left <= near.right &&
+        area.right >= near.left &&
+        area.top <= near.bottom &&
+        area.bottom >= near.top
+    )
+  ) {
+    return [];
+  }
+  const path = planRoute(state, from, goal, {
+    avoid: areas,
+    avoidMordor: false,
+    keepClear: 0
+  });
+  return path ? path.slice(1, -1) : [];
+};
+
 // Walks a Leader through named Places one after the other, turning away
 // from moving Evil Forces (the Nazgûl, Encounters on the road) and
 // from any Evil Force close by. With `charge` set, the last leg goes
-// straight on whatever is in the way.
+// straight on whatever is in the way. With `avoidEncounters` set, a leg
+// whose route crosses an Encounter area (encounterAreas) goes by the
+// waypoints of a route round it, when one exists.
 const placeWalker = (
   names: (Point | string)[],
   options: PlanOptions & { chargeLastLeg: boolean }
 ) => {
   let leg = 0;
+  let detourLeg = -1;
+  let detour: Point[] = [];
   const point = (state: SimState, stop: Point | string): Point =>
     typeof stop === 'string' ? place(state, stop) : stop;
   return (state: SimState, leader: RosterEntry): Command | null => {
@@ -405,8 +506,15 @@ const placeWalker = (
             chebyshev(entry.position!, at) <=
             (entry.state === 1 && entry.destination ? options.fleeRadius : 24)
         );
+    if (options.avoidEncounters && detourLeg !== leg) {
+      detourLeg = leg;
+      detour = detourRound(state, at, goal);
+    }
+    while (detour.length > 0 && same(at, detour[0]!)) {
+      detour.shift();
+    }
     if (threats.length === 0) {
-      return toward(state, leader.index, goal);
+      return toward(state, leader.index, detour[0] ?? goal);
     }
     // Away from the threats, nearer ones counting for more.
     let vx = 0;
@@ -545,6 +653,7 @@ export const fellowshipPolicy = (
   });
   const toMountDoom = placeWalker(['LORIEN', 'NORTH ITHILIEN', 'MT. DOOM'], {
     ...options,
+    avoidEncounters: false,
     chargeLastLeg: true
   });
   const errand = sceptreErrand(MERRY);
@@ -579,6 +688,7 @@ export interface MusterOptions extends PlanOptions {
 
 export const DEFAULT_MUSTER: MusterOptions = {
   ...DEFAULT_OPTIONS,
+  avoidEncounters: true,
   latestStrike: 140,
   openWar: true,
   rally: { x: 1792, y: 976 },
@@ -792,9 +902,13 @@ export const defensivePolicy = (
 ): Policy => {
   const walk = { ...options, chargeLastLeg: false };
   const toRivendell = placeWalker(roadToRivendell(options.tokens), walk);
-  const toHiding = placeWalker([options.wait], walk);
+  const toHiding = placeWalker([options.wait], {
+    ...walk,
+    avoidEncounters: false
+  });
   const toMountDoom = placeWalker(['NORTH ITHILIEN', 'MT. DOOM'], {
     ...options,
+    avoidEncounters: false,
     chargeLastLeg: true
   });
   const next = router();
@@ -854,9 +968,16 @@ export const defensivePolicy = (
 // Gondor within days of the Council anyway and the errand cost wins
 // (13 in place of 19), and it changed nothing for the fellowship (7)
 // and defensive (17) plans. So it is on only there.
+//
+// Going round the Encounter areas on the road to Rivendell brought 38
+// of seeds 1 to 40 to the Council in place of 30 under every plan, but
+// what follows plays out differently, and wins moved from 19 to 20 for
+// muster, 7 to 6 for fellowship and 16 to 13 for defensive. So it too
+// is on only for muster.
 export const policyFor = (
   plan: PlanName,
   overrides: {
+    avoidEncounters?: boolean | undefined;
     openWar?: boolean | undefined;
     tokens?: boolean | undefined;
   } = {}
@@ -864,6 +985,8 @@ export const policyFor = (
   if (plan === 'fellowship') {
     return fellowshipPolicy({
       ...DEFAULT_OPTIONS,
+      avoidEncounters:
+        overrides.avoidEncounters ?? DEFAULT_OPTIONS.avoidEncounters,
       tokens: overrides.tokens ?? false
     });
   }
@@ -871,12 +994,16 @@ export const policyFor = (
     const openWar = overrides.openWar ?? DEFAULT_MUSTER.openWar;
     return musterPolicy({
       ...DEFAULT_MUSTER,
+      avoidEncounters:
+        overrides.avoidEncounters ?? DEFAULT_MUSTER.avoidEncounters,
       openWar,
       tokens: overrides.tokens ?? !openWar
     });
   }
   return defensivePolicy({
     ...DEFAULT_DEFENSIVE,
+    avoidEncounters:
+      overrides.avoidEncounters ?? DEFAULT_DEFENSIVE.avoidEncounters,
     tokens: overrides.tokens ?? false
   });
 };
@@ -1105,6 +1232,7 @@ const describeRun = (seed: number, result: CampaignResult): string => {
 if (import.meta.main) {
   const { values } = parseArgs({
     options: {
+      avoid: { type: 'string' },
       from: { default: '1', type: 'string' },
       'open-war': { type: 'string' },
       plan: { default: 'fellowship', type: 'string' },
@@ -1134,13 +1262,20 @@ if (import.meta.main) {
     process.exit(2);
   }
   const tokens = tokensFlag === undefined ? undefined : tokensFlag === 'on';
+  const avoidFlag = values.avoid;
+  if (avoidFlag !== undefined && avoidFlag !== 'on' && avoidFlag !== 'off') {
+    console.error('--avoid takes on or off');
+    process.exit(2);
+  }
+  const avoidEncounters =
+    avoidFlag === undefined ? undefined : avoidFlag === 'on';
   const assets = loadSoakAssets();
   const from = Number(values.from);
   for (let seed = from; seed < from + Number(values.seeds); seed++) {
     const result = playCampaign(
       seed,
       assets,
-      policyFor(plan, { openWar, tokens })
+      policyFor(plan, { avoidEncounters, openWar, tokens })
     );
     console.log(describeRun(seed, result));
     if (values.write && isGoodVictory(result.state.ending)) {
