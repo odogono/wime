@@ -4,10 +4,10 @@
 // policy in place of its random stand-in, and records what it did as
 // a demo script that replays to the same ending.
 //
-//   bun tools/strategy.ts [--plan fellowship|muster] [--seeds N]
+//   bun tools/strategy.ts [--plan fellowship|muster|defensive] [--seeds N]
 //                         [--from SEED] [--write]
 //
-// Two plans win:
+// Three plans win:
 //
 // - fellowship: the Ring to Mount Doom. Frodo collects Merry and
 //   Aragorn on the way to Rivendell, dodging the Nazgûl, for the
@@ -23,6 +23,14 @@
 //   command gathers north of Mordor, short of the tripwire. Once enough
 //   strength stands there, they march on Barad-dûr, and the Forces
 //   still coming follow as they arrive.
+// - defensive: the Ring to Mount Doom while the Strongholds hold. The
+//   same road to the Council; then the Fellowship hides in Lórien
+//   until the Dark Lord's armies march (War Event 7, day 169;
+//   docs/spec/war-events.md) and goes by North Ithilien to Mount Doom
+//   behind them. Saruman's march mobilises Rohan and Gondor at the Isen
+//   Ford (finding:mobilisation-evil-at-the-fords-of-isen), and each of
+//   their Forces holds the nearest of Minas Tirith, the Hornburg and
+//   Edoras, so the Strongholds' Garrisons stand sieges.
 //
 // The policy plays as a player can: it reads only what the Campaign
 // Level shows (its own Forces, the awake Evil Forces on the map and
@@ -68,7 +76,7 @@ export const DEMO_VERSION = 1;
 export const DEMOS_DIR = new URL('../web/public/demos/', import.meta.url)
   .pathname;
 
-export type PlanName = 'fellowship' | 'muster';
+export type PlanName = 'defensive' | 'fellowship' | 'muster';
 
 // One player input, applied at a clock time. Orders are applied at the
 // first decision point of their quarter-hour, in the listed order, each
@@ -465,24 +473,15 @@ const strengthAt = (state: SimState, point: Point): number =>
     )
     .reduce((sum, entry) => sum + entry.strength, 0);
 
-export const musterPolicy = (
-  options: MusterOptions = DEFAULT_MUSTER
-): Policy => {
-  const toRivendell = placeWalker(TO_RIVENDELL, {
-    ...options,
-    chargeLastLeg: false
-  });
+// Leads Leaders along planned routes: the next waypoint on the way to
+// `goal` for one Leader, planning its route, and planning again when
+// it strays off.
+const router = () => {
   const routes = new Map<
     number,
     { goal: string; planned: number; points: Point[] }
   >();
-  let frodoStays = false;
-  let theodenRoused = false;
-  let striking = false;
-
-  // The next waypoint on the way to `goal` for one Leader, planning
-  // its route, and planning again when it strays off.
-  const next = (
+  return (
     state: SimState,
     leader: RosterEntry,
     goal: Point,
@@ -529,6 +528,19 @@ export const musterPolicy = (
     const point = route.points[0];
     return point ? toward(state, leader.index, point) : null;
   };
+};
+
+export const musterPolicy = (
+  options: MusterOptions = DEFAULT_MUSTER
+): Policy => {
+  const toRivendell = placeWalker(TO_RIVENDELL, {
+    ...options,
+    chargeLastLeg: false
+  });
+  const next = router();
+  let frodoStays = false;
+  let theodenRoused = false;
+  let striking = false;
 
   return {
     answer: (state, meeting) => {
@@ -603,8 +615,85 @@ export const musterPolicy = (
   };
 };
 
+export interface DefensiveOptions extends PlanOptions {
+  // The Strongholds held, by Place name.
+  hold: string[];
+  // How far, in pixels, a Force will march to hold one.
+  reach: number;
+  // Days after the Dark Lord's armies march (War Event 7) before the
+  // Ring-bearer's Force leaves its hiding place for Mount Doom.
+  setOutAfter: number;
+  // Where the Ring-bearer's Force hides while it waits, by Place name.
+  wait: string;
+}
+
+export const DEFAULT_DEFENSIVE: DefensiveOptions = {
+  ...DEFAULT_OPTIONS,
+  hold: ['MINAS TIRITH', 'HORNBURG', 'EDORAS'],
+  reach: 800,
+  setOutAfter: 4,
+  wait: 'LORIEN'
+};
+
+export const defensivePolicy = (
+  options: DefensiveOptions = DEFAULT_DEFENSIVE
+): Policy => {
+  const walk = { ...options, chargeLastLeg: false };
+  const toRivendell = placeWalker(TO_RIVENDELL, walk);
+  const toHiding = placeWalker([options.wait], walk);
+  const toMountDoom = placeWalker(['NORTH ITHILIEN', 'MT. DOOM'], {
+    ...options,
+    chargeLastLeg: true
+  });
+  const next = router();
+  return {
+    answer: followWhileQuesting,
+    decide: state => {
+      const ring = ringLeader(state);
+      if (state.councilPending) {
+        const command = toRivendell(state, ring);
+        return command ? [command] : [];
+      }
+      const commands: Command[] = [];
+      const setOut =
+        hasWarEvent(state.warEvents, 7) &&
+        ((state.clock.day - state.warEvents.days[7]!) & 0xff) >=
+          options.setOutAfter;
+      const ringCommand = (setOut ? toMountDoom : toHiding)(state, ring);
+      if (ringCommand) {
+        commands.push(ringCommand);
+      }
+      const holds = options.hold.map(name => place(state, name));
+      const leaders = state.roster
+        .slice(1, LAST_GOOD_ENTRY + 1)
+        .filter(
+          entry =>
+            entry.leader === null &&
+            entry.index !== ring.index &&
+            canOrder(state, entry.index)
+        );
+      for (const leader of leaders) {
+        // Each Force holds the nearest Stronghold within reach.
+        const at = leader.position!;
+        const hold = holds
+          .filter(p => chebyshev(p, at) <= options.reach)
+          .sort((a, b) => chebyshev(a, at) - chebyshev(b, at))[0];
+        const command = hold ? next(state, leader, hold, true) : null;
+        if (command) {
+          commands.push(command);
+        }
+      }
+      return commands;
+    }
+  };
+};
+
 export const policyFor = (plan: PlanName): Policy =>
-  plan === 'fellowship' ? fellowshipPolicy() : musterPolicy();
+  plan === 'fellowship'
+    ? fellowshipPolicy()
+    : plan === 'muster'
+      ? musterPolicy()
+      : defensivePolicy();
 
 // --- Playing and replaying ----------------------------------------------
 

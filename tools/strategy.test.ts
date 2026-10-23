@@ -15,7 +15,8 @@ import {
 describe.skipIf(!assetsExist())('demo scripts', () => {
   const plans: [PlanName, Ending][] = [
     ['fellowship', 'won-mount-doom'],
-    ['muster', 'won-barad-dur']
+    ['muster', 'won-barad-dur'],
+    ['defensive', 'won-mount-doom']
   ];
 
   for (const [plan, ending] of plans) {
