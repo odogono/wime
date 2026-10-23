@@ -133,6 +133,7 @@ import {
 } from './debug-views';
 import {
   IDLE_DEMO_ENDING_MS,
+  demoAnswer,
   demoDisplay,
   demoLetterCloses,
   holdsDemo,
@@ -1542,6 +1543,46 @@ const run = (
     }
     return result.choice !== null;
   };
+  // In a chosen Demo the viewer's answer chooses only what is watched:
+  // the Demo's own answer decides the outcome (docs/spec/demo-mode.md).
+  // "Go there" goes down to the place and stops the camera following.
+  const demoGoThere = (index: number): void => {
+    demoFollows = false;
+    goDownToAnimation(index);
+  };
+  // The copy's fight takes the dice the Demo's does, and no options, so
+  // watching it play out ends it as the Demo resolves it at once.
+  const answerDemoFight = (goThere: boolean): void => {
+    if (goThere) {
+      demoFollows = false;
+    }
+    const choice = goThere ? 'go-there' : 'ignore-it';
+    pressFight(centre(ANNOUNCEMENT_BUTTONS.find(b => b.choice === choice)!));
+  };
+  // The meeting takes the Demo's answer; the viewer's says whether to
+  // watch it, and a talk plays only where both went there.
+  const answerDemoMeeting = (goThere: boolean): void => {
+    const meeting = sim.meeting;
+    if (!demo || !meeting || messages.meeting?.kind !== 'window') {
+      return;
+    }
+    const answer = demoAnswer(demo, sim);
+    const button = messages.meeting.buttons.find(b => b.choice === answer);
+    if (!button) {
+      return;
+    }
+    const result = pressMeetingUi(messages.meeting, sim, centre(button));
+    sim = result.sim;
+    messages.meeting = result.ui;
+    const now = viewNow();
+    syncBox(now);
+    if (goThere) {
+      demoGoThere(meeting.a);
+      if (answer === 'go-there' && meeting.kind === 'talk') {
+        progress = beginTalk(progress, progressHost, meeting, now, false);
+      }
+    }
+  };
   // The keys that answer a box with buttons: N presses its default and Y
   // the other button (finding:ui-message-box-presses-off-the-buttons).
   const answerBoxKey = (key: string): boolean => {
@@ -1552,8 +1593,12 @@ const run = (
     if (!messages.box?.buttons || (key !== 'n' && key !== 'y')) {
       return false;
     }
-    // A Demo answers its own fights and meetings.
     if (demo) {
+      if (messages.combat?.kind === 'announcement') {
+        answerDemoFight(key === 'y');
+      } else if (messages.meeting?.kind === 'window') {
+        answerDemoMeeting(key === 'y');
+      }
       return true;
     }
     if (messages.combat?.kind === 'announcement') {
@@ -1638,8 +1683,7 @@ const run = (
     // announcement's buttons does nothing, unless it is a click on a
     // Force or a Place (finding:ui-message-box-presses-off-the-buttons).
     if (level !== 'full-map' && combatHoldsTime(messages.combat)) {
-      // A Demo's fights are read-only: no options, no answer.
-      if (progress.battle?.phase === 'approach' || demo) {
+      if (progress.battle?.phase === 'approach') {
         return;
       }
       const point = toNative(event);
@@ -1647,6 +1691,16 @@ const run = (
         messages.combat?.kind === 'announcement'
           ? ANNOUNCEMENT_BUTTONS.find(b => inside(b, point))
           : undefined;
+      // A Demo's fights take no options, and its announcement's buttons
+      // choose only what is watched.
+      if (demo) {
+        if (button) {
+          presses.press(button, () =>
+            answerDemoFight(button.choice === 'go-there')
+          );
+        }
+        return;
+      }
       if (button) {
         presses.press(button, () => pressFight(point));
         return;
@@ -1684,7 +1738,13 @@ const run = (
           ? messages.meeting.buttons.find(b => inside(b, at))
           : undefined;
       if (demo) {
-        startDrag(event, at);
+        if (button) {
+          presses.press(button, () =>
+            answerDemoMeeting(button.choice !== 'continue-on')
+          );
+        } else {
+          startDrag(event, at);
+        }
         return;
       }
       if (button) {
