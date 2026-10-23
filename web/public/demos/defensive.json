@@ -1,6 +1,6 @@
 {
   "ending": "won-mount-doom",
-  "finalDay": 244,
+  "finalDay": 245,
   "inputs": [
     {
       "at": {
@@ -9753,6 +9753,18 @@
       "at": {
         "day": 239,
         "quarterHour": 59
+      },
+      "kind": "order",
+      "member": 1,
+      "to": {
+        "x": 1728,
+        "y": 1104
+      }
+    },
+    {
+      "at": {
+        "day": 244,
+        "quarterHour": 38
       },
       "kind": "order",
       "member": 1,

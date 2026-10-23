@@ -38,7 +38,8 @@
 //   their Forces holds the nearest of Minas Tirith, the Hornburg and
 //   Edoras, so the Strongholds' Garrisons stand sieges. Faramir stays
 //   in North Ithilien and follows the Fellowship there, so his Rangers
-//   carry it past the Encounters in Gorgoroth.
+//   carry it past the Encounters in Gorgoroth, on a route round the
+//   Evil Forces there.
 //
 // With Tokens on, the default only for muster without the open war,
 // Frodo also picks up the sceptre on his way and Merry carries it to
@@ -749,6 +750,11 @@ const KEEP_CLEAR = 32;
 const WAYPOINT_STRIDE = 6;
 const REPLAN_AFTER = 16;
 
+// Clearance, in pixels, that the escorted Ring-bearer's Force keeps from
+// visible Evil Forces in Gorgoroth: the Wainriders wander some 16 pixels
+// about where they stand, so the marching routes' 32 is too close.
+const ESCORT_CLEAR = 48;
+
 // The Good strength in the Forces whose Leaders stand at a point, as
 // the Campaign Level's Force window shows it.
 const strengthAt = (state: SimState, point: Point): number =>
@@ -777,7 +783,8 @@ const router = () => {
     leader: RosterEntry,
     goal: Point,
     avoidMordor: boolean,
-    charge = false
+    charge = false,
+    keepClear = KEEP_CLEAR
   ): Command | null => {
     const key = `${goal.x},${goal.y},${avoidMordor}`;
     let route = routes.get(leader.index);
@@ -805,7 +812,7 @@ const router = () => {
     ) {
       const path = planRoute(state, at, goal, {
         avoidMordor,
-        keepClear: KEEP_CLEAR
+        keepClear
       });
       route = {
         goal: key,
@@ -959,6 +966,8 @@ export const defensivePolicy = (
     chargeLastLeg: true
   });
   const next = router();
+  const ringRoute = router();
+  let escorted = false;
   const errand = sceptreErrand(MERRY);
   return {
     answer: options.tokens ? errand.answer(faramirEscorts) : faramirEscorts,
@@ -976,7 +985,25 @@ export const defensivePolicy = (
         hasWarEvent(state.warEvents, 7) &&
         ((state.clock.day - state.warEvents.days[7]!) & 0xff) >=
           options.setOutAfter;
-      const ringCommand = (setOut ? toMountDoom : toHiding)(state, ring);
+      // Once Faramir's Force joins it, the Ring-bearer's Force no
+      // longer charges straight on, but goes round the visible Evil
+      // Forces in Gorgoroth, and waits where it stands while none is
+      // clear. The Wainriders (entry 101) otherwise stand on the straight
+      // way from North Ithilien to Mount Doom and beat the escorted
+      // Force, which a Unit stops from evading.
+      escorted ||=
+        setOut &&
+        topLeader(state.roster, state.roster[FARAMIR]!).index === ring.index;
+      const ringCommand = escorted
+        ? ringRoute(
+            state,
+            ring,
+            place(state, 'MT. DOOM'),
+            false,
+            false,
+            ESCORT_CLEAR
+          )
+        : (setOut ? toMountDoom : toHiding)(state, ring);
       if (ringCommand) {
         commands.push(ringCommand);
       }
