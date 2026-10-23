@@ -25,6 +25,6 @@ These are all the writes of state 1 or 3 to a roster entry in the code:
 - The watched Character after a fight on the Animation Level (code+0x0b73e), and the survivors of any fight (code+0x12c8c; finding:combat-losses-taken-when-the-fight-ends).
 - The Council of Elrond waking entry 1, Gandalf (code+0x0dbbe; finding:forces-council-forms-the-fellowship-under-gandalf).
 - The Silver Orb shown to Thranduil waking and mobilising entry 62 (code+0x07422; finding:mobilisation-token-shown-to-ruler).
-- An Encounter that won the Ring bringing entry 81, the 3rd Nazgûl, to the spot with strength 1 (code+0x131ec; finding:objects-ring-taken-by-last-awake-winner).
+- An Encounter that won the Ring bringing entry 81, the 3rd Nazgûl, to the spot with strength 1 (code+0x131ec; finding:objects-encounter-revives-third-nazgul).
 
 The search covered immediate writes through a record pointer, writes indexed into the roster's state bytes, and writes to the state byte of a fixed entry.
