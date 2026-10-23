@@ -133,6 +133,14 @@ _Avoid_: Poem, Ring poem, inscription
 The note from Gandalf to Frodo shown once, in a window over the first Animation Level.
 _Avoid_: Intro text, Gandalf's message
 
+**Demo**:
+A recorded winning campaign that the game plays by itself, from New Game to its ending.
+_Avoid_: Attract mode, replay, demo script
+
+**Demo mode**:
+The state of the game while a Demo plays: the player watches, and never gives Orders or touches a save.
+_Avoid_: Attract mode, autoplay
+
 ## Project
 
 **Reference Build**:
