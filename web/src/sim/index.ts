@@ -55,6 +55,7 @@ export {
   replayDemo,
   runToEnd,
   sameClock,
+  sameMeeting,
   startCampaign,
   startDemo,
   stepCampaign,

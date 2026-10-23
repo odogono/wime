@@ -15,17 +15,18 @@ import type { SlotSummary } from './save-slots';
 import type { WindowStyle } from './window-frame';
 
 // The title menu over the title screen once the boot sequence is over
-// (docs/spec/title-menu.md): Resume, New Game and Load. The original
+// (docs/spec/title-menu.md): Resume, New Game, Demo and Load. The original
 // has none, so this is the port's own, framed as the game's windows
 // are (menu-window.ts). A pure state machine over keys and clicks;
 // main.ts carries out what it chooses.
 
 export type TitleChoice =
   | { id: number; kind: 'load' }
+  | { kind: 'demo' }
   | { kind: 'new-game' }
   | { id: number; kind: 'resume' };
 
-type MainItem = 'load' | 'new-game' | 'resume';
+type MainItem = 'demo' | 'load' | 'new-game' | 'resume';
 
 export type TitleMenu =
   | { items: MainItem[]; kind: 'main'; selected: number }
@@ -57,13 +58,14 @@ export const latestSave = (saves: TitleSaves): SlotSummary | null =>
 
 export const openTitleMenu = (saves: TitleSaves): TitleMenu => ({
   items: latestSave(saves)
-    ? ['resume', 'new-game', 'load']
-    : ['new-game', 'load'],
+    ? ['resume', 'new-game', 'demo', 'load']
+    : ['new-game', 'demo', 'load'],
   kind: 'main',
   selected: 0
 });
 
 const MAIN_LABELS: Record<MainItem, string> = {
+  demo: 'Demo',
   load: 'Load',
   'new-game': 'New Game',
   resume: 'Resume'
@@ -144,6 +146,9 @@ const choose = (menu: TitleMenu, saves: TitleSaves): TitleStep => {
         return latestSave(saves)
           ? { menu: { kind: 'confirm', selected: 1 } }
           : { choice: { kind: 'new-game' }, menu };
+      }
+      if (item === 'demo') {
+        return { choice: { kind: 'demo' }, menu };
       }
       return { menu: { kind: 'load', selected: 0, slots: loadList(saves) } };
     }
@@ -231,3 +236,17 @@ export const drawTitleMenu = (
 ): void => {
   drawMenu(ctx, style, colours, titleMenuView(menu));
 };
+
+// After this long with no input at the main title menu an idle Demo
+// starts (docs/spec/demo-mode.md). The Load list, the new-game
+// confirmation and a message pause the wait; any input starts it again.
+export const IDLE_DEMO_MS = 60_000;
+
+// The time idled at the title menu, after `elapsedMs` more of it on `menu`.
+export const stepTitleIdle = (
+  idleMs: number,
+  menu: TitleMenu,
+  elapsedMs: number
+): number => (menu.kind === 'main' ? idleMs + elapsedMs : idleMs);
+
+export const idleDemoDue = (idleMs: number): boolean => idleMs >= IDLE_DEMO_MS;

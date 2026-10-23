@@ -265,3 +265,31 @@ describe('the menu after the ending', () => {
     ).toEqual({ id: AUTOSAVE_ID, kind: 'load' });
   });
 });
+
+describe('the menus in a chosen Demo', () => {
+  test('the in-game menu offers only Resume and Return to title', () => {
+    const menu = openGameMenu(true);
+    expect(labels(menu)).toEqual(['Resume', 'Return to title']);
+    expect(pressGameMenuKey(menu, 'Enter', SAVES, menu).choice).toEqual({
+      kind: 'close'
+    });
+    expect(pressGameMenuKey(menu, 'Escape', SAVES, menu).choice).toEqual({
+      kind: 'close'
+    });
+    const down = pressGameMenuKey(menu, 'ArrowDown', SAVES, menu).menu;
+    expect(pressGameMenuKey(down, 'Enter', SAVES, menu).choice).toEqual({
+      kind: 'title'
+    });
+  });
+
+  test('after the ending only Return to title, which Escape does not close', () => {
+    const ended = openEndedMenu(true);
+    expect(labels(ended)).toEqual(['Return to title']);
+    expect(pressGameMenuKey(ended, 'Enter', SAVES, ended).choice).toEqual({
+      kind: 'title'
+    });
+    expect(pressGameMenuKey(ended, 'Escape', SAVES, ended)).toEqual({
+      menu: ended
+    });
+  });
+});

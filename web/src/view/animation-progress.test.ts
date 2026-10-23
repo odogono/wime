@@ -77,6 +77,8 @@ const host = (sim: SimState, fields: Partial<ProgressHost> = {}) => {
     },
     calls,
     combatShown: () => true,
+    demo: false,
+    demoOpening: false,
     goUp: () => {
       calls.goUp += 1;
     },
@@ -132,6 +134,17 @@ describe('Animation Level progression', () => {
     expect(fake.calls.rebuild).toBe(1);
   });
 
+  test("in a Demo's opening goes up the first time the figures walk off", () => {
+    const fake = host(world0({ watching: 1 }), {
+      demo: true,
+      demoOpening: true
+    });
+    expect(stepAnimationLevel(on(gone), fake, 0, 0).outcome).toBe('up');
+    expect(fake.calls).toMatchObject({ goUp: 1, rebuild: 0 });
+    const after = host(world0({ watching: 1 }), { demo: true });
+    expect(stepAnimationLevel(on(gone), after, 0, 0).outcome).toBe('rebuilt');
+  });
+
   test('goes up once the figures walk off with nowhere to go', () => {
     const fake = host(world0({ roster: [entry(0), entry(1)], watching: 1 }));
     expect(stepAnimationLevel(on(gone), fake, 0, 0).outcome).toBe('up');
@@ -168,6 +181,18 @@ describe('Animation Level progression', () => {
     // The talk set both off again: the clock runs at the travelling pace.
     stepAnimationLevel(ended, fake, 40, SWEEP_MS);
     expect(fake.calls.ticks).toBe(1);
+  });
+
+  test('in Demo mode neither ticks nor answers a talk, and goes up to its meeting', () => {
+    const meeting: Meeting = { a: 1, b: 0, kind: 'talk' };
+    const ticking = host(world0(), { demo: true });
+    stepAnimationLevel(on(walking), ticking, 0, CLOCK_WAIT_MS * 4);
+    expect(ticking.calls.ticks).toBe(0);
+    const talking = host(world0({ meeting }), { demo: true });
+    const result = stepAnimationLevel(on(walking), talking, 0, CLOCK_WAIT_MS);
+    expect(talking.sim.meeting).toEqual(meeting);
+    expect(result.outcome).toBe('up');
+    expect(talking.calls).toMatchObject({ startTalk: 0, ticks: 0 });
   });
 
   test('a fight the watched Character is not in takes the view up', () => {

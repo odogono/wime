@@ -27,6 +27,8 @@ import type { WindowStyle } from './window-frame';
 // After the ending's last page a shorter menu, Return to title and Load,
 // is the way out (docs/spec/winning-and-losing.md). Each step takes the
 // menu that Back and Escape return to, the in-game menu by default.
+// In a chosen Demo both are shorter still: Resume and Return to title,
+// and after the ending Return to title alone (docs/spec/demo-mode.md).
 
 export type GameMenuChoice =
   | { id: number; kind: 'load' }
@@ -39,19 +41,22 @@ export type GameMenuChoice =
   | { kind: 'set'; settings: Settings }
   | { kind: 'title' };
 
-type MainItem = 'close' | 'load' | 'save' | 'settings' | 'title';
+type MainItem = 'close' | 'load' | 'resume' | 'save' | 'settings' | 'title';
 const MAIN_ITEMS: MainItem[] = ['save', 'load', 'settings', 'title', 'close'];
 const ENDED_ITEMS: MainItem[] = ['title', 'load'];
+const DEMO_ITEMS: MainItem[] = ['resume', 'title'];
+const DEMO_ENDED_ITEMS: MainItem[] = ['title'];
 const MAIN_LABELS: Record<MainItem, string> = {
   close: 'Close',
   load: 'Load',
+  resume: 'Resume',
   save: 'Save',
   settings: 'Settings',
   title: 'Return to title'
 };
 
 export type GameMenu =
-  | { ended?: true; kind: 'main'; selected: number }
+  | { demo?: true; ended?: true; kind: 'main'; selected: number }
   // The named slots to save into; the autosave is not offered.
   | { kind: 'save'; selected: number; slots: SlotSummary[] }
   // Naming a new save, typed in.
@@ -76,7 +81,11 @@ export type GameMenu =
   // What a save or load came to; any key or click goes back.
   | { kind: 'message'; lines: string[] };
 
-export const openGameMenu = (): GameMenu => ({ kind: 'main', selected: 0 });
+export const openGameMenu = (demo = false): GameMenu => ({
+  ...(demo ? { demo: true } : {}),
+  kind: 'main',
+  selected: 0
+});
 
 export const openSettingsMenu = (
   settings: Settings,
@@ -88,14 +97,21 @@ export const openSettingsMenu = (
   settings
 });
 
-export const openEndedMenu = (): GameMenu => ({
+export const openEndedMenu = (demo = false): GameMenu => ({
+  ...(demo ? { demo: true } : {}),
   ended: true,
   kind: 'main',
   selected: 0
 });
 
-const mainItems = (menu: { ended?: true }): MainItem[] =>
-  menu.ended ? ENDED_ITEMS : MAIN_ITEMS;
+const mainItems = (menu: { demo?: true; ended?: true }): MainItem[] =>
+  menu.demo
+    ? menu.ended
+      ? DEMO_ENDED_ITEMS
+      : DEMO_ITEMS
+    : menu.ended
+      ? ENDED_ITEMS
+      : MAIN_ITEMS;
 
 export const NAME_LIMIT = 24;
 const NAME_ITEMS = ['Save', 'Back'];
