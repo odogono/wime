@@ -2724,27 +2724,27 @@ const run = (
         );
       }
     });
+    // Keep every Debug view below the date line and message windows.
+    const ctx = screen.buffer;
+    const shown = clampCamera(camera, assets.tilemap);
+    if (debug.encounters) {
+      drawEncountersView(ctx, sim, shown, assets.window.font);
+    }
+    if (debug.paths) {
+      drawPathsView(ctx, sim, forces, shown);
+    }
+    if (debug.labels) {
+      drawLabelsView(ctx, forces, shown, assets.window.font);
+    }
+    if (debug.terrain) {
+      drawTerrainLegend(ctx, assets.window.font);
+    }
+    if (debug.pointer) {
+      drawPointerView(ctx, sim, shown, pointer, assets.window.font);
+    }
     drawOverlay(forces);
     drawDemoLabel(screen.buffer);
     screen.present();
-    screen.drawOver(ctx => {
-      const shown = clampCamera(camera, assets.tilemap);
-      if (debug.encounters) {
-        drawEncountersView(ctx, sim, shown, assets.window.font);
-      }
-      if (debug.paths) {
-        drawPathsView(ctx, sim, forces, shown);
-      }
-      if (debug.labels) {
-        drawLabelsView(ctx, forces, shown, assets.window.font);
-      }
-      if (debug.terrain) {
-        drawTerrainLegend(ctx, assets.window.font);
-      }
-      if (debug.pointer) {
-        drawPointerView(ctx, sim, shown, pointer, assets.window.font);
-      }
-    });
     requestAnimationFrame(frame);
   };
   requestAnimationFrame(frame);
