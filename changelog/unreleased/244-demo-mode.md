@@ -4,8 +4,12 @@ scope: view
 section: added
 ---
 
-**The game can play itself as a Demo.** A Demo replays one of three
-recorded campaigns to its ending, showing its fights, meetings and the
-Council at their usual pace while the view stays read-only and never
-touches your saves. There is no way to start one from the menus yet
+**The game can play itself as a Demo.** Choose Demo on the title
+menu, or leave the title menu alone for a minute, and one of three
+recorded campaigns plays from a New Game to its ending, with its fights,
+meetings and the Council at their usual pace. A Demo started from the
+menu lets you change the speed, move between Levels and look around
+with the magnifying glass, and you leave it through the Escape menu;
+one that started by itself goes back to the title at any key or click.
+A DEMO label shows throughout, and a Demo never touches your saves
 (#244).

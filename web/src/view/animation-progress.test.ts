@@ -78,6 +78,7 @@ const host = (sim: SimState, fields: Partial<ProgressHost> = {}) => {
     calls,
     combatShown: () => true,
     demo: false,
+    demoOpening: false,
     goUp: () => {
       calls.goUp += 1;
     },
@@ -131,6 +132,17 @@ describe('Animation Level progression', () => {
     const next = stepAnimationLevel(first.progress, fake, 20, 20);
     expect(next.outcome).toBe('stay');
     expect(fake.calls.rebuild).toBe(1);
+  });
+
+  test("in a Demo's opening goes up the first time the figures walk off", () => {
+    const fake = host(world0({ watching: 1 }), {
+      demo: true,
+      demoOpening: true
+    });
+    expect(stepAnimationLevel(on(gone), fake, 0, 0).outcome).toBe('up');
+    expect(fake.calls).toMatchObject({ goUp: 1, rebuild: 0 });
+    const after = host(world0({ watching: 1 }), { demo: true });
+    expect(stepAnimationLevel(on(gone), after, 0, 0).outcome).toBe('rebuilt');
   });
 
   test('goes up once the figures walk off with nowhere to go', () => {

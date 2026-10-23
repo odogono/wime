@@ -3,12 +3,15 @@ import { describe, expect, test } from 'bun:test';
 import { LIST_ROWS } from './menu-window';
 import { AUTOSAVE_ID, type SlotSummary } from './save-slots';
 import {
+  IDLE_DEMO_MS,
   clickTitleMenu,
   hoverTitleMenu,
+  idleDemoDue,
   latestSave,
   layoutTitleMenu,
   openTitleMenu,
   pressTitleMenuKey,
+  stepTitleIdle,
   type TitleMenu,
   type TitleSaves
 } from './title-menu';
@@ -73,10 +76,10 @@ describe('latestSave', () => {
 describe('the title menu', () => {
   test('offers Resume only when there is a save to resume', () => {
     expect(layoutTitleMenu(openTitleMenu(SOME)).rows.map(r => r.label)).toEqual(
-      ['Resume', 'New Game', 'Load']
+      ['Resume', 'New Game', 'Demo', 'Load']
     );
     expect(layoutTitleMenu(openTitleMenu(NONE)).rows.map(r => r.label)).toEqual(
-      ['New Game', 'Load']
+      ['New Game', 'Demo', 'Load']
     );
   });
 
@@ -104,9 +107,18 @@ describe('the title menu', () => {
     expect(keys(asked.menu, SOME, 'Escape').menu.kind).toBe('main');
   });
 
+  test('Demo starts a Demo at once, with or without a save', () => {
+    expect(
+      keys(openTitleMenu(SOME), SOME, 'ArrowDown', 'ArrowDown', 'Enter').choice
+    ).toEqual({ kind: 'demo' });
+    expect(
+      keys(openTitleMenu(NONE), NONE, 'ArrowDown', 'Enter').choice
+    ).toEqual({ kind: 'demo' });
+  });
+
   test('the arrows wrap', () => {
     expect(keys(openTitleMenu(SOME), SOME, 'ArrowUp').menu).toMatchObject({
-      selected: 2
+      selected: 3
     });
   });
 
@@ -128,7 +140,7 @@ describe('the title menu', () => {
 
   test('a save from another version is refused with a message', () => {
     const saves = { autosave: null, slots: [slot(1, 1, false)] };
-    const list = keys(openTitleMenu(saves), saves, 'ArrowDown', 'Enter').menu;
+    const list = keys(openTitleMenu(saves), saves, 'ArrowUp', 'Enter').menu;
     const refused = keys(list, saves, 'Enter');
     expect(refused.choice).toBeUndefined();
     expect(refused.menu.kind).toBe('message');
@@ -151,6 +163,9 @@ describe('the title menu', () => {
     const menu = openTitleMenu(SOME);
     expect(hoverTitleMenu(menu, centre(menu, 2))).toMatchObject({
       selected: 2
+    });
+    expect(clickTitleMenu(menu, centre(menu, 2), SOME).choice).toEqual({
+      kind: 'demo'
     });
     expect(clickTitleMenu(menu, centre(menu, 0), SOME).choice).toEqual({
       id: 2,
@@ -175,5 +190,24 @@ describe('the title menu', () => {
       id: 5,
       kind: 'load'
     });
+  });
+});
+
+describe('the idle wait for a Demo', () => {
+  const main = openTitleMenu(SOME);
+  test('a Demo is due after 60 s idle at the main menu', () => {
+    expect(IDLE_DEMO_MS).toBe(60_000);
+    const idled = stepTitleIdle(0, main, IDLE_DEMO_MS - 1);
+    expect(idleDemoDue(idled)).toBe(false);
+    expect(idleDemoDue(stepTitleIdle(idled, main, 1))).toBe(true);
+  });
+
+  test('the Load list and the new-game confirmation pause it', () => {
+    const load = keys(main, SOME, 'ArrowUp', 'Enter').menu;
+    const confirm = keys(main, SOME, 'ArrowDown', 'Enter').menu;
+    expect(load.kind).toBe('load');
+    expect(confirm.kind).toBe('confirm');
+    expect(stepTitleIdle(10, load, IDLE_DEMO_MS)).toBe(10);
+    expect(stepTitleIdle(10, confirm, IDLE_DEMO_MS)).toBe(10);
   });
 });
