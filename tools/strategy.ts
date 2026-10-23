@@ -5,7 +5,9 @@
 // a demo script that replays to the same ending.
 //
 //   bun tools/strategy.ts [--plan fellowship|muster|defensive] [--seeds N]
-//                         [--from SEED] [--write]
+//                         [--from SEED] [--open-war on|off] [--write]
+//
+// --open-war overrides the muster plan's openWar setting.
 //
 // Three plans win:
 //
@@ -475,7 +477,10 @@ const strengthAt = (state: SimState, point: Point): number =>
 
 // Leads Leaders along planned routes: the next waypoint on the way to
 // `goal` for one Leader, planning its route, and planning again when
-// it strays off.
+// it strays off. With no way round, as when Evil Forces surround it,
+// the Leader halts where it stands and plans again later, rather than
+// marching straight through them; unless `charge` is set, as for the
+// strike on Barad-dûr, when it goes straight there.
 const router = () => {
   const routes = new Map<
     number,
@@ -485,7 +490,8 @@ const router = () => {
     state: SimState,
     leader: RosterEntry,
     goal: Point,
-    avoidMordor: boolean
+    avoidMordor: boolean,
+    charge = false
   ): Command | null => {
     const key = `${goal.x},${goal.y},${avoidMordor}`;
     let route = routes.get(leader.index);
@@ -518,15 +524,24 @@ const router = () => {
       route = {
         goal: key,
         planned: now,
-        // With no way round, straight there.
         points: path
           ? waypoints(path, WAYPOINT_STRIDE)
-          : [destinationForClick(goal)]
+          : charge
+            ? [destinationForClick(goal)]
+            : []
       };
       routes.set(leader.index, route);
     }
     const point = route.points[0];
-    return point ? toward(state, leader.index, point) : null;
+    if (point) {
+      return toward(state, leader.index, point);
+    }
+    const here = destinationForClick(at);
+    return leader.destination !== null &&
+      !same(leader.destination, here) &&
+      canOrder(state, leader.index)
+      ? { member: leader.index, to: here }
+      : null;
   };
 };
 
@@ -594,7 +609,7 @@ export const musterPolicy = (
       for (const leader of leaders) {
         let command: Command | null;
         if (striking) {
-          command = next(state, leader, BARAD_DUR, false);
+          command = next(state, leader, BARAD_DUR, false, true);
         } else if (
           leader.index === FARAMIR &&
           options.openWar &&
@@ -688,11 +703,15 @@ export const defensivePolicy = (
   };
 };
 
-export const policyFor = (plan: PlanName): Policy =>
+// The plan's policy; `openWar`, when given, overrides the muster plan's.
+export const policyFor = (plan: PlanName, openWar?: boolean): Policy =>
   plan === 'fellowship'
     ? fellowshipPolicy()
     : plan === 'muster'
-      ? musterPolicy()
+      ? musterPolicy({
+          ...DEFAULT_MUSTER,
+          openWar: openWar ?? DEFAULT_MUSTER.openWar
+        })
       : defensivePolicy();
 
 // --- Playing and replaying ----------------------------------------------
@@ -898,6 +917,7 @@ if (import.meta.main) {
   const { values } = parseArgs({
     options: {
       from: { default: '1', type: 'string' },
+      'open-war': { type: 'string' },
       plan: { default: 'fellowship', type: 'string' },
       seeds: { default: '40', type: 'string' },
       write: { default: false, type: 'boolean' }
@@ -908,10 +928,20 @@ if (import.meta.main) {
     process.exit(2);
   }
   const plan = values.plan as PlanName;
+  const openWarFlag = values['open-war'];
+  if (
+    openWarFlag !== undefined &&
+    openWarFlag !== 'on' &&
+    openWarFlag !== 'off'
+  ) {
+    console.error('--open-war takes on or off');
+    process.exit(2);
+  }
+  const openWar = openWarFlag === undefined ? undefined : openWarFlag === 'on';
   const assets = loadSoakAssets();
   const from = Number(values.from);
   for (let seed = from; seed < from + Number(values.seeds); seed++) {
-    const result = playCampaign(seed, assets, policyFor(plan));
+    const result = playCampaign(seed, assets, policyFor(plan, openWar));
     console.log(describeRun(seed, result));
     if (values.write && isGoodVictory(result.state.ending)) {
       const script = demoScript(plan, seed, result);
