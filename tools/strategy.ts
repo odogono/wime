@@ -36,7 +36,9 @@
 //   behind them. Saruman's march mobilises Rohan and Gondor at the Isen
 //   Ford (finding:mobilisation-evil-at-the-fords-of-isen), and each of
 //   their Forces holds the nearest of Minas Tirith, the Hornburg and
-//   Edoras, so the Strongholds' Garrisons stand sieges.
+//   Edoras, so the Strongholds' Garrisons stand sieges. Faramir stays
+//   in North Ithilien and follows the Fellowship there, so his Rangers
+//   carry it past the Encounters in Gorgoroth.
 //
 // With Tokens on, the default only for muster without the open war,
 // Frodo also picks up the sceptre on his way and Merry carries it to
@@ -675,6 +677,21 @@ const followWhileQuesting = (
 ): MeetingAnswer =>
   meeting.kind === 'follow' && state.councilPending ? 'follow' : 'continue-on';
 
+// After the Council, Faramir's offer to follow the Ring-bearer's Force
+// is taken: a Force with a Unit is passed by the small Encounters, and
+// the large ones meet only Forces led by entries above 12
+// (finding:combat-evil-encounters-attack), so the balrog in Gorgoroth
+// no longer wipes out the Fellowship.
+const faramirEscorts = (state: SimState, meeting: Meeting): MeetingAnswer => {
+  const ring = ringLeader(state).index;
+  return meeting.kind === 'follow' &&
+    !state.councilPending &&
+    ((meeting.a === FARAMIR && meeting.b === ring) ||
+      (meeting.b === FARAMIR && meeting.a === ring))
+    ? 'follow'
+    : followWhileQuesting(state, meeting);
+};
+
 export const fellowshipPolicy = (
   options: PlanOptions = DEFAULT_OPTIONS
 ): Policy => {
@@ -944,9 +961,7 @@ export const defensivePolicy = (
   const next = router();
   const errand = sceptreErrand(MERRY);
   return {
-    answer: options.tokens
-      ? errand.answer(followWhileQuesting)
-      : followWhileQuesting,
+    answer: options.tokens ? errand.answer(faramirEscorts) : faramirEscorts,
     decide: state => {
       const ring = ringLeader(state);
       if (state.councilPending) {
@@ -966,15 +981,16 @@ export const defensivePolicy = (
         commands.push(ringCommand);
       }
       const holds = options.hold.map(name => place(state, name));
-      const leaders = state.roster
-        .slice(1, LAST_GOOD_ENTRY + 1)
-        .filter(
-          entry =>
-            entry.leader === null &&
-            entry.index !== ring.index &&
-            !(options.tokens && errand.busy(entry.index)) &&
-            canOrder(state, entry.index)
-        );
+      const leaders = state.roster.slice(1, LAST_GOOD_ENTRY + 1).filter(
+        entry =>
+          entry.leader === null &&
+          entry.index !== ring.index &&
+          // Faramir waits at North Ithilien, the last waypoint, to
+          // join the Ring-bearer's Force as it passes.
+          entry.index !== FARAMIR &&
+          !(options.tokens && errand.busy(entry.index)) &&
+          canOrder(state, entry.index)
+      );
       for (const leader of leaders) {
         // Each Force holds the nearest Stronghold within reach.
         const at = leader.position!;
