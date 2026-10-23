@@ -1,6 +1,6 @@
 {
   "ending": "won-mount-doom",
-  "finalDay": 112,
+  "finalDay": 113,
   "inputs": [
     {
       "at": {
@@ -10,8 +10,8 @@
       "kind": "order",
       "member": 7,
       "to": {
-        "x": 640,
-        "y": 416
+        "x": 672,
+        "y": 384
       }
     },
     {
@@ -22,8 +22,8 @@
       "kind": "order",
       "member": 7,
       "to": {
-        "x": 656,
-        "y": 400
+        "x": 672,
+        "y": 368
       }
     },
     {
@@ -34,32 +34,8 @@
       "kind": "order",
       "member": 7,
       "to": {
-        "x": 672,
-        "y": 400
-      }
-    },
-    {
-      "at": {
-        "day": 0,
-        "quarterHour": 68
-      },
-      "kind": "order",
-      "member": 7,
-      "to": {
-        "x": 672,
-        "y": 336
-      }
-    },
-    {
-      "at": {
-        "day": 0,
-        "quarterHour": 70
-      },
-      "kind": "order",
-      "member": 7,
-      "to": {
-        "x": 656,
-        "y": 336
+        "x": 688,
+        "y": 368
       }
     },
     {
@@ -70,56 +46,44 @@
       "kind": "order",
       "member": 7,
       "to": {
-        "x": 656,
-        "y": 320
-      }
-    },
-    {
-      "at": {
-        "day": 0,
-        "quarterHour": 73
-      },
-      "kind": "order",
-      "member": 7,
-      "to": {
-        "x": 656,
-        "y": 336
-      }
-    },
-    {
-      "at": {
-        "day": 0,
-        "quarterHour": 75
-      },
-      "kind": "order",
-      "member": 7,
-      "to": {
-        "x": 672,
-        "y": 336
-      }
-    },
-    {
-      "at": {
-        "day": 0,
-        "quarterHour": 76
-      },
-      "kind": "order",
-      "member": 7,
-      "to": {
-        "x": 672,
+        "x": 688,
         "y": 352
       }
     },
     {
       "at": {
         "day": 0,
-        "quarterHour": 81
+        "quarterHour": 80
+      },
+      "kind": "order",
+      "member": 7,
+      "to": {
+        "x": 688,
+        "y": 368
+      }
+    },
+    {
+      "at": {
+        "day": 0,
+        "quarterHour": 82
       },
       "kind": "order",
       "member": 7,
       "to": {
         "x": 688,
         "y": 352
+      }
+    },
+    {
+      "at": {
+        "day": 0,
+        "quarterHour": 83
+      },
+      "kind": "order",
+      "member": 7,
+      "to": {
+        "x": 688,
+        "y": 368
       }
     },
     {
@@ -130,8 +94,8 @@
       "kind": "order",
       "member": 7,
       "to": {
-        "x": 672,
-        "y": 336
+        "x": 704,
+        "y": 368
       }
     },
     {
@@ -142,38 +106,14 @@
       "kind": "order",
       "member": 7,
       "to": {
-        "x": 672,
+        "x": 704,
         "y": 352
       }
     },
     {
       "at": {
         "day": 0,
-        "quarterHour": 86
-      },
-      "kind": "order",
-      "member": 7,
-      "to": {
-        "x": 688,
-        "y": 352
-      }
-    },
-    {
-      "at": {
-        "day": 0,
-        "quarterHour": 95
-      },
-      "kind": "order",
-      "member": 7,
-      "to": {
-        "x": 688,
-        "y": 336
-      }
-    },
-    {
-      "at": {
-        "day": 1,
-        "quarterHour": 3
+        "quarterHour": 91
       },
       "kind": "order",
       "member": 7,
@@ -185,67 +125,19 @@
     {
       "at": {
         "day": 1,
-        "quarterHour": 4
+        "quarterHour": 0
       },
       "kind": "order",
       "member": 7,
       "to": {
-        "x": 704,
-        "y": 336
+        "x": 720,
+        "y": 368
       }
     },
     {
       "at": {
         "day": 1,
-        "quarterHour": 7
-      },
-      "kind": "order",
-      "member": 7,
-      "to": {
-        "x": 672,
-        "y": 320
-      }
-    },
-    {
-      "at": {
-        "day": 1,
-        "quarterHour": 14
-      },
-      "kind": "order",
-      "member": 7,
-      "to": {
-        "x": 656,
-        "y": 320
-      }
-    },
-    {
-      "at": {
-        "day": 1,
-        "quarterHour": 15
-      },
-      "kind": "order",
-      "member": 7,
-      "to": {
-        "x": 640,
-        "y": 320
-      }
-    },
-    {
-      "at": {
-        "day": 1,
-        "quarterHour": 22
-      },
-      "kind": "order",
-      "member": 7,
-      "to": {
-        "x": 672,
-        "y": 320
-      }
-    },
-    {
-      "at": {
-        "day": 1,
-        "quarterHour": 26
+        "quarterHour": 1
       },
       "kind": "order",
       "member": 7,
@@ -257,7 +149,7 @@
     {
       "at": {
         "day": 1,
-        "quarterHour": 30
+        "quarterHour": 5
       },
       "kind": "order",
       "member": 7,
@@ -269,19 +161,139 @@
     {
       "at": {
         "day": 1,
-        "quarterHour": 44
+        "quarterHour": 7
       },
       "kind": "order",
       "member": 7,
       "to": {
-        "x": 688,
+        "x": 672,
         "y": 336
       }
     },
     {
       "at": {
         "day": 1,
-        "quarterHour": 49
+        "quarterHour": 11
+      },
+      "kind": "order",
+      "member": 7,
+      "to": {
+        "x": 656,
+        "y": 336
+      }
+    },
+    {
+      "at": {
+        "day": 1,
+        "quarterHour": 13
+      },
+      "kind": "order",
+      "member": 7,
+      "to": {
+        "x": 640,
+        "y": 352
+      }
+    },
+    {
+      "at": {
+        "day": 1,
+        "quarterHour": 14
+      },
+      "kind": "order",
+      "member": 7,
+      "to": {
+        "x": 656,
+        "y": 336
+      }
+    },
+    {
+      "at": {
+        "day": 1,
+        "quarterHour": 29
+      },
+      "kind": "order",
+      "member": 7,
+      "to": {
+        "x": 672,
+        "y": 320
+      }
+    },
+    {
+      "at": {
+        "day": 1,
+        "quarterHour": 32
+      },
+      "kind": "order",
+      "member": 7,
+      "to": {
+        "x": 704,
+        "y": 336
+      }
+    },
+    {
+      "at": {
+        "day": 1,
+        "quarterHour": 37
+      },
+      "kind": "order",
+      "member": 7,
+      "to": {
+        "x": 704,
+        "y": 320
+      }
+    },
+    {
+      "at": {
+        "day": 1,
+        "quarterHour": 39
+      },
+      "kind": "order",
+      "member": 7,
+      "to": {
+        "x": 704,
+        "y": 336
+      }
+    },
+    {
+      "at": {
+        "day": 1,
+        "quarterHour": 43
+      },
+      "kind": "order",
+      "member": 7,
+      "to": {
+        "x": 720,
+        "y": 352
+      }
+    },
+    {
+      "at": {
+        "day": 1,
+        "quarterHour": 45
+      },
+      "kind": "order",
+      "member": 7,
+      "to": {
+        "x": 704,
+        "y": 336
+      }
+    },
+    {
+      "at": {
+        "day": 1,
+        "quarterHour": 63
+      },
+      "kind": "order",
+      "member": 7,
+      "to": {
+        "x": 704,
+        "y": 320
+      }
+    },
+    {
+      "at": {
+        "day": 1,
+        "quarterHour": 64
       },
       "kind": "order",
       "member": 7,
@@ -293,7 +305,7 @@
     {
       "at": {
         "day": 1,
-        "quarterHour": 60
+        "quarterHour": 75
       },
       "kind": "order",
       "member": 7,
@@ -305,73 +317,25 @@
     {
       "at": {
         "day": 1,
-        "quarterHour": 66
+        "quarterHour": 83
+      },
+      "kind": "order",
+      "member": 7,
+      "to": {
+        "x": 688,
+        "y": 320
+      }
+    },
+    {
+      "at": {
+        "day": 1,
+        "quarterHour": 89
       },
       "kind": "order",
       "member": 7,
       "to": {
         "x": 672,
-        "y": 304
-      }
-    },
-    {
-      "at": {
-        "day": 1,
-        "quarterHour": 69
-      },
-      "kind": "order",
-      "member": 7,
-      "to": {
-        "x": 656,
-        "y": 304
-      }
-    },
-    {
-      "at": {
-        "day": 1,
-        "quarterHour": 78
-      },
-      "kind": "order",
-      "member": 7,
-      "to": {
-        "x": 656,
         "y": 320
-      }
-    },
-    {
-      "at": {
-        "day": 1,
-        "quarterHour": 82
-      },
-      "kind": "order",
-      "member": 7,
-      "to": {
-        "x": 656,
-        "y": 304
-      }
-    },
-    {
-      "at": {
-        "day": 1,
-        "quarterHour": 84
-      },
-      "kind": "order",
-      "member": 7,
-      "to": {
-        "x": 656,
-        "y": 320
-      }
-    },
-    {
-      "at": {
-        "day": 1,
-        "quarterHour": 86
-      },
-      "kind": "order",
-      "member": 7,
-      "to": {
-        "x": 656,
-        "y": 304
       }
     },
     {
@@ -382,14 +346,50 @@
       "kind": "order",
       "member": 7,
       "to": {
-        "x": 640,
-        "y": 320
+        "x": 672,
+        "y": 304
       }
     },
     {
       "at": {
         "day": 1,
-        "quarterHour": 92
+        "quarterHour": 95
+      },
+      "kind": "order",
+      "member": 7,
+      "to": {
+        "x": 656,
+        "y": 304
+      }
+    },
+    {
+      "at": {
+        "day": 2,
+        "quarterHour": 10
+      },
+      "kind": "order",
+      "member": 7,
+      "to": {
+        "x": 672,
+        "y": 304
+      }
+    },
+    {
+      "at": {
+        "day": 2,
+        "quarterHour": 11
+      },
+      "kind": "order",
+      "member": 7,
+      "to": {
+        "x": 688,
+        "y": 320
+      }
+    },
+    {
+      "at": {
+        "day": 2,
+        "quarterHour": 12
       },
       "kind": "order",
       "member": 7,
@@ -401,7 +401,7 @@
     {
       "at": {
         "day": 2,
-        "quarterHour": 22
+        "quarterHour": 23
       },
       "kind": "order",
       "member": 7,
@@ -413,7 +413,7 @@
     {
       "at": {
         "day": 2,
-        "quarterHour": 26
+        "quarterHour": 24
       },
       "kind": "order",
       "member": 7,
@@ -425,37 +425,13 @@
     {
       "at": {
         "day": 2,
-        "quarterHour": 32
+        "quarterHour": 45
       },
       "kind": "order",
       "member": 7,
       "to": {
-        "x": 688,
+        "x": 656,
         "y": 304
-      }
-    },
-    {
-      "at": {
-        "day": 2,
-        "quarterHour": 36
-      },
-      "kind": "order",
-      "member": 7,
-      "to": {
-        "x": 672,
-        "y": 304
-      }
-    },
-    {
-      "at": {
-        "day": 2,
-        "quarterHour": 42
-      },
-      "kind": "order",
-      "member": 7,
-      "to": {
-        "x": 672,
-        "y": 288
       }
     },
     {
@@ -466,44 +442,44 @@
       "kind": "order",
       "member": 7,
       "to": {
-        "x": 672,
-        "y": 272
-      }
-    },
-    {
-      "at": {
-        "day": 2,
-        "quarterHour": 59
-      },
-      "kind": "order",
-      "member": 7,
-      "to": {
-        "x": 656,
-        "y": 288
-      }
-    },
-    {
-      "at": {
-        "day": 2,
-        "quarterHour": 61
-      },
-      "kind": "order",
-      "member": 7,
-      "to": {
         "x": 640,
-        "y": 288
+        "y": 304
       }
     },
     {
       "at": {
         "day": 2,
-        "quarterHour": 84
+        "quarterHour": 70
+      },
+      "kind": "order",
+      "member": 7,
+      "to": {
+        "x": 624,
+        "y": 304
+      }
+    },
+    {
+      "at": {
+        "day": 2,
+        "quarterHour": 79
       },
       "kind": "order",
       "member": 7,
       "to": {
         "x": 624,
         "y": 288
+      }
+    },
+    {
+      "at": {
+        "day": 2,
+        "quarterHour": 89
+      },
+      "kind": "order",
+      "member": 7,
+      "to": {
+        "x": 624,
+        "y": 304
       }
     },
     {
@@ -514,44 +490,68 @@
       "kind": "order",
       "member": 7,
       "to": {
-        "x": 640,
+        "x": 624,
+        "y": 288
+      }
+    },
+    {
+      "at": {
+        "day": 2,
+        "quarterHour": 95
+      },
+      "kind": "order",
+      "member": 7,
+      "to": {
+        "x": 608,
         "y": 288
       }
     },
     {
       "at": {
         "day": 3,
-        "quarterHour": 2
+        "quarterHour": 3
       },
       "kind": "order",
       "member": 7,
       "to": {
-        "x": 640,
-        "y": 272
+        "x": 608,
+        "y": 304
       }
     },
     {
       "at": {
         "day": 3,
-        "quarterHour": 12
+        "quarterHour": 4
       },
       "kind": "order",
       "member": 7,
       "to": {
-        "x": 624,
-        "y": 272
+        "x": 608,
+        "y": 288
       }
     },
     {
       "at": {
         "day": 3,
-        "quarterHour": 22
+        "quarterHour": 13
       },
       "kind": "order",
       "member": 7,
       "to": {
-        "x": 640,
-        "y": 256
+        "x": 608,
+        "y": 304
+      }
+    },
+    {
+      "at": {
+        "day": 3,
+        "quarterHour": 15
+      },
+      "kind": "order",
+      "member": 7,
+      "to": {
+        "x": 704,
+        "y": 416
       }
     },
     {
@@ -563,37 +563,61 @@
       "member": 7,
       "to": {
         "x": 656,
-        "y": 256
+        "y": 272
       }
     },
     {
       "at": {
         "day": 3,
-        "quarterHour": 25
+        "quarterHour": 27
       },
       "kind": "order",
       "member": 7,
       "to": {
         "x": 640,
-        "y": 256
+        "y": 272
       }
     },
     {
       "at": {
         "day": 3,
-        "quarterHour": 52
+        "quarterHour": 30
       },
       "kind": "order",
       "member": 7,
       "to": {
         "x": 624,
-        "y": 256
+        "y": 272
       }
     },
     {
       "at": {
         "day": 3,
-        "quarterHour": 65
+        "quarterHour": 33
+      },
+      "kind": "order",
+      "member": 7,
+      "to": {
+        "x": 608,
+        "y": 272
+      }
+    },
+    {
+      "at": {
+        "day": 3,
+        "quarterHour": 54
+      },
+      "kind": "order",
+      "member": 7,
+      "to": {
+        "x": 608,
+        "y": 272
+      }
+    },
+    {
+      "at": {
+        "day": 3,
+        "quarterHour": 66
       },
       "kind": "order",
       "member": 7,
@@ -605,7 +629,31 @@
     {
       "at": {
         "day": 3,
-        "quarterHour": 78
+        "quarterHour": 73
+      },
+      "kind": "order",
+      "member": 7,
+      "to": {
+        "x": 592,
+        "y": 256
+      }
+    },
+    {
+      "at": {
+        "day": 3,
+        "quarterHour": 89
+      },
+      "kind": "order",
+      "member": 7,
+      "to": {
+        "x": 576,
+        "y": 256
+      }
+    },
+    {
+      "at": {
+        "day": 3,
+        "quarterHour": 94
       },
       "kind": "order",
       "member": 7,
@@ -617,7 +665,7 @@
     {
       "at": {
         "day": 4,
-        "quarterHour": 43
+        "quarterHour": 7
       },
       "kind": "order",
       "member": 7,
@@ -629,7 +677,7 @@
     {
       "at": {
         "day": 4,
-        "quarterHour": 46
+        "quarterHour": 21
       },
       "kind": "order",
       "member": 7,
@@ -641,127 +689,31 @@
     {
       "at": {
         "day": 4,
-        "quarterHour": 50
+        "quarterHour": 44
       },
       "kind": "order",
       "member": 7,
       "to": {
         "x": 576,
-        "y": 256
+        "y": 240
       }
     },
     {
       "at": {
         "day": 4,
-        "quarterHour": 62
+        "quarterHour": 66
       },
       "kind": "order",
       "member": 7,
       "to": {
         "x": 560,
-        "y": 256
+        "y": 240
       }
     },
     {
       "at": {
         "day": 4,
-        "quarterHour": 78
-      },
-      "kind": "order",
-      "member": 7,
-      "to": {
-        "x": 560,
-        "y": 272
-      }
-    },
-    {
-      "at": {
-        "day": 4,
-        "quarterHour": 81
-      },
-      "kind": "order",
-      "member": 7,
-      "to": {
-        "x": 560,
-        "y": 256
-      }
-    },
-    {
-      "at": {
-        "day": 4,
-        "quarterHour": 82
-      },
-      "kind": "order",
-      "member": 7,
-      "to": {
-        "x": 560,
-        "y": 272
-      }
-    },
-    {
-      "at": {
-        "day": 4,
-        "quarterHour": 84
-      },
-      "kind": "order",
-      "member": 7,
-      "to": {
-        "x": 560,
-        "y": 256
-      }
-    },
-    {
-      "at": {
-        "day": 4,
-        "quarterHour": 85
-      },
-      "kind": "order",
-      "member": 7,
-      "to": {
-        "x": 560,
-        "y": 272
-      }
-    },
-    {
-      "at": {
-        "day": 4,
-        "quarterHour": 88
-      },
-      "kind": "order",
-      "member": 7,
-      "to": {
-        "x": 560,
-        "y": 256
-      }
-    },
-    {
-      "at": {
-        "day": 4,
-        "quarterHour": 91
-      },
-      "kind": "order",
-      "member": 7,
-      "to": {
-        "x": 560,
-        "y": 272
-      }
-    },
-    {
-      "at": {
-        "day": 4,
-        "quarterHour": 92
-      },
-      "kind": "order",
-      "member": 7,
-      "to": {
-        "x": 560,
-        "y": 256
-      }
-    },
-    {
-      "at": {
-        "day": 5,
-        "quarterHour": 5
+        "quarterHour": 69
       },
       "kind": "order",
       "member": 7,
@@ -771,10 +723,58 @@
       }
     },
     {
+      "at": {
+        "day": 5,
+        "quarterHour": 61
+      },
+      "kind": "order",
+      "member": 7,
+      "to": {
+        "x": 544,
+        "y": 240
+      }
+    },
+    {
+      "at": {
+        "day": 5,
+        "quarterHour": 62
+      },
+      "kind": "order",
+      "member": 7,
+      "to": {
+        "x": 704,
+        "y": 416
+      }
+    },
+    {
+      "at": {
+        "day": 12,
+        "quarterHour": 2
+      },
+      "kind": "order",
+      "member": 7,
+      "to": {
+        "x": 640,
+        "y": 432
+      }
+    },
+    {
+      "at": {
+        "day": 12,
+        "quarterHour": 12
+      },
+      "kind": "order",
+      "member": 7,
+      "to": {
+        "x": 656,
+        "y": 432
+      }
+    },
+    {
       "answer": "follow",
       "at": {
-        "day": 13,
-        "quarterHour": 45
+        "day": 12,
+        "quarterHour": 14
       },
       "kind": "answer",
       "meeting": {
@@ -785,20 +785,8 @@
     },
     {
       "at": {
-        "day": 13,
-        "quarterHour": 46
-      },
-      "kind": "order",
-      "member": 7,
-      "to": {
-        "x": 784,
-        "y": 384
-      }
-    },
-    {
-      "at": {
-        "day": 13,
-        "quarterHour": 55
+        "day": 12,
+        "quarterHour": 17
       },
       "kind": "order",
       "member": 7,
@@ -809,68 +797,92 @@
     },
     {
       "at": {
-        "day": 13,
-        "quarterHour": 58
+        "day": 12,
+        "quarterHour": 20
       },
       "kind": "order",
       "member": 7,
       "to": {
-        "x": 672,
+        "x": 640,
         "y": 416
       }
     },
     {
       "at": {
-        "day": 13,
-        "quarterHour": 63
+        "day": 12,
+        "quarterHour": 29
       },
       "kind": "order",
       "member": 7,
       "to": {
-        "x": 656,
-        "y": 416
-      }
-    },
-    {
-      "at": {
-        "day": 13,
-        "quarterHour": 77
-      },
-      "kind": "order",
-      "member": 7,
-      "to": {
-        "x": 784,
-        "y": 384
-      }
-    },
-    {
-      "at": {
-        "day": 14,
-        "quarterHour": 25
-      },
-      "kind": "order",
-      "member": 7,
-      "to": {
-        "x": 656,
+        "x": 640,
         "y": 400
       }
     },
     {
       "at": {
-        "day": 14,
-        "quarterHour": 43
+        "day": 12,
+        "quarterHour": 35
       },
       "kind": "order",
       "member": 7,
       "to": {
-        "x": 672,
+        "x": 704,
         "y": 400
       }
     },
     {
       "at": {
+        "day": 13,
+        "quarterHour": 75
+      },
+      "kind": "order",
+      "member": 7,
+      "to": {
+        "x": 720,
+        "y": 384
+      }
+    },
+    {
+      "at": {
         "day": 14,
-        "quarterHour": 49
+        "quarterHour": 44
+      },
+      "kind": "order",
+      "member": 7,
+      "to": {
+        "x": 736,
+        "y": 384
+      }
+    },
+    {
+      "at": {
+        "day": 14,
+        "quarterHour": 56
+      },
+      "kind": "order",
+      "member": 7,
+      "to": {
+        "x": 752,
+        "y": 384
+      }
+    },
+    {
+      "at": {
+        "day": 15,
+        "quarterHour": 29
+      },
+      "kind": "order",
+      "member": 7,
+      "to": {
+        "x": 768,
+        "y": 384
+      }
+    },
+    {
+      "at": {
+        "day": 15,
+        "quarterHour": 41
       },
       "kind": "order",
       "member": 7,
@@ -882,8 +894,8 @@
     {
       "answer": "follow",
       "at": {
-        "day": 19,
-        "quarterHour": 34
+        "day": 15,
+        "quarterHour": 49
       },
       "kind": "answer",
       "meeting": {
@@ -894,8 +906,368 @@
     },
     {
       "at": {
+        "day": 15,
+        "quarterHour": 50
+      },
+      "kind": "order",
+      "member": 5,
+      "to": {
+        "x": 800,
+        "y": 384
+      }
+    },
+    {
+      "at": {
+        "day": 15,
+        "quarterHour": 60
+      },
+      "kind": "order",
+      "member": 5,
+      "to": {
+        "x": 816,
+        "y": 400
+      }
+    },
+    {
+      "at": {
+        "day": 15,
+        "quarterHour": 75
+      },
+      "kind": "order",
+      "member": 5,
+      "to": {
+        "x": 832,
+        "y": 400
+      }
+    },
+    {
+      "at": {
+        "day": 15,
+        "quarterHour": 85
+      },
+      "kind": "order",
+      "member": 5,
+      "to": {
+        "x": 848,
+        "y": 400
+      }
+    },
+    {
+      "at": {
+        "day": 16,
+        "quarterHour": 47
+      },
+      "kind": "order",
+      "member": 5,
+      "to": {
+        "x": 864,
+        "y": 400
+      }
+    },
+    {
+      "at": {
+        "day": 16,
+        "quarterHour": 57
+      },
+      "kind": "order",
+      "member": 5,
+      "to": {
+        "x": 880,
+        "y": 400
+      }
+    },
+    {
+      "at": {
+        "day": 16,
+        "quarterHour": 67
+      },
+      "kind": "order",
+      "member": 5,
+      "to": {
+        "x": 896,
+        "y": 400
+      }
+    },
+    {
+      "at": {
+        "day": 16,
+        "quarterHour": 77
+      },
+      "kind": "order",
+      "member": 5,
+      "to": {
+        "x": 912,
+        "y": 400
+      }
+    },
+    {
+      "at": {
+        "day": 16,
+        "quarterHour": 87
+      },
+      "kind": "order",
+      "member": 5,
+      "to": {
+        "x": 928,
+        "y": 400
+      }
+    },
+    {
+      "at": {
+        "day": 17,
+        "quarterHour": 41
+      },
+      "kind": "order",
+      "member": 5,
+      "to": {
+        "x": 944,
+        "y": 400
+      }
+    },
+    {
+      "at": {
+        "day": 17,
+        "quarterHour": 51
+      },
+      "kind": "order",
+      "member": 5,
+      "to": {
+        "x": 960,
+        "y": 400
+      }
+    },
+    {
+      "at": {
+        "day": 17,
+        "quarterHour": 61
+      },
+      "kind": "order",
+      "member": 5,
+      "to": {
+        "x": 976,
+        "y": 400
+      }
+    },
+    {
+      "at": {
+        "day": 17,
+        "quarterHour": 71
+      },
+      "kind": "order",
+      "member": 5,
+      "to": {
+        "x": 992,
+        "y": 400
+      }
+    },
+    {
+      "at": {
+        "day": 18,
+        "quarterHour": 42
+      },
+      "kind": "order",
+      "member": 5,
+      "to": {
+        "x": 1008,
+        "y": 416
+      }
+    },
+    {
+      "at": {
+        "day": 18,
+        "quarterHour": 65
+      },
+      "kind": "order",
+      "member": 5,
+      "to": {
+        "x": 1024,
+        "y": 432
+      }
+    },
+    {
+      "at": {
         "day": 19,
-        "quarterHour": 35
+        "quarterHour": 50
+      },
+      "kind": "order",
+      "member": 5,
+      "to": {
+        "x": 1040,
+        "y": 448
+      }
+    },
+    {
+      "at": {
+        "day": 19,
+        "quarterHour": 73
+      },
+      "kind": "order",
+      "member": 5,
+      "to": {
+        "x": 1056,
+        "y": 464
+      }
+    },
+    {
+      "at": {
+        "day": 20,
+        "quarterHour": 36
+      },
+      "kind": "order",
+      "member": 5,
+      "to": {
+        "x": 1072,
+        "y": 480
+      }
+    },
+    {
+      "at": {
+        "day": 20,
+        "quarterHour": 59
+      },
+      "kind": "order",
+      "member": 5,
+      "to": {
+        "x": 1088,
+        "y": 480
+      }
+    },
+    {
+      "at": {
+        "day": 21,
+        "quarterHour": 53
+      },
+      "kind": "order",
+      "member": 5,
+      "to": {
+        "x": 1104,
+        "y": 496
+      }
+    },
+    {
+      "at": {
+        "day": 22,
+        "quarterHour": 63
+      },
+      "kind": "order",
+      "member": 5,
+      "to": {
+        "x": 1120,
+        "y": 496
+      }
+    },
+    {
+      "at": {
+        "day": 23,
+        "quarterHour": 24
+      },
+      "kind": "order",
+      "member": 5,
+      "to": {
+        "x": 1136,
+        "y": 496
+      }
+    },
+    {
+      "at": {
+        "day": 23,
+        "quarterHour": 38
+      },
+      "kind": "order",
+      "member": 5,
+      "to": {
+        "x": 1152,
+        "y": 496
+      }
+    },
+    {
+      "at": {
+        "day": 23,
+        "quarterHour": 51
+      },
+      "kind": "order",
+      "member": 5,
+      "to": {
+        "x": 1168,
+        "y": 480
+      }
+    },
+    {
+      "at": {
+        "day": 24,
+        "quarterHour": 30
+      },
+      "kind": "order",
+      "member": 5,
+      "to": {
+        "x": 1184,
+        "y": 464
+      }
+    },
+    {
+      "at": {
+        "day": 24,
+        "quarterHour": 50
+      },
+      "kind": "order",
+      "member": 5,
+      "to": {
+        "x": 1200,
+        "y": 464
+      }
+    },
+    {
+      "at": {
+        "day": 24,
+        "quarterHour": 67
+      },
+      "kind": "order",
+      "member": 5,
+      "to": {
+        "x": 1216,
+        "y": 448
+      }
+    },
+    {
+      "at": {
+        "day": 25,
+        "quarterHour": 54
+      },
+      "kind": "order",
+      "member": 5,
+      "to": {
+        "x": 1216,
+        "y": 432
+      }
+    },
+    {
+      "at": {
+        "day": 25,
+        "quarterHour": 73
+      },
+      "kind": "order",
+      "member": 5,
+      "to": {
+        "x": 1216,
+        "y": 416
+      }
+    },
+    {
+      "at": {
+        "day": 26,
+        "quarterHour": 52
+      },
+      "kind": "order",
+      "member": 5,
+      "to": {
+        "x": 1216,
+        "y": 400
+      }
+    },
+    {
+      "at": {
+        "day": 26,
+        "quarterHour": 65
       },
       "kind": "order",
       "member": 5,
@@ -905,766 +1277,9 @@
       }
     },
     {
-      "answer": "follow",
       "at": {
-        "day": 23,
-        "quarterHour": 64
-      },
-      "kind": "answer",
-      "meeting": {
-        "a": 5,
-        "b": 4,
-        "kind": "follow"
-      }
-    },
-    {
-      "at": {
-        "day": 23,
-        "quarterHour": 65
-      },
-      "kind": "order",
-      "member": 4,
-      "to": {
-        "x": 1216,
-        "y": 384
-      }
-    },
-    {
-      "at": {
-        "day": 23,
-        "quarterHour": 66
-      },
-      "kind": "order",
-      "member": 4,
-      "to": {
-        "x": 1216,
-        "y": 384
-      }
-    },
-    {
-      "at": {
-        "day": 23,
-        "quarterHour": 67
-      },
-      "kind": "order",
-      "member": 4,
-      "to": {
-        "x": 1216,
-        "y": 384
-      }
-    },
-    {
-      "at": {
-        "day": 23,
-        "quarterHour": 68
-      },
-      "kind": "order",
-      "member": 4,
-      "to": {
-        "x": 1216,
-        "y": 384
-      }
-    },
-    {
-      "at": {
-        "day": 23,
-        "quarterHour": 69
-      },
-      "kind": "order",
-      "member": 4,
-      "to": {
-        "x": 1216,
-        "y": 384
-      }
-    },
-    {
-      "at": {
-        "day": 23,
-        "quarterHour": 70
-      },
-      "kind": "order",
-      "member": 4,
-      "to": {
-        "x": 1216,
-        "y": 384
-      }
-    },
-    {
-      "at": {
-        "day": 23,
-        "quarterHour": 71
-      },
-      "kind": "order",
-      "member": 4,
-      "to": {
-        "x": 1216,
-        "y": 384
-      }
-    },
-    {
-      "at": {
-        "day": 23,
-        "quarterHour": 72
-      },
-      "kind": "order",
-      "member": 4,
-      "to": {
-        "x": 1216,
-        "y": 384
-      }
-    },
-    {
-      "at": {
-        "day": 23,
-        "quarterHour": 73
-      },
-      "kind": "order",
-      "member": 4,
-      "to": {
-        "x": 1216,
-        "y": 384
-      }
-    },
-    {
-      "at": {
-        "day": 23,
-        "quarterHour": 74
-      },
-      "kind": "order",
-      "member": 4,
-      "to": {
-        "x": 1216,
-        "y": 384
-      }
-    },
-    {
-      "at": {
-        "day": 23,
-        "quarterHour": 75
-      },
-      "kind": "order",
-      "member": 4,
-      "to": {
-        "x": 1216,
-        "y": 384
-      }
-    },
-    {
-      "at": {
-        "day": 23,
+        "day": 86,
         "quarterHour": 76
-      },
-      "kind": "order",
-      "member": 4,
-      "to": {
-        "x": 1216,
-        "y": 384
-      }
-    },
-    {
-      "at": {
-        "day": 23,
-        "quarterHour": 77
-      },
-      "kind": "order",
-      "member": 4,
-      "to": {
-        "x": 1216,
-        "y": 384
-      }
-    },
-    {
-      "at": {
-        "day": 23,
-        "quarterHour": 78
-      },
-      "kind": "order",
-      "member": 4,
-      "to": {
-        "x": 1216,
-        "y": 384
-      }
-    },
-    {
-      "at": {
-        "day": 23,
-        "quarterHour": 79
-      },
-      "kind": "order",
-      "member": 4,
-      "to": {
-        "x": 1216,
-        "y": 384
-      }
-    },
-    {
-      "at": {
-        "day": 23,
-        "quarterHour": 80
-      },
-      "kind": "order",
-      "member": 4,
-      "to": {
-        "x": 1216,
-        "y": 384
-      }
-    },
-    {
-      "at": {
-        "day": 23,
-        "quarterHour": 81
-      },
-      "kind": "order",
-      "member": 4,
-      "to": {
-        "x": 1216,
-        "y": 384
-      }
-    },
-    {
-      "at": {
-        "day": 23,
-        "quarterHour": 82
-      },
-      "kind": "order",
-      "member": 4,
-      "to": {
-        "x": 1216,
-        "y": 384
-      }
-    },
-    {
-      "at": {
-        "day": 23,
-        "quarterHour": 83
-      },
-      "kind": "order",
-      "member": 4,
-      "to": {
-        "x": 1216,
-        "y": 384
-      }
-    },
-    {
-      "at": {
-        "day": 23,
-        "quarterHour": 84
-      },
-      "kind": "order",
-      "member": 4,
-      "to": {
-        "x": 1216,
-        "y": 384
-      }
-    },
-    {
-      "at": {
-        "day": 23,
-        "quarterHour": 85
-      },
-      "kind": "order",
-      "member": 4,
-      "to": {
-        "x": 1216,
-        "y": 384
-      }
-    },
-    {
-      "at": {
-        "day": 23,
-        "quarterHour": 86
-      },
-      "kind": "order",
-      "member": 4,
-      "to": {
-        "x": 1216,
-        "y": 384
-      }
-    },
-    {
-      "at": {
-        "day": 23,
-        "quarterHour": 87
-      },
-      "kind": "order",
-      "member": 4,
-      "to": {
-        "x": 1216,
-        "y": 384
-      }
-    },
-    {
-      "at": {
-        "day": 23,
-        "quarterHour": 88
-      },
-      "kind": "order",
-      "member": 4,
-      "to": {
-        "x": 1216,
-        "y": 384
-      }
-    },
-    {
-      "at": {
-        "day": 23,
-        "quarterHour": 89
-      },
-      "kind": "order",
-      "member": 4,
-      "to": {
-        "x": 1216,
-        "y": 384
-      }
-    },
-    {
-      "at": {
-        "day": 23,
-        "quarterHour": 90
-      },
-      "kind": "order",
-      "member": 4,
-      "to": {
-        "x": 1216,
-        "y": 384
-      }
-    },
-    {
-      "at": {
-        "day": 23,
-        "quarterHour": 91
-      },
-      "kind": "order",
-      "member": 4,
-      "to": {
-        "x": 1216,
-        "y": 384
-      }
-    },
-    {
-      "at": {
-        "day": 23,
-        "quarterHour": 92
-      },
-      "kind": "order",
-      "member": 4,
-      "to": {
-        "x": 1216,
-        "y": 384
-      }
-    },
-    {
-      "at": {
-        "day": 23,
-        "quarterHour": 93
-      },
-      "kind": "order",
-      "member": 4,
-      "to": {
-        "x": 1216,
-        "y": 384
-      }
-    },
-    {
-      "at": {
-        "day": 23,
-        "quarterHour": 94
-      },
-      "kind": "order",
-      "member": 4,
-      "to": {
-        "x": 1216,
-        "y": 384
-      }
-    },
-    {
-      "at": {
-        "day": 23,
-        "quarterHour": 95
-      },
-      "kind": "order",
-      "member": 4,
-      "to": {
-        "x": 1216,
-        "y": 384
-      }
-    },
-    {
-      "at": {
-        "day": 24,
-        "quarterHour": 0
-      },
-      "kind": "order",
-      "member": 4,
-      "to": {
-        "x": 1216,
-        "y": 384
-      }
-    },
-    {
-      "at": {
-        "day": 24,
-        "quarterHour": 1
-      },
-      "kind": "order",
-      "member": 4,
-      "to": {
-        "x": 1216,
-        "y": 384
-      }
-    },
-    {
-      "at": {
-        "day": 24,
-        "quarterHour": 2
-      },
-      "kind": "order",
-      "member": 4,
-      "to": {
-        "x": 1216,
-        "y": 384
-      }
-    },
-    {
-      "at": {
-        "day": 24,
-        "quarterHour": 3
-      },
-      "kind": "order",
-      "member": 4,
-      "to": {
-        "x": 1216,
-        "y": 384
-      }
-    },
-    {
-      "at": {
-        "day": 24,
-        "quarterHour": 4
-      },
-      "kind": "order",
-      "member": 4,
-      "to": {
-        "x": 1216,
-        "y": 384
-      }
-    },
-    {
-      "at": {
-        "day": 24,
-        "quarterHour": 5
-      },
-      "kind": "order",
-      "member": 4,
-      "to": {
-        "x": 1216,
-        "y": 384
-      }
-    },
-    {
-      "at": {
-        "day": 24,
-        "quarterHour": 6
-      },
-      "kind": "order",
-      "member": 4,
-      "to": {
-        "x": 1216,
-        "y": 384
-      }
-    },
-    {
-      "at": {
-        "day": 24,
-        "quarterHour": 7
-      },
-      "kind": "order",
-      "member": 4,
-      "to": {
-        "x": 1216,
-        "y": 384
-      }
-    },
-    {
-      "at": {
-        "day": 24,
-        "quarterHour": 8
-      },
-      "kind": "order",
-      "member": 4,
-      "to": {
-        "x": 1216,
-        "y": 384
-      }
-    },
-    {
-      "at": {
-        "day": 24,
-        "quarterHour": 9
-      },
-      "kind": "order",
-      "member": 4,
-      "to": {
-        "x": 1216,
-        "y": 384
-      }
-    },
-    {
-      "at": {
-        "day": 24,
-        "quarterHour": 10
-      },
-      "kind": "order",
-      "member": 4,
-      "to": {
-        "x": 1216,
-        "y": 384
-      }
-    },
-    {
-      "at": {
-        "day": 24,
-        "quarterHour": 11
-      },
-      "kind": "order",
-      "member": 4,
-      "to": {
-        "x": 1216,
-        "y": 384
-      }
-    },
-    {
-      "at": {
-        "day": 24,
-        "quarterHour": 12
-      },
-      "kind": "order",
-      "member": 4,
-      "to": {
-        "x": 1216,
-        "y": 384
-      }
-    },
-    {
-      "at": {
-        "day": 24,
-        "quarterHour": 13
-      },
-      "kind": "order",
-      "member": 4,
-      "to": {
-        "x": 1216,
-        "y": 384
-      }
-    },
-    {
-      "at": {
-        "day": 24,
-        "quarterHour": 14
-      },
-      "kind": "order",
-      "member": 4,
-      "to": {
-        "x": 1216,
-        "y": 384
-      }
-    },
-    {
-      "at": {
-        "day": 24,
-        "quarterHour": 15
-      },
-      "kind": "order",
-      "member": 4,
-      "to": {
-        "x": 1216,
-        "y": 384
-      }
-    },
-    {
-      "at": {
-        "day": 24,
-        "quarterHour": 16
-      },
-      "kind": "order",
-      "member": 4,
-      "to": {
-        "x": 1216,
-        "y": 384
-      }
-    },
-    {
-      "at": {
-        "day": 24,
-        "quarterHour": 17
-      },
-      "kind": "order",
-      "member": 4,
-      "to": {
-        "x": 1216,
-        "y": 384
-      }
-    },
-    {
-      "at": {
-        "day": 24,
-        "quarterHour": 18
-      },
-      "kind": "order",
-      "member": 4,
-      "to": {
-        "x": 1216,
-        "y": 384
-      }
-    },
-    {
-      "at": {
-        "day": 24,
-        "quarterHour": 19
-      },
-      "kind": "order",
-      "member": 4,
-      "to": {
-        "x": 1216,
-        "y": 384
-      }
-    },
-    {
-      "at": {
-        "day": 24,
-        "quarterHour": 20
-      },
-      "kind": "order",
-      "member": 4,
-      "to": {
-        "x": 1216,
-        "y": 384
-      }
-    },
-    {
-      "at": {
-        "day": 24,
-        "quarterHour": 21
-      },
-      "kind": "order",
-      "member": 4,
-      "to": {
-        "x": 1216,
-        "y": 384
-      }
-    },
-    {
-      "at": {
-        "day": 24,
-        "quarterHour": 22
-      },
-      "kind": "order",
-      "member": 4,
-      "to": {
-        "x": 1216,
-        "y": 384
-      }
-    },
-    {
-      "at": {
-        "day": 24,
-        "quarterHour": 23
-      },
-      "kind": "order",
-      "member": 4,
-      "to": {
-        "x": 1216,
-        "y": 384
-      }
-    },
-    {
-      "at": {
-        "day": 24,
-        "quarterHour": 24
-      },
-      "kind": "order",
-      "member": 4,
-      "to": {
-        "x": 1216,
-        "y": 384
-      }
-    },
-    {
-      "at": {
-        "day": 24,
-        "quarterHour": 25
-      },
-      "kind": "order",
-      "member": 4,
-      "to": {
-        "x": 1136,
-        "y": 400
-      }
-    },
-    {
-      "at": {
-        "day": 24,
-        "quarterHour": 26
-      },
-      "kind": "order",
-      "member": 4,
-      "to": {
-        "x": 1136,
-        "y": 400
-      }
-    },
-    {
-      "at": {
-        "day": 24,
-        "quarterHour": 27
-      },
-      "kind": "order",
-      "member": 4,
-      "to": {
-        "x": 1136,
-        "y": 400
-      }
-    },
-    {
-      "at": {
-        "day": 24,
-        "quarterHour": 28
-      },
-      "kind": "order",
-      "member": 4,
-      "to": {
-        "x": 1136,
-        "y": 400
-      }
-    },
-    {
-      "at": {
-        "day": 24,
-        "quarterHour": 29
-      },
-      "kind": "order",
-      "member": 4,
-      "to": {
-        "x": 1136,
-        "y": 400
-      }
-    },
-    {
-      "at": {
-        "day": 24,
-        "quarterHour": 30
-      },
-      "kind": "order",
-      "member": 4,
-      "to": {
-        "x": 1136,
-        "y": 400
-      }
-    },
-    {
-      "at": {
-        "day": 85,
-        "quarterHour": 36
       },
       "kind": "order",
       "member": 1,
@@ -1675,8 +1290,8 @@
     },
     {
       "at": {
-        "day": 95,
-        "quarterHour": 60
+        "day": 96,
+        "quarterHour": 87
       },
       "kind": "order",
       "member": 1,
@@ -1687,8 +1302,8 @@
     },
     {
       "at": {
-        "day": 105,
-        "quarterHour": 58
+        "day": 109,
+        "quarterHour": 48
       },
       "kind": "order",
       "member": 1,
@@ -1699,35 +1314,35 @@
     }
   ],
   "milestones": {
-    "council": 25,
+    "council": 26,
     "mobilisation": {
-      "day": 106,
+      "day": 110,
       "leader": "DAIN"
     },
     "warEvents": [
       {
-        "day": 106,
+        "day": 109,
         "event": 7
       },
       {
-        "day": 106,
+        "day": 110,
         "event": 3
       },
       {
-        "day": 106,
+        "day": 110,
         "event": 4
       },
       {
-        "day": 106,
+        "day": 110,
         "event": 6
       },
       {
-        "day": 106,
+        "day": 110,
         "event": 5
       }
     ]
   },
   "plan": "fellowship",
-  "seed": 5,
+  "seed": 1,
   "version": 1
 }
