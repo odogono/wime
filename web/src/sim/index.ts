@@ -215,3 +215,13 @@ export {
   type WarEventAnnouncement,
   type WarEvents
 } from './war-events';
+
+export { OBJECT_LIMITS, type ObjectLimit } from './setup-limits';
+export {
+  SETUP_AXES,
+  setupAxisRng,
+  shuffleSetup,
+  validateSetupAxes,
+  type SetupAxis,
+  type SetupData
+} from './shuffled-setup';
