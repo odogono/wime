@@ -308,25 +308,30 @@ export const survey = (
 ): SurveyReport => {
   validateOptions(options);
   const classic = startCampaign(0, assets).state;
+  const shuffled = options.setup === 'shuffled';
+  // Each Setup is generated once and shared by every Player and mode.
+  const setups = shuffled
+    ? Array.from({ length: options.setupSeeds }, (_, seed) => ({
+        assets: {
+          ...assets,
+          startingState: shuffleSetup(
+            assets.startingState as SetupData,
+            seed,
+            options.axes
+          )
+        },
+        seed
+      }))
+    : [{ assets, seed: null }];
+  const reference =
+    shuffled && options.axes.includes('a') ? classic : undefined;
   const configurations: SurveyConfiguration[] = [];
   for (const player of options.players) {
     for (const mode of options.knowledge) {
       const knowledge =
         mode === 'memorised' ? memorisedKnowledge(classic) : LIVE_KNOWLEDGE;
       const runs: SurveyRun[] = [];
-      const setupCount = options.setup === 'shuffled' ? options.setupSeeds : 1;
-      for (let setupSeed = 0; setupSeed < setupCount; setupSeed++) {
-        const runAssets =
-          options.setup === 'shuffled'
-            ? {
-                ...assets,
-                startingState: shuffleSetup(
-                  assets.startingState as SetupData,
-                  setupSeed,
-                  options.axes
-                )
-              }
-            : assets;
+      for (const setup of setups) {
         for (
           let seed = options.from;
           seed < options.from + options.seeds;
@@ -339,13 +344,11 @@ export const survey = (
           runs.push(
             surveyRun(
               seed,
-              runAssets,
+              setup.assets,
               policy,
               options.days,
-              options.setup === 'shuffled' ? setupSeed : null,
-              options.setup === 'shuffled' && options.axes.includes('a')
-                ? classic
-                : undefined
+              setup.seed,
+              reference
             )
           );
         }
