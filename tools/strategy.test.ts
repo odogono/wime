@@ -32,6 +32,16 @@ describe.skipIf(!assetsExist())('demo scripts', () => {
       expect(state.clock.day).toBe(script.finalDay);
       expect(milestones).toEqual(script.milestones);
       expect(milestones.council).not.toBeNull();
+      // Replay alone cannot catch a changed policy: regenerate the
+      // recorded inputs too, so the knowledge refactor preserves play.
+      const played = playCampaign(
+        script.seed,
+        loadSoakAssets(),
+        policyFor(plan)
+      );
+      expect(played.inputs).toEqual(script.inputs);
+      expect(played.state.ending).toBe(script.ending);
+      expect(played.state.clock.day).toBe(script.finalDay);
     });
   }
 });

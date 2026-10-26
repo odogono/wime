@@ -83,6 +83,9 @@ export interface Player {
 export interface CampaignRun {
   // The quarter-hour the Player last decided at.
   decided: Clock | null;
+  // Object acts that had no effect. Orders refused by the allegiance
+  // roll are ordinary play, and are not failed object acts.
+  failedActs: number;
   milestones: Milestones;
   // The Good entries under the player's command so far.
   mobilised: readonly number[];
@@ -114,6 +117,7 @@ export const startCampaign = (
   const state = createSim(seed, assets.startingState, assets.tilemap);
   return {
     decided: null,
+    failedActs: 0,
     milestones: { council: null, mobilisation: null, warEvents: [] },
     mobilised: state.roster.filter(e => e.allegiance > 1).map(e => e.index),
     state
@@ -148,7 +152,7 @@ export const stepCampaign = (run: CampaignRun, player: Player): CampaignRun => {
   if (state.ending) {
     return { ...run, state };
   }
-  let { decided, milestones, mobilised } = run;
+  let { decided, failedActs, milestones, mobilised } = run;
   if (!decided || !sameClock(decided, state.clock)) {
     ({ milestones, mobilised } = noteMilestones(
       state,
@@ -159,14 +163,18 @@ export const stepCampaign = (run: CampaignRun, player: Player): CampaignRun => {
     decided = { ...state.clock };
     for (const command of player.decide(state)) {
       if ('act' in command) {
-        state = actOnObject(state, command);
+        const acted = actOnObject(state, command);
+        if (acted === state) {
+          failedActs++;
+        }
+        state = acted;
         continue;
       }
       const { taken, world } = takesOrder(state, command.member);
       state = taken ? giveOrder(world, command.member, command.to) : world;
     }
   }
-  return { decided, milestones, mobilised, state: tickSim(state) };
+  return { decided, failedActs, milestones, mobilised, state: tickSim(state) };
 };
 
 // Take, Put Down or Use, at the position of the chosen Character's
@@ -218,6 +226,16 @@ const noteMilestones = (
   }
   return { milestones, mobilised };
 };
+
+// Include changes on the final step, even when an ending or the day cap
+// prevents the next decision point from recording them.
+export const campaignMilestones = (run: CampaignRun): Milestones =>
+  noteMilestones(
+    run.state,
+    run.milestones,
+    run.mobilised,
+    run.decided?.day ?? run.state.clock.day
+  ).milestones;
 
 // --- Demos ----------------------------------------------------------------
 

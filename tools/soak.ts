@@ -31,7 +31,9 @@ import {
   takePassing,
   takesOrder,
   tickSim,
+  type Command,
   type MeetingAnswer,
+  type Player,
   type RngState,
   type SimState,
   type Tilemap
@@ -85,17 +87,44 @@ const roll = (rng: { state: RngState }, n: number): number => {
 
 // One random Order to a Good Force that can take it, toward a random
 // Place, through the allegiance roll as the Order window does.
-const orderSomeone = (state: SimState, rng: { state: RngState }): SimState => {
+const randomOrder = (state: SimState, rng: { state: RngState }): Command[] => {
   const orderable = state.roster
     .slice(1, LAST_GOOD_ENTRY + 1)
     .filter(entry => canOrder(state, entry.index));
   if (orderable.length === 0 || state.places.length === 0) {
-    return state;
+    return [];
   }
   const member = orderable[roll(rng, orderable.length)]!;
   const place = state.places[roll(rng, state.places.length)]!;
-  const { taken, world } = takesOrder(state, member.index);
-  return taken ? giveOrder(world, member.index, place.position) : world;
+  return [{ member: member.index, to: place.position }];
+};
+
+const randomAnswer = (rng: { state: RngState }): MeetingAnswer =>
+  ANSWERS[roll(rng, ANSWERS.length)]!;
+
+// The same stand-in as the soak runner, adapted to the campaign driver:
+// no Order on the opening day, then one on each new day. Both runners
+// share the random choices and keep their RNG apart from the sim's.
+export const randomPlayer = (seed: number): Player => {
+  const rng = { state: createRng(seed ^ 0x5a_5a_5a_5a) };
+  let day: number | null = null;
+  return {
+    answer: () => randomAnswer(rng),
+    decide: state => {
+      const before = day;
+      day = state.clock.day;
+      return before !== null && before !== day ? randomOrder(state, rng) : [];
+    }
+  };
+};
+
+const orderSomeone = (state: SimState, rng: { state: RngState }): SimState => {
+  const command = randomOrder(state, rng)[0];
+  if (!command || !('to' in command)) {
+    return state;
+  }
+  const { taken, world } = takesOrder(state, command.member);
+  return taken ? giveOrder(world, command.member, command.to) : world;
 };
 
 // Do what the view would do with anything waiting on the player.
@@ -111,7 +140,7 @@ const settle = (state: SimState, rng: { state: RngState }): SimState => {
     next = closeCouncil(next);
   }
   if (next.meeting) {
-    next = answerMeeting(next, ANSWERS[roll(rng, ANSWERS.length)]!).world;
+    next = answerMeeting(next, randomAnswer(rng)).world;
   }
   if (next.fight) {
     next = resolveFight(next);

@@ -62,3 +62,23 @@ These smaller differences are accepted for 1.0, each explained in its spec:
 
 See [`AGENTS.md`](AGENTS.md) for the code map and tools, and
 [`CODING_STANDARDS.md`](CODING_STANDARDS.md). Run `bun run check` before a PR.
+
+With exported assets, `bun run survey` measures campaign outcomes on the Classic
+Setup for the `fellowship`, `muster`, `defensive` and `random` Players, each using
+`memorised` and `live` knowledge of the Setup. Memorised knowledge reads the
+Classic starting data; live knowledge reads the campaign state. Moving Forces
+and the player's own inventory remain observations in both modes.
+
+```sh
+bun run survey --seeds 1000 --from 1 --days 400 --out report.json
+bun run survey --players muster,random --knowledge live --seeds 2
+```
+
+The tables and JSON report ending counts, win rates, final-day spreads, milestone
+days and failed object acts. Days are absolute campaign days; spreads use the
+minimum, median and maximum, with the number of observations. A milestone that
+never happened has count zero and null days. A day cap and a clock stalled for
+10,000 steps are counted separately. Failed acts are object commands with no
+effect, including a Take based on a wrong memorised placement; Order refusals
+are excluded. The [1,000-seed baseline](docs/surveys/classic-1000.json) uses seeds
+1–1,000 and the day-400 cap. No win-rate thresholds run in CI.

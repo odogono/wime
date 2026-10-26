@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, test } from 'bun:test';
 
 import {
+  campaignMilestones,
   campaignOver,
   replayDemo,
   sameClock,
@@ -61,6 +62,37 @@ describe.skipIf(!existsSync(STARTING_STATE) || !existsSync(TILEMAP))(
       expect(start.state.clock).toEqual(clock);
       expect(start.next).toBe(0);
       expect(start.decided).toBeNull();
+    });
+
+    test('milestones include the Council on the final step before a cutoff', () => {
+      const script = readJson(`${PUBLIC}demos/fellowship.json`) as DemoScript;
+      let run = startDemo(script, assets());
+      while (run.state.councilPending && !campaignOver(run, 400)) {
+        run = stepDemo(run);
+      }
+      expect(run.state.councilPending).toBe(false);
+      // The next decision has not recorded the Council yet. A survey
+      // that ends here must still date it before the calendar jump.
+      expect(run.milestones.council).toBeNull();
+      expect(campaignMilestones(run).council).toBe(run.decided!.day);
+    });
+
+    test('milestones include a War Event set on the final step', () => {
+      const script = readJson(`${PUBLIC}demos/muster.json`) as DemoScript;
+      let run = startDemo(script, assets());
+      while (
+        !(run.state.warEvents.mask & (1 << 7)) &&
+        !campaignOver(run, 400)
+      ) {
+        run = stepDemo(run);
+      }
+      expect(run.milestones.warEvents.some(noted => noted.event === 7)).toBe(
+        false
+      );
+      expect(campaignMilestones(run).warEvents).toContainEqual({
+        day: run.state.warEvents.days[7]!,
+        event: 7
+      });
     });
   }
 );

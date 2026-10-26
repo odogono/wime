@@ -54,14 +54,12 @@ import { dirname } from 'node:path';
 import { parseArgs } from 'node:util';
 
 import {
-  BARAD_DUR,
   BARAD_DUR_GARRISON,
   DEMO_VERSION,
   FIRST_ENCOUNTER,
   LAST_ENCOUNTER,
   LAST_GOOD_ENTRY,
   QUARTER_HOURS_PER_DAY,
-  RIVENDELL,
   canOrder,
   destinationForClick,
   hasWarEvent,
@@ -187,6 +185,30 @@ export const encounterAreas = (state: SimState): Area[] =>
         entry.encounter.area.bottom - entry.encounter.area.top <= AVOIDABLE_SPAN
     )
     .map(entry => entry.encounter!.area);
+
+// Setup facts are supplied separately from observations of the moving
+// Forces and the player's own inventory. Memorised knowledge keeps the
+// Classic Setup; live knowledge reads the campaign being played.
+export interface SetupKnowledge {
+  encounterAreas: (state: SimState) => Area[];
+  objectPosition: (state: SimState, object: number) => Point | null;
+  place: (state: SimState, name: string) => Point;
+}
+
+const knowledgeFrom = (
+  source: (state: SimState) => SimState
+): SetupKnowledge => ({
+  encounterAreas: state => encounterAreas(source(state)),
+  objectPosition: (state, object) =>
+    source(state).objectPlacements.find(slot => slot?.object === object)
+      ?.position ?? null,
+  place: (state, name) => place(source(state), name)
+});
+
+export const LIVE_KNOWLEDGE = knowledgeFrom(state => state);
+
+export const memorisedKnowledge = (classic: SimState): SetupKnowledge =>
+  knowledgeFrom(() => classic);
 
 const inAnyArea = (p: Point, areas: Area[]): boolean =>
   areas.some(
@@ -427,8 +449,13 @@ const toward = (
 // area that a planned route skirts, so a leg near one is walked tile by
 // tile; as from Buckland to Bree, whose road runs along the wight's
 // area.
-const detourRound = (state: SimState, from: Point, goal: Point): Point[] => {
-  const areas = encounterAreas(state);
+const detourRound = (
+  state: SimState,
+  from: Point,
+  goal: Point,
+  knowledge: SetupKnowledge
+): Point[] => {
+  const areas = knowledge.encounterAreas(state);
   const near: Area = {
     bottom: Math.max(from.y, goal.y) + TILE,
     left: Math.min(from.x, goal.x) - TILE,
@@ -461,21 +488,29 @@ const detourRound = (state: SimState, from: Point, goal: Point): Point[] => {
 // whose route crosses an Encounter area (encounterAreas) goes by the
 // waypoints of a route round it, when one exists.
 const placeWalker = (
-  names: (Point | string)[],
-  options: PlanOptions & { chargeLastLeg: boolean }
+  names: (Point | string | { object: number })[],
+  options: PlanOptions & { chargeLastLeg: boolean },
+  knowledge: SetupKnowledge
 ) => {
   let leg = 0;
   let detourLeg = -1;
   let detour: Point[] = [];
-  const point = (state: SimState, stop: Point | string): Point =>
-    typeof stop === 'string' ? place(state, stop) : stop;
+  const point = (
+    state: SimState,
+    stop: (typeof names)[number]
+  ): Point | null =>
+    typeof stop === 'string'
+      ? knowledge.place(state, stop)
+      : 'object' in stop
+        ? knowledge.objectPosition(state, stop.object)
+        : stop;
   return (state: SimState, leader: RosterEntry): Command | null => {
     const at = leader.position!;
-    while (leg < names.length - 1 && same(at, point(state, names[leg]!))) {
-      leg++;
+    let goal = point(state, names[leg]!);
+    while (leg < names.length - 1 && (goal === null || same(at, goal))) {
+      goal = point(state, names[++leg]!);
     }
-    const goal = point(state, names[leg]!);
-    if (same(at, goal)) {
+    if (goal === null || same(at, goal)) {
       return null;
     }
     const charging = options.chargeLastLeg && leg === names.length - 1;
@@ -501,7 +536,7 @@ const placeWalker = (
     }
     if (options.avoidEncounters && detourLeg !== leg) {
       detourLeg = leg;
-      detour = detourRound(state, at, goal);
+      detour = detourRound(state, at, goal, knowledge);
     }
     while (detour.length > 0 && same(at, detour[0]!)) {
       detour.shift();
@@ -543,10 +578,8 @@ const TO_RIVENDELL = ['BUCKLAND', 'BREE', 'RIVENDELL'];
 // The sceptre starts on the ground by Annuminas, a short way north of
 // Frodo (finding:objects-starting-placements), so with Tokens Frodo's
 // road to Rivendell starts there.
-const SCEPTRE_AT: Point = { x: 624, y: 272 };
-
-const roadToRivendell = (tokens: boolean): (Point | string)[] =>
-  tokens ? [SCEPTRE_AT, ...TO_RIVENDELL] : TO_RIVENDELL;
+const roadToRivendell = (tokens: boolean): (string | { object: number })[] =>
+  tokens ? [{ object: SCEPTRE }, ...TO_RIVENDELL] : TO_RIVENDELL;
 
 // Before the war, the sceptre shown to Denethor mobilises him, and so
 // sets War Event 3, which brings Gondor's lords to Minas Tirith
@@ -567,41 +600,45 @@ const roadToRivendell = (tokens: boolean): (Point | string)[] =>
 // `step` gives the commands for this quarter-hour, after the plan's own
 // for the Ring-bearer's Force; `busy` says whether the courier is still
 // on the errand, when the plan leaves him alone.
-const sceptreErrand = (courier: number) => {
+const sceptreErrand = (courier: number, knowledge: SetupKnowledge) => {
   const route = router();
   let done = false;
+  let attempted = false;
   const step = (state: SimState): Command[] => {
     const denethor = state.roster[DENETHOR]!;
     const carrier = state.roster[courier]!;
     const frodo = state.roster[FRODO]!;
-    const lying = state.objectPlacements.some(
-      slot => slot?.object === SCEPTRE && same(slot.position, SCEPTRE_AT)
-    );
+    const sceptreAt = knowledge.objectPosition(state, SCEPTRE);
     const carried = carrier.objects.includes(SCEPTRE);
+    const frodoCarries = frodo.objects.includes(SCEPTRE);
+    const lying = !attempted && !carried && !frodoCarries && sceptreAt !== null;
     done ||=
       carrier.strength === 0 ||
       denethor.state === 0 ||
       denethor.allegiance !== 1 ||
       denethor.position === null ||
-      !(lying || carried || frodo.objects.includes(SCEPTRE));
+      !(lying || carried || frodoCarries);
     if (done) {
       return [];
     }
     const ringAt = topLeader(state.roster, frodo).position;
     if (lying) {
-      return same(ringAt, SCEPTRE_AT)
-        ? [{ act: 'take', member: FRODO, object: SCEPTRE }]
-        : [];
+      if (same(ringAt, sceptreAt)) {
+        attempted = true;
+        return [{ act: 'take', member: FRODO, object: SCEPTRE }];
+      }
+      return [];
     }
     const at = topLeader(state.roster, carrier).position;
     const goal = denethor.position!;
+    const rivendell = knowledge.place(state, 'RIVENDELL');
     if (!carried) {
       // Frodo carries it: handed over where they stand together, at
       // Rivendell before the Council.
       const handOver =
         carrier.state !== 0 &&
         same(ringAt, at) &&
-        (!state.councilPending || same(ringAt, RIVENDELL));
+        (!state.councilPending || same(ringAt, rivendell));
       if (!handOver) {
         return [];
       }
@@ -610,7 +647,7 @@ const sceptreErrand = (courier: number) => {
         { act: 'take', member: courier, object: SCEPTRE }
       ];
       if (state.councilPending && frodo.leader !== null) {
-        commands.push({ member: FRODO, to: RIVENDELL });
+        commands.push({ member: FRODO, to: rivendell });
       }
       const order = toward(state, courier, goal);
       return order ? [...commands, order] : commands;
@@ -662,18 +699,27 @@ const faramirEscorts = (state: SimState, meeting: Meeting): MeetingAnswer => {
 };
 
 export const fellowshipPolicy = (
-  options: PlanOptions = DEFAULT_OPTIONS
+  options: PlanOptions = DEFAULT_OPTIONS,
+  knowledge: SetupKnowledge = LIVE_KNOWLEDGE
 ): Policy => {
-  const toRivendell = placeWalker(roadToRivendell(options.tokens), {
-    ...options,
-    chargeLastLeg: false
-  });
-  const toMountDoom = placeWalker(['LORIEN', 'NORTH ITHILIEN', 'MT. DOOM'], {
-    ...options,
-    avoidEncounters: false,
-    chargeLastLeg: true
-  });
-  const errand = sceptreErrand(MERRY);
+  const toRivendell = placeWalker(
+    roadToRivendell(options.tokens),
+    {
+      ...options,
+      chargeLastLeg: false
+    },
+    knowledge
+  );
+  const toMountDoom = placeWalker(
+    ['LORIEN', 'NORTH ITHILIEN', 'MT. DOOM'],
+    {
+      ...options,
+      avoidEncounters: false,
+      chargeLastLeg: true
+    },
+    knowledge
+  );
+  const errand = sceptreErrand(MERRY, knowledge);
   return {
     answer: options.tokens
       ? errand.answer(followWhileQuesting)
@@ -821,14 +867,19 @@ const musterAnswer: Policy['answer'] = (state, meeting) => {
 };
 
 export const musterPolicy = (
-  options: MusterOptions = DEFAULT_MUSTER
+  options: MusterOptions = DEFAULT_MUSTER,
+  knowledge: SetupKnowledge = LIVE_KNOWLEDGE
 ): Policy => {
-  const toRivendell = placeWalker(roadToRivendell(options.tokens), {
-    ...options,
-    chargeLastLeg: false
-  });
+  const toRivendell = placeWalker(
+    roadToRivendell(options.tokens),
+    {
+      ...options,
+      chargeLastLeg: false
+    },
+    knowledge
+  );
   const next = router();
-  const errand = sceptreErrand(MERRY);
+  const errand = sceptreErrand(MERRY, knowledge);
   let frodoStays = false;
   let theodenRoused = false;
   let striking = false;
@@ -849,13 +900,16 @@ export const musterPolicy = (
       if (!frodoStays) {
         frodoStays = true;
         if (state.roster[FRODO]!.leader !== null) {
-          commands.push({ member: FRODO, to: RIVENDELL });
+          commands.push({
+            member: FRODO,
+            to: knowledge.place(state, 'RIVENDELL')
+          });
         }
         return commands;
       }
       const frodoForce = topLeader(state.roster, state.roster[FRODO]!).index;
       const gandalf = topLeader(state.roster, state.roster[GANDALF]!);
-      const edoras = place(state, 'EDORAS');
+      const edoras = knowledge.place(state, 'EDORAS');
       theodenRoused ||= state.roster[THEODEN]!.allegiance > 1;
       const leaders = state.roster
         .slice(1, LAST_GOOD_ENTRY + 1)
@@ -878,7 +932,13 @@ export const musterPolicy = (
       for (const leader of leaders) {
         let command: Command | null;
         if (striking) {
-          command = next(state, leader, BARAD_DUR, false, true);
+          command = next(
+            state,
+            leader,
+            knowledge.place(state, 'BARAD-DUR'),
+            false,
+            true
+          );
         } else if (
           leader.index === FARAMIR &&
           options.openWar &&
@@ -920,23 +980,36 @@ export const DEFAULT_DEFENSIVE: DefensiveOptions = {
 };
 
 export const defensivePolicy = (
-  options: DefensiveOptions = DEFAULT_DEFENSIVE
+  options: DefensiveOptions = DEFAULT_DEFENSIVE,
+  knowledge: SetupKnowledge = LIVE_KNOWLEDGE
 ): Policy => {
   const walk = { ...options, chargeLastLeg: false };
-  const toRivendell = placeWalker(roadToRivendell(options.tokens), walk);
-  const toHiding = placeWalker([options.wait], {
-    ...walk,
-    avoidEncounters: false
-  });
-  const toMountDoom = placeWalker(['NORTH ITHILIEN', 'MT. DOOM'], {
-    ...options,
-    avoidEncounters: false,
-    chargeLastLeg: true
-  });
+  const toRivendell = placeWalker(
+    roadToRivendell(options.tokens),
+    walk,
+    knowledge
+  );
+  const toHiding = placeWalker(
+    [options.wait],
+    {
+      ...walk,
+      avoidEncounters: false
+    },
+    knowledge
+  );
+  const toMountDoom = placeWalker(
+    ['NORTH ITHILIEN', 'MT. DOOM'],
+    {
+      ...options,
+      avoidEncounters: false,
+      chargeLastLeg: true
+    },
+    knowledge
+  );
   const next = router();
   const ringRoute = router();
   let escorted = false;
-  const errand = sceptreErrand(MERRY);
+  const errand = sceptreErrand(MERRY, knowledge);
   return {
     answer: options.tokens ? errand.answer(faramirEscorts) : faramirEscorts,
     decide: state => {
@@ -966,7 +1039,7 @@ export const defensivePolicy = (
         ? ringRoute(
             state,
             ring,
-            place(state, 'MT. DOOM'),
+            knowledge.place(state, 'MT. DOOM'),
             false,
             false,
             ESCORT_CLEAR
@@ -975,7 +1048,7 @@ export const defensivePolicy = (
       if (ringCommand) {
         commands.push(ringCommand);
       }
-      const holds = options.hold.map(name => place(state, name));
+      const holds = options.hold.map(name => knowledge.place(state, name));
       const leaders = state.roster.slice(1, LAST_GOOD_ENTRY + 1).filter(
         entry =>
           entry.leader === null &&
@@ -1021,32 +1094,42 @@ export const policyFor = (
     avoidEncounters?: boolean | undefined;
     openWar?: boolean | undefined;
     tokens?: boolean | undefined;
-  } = {}
+  } = {},
+  knowledge: SetupKnowledge = LIVE_KNOWLEDGE
 ): Policy => {
   if (plan === 'fellowship') {
-    return fellowshipPolicy({
-      ...DEFAULT_OPTIONS,
-      avoidEncounters:
-        overrides.avoidEncounters ?? DEFAULT_OPTIONS.avoidEncounters,
-      tokens: overrides.tokens ?? false
-    });
+    return fellowshipPolicy(
+      {
+        ...DEFAULT_OPTIONS,
+        avoidEncounters:
+          overrides.avoidEncounters ?? DEFAULT_OPTIONS.avoidEncounters,
+        tokens: overrides.tokens ?? false
+      },
+      knowledge
+    );
   }
   if (plan === 'muster') {
     const openWar = overrides.openWar ?? DEFAULT_MUSTER.openWar;
-    return musterPolicy({
-      ...DEFAULT_MUSTER,
-      avoidEncounters:
-        overrides.avoidEncounters ?? DEFAULT_MUSTER.avoidEncounters,
-      openWar,
-      tokens: overrides.tokens ?? !openWar
-    });
+    return musterPolicy(
+      {
+        ...DEFAULT_MUSTER,
+        avoidEncounters:
+          overrides.avoidEncounters ?? DEFAULT_MUSTER.avoidEncounters,
+        openWar,
+        tokens: overrides.tokens ?? !openWar
+      },
+      knowledge
+    );
   }
-  return defensivePolicy({
-    ...DEFAULT_DEFENSIVE,
-    avoidEncounters:
-      overrides.avoidEncounters ?? DEFAULT_DEFENSIVE.avoidEncounters,
-    tokens: overrides.tokens ?? false
-  });
+  return defensivePolicy(
+    {
+      ...DEFAULT_DEFENSIVE,
+      avoidEncounters:
+        overrides.avoidEncounters ?? DEFAULT_DEFENSIVE.avoidEncounters,
+      tokens: overrides.tokens ?? false
+    },
+    knowledge
+  );
 };
 
 // --- Playing and replaying ----------------------------------------------
