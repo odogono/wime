@@ -22,6 +22,7 @@
     "render-campaign-map": "bun tools/render-campaign-map.ts",
     "soak": "bun tools/soak.ts",
     "strategy": "bun tools/strategy.ts",
+    "survey": "bun tools/survey.ts",
     "export:web": "bun tools/export-web.ts",
     "extract-all": "bun tools/extract-all.ts",
     "fs-uae:setup": "bun tools/fs-uae/setup.ts",

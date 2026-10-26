@@ -50,6 +50,7 @@ export {
 } from './council';
 export {
   DEMO_VERSION,
+  campaignMilestones,
   campaignOver,
   isGoodVictory,
   replayDemo,
