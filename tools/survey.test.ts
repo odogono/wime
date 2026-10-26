@@ -62,7 +62,6 @@ test('the CLI defaults to all Players and both knowledge modes', () => {
     ['--setup-seeds', '0'],
     ['--setup-seeds', '1.5'],
     ['--setup-seeds', '4294967297'],
-    ['--axes', 'b'],
     ['--axes', 'a,c'],
     ['--axes', 'a,a'],
     ['--axes', 'd'],
@@ -257,54 +256,62 @@ test('the CLI selects Shuffled Setup, independent counts and axes off', () => {
     setupSeeds: 10
   });
   expect(parseSurveyArgs(['--axes', '']).options.axes).toEqual([]);
+  expect(parseSurveyArgs(['--axes', 'b']).options.axes).toEqual(['b']);
+  expect(parseSurveyArgs(['--axes', 'a,b']).options.axes).toEqual(['a', 'b']);
 });
 
 describe.skipIf(!assetsExist())('Shuffled Setup survey', () => {
-  test('crosses both seed ranges, every Player and knowledge mode', () => {
-    const assets = loadSoakAssets();
-    const options = {
-      ...DEFAULT_SURVEY,
-      days: 1,
-      seeds: 2,
-      setup: 'shuffled' as const,
-      setupSeeds: 3
-    };
-    const report = survey(assets, options);
-    expect(report.setup).toBe('shuffled');
-    expect(report.configurations).toHaveLength(8);
-    for (const config of report.configurations) {
-      expect(config.runs).toBe(6);
-      expect(config.endings['day-cap']).toBe(6);
-      expect(
-        Object.values(config.failedActsByAxis).reduce(
-          (sum, count) => sum + count,
-          0
-        )
-      ).toBe(config.failedActs);
-    }
-    // Compare against explicit independent runs, rather than only the count.
-    const expectedDays: number[] = [];
-    for (let setupSeed = 0; setupSeed < 3; setupSeed++) {
-      const runAssets = {
-        ...assets,
-        startingState: shuffleSetup(
-          assets.startingState as SetupData,
-          setupSeed,
-          ['a']
-        )
+  test.each<('a' | 'b')[][]>([[['a']], [['b']], [['a', 'b']]])(
+    'crosses both seed ranges, every Player and knowledge mode with axes %j',
+    axes => {
+      const assets = loadSoakAssets();
+      const options = {
+        ...DEFAULT_SURVEY,
+        axes,
+        days: 1,
+        seeds: 2,
+        setup: 'shuffled' as const,
+        setupSeeds: 3
       };
-      for (let seed = 1; seed <= 2; seed++) {
-        expectedDays.push(
-          surveyRun(seed, runAssets, policyFor('fellowship'), 1, setupSeed)
-            .finalDay
-        );
+      const report = survey(assets, options);
+      expect(report.setup).toBe('shuffled');
+      expect(report.configurations).toHaveLength(8);
+      for (const config of report.configurations) {
+        expect(config.runs).toBe(6);
+        expect(config.endings['day-cap']).toBe(6);
+        expect(
+          Object.values(config.failedActsByAxis).reduce(
+            (sum, count) => sum + count,
+            0
+          )
+        ).toBe(config.failedActs);
       }
+      // Compare against explicit independent runs, rather than only the count.
+      const expectedDays: number[] = [];
+      for (let setupSeed = 0; setupSeed < 3; setupSeed++) {
+        const runAssets = {
+          ...assets,
+          startingState: shuffleSetup(
+            assets.startingState as SetupData,
+            setupSeed,
+            axes
+          )
+        };
+        for (let seed = 1; seed <= 2; seed++) {
+          expectedDays.push(
+            surveyRun(seed, runAssets, policyFor('fellowship'), 1, setupSeed)
+              .finalDay
+          );
+        }
+      }
+      expect(report.configurations[1]!.finalDay).toEqual(spread(expectedDays));
+      expect(formatSurvey(report)).toContain(
+        `Setup seeds 0–2; axes ${axes.join(',')}`
+      );
+      const json = JSON.stringify(report);
+      expect(JSON.parse(json)).toEqual(report);
     }
-    expect(report.configurations[1]!.finalDay).toEqual(spread(expectedDays));
-    expect(formatSurvey(report)).toContain('Setup seeds 0–2; axes a');
-    const json = JSON.stringify(report);
-    expect(JSON.parse(json)).toEqual(report);
-  });
+  );
 
   test('axes off reproduces Classic for each sim seed across Setup seeds', () => {
     const assets = loadSoakAssets();
