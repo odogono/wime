@@ -1,18 +1,32 @@
 // The port's Setup generator; this is Scenario design, not original
 // behaviour (docs/spec/shuffled-setup.md). It works on the exported JSON,
 // before createSim loads it, and never consumes the simulation's RNG.
+import { FIRST_ENCOUNTER, LAST_ENCOUNTER } from './encounters';
 import { createRng, nextRandom } from './rng';
-import { OBJECT_LIMITS } from './setup-limits';
-import { tileOf, type ObjectPlacement, type Point } from './starting-state';
+import { ENCOUNTER_LIMITS, OBJECT_LIMITS } from './setup-limits';
+import {
+  TILE_SIZE,
+  tileOf,
+  type ObjectPlacement,
+  type Point
+} from './starting-state';
 
 export const SETUP_AXES = ['a', 'b', 'c'] as const;
 export type SetupAxis = (typeof SETUP_AXES)[number];
 
-// Only the fields this axis needs. Generic callers keep every other field
+// Only the fields these axes need. Generic callers keep every other field
 // in their input, including extractor metadata, with its original type.
 export interface SetupData {
   object_placements: ObjectPlacement[];
   places: { index: number; position: Point }[];
+  roster: {
+    encounter: {
+      area: { bottom: number; left: number; right: number; top: number };
+      chance: number;
+      earliest_day: number;
+    } | null;
+    index: number;
+  }[];
 }
 
 // Permanent stream identifiers: future axes use their own salt and RNG.
@@ -25,7 +39,7 @@ export const validateSetupAxes = (axes: readonly SetupAxis[]): void => {
     throw new Error('Setup axes must be unique');
   }
   for (const axis of axes) {
-    if (axis !== 'a') {
+    if (axis !== 'a' && axis !== 'b') {
       throw new Error(`Setup axis ${axis} is not implemented`);
     }
   }
@@ -99,6 +113,65 @@ const shuffleObjects = (
   }));
 };
 
+const shuffleEncounters = (
+  classic: SetupData,
+  seed: number
+): SetupData['roster'] => {
+  const limits = new Map(ENCOUNTER_LIMITS.map(limit => [limit.roster, limit]));
+  const figures = classic.roster.filter(
+    entry => entry.index >= FIRST_ENCOUNTER && entry.index <= LAST_ENCOUNTER
+  );
+  if (
+    figures.length !== ENCOUNTER_LIMITS.length ||
+    new Set(figures.map(entry => entry.index)).size !== limits.size ||
+    figures.some(entry => !entry.encounter || !limits.has(entry.index))
+  ) {
+    throw new Error('Encounter limits do not match the Classic roster');
+  }
+  const places = new Map(classic.places.map(place => [place.index, place]));
+  const corner = (index: number): Point => {
+    const place = places.get(index);
+    if (!place) {
+      throw new Error(`Encounter limits reference missing Place ${index}`);
+    }
+    return tileOf(place.position);
+  };
+  let rng = setupAxisRng(seed, 'b');
+  const draw = (count: number): number => {
+    const next = nextRandom(rng);
+    rng = next.state;
+    return Math.floor(next.value * count);
+  };
+  // Walk the design rows, so incidental roster array ordering cannot change
+  // which figure receives a draw. No draw comes from the object stream.
+  const encounters = new Map(
+    ENCOUNTER_LIMITS.map(limit => {
+      const candidate = limit.areas[draw(limit.areas.length)]!;
+      const a = corner(candidate[0]);
+      const b = corner(candidate[1]);
+      const [first, last] = limit.firstDay;
+      return [
+        limit.roster,
+        {
+          area: {
+            bottom: (Math.max(a.y, b.y) + 1) * TILE_SIZE - 1,
+            left: Math.min(a.x, b.x) * TILE_SIZE,
+            right: (Math.max(a.x, b.x) + 1) * TILE_SIZE - 1,
+            top: Math.min(a.y, b.y) * TILE_SIZE
+          },
+          earliest_day: first + draw(last - first + 1)
+        }
+      ];
+    })
+  );
+  return classic.roster.map(entry => {
+    const shuffled = encounters.get(entry.index);
+    return shuffled
+      ? { ...entry, encounter: { ...entry.encounter!, ...shuffled } }
+      : entry;
+  });
+};
+
 export const shuffleSetup = <T extends SetupData>(
   classic: T,
   seed: number,
@@ -108,7 +181,10 @@ export const shuffleSetup = <T extends SetupData>(
     throw new Error('Setup seed must be an unsigned 32-bit integer');
   }
   validateSetupAxes(axes);
-  return axes.includes('a')
+  const setup = axes.includes('a')
     ? { ...classic, object_placements: shuffleObjects(classic, seed) }
     : classic;
+  return axes.includes('b')
+    ? { ...setup, roster: shuffleEncounters(classic, seed) }
+    : setup;
 };

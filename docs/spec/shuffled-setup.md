@@ -18,10 +18,10 @@ Enabling or disabling another axis must not change that stream's draws.
 Nothing draws from or changes `SimState.rng` during generation.
 
 - **a, objects:** implemented here.
-- **b, Encounters:** reserved for #273; areas and first days, with chances fixed.
+- **b, Encounters:** areas and first days, with chances fixed.
 - **c, Nazgûl:** reserved for #274; rider positions, with Default Orders fixed.
 
-Until implemented, requesting b or c fails explicitly. Unknown axes and
+Until implemented, requesting c fails explicitly. Unknown axes and
 invalid seeds also fail. No view, save, Demo or `createSim` changes are needed.
 
 ## Object limits
@@ -60,6 +60,54 @@ blade rows. Their regional boundaries and travel distances are provisional.
 Every row's reason lives beside its candidates so the maintainer can review
 all limits in one place.
 
+## Encounter limits
+
+Axis b changes only `encounter.area` and `encounter.earliest_day` in roster
+entries 152–195. These figures wait in areas rather than move
+(`finding:forces-encounter-figures-wait-in-areas`). Their chance, allegiance,
+strength, inventories, position and destination fields, and every other
+roster field stay unchanged. The existing loader takes the shuffled JSON
+without changes. Turning b off gives exactly the object-axis generator's
+result for the same seed and switches.
+
+`ENCOUNTER_LIMITS` in `setup-limits.ts` has one row per figure, identified by
+roster number. Each row lists candidate areas as pairs of Place numbers,
+an inclusive first-day range, and its design reason. An area is the
+rectangle between those Places' tile origins, extending through the last
+pixel of both end tiles. Repeating a Place means one whole tile. Axis b's
+stream draws an area uniformly from that row, then an integer day uniformly
+from the inclusive range, including when either choice is fixed. There are
+no redraws, clipping or fallback areas.
+
+The table contains no extracted coordinates. The areas are regional habitat
+choices, not a new terrain check: Mirkwood spiders stay in the Mirkwood
+region, mountain creatures near mountain passes, and Mordor figures around
+its gates and interior. Existing road/settlement restrictions still apply
+to folk (`finding:forces-folk-met-only-in-settlements`). Bilbo stays at
+Rivendell with first day 0 so the Council still opens his chance; Tom
+Bombadil, Galadriel and Saruman keep their homes. Treebeard uses the named
+Derndingle tile. Círdan may be at either western Elven port. Radagast's
+returning-advice rule and Bilbo's Council gate are unchanged
+(`finding:forces-advisors-met-once`).
+
+`ENCOUNTER_EXCLUSION_ZONES` reserves Hobbiton (Place 2) and every tile within
+a Chebyshev distance of two tiles: a 5×5 square, including its edges and
+corners. No candidate rectangle for any figure may intersect it, even if
+that figure's first day is later. This lets the Ring-bearer leave the start
+and move beyond its immediate neighbours without an Encounter. The margin
+is an opening buffer, not a guarantee about later journeys or moving Evil
+Forces. Tests check every candidate against it using exported Place data,
+then check many generated seeds. The generator performs no per-campaign
+balance validation.
+
+**Design review priorities:** every area and day range is provisional. In
+particular, review Círdan at Forlond (152), Treebeard at named Derndingle
+(156), the broad Radagast region (157), the western balrog's southern reach
+(185), all hostile day ranges (166–195), and the narrowed one-area rows
+(153–156, 166, 175, 177–178, 184, 192). These concentrate some formerly
+broad Encounters, so a fixed chance does not imply a fixed overall risk.
+The table deliberately gives story-bound figures singleton candidate sets.
+
 ## Survey
 
 `bun run survey` accepts `--setup classic|shuffled`, `--setup-seeds N`, and
@@ -82,4 +130,6 @@ single object act, a failed Take at a remembered Classic placement that was
 absent from the shuffled starting data. Other failures, including ambiguous
 decisions with multiple object acts, remain unattributed. This is a
 conservative attribution, not a claim that every failed act was caused by
-shuffling. No win-rate threshold is a CI check.
+shuffling. Axis b changes passive Encounters, which are not object acts;
+its failed-act column stays zero rather than attributing incidental failures
+to an Encounter. No win-rate threshold is a CI check.
