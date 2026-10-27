@@ -62,7 +62,7 @@ test('the CLI defaults to all Players and both knowledge modes', () => {
     ['--setup-seeds', '0'],
     ['--setup-seeds', '1.5'],
     ['--setup-seeds', '4294967297'],
-    ['--axes', 'a,c'],
+    ['--axes', 'a,e'],
     ['--axes', 'a,a'],
     ['--axes', 'd'],
     ['--seeds', '0'],
@@ -258,10 +258,16 @@ test('the CLI selects Shuffled Setup, independent counts and axes off', () => {
   expect(parseSurveyArgs(['--axes', '']).options.axes).toEqual([]);
   expect(parseSurveyArgs(['--axes', 'b']).options.axes).toEqual(['b']);
   expect(parseSurveyArgs(['--axes', 'a,b']).options.axes).toEqual(['a', 'b']);
+  expect(parseSurveyArgs(['--axes', 'c']).options.axes).toEqual(['c']);
 });
 
 describe.skipIf(!assetsExist())('Shuffled Setup survey', () => {
-  test.each<('a' | 'b')[][]>([[['a']], [['b']], [['a', 'b']]])(
+  test.each<('a' | 'b' | 'c')[][]>([
+    [['a']],
+    [['b']],
+    [['c']],
+    [['a', 'b', 'c']]
+  ])(
     'crosses both seed ranges, every Player and knowledge mode with axes %j',
     axes => {
       const assets = loadSoakAssets();
