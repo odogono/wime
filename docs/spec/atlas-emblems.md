@@ -61,9 +61,8 @@ Each Emblem is drawn in a 64 × 64 viewBox, meant to be shown from about
   and boughs) are at least 2 units across, so its silhouette still reads
   at 24 pixels. Finer detail (leaves, mane, star points) is welcome but
   may close up when small.
-- A device is drawn by tracing an approved reference image, then
-  cleaned and fitted by hand. Devices are not hand-plotted from
-  coordinates.
+- A device is traced from a generated image, not plotted by hand (see
+  "Making an Emblem").
 
 ## How the renderer reads an Emblem
 
@@ -88,3 +87,48 @@ Emblem's width, overlapping the rim. It is the only fourth colour on
 the map's Forces, drawn as its own picture over the Emblem rather than
 as part of each device. The Ring-bearer's Compact marker carries the
 same mark at the same proportion.
+
+## Making an Emblem
+
+Every Emblem is made the same way, so that they stay one family.
+
+1. Generate a reference image with this prompt: the style paragraph,
+   then one subject line.
+
+   ```text
+   A flat heraldic emblem drawn as if in pen and ink on a Tolkien-style
+   parchment map. Dark brown-black ink #3a2c1c, one even line weight
+   (bold enough to read at 32 px across), no hatching finer than that.
+   The background is flat parchment #f0e4c4. The field is flat blue
+   #2f58a8 inside an ink rim; the device is parchment negative space on
+   the field. Use perfectly uniform solid colour regions, like a clean
+   vector print: no paper texture, grain, lighting, shading or
+   gradients. No pole, finials, cords or ragged edges. The subject is
+   centred alone, with no text, border, frame or shadow. Simple, bold
+   silhouette, readable as a small map marker.
+   ```
+
+   The field is always blue: the renderer tints it per Side. Subject
+   lines for the samples:
+   - Character: "Aragorn's device, the White Tree of Gondor with exactly
+     seven stars in a row beneath a crown, on a round-topped banner.
+     Crown at top, stars beneath it, tree below the stars."
+   - Unit: "A heater shield bearing a running horse (Rohan), with a
+     small cavalry mark (a horse-head or lance) in the shield's chief."
+
+2. Trace it with `bun run trace-emblem`, giving the shape and, for
+   a Unit, the crops that part the chief's mark from the Nation's
+   device, in the reference's pixels. The samples were made with:
+
+   ```sh
+   bun run trace-emblem aragorn.png --shape banner --out aragorn.svg
+   bun run trace-emblem rohan.png --shape shield \
+     --crop 1254x620+0+360 --mark-crop 1254x230+0+120 \
+     --out rohan-cavalry.svg
+   ```
+
+3. Look at the result at 24 and 64 pixels. Regenerate rather than
+   retouch a device that does not read; edit the SVG by hand only for
+   small fixes.
+
+Reference images are not committed.

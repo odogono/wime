@@ -49,7 +49,7 @@ The original game files live in `artifacts/`, which is gitignored and never comm
 
 To boot the original game in FS-UAE, read `docs/re/fs-uae.md`.
 
-The extraction tools need `lha` and the poppler tools on PATH (`brew install lhasa poppler`).
+The extraction tools need `lha` and the poppler tools on PATH (`brew install lhasa poppler`). `bun run trace-emblem`, which makes Atlas emblems (docs/spec/atlas-emblems.md), needs ImageMagick and potrace (`brew install imagemagick potrace`).
 
 ## Tooling
 
