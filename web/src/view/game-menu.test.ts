@@ -15,7 +15,7 @@ import {
 } from './game-menu';
 import { layoutMenu } from './menu-window';
 import { AUTOSAVE_ID, type SlotSummary } from './save-slots';
-import type { TitleSaves } from './title-menu';
+import { loadList, type TitleSaves } from './title-menu';
 
 const slot = (
   id: number,
@@ -26,7 +26,8 @@ const slot = (
   id,
   loadable,
   name: id === AUTOSAVE_ID ? 'Autosave' : `Save ${id}`,
-  savedAt
+  savedAt,
+  setupSeed: null
 });
 
 const SAVES: TitleSaves = {
@@ -48,6 +49,12 @@ const keys = (menu: GameMenu, ...pressed: string[]): GameMenuStep => {
 const labels = (menu: GameMenu): string[] =>
   gameMenuView(menu).rows.map(row => row.label);
 
+const load = (slots: SlotSummary[], selected: number): GameMenu => ({
+  kind: 'load',
+  selected,
+  slots
+});
+
 const centre = (menu: GameMenu, row: number) => {
   const r = layoutMenu(gameMenuView(menu)).rows[row]!;
   return { x: r.x + 4, y: r.y + r.height / 2 };
@@ -62,6 +69,26 @@ describe('the in-game menu', () => {
       'Return to title',
       'Close'
     ]);
+  });
+
+  test('a Shuffled Setup is named over it, a Classic Setup not', () => {
+    expect(gameMenuView(openGameMenu()).lines).toEqual([]);
+    const shuffled = gameMenuView(openGameMenu(false, 1234));
+    expect(shuffled.lines).toEqual(['Shuffled Setup 1234']);
+    expect(shuffled.rows.map(row => row.label)).toEqual(labels(openGameMenu()));
+    expect(gameMenuView(openEndedMenu(false, 7)).lines).toEqual([
+      'Shuffled Setup 7'
+    ]);
+  });
+
+  test('the Load list names a Shuffled save’s Setup when there is one', () => {
+    const shuffled = { ...slot(4, 900), setupSeed: 99 };
+    const classic = loadList(SAVES);
+    expect(gameMenuView(load(classic, 0)).lines).toEqual([]);
+    const mixed = [shuffled, ...classic];
+    expect(gameMenuView(load(mixed, 0)).lines).toEqual(['Shuffled Setup 99']);
+    // The line stays, blank, so the window keeps its height.
+    expect(gameMenuView(load(mixed, 1)).lines).toEqual(['']);
   });
 
   test('Escape or Close closes it', () => {

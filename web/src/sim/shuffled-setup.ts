@@ -14,6 +14,11 @@ import {
 export const SETUP_AXES = ['a', 'b', 'c'] as const;
 export type SetupAxis = (typeof SETUP_AXES)[number];
 
+// The axes a player's Shuffled Setup turns on, as one switch. Pinned
+// rather than following SETUP_AXES, so a later axis joins it only by a
+// deliberate change, and a seed keeps its Setup until then.
+export const SHUFFLED_SETUP_AXES: readonly SetupAxis[] = ['a', 'b', 'c'];
+
 // Only the fields these axes need. Generic callers keep every other field
 // in their input, including extractor metadata, with its original type.
 export interface SetupData {

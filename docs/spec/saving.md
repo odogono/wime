@@ -17,6 +17,12 @@ keeps the original's look and messages (`finding:ui-archive-window`).
 
 - Each slot holds a game written by `serialiseSave`, its name, when it
   was saved (wall-clock time) and the in-game date (`formatClock`).
+- A game from a Shuffled Setup (docs/spec/shuffled-setup.md) is saved
+  with its Setup seed, beside the state rather than in it, and loads
+  with it. A save without one is from the Classic Setup, as every save
+  from before Shuffled Setups is, so adding it needed no
+  `SAVE_VERSION` bump. A damaged Setup is refused as a damaged state
+  is.
 - Slots can be listed, saved into, saved over (keeping their name),
   loaded, renamed and deleted. An empty name becomes `Save <n>`. Slot
   ids are never reused.

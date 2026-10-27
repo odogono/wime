@@ -12,6 +12,7 @@ import {
   openTitleMenu,
   pressTitleMenuKey,
   stepTitleIdle,
+  titleMenuView,
   type TitleMenu,
   type TitleSaves
 } from './title-menu';
@@ -25,7 +26,8 @@ const slot = (
   id,
   loadable,
   name: id === AUTOSAVE_ID ? 'Autosave' : `Save ${id}`,
-  savedAt
+  savedAt,
+  setupSeed: null
 });
 
 const NONE: TitleSaves = { autosave: null, slots: [] };
@@ -90,10 +92,29 @@ describe('the title menu', () => {
     });
   });
 
-  test('New Game starts at once with no save', () => {
-    expect(keys(openTitleMenu(NONE), NONE, 'Enter').choice).toEqual({
-      kind: 'new-game'
+  test('New Game offers the Classic or a Shuffled Setup with no save', () => {
+    const page = keys(openTitleMenu(NONE), NONE, 'Enter');
+    expect(page.choice).toBeUndefined();
+    expect(page.menu).toEqual({ kind: 'setup', selected: 0 });
+    expect(titleMenuView(page.menu).rows.map(row => row.label)).toEqual([
+      'Classic Setup',
+      'Shuffled Setup',
+      'Back'
+    ]);
+    expect(keys(page.menu, NONE, 'Enter').choice).toEqual({
+      kind: 'new-game',
+      shuffled: false
     });
+    expect(keys(page.menu, NONE, 'ArrowDown', 'Enter').choice).toEqual({
+      kind: 'new-game',
+      shuffled: true
+    });
+    expect(keys(page.menu, NONE, 'ArrowUp', 'Enter').menu.kind).toBe('main');
+    expect(keys(page.menu, NONE, 'Escape').menu.kind).toBe('main');
+  });
+
+  test('the Setup page pauses the idle Demo', () => {
+    expect(stepTitleIdle(0, { kind: 'setup', selected: 0 }, 1000)).toBe(0);
   });
 
   test('New Game asks first when there is a save, defaulting to no', () => {
@@ -101,8 +122,9 @@ describe('the title menu', () => {
     expect(asked.choice).toBeUndefined();
     expect(asked.menu.kind).toBe('confirm');
     expect(keys(asked.menu, SOME, 'Enter').menu.kind).toBe('main');
-    expect(keys(asked.menu, SOME, 'ArrowUp', 'Enter').choice).toEqual({
-      kind: 'new-game'
+    expect(keys(asked.menu, SOME, 'ArrowUp', 'Enter').menu).toEqual({
+      kind: 'setup',
+      selected: 0
     });
     expect(keys(asked.menu, SOME, 'Escape').menu.kind).toBe('main');
   });

@@ -1,4 +1,5 @@
 import {
+  SHUFFLED_SETUP_AXES,
   combatRows,
   createSim,
   forcesOnMap,
@@ -8,6 +9,7 @@ import {
   glassWatches,
   listFightOnAnimationLevel,
   mirrorListing,
+  shuffleSetup,
   startDemo,
   statusLine,
   takesOrder,
@@ -18,6 +20,8 @@ import {
   type DemoRun,
   type DemoScript,
   type Force,
+  type SaveSetup,
+  type SetupData,
   type SimState
 } from '../sim/index';
 import {
@@ -345,6 +349,9 @@ const ORDER_REFUSED = 'The force will not accept your orders.';
 const PICK_FORCE_PROMPT = 'Click a Force to order';
 // The seed of a New Game; a Demo starts from its own.
 const NEW_GAME_SEED = 0x14_18;
+// A Shuffled Setup's seed, any unsigned 32-bit integer.
+const randomSetupSeed = (): number =>
+  Math.floor(Math.random() * 0x1_00_00_00_00);
 
 // `run` holds the whole view's state and handlers, in this order; search for
 // the name to jump to a part:
@@ -403,8 +410,8 @@ const run = (
   const saveGame = (): ArchiveWindow => {
     const slot = archiveSlot();
     const result = slot
-      ? saveSlots.saveOver(slot.id, sim)
-      : saveSlots.save(LEGACY_ARCHIVE_NAME, sim);
+      ? saveSlots.saveOver(slot.id, sim, setup)
+      : saveSlots.save(LEGACY_ARCHIVE_NAME, sim, setup);
     return archiveMessage(
       result.ok ? ARCHIVE_MESSAGES.saved : ARCHIVE_MESSAGES.saveFailed
     );
@@ -419,7 +426,11 @@ const run = (
       return archiveMessage(ARCHIVE_MESSAGES.otherVersion);
     }
     // The restored game stays on this Level, watching whom it watches.
-    sim = watchEntry(result.value, level === 'animation' ? watched : null);
+    sim = watchEntry(
+      result.value.state,
+      level === 'animation' ? watched : null
+    );
+    setup = result.value.setup;
     // A message already on screen was shown; the restored game's own
     // waiting announcements follow.
     // A restored meeting or Council gets a fresh window.
@@ -456,6 +467,21 @@ const run = (
   const newSim = (seed = NEW_GAME_SEED): SimState =>
     createSim(seed, assets.startingState, assets.tilemap);
   let sim: SimState = newSim();
+  // The Shuffled Setup the game in play started from, null for the
+  // Classic Setup; saved beside it (docs/spec/shuffled-setup.md).
+  let setup: SaveSetup | null = null;
+  // A New Game from a fresh Shuffled Setup, with the same sim seed as
+  // any New Game.
+  const newShuffledSim = (seed: number): SimState =>
+    createSim(
+      NEW_GAME_SEED,
+      shuffleSetup(
+        assets.startingState as SetupData,
+        seed,
+        SHUFFLED_SETUP_AXES
+      ),
+      assets.tilemap
+    );
   // The Demo playing, which owns the game while it plays: `sim` is then
   // a copy of its state, for the view to show and its windows to play
   // out on, and the view is read-only (demo-mode.ts).
@@ -2181,7 +2207,7 @@ const run = (
   });
   let autosavedAt = autosavePoint(autosaveView());
   const autosaveNow = (view: AutosaveView): void => {
-    saveSlots.autosave(sim);
+    saveSlots.autosave(sim, setup);
     autosavedAt = autosavePoint(view);
   };
   const autosaveOnHide = (): void => {
@@ -2225,6 +2251,10 @@ const run = (
       return;
     }
     if (choice.kind === 'new-game') {
+      if (choice.shuffled) {
+        setup = { seed: randomSetupSeed() };
+        sim = newShuffledSim(setup.seed);
+      }
       startGame(true);
       return;
     }
@@ -2240,7 +2270,8 @@ const run = (
       titleMenu = { kind: 'message', lines: loadFailed(result.reason) };
       return;
     }
-    sim = result.value;
+    sim = result.value.state;
+    setup = result.value.setup;
     startGame(false);
   };
   // Under `bun run dev` only, `window.wime` drives the view from the
@@ -2277,6 +2308,7 @@ const run = (
           boot = null;
           if (seed !== undefined || demo) {
             sim = newSim(seed);
+            setup = null;
           }
           demo = null;
           demoKind = null;
@@ -2328,7 +2360,7 @@ const run = (
     ) {
       return false;
     }
-    openMenuOver(openGameMenu(demo !== null));
+    openMenuOver(openGameMenu(demo !== null, setup?.seed));
     return true;
   };
   // Behind the menu, what is on screen: the Full Map Level's hi-res
@@ -2350,10 +2382,12 @@ const run = (
   // After the ending's last page: Return to title or Load; nothing goes
   // back to the ended game.
   const openMenuAfterEnding = (): void => {
-    openMenuOver(openEndedMenu(demo !== null));
+    openMenuOver(openEndedMenu(demo !== null, setup?.seed));
   };
   const gameMenuHome = (): GameMenu =>
-    ending ? openEndedMenu(demo !== null) : openGameMenu(demo !== null);
+    ending
+      ? openEndedMenu(demo !== null, setup?.seed)
+      : openGameMenu(demo !== null, setup?.seed);
   menuButton?.addEventListener('click', () => {
     if (!gameMenu) {
       openInGameMenu();
@@ -2394,7 +2428,7 @@ const run = (
       showTitle();
       return;
     }
-    if (!saveSlots.autosave(sim).ok) {
+    if (!saveSlots.autosave(sim, setup).ok) {
       gameMenu = gameMenuMessage(AUTOSAVE_FAILED);
       return;
     }
@@ -2411,6 +2445,7 @@ const run = (
     demoKind = null;
     titleIdleMs = 0;
     sim = newSim();
+    setup = null;
     camera = openingCamera();
     level = 'animation';
     audio?.play(PIECE.title);
@@ -2447,8 +2482,8 @@ const run = (
         }
         const result =
           choice.kind === 'save-new'
-            ? saveSlots.save(choice.name, sim)
-            : saveSlots.saveOver(choice.id, sim);
+            ? saveSlots.save(choice.name, sim, setup)
+            : saveSlots.saveOver(choice.id, sim, setup);
         gameMenu = gameMenuMessage(
           result.ok ? SAVED(result.value.name) : saveFailed(result.reason)
         );
@@ -2468,7 +2503,8 @@ const run = (
         }
         leaveGameMenu();
         clearWindows();
-        sim = result.value;
+        sim = result.value.state;
+        setup = result.value.setup;
         startGame(false);
       }
     }
@@ -2513,6 +2549,8 @@ const run = (
     letterOpenedAt = null;
     idleEndingAt = null;
     sim = demoDisplay(demo);
+    // A Demo always plays the Classic Setup it was recorded on.
+    setup = null;
     driver.speed = 'very-hasty';
     startGame(true);
   };

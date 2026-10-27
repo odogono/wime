@@ -252,6 +252,7 @@ describe('saving', () => {
     const moved = takeObject(putDownObject(world(), 7, 4, HERE), 8, 9, HERE);
     expect(restoreSave(serialiseSave(moved), null)).toEqual({
       ok: true,
+      setup: null,
       state: moved
     });
   });

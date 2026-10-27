@@ -144,6 +144,27 @@ export const slotRow = (slot: SlotSummary): MenuRowSpec => ({
   note: slot.gameDate
 });
 
+// The label of a game started from a Shuffled Setup
+// (docs/spec/shuffled-setup.md); a Classic Setup has none.
+export const setupLabel = (seed: number): string => `Shuffled Setup ${seed}`;
+
+// The line over a Load list naming the selected save's Setup, shown
+// only when some save listed has a Shuffled Setup, so the window keeps
+// its height as the selection moves.
+export const loadListLines = (
+  slots: readonly SlotSummary[],
+  selected: number
+): string[] => {
+  if (slots.length === 0) {
+    return ['There are no saves to load.'];
+  }
+  if (!slots.some(slot => slot.setupSeed !== null)) {
+    return [];
+  }
+  const seed = slots[selected]?.setupSeed ?? null;
+  return [seed === null ? '' : setupLabel(seed)];
+};
+
 // Saves newest first; an imported Archive, never timed, last.
 export const newestFirst = (slots: readonly SlotSummary[]): SlotSummary[] =>
   [...slots].sort(
