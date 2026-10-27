@@ -1,8 +1,9 @@
 // The Atlas map's WebGL2 renderer (ADR-0006). It draws, in order: the
 // Terrain Region fills, their ink edges and the rivers, the scattered
-// terrain symbols, and then a screen-space layer of Force sprites,
+// terrain symbols, and then a screen-space layer of Force emblems,
 // markers and lettering built fresh each frame.
 import { NO_SEGMENT, type GeographyBundle } from './bundle';
+import type { EmblemAtlas } from './emblems';
 import { PEAKS, type PictogramAtlas } from './pictograms';
 import type { SdfFont } from './sdf-font';
 
@@ -18,14 +19,14 @@ export interface View {
   zoom: number;
 }
 
-// One screen-space quad: a sprite, a marker or a glyph.
+// One screen-space quad: an emblem, a marker or a glyph.
 export interface Quad {
   colour: [number, number, number, number];
   // For glyphs: the field's edge threshold, lower for a halo.
   edge?: number;
   h: number;
   mode: QuadMode;
-  // Texture rectangle in texels (sprites, glyphs) or unused (markers).
+  // Texture rectangle in texels (emblems, glyphs) or unused (markers).
   u0?: number;
   u1?: number;
   v0?: number;
@@ -38,10 +39,14 @@ export interface Quad {
 
 export const QuadMode = {
   circle: 2,
+  // An Emblem's outline alone, in its colour with an ink rim.
+  compact: 5,
+  // A Force's Emblem: its field in the quad's colour, the device in
+  // parchment and the ink over both.
+  emblem: 0,
   glyph: 1,
   // A Place's ink picture, from the pictogram atlas.
   pictogram: 4,
-  sprite: 0,
   square: 3
 } as const;
 export type QuadMode = (typeof QuadMode)[keyof typeof QuadMode];
@@ -367,9 +372,14 @@ in vec2 v_uv;
 in vec4 v_colour;
 flat in int v_mode;
 in float v_edge;
-uniform sampler2D u_sprites;
+uniform sampler2D u_emblems;
 uniform sampler2D u_font;
-uniform vec2 u_spriteSize;
+uniform vec2 u_emblemSize;
+// Texels the emblem field spans either side of an edge, and the
+// Compact marker's rim in texels.
+uniform float u_emblemRadius;
+uniform float u_emblemRim;
+uniform vec3 u_device;
 uniform vec2 u_fontSize;
 uniform vec3 u_ink;
 uniform vec3 u_paper;
@@ -388,9 +398,25 @@ void main() {
     if (a < 0.01) discard;
     colour = vec4(mix(u_paper, u_ink, ink), a * v_colour.a);
   } else if (v_mode == 0) {
-    vec4 t = texture(u_sprites, v_uv / u_spriteSize);
-    if (t.a < 0.5) discard;
-    colour = t;
+    // An Emblem: red is ink, green the silhouette, blue the device.
+    vec3 t = texture(u_emblems, v_uv / u_emblemSize).rgb;
+    vec3 aa = fwidth(t) * 0.75;
+    vec3 on = smoothstep(0.5 - aa, 0.5 + aa, t);
+    if (on.g < 0.01) discard;
+    vec3 c = mix(mix(v_colour.rgb, u_device, on.b), u_ink, on.r);
+    colour = vec4(c, on.g * v_colour.a);
+  } else if (v_mode == 5) {
+    // A Compact marker: the silhouette, with an ink rim cut from its own
+    // field, at least a device pixel wide.
+    float g = texture(u_emblems, v_uv / u_emblemSize).g;
+    float aa = fwidth(g) * 0.75;
+    float body = smoothstep(0.5 - aa, 0.5 + aa, g);
+    if (body < 0.01) discard;
+    float texel = length(fwidth(v_uv)) * 0.7071;
+    float depth = (g * 255.0 - 128.0) / 127.0 * u_emblemRadius;
+    float rimWidth = max(u_emblemRim, texel);
+    float rim = 1.0 - smoothstep(rimWidth - texel * 0.5, rimWidth + texel * 0.5, depth);
+    colour = vec4(mix(v_colour.rgb, u_ink, rim), body * v_colour.a);
   } else if (v_mode == 1) {
     float d = texture(u_font, v_uv / u_fontSize).r;
     float aa = fwidth(d) * 0.75;
@@ -433,7 +459,7 @@ export class AtlasRenderer {
     program: WebGLProgram;
     vao: WebGLVertexArrayObject;
   };
-  private readonly spriteSize: [number, number];
+  private readonly emblems: EmblemAtlas;
   private readonly pictogramSize: [number, number];
   private readonly peakCells: number[];
   private readonly peakCell: number;
@@ -445,7 +471,7 @@ export class AtlasRenderer {
     canvas: HTMLCanvasElement,
     bundle: GeographyBundle,
     font: SdfFont,
-    sprites: TexImageSource & { height: number; width: number },
+    emblems: EmblemAtlas,
     pictograms: PictogramAtlas
   ) {
     const gl = canvas.getContext('webgl2', {
@@ -581,19 +607,21 @@ export class AtlasRenderer {
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
     };
-    // The sprites are pixel art: sampled nearest, never smoothed.
     texture(
       0,
       () =>
         gl.texImage2D(
           gl.TEXTURE_2D,
           0,
-          gl.RGBA,
-          gl.RGBA,
+          gl.RGB8,
+          emblems.width,
+          emblems.height,
+          0,
+          gl.RGB,
           gl.UNSIGNED_BYTE,
-          sprites
+          emblems.texture
         ),
-      gl.NEAREST
+      gl.LINEAR
     );
     texture(
       1,
@@ -634,7 +662,7 @@ export class AtlasRenderer {
     });
     this.peakCell = pictograms.cell;
     this.peakMargin = pictograms.margin;
-    this.spriteSize = [sprites.width, sprites.height];
+    this.emblems = emblems;
     this.fontSize = [font.texture.width, font.texture.height];
   }
 
@@ -773,11 +801,18 @@ export class AtlasRenderer {
     const u = (name: string): WebGLUniformLocation | null =>
       gl.getUniformLocation(program, name);
     gl.uniform2f(u('u_screen'), view.width, view.height);
-    gl.uniform1i(u('u_sprites'), 0);
+    gl.uniform1i(u('u_emblems'), 0);
+    gl.uniform2f(u('u_emblemSize'), this.emblems.width, this.emblems.height);
+    gl.uniform1f(u('u_emblemRadius'), this.emblems.radius);
+    // The sheet's 3-unit rim, in texels of the 64-unit box.
+    gl.uniform1f(
+      u('u_emblemRim'),
+      (3 * (this.emblems.cell - this.emblems.margin * 2)) / 64
+    );
+    gl.uniform3f(u('u_device'), ...hex(PAPER));
     gl.uniform1i(u('u_font'), 1);
     gl.uniform1i(u('u_pictograms'), 2);
     gl.uniform2f(u('u_pictogramSize'), ...this.pictogramSize);
-    gl.uniform2f(u('u_spriteSize'), ...this.spriteSize);
     gl.uniform2f(u('u_fontSize'), ...this.fontSize);
     gl.uniform3f(u('u_ink'), ...hex(INK));
     gl.uniform3f(u('u_paper'), ...hex('#f4ead0'));

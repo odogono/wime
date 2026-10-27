@@ -1,11 +1,13 @@
 import { describe, expect, test } from 'bun:test';
 
 import {
+  EMBLEM_MAP_SIZE,
+  EMBLEM_MIN_SIZE,
   bandAt,
   clusterDots,
+  emblemSize,
   placeLabels,
   rankZoom,
-  spriteScale,
   tierFor,
   zoomRange
 } from './lod';
@@ -35,16 +37,21 @@ describe('bandAt', () => {
 });
 
 describe('tierFor', () => {
-  test('goes from figure to compact to dot as the map zooms out', () => {
-    expect(tierFor(range.campaign, range, false)).toBe('figure');
-    expect(tierFor(range.boundary * 1.1, range, false)).toBe('compact');
+  // Where an Emblem would be drawn at its least size.
+  const legible = EMBLEM_MIN_SIZE / EMBLEM_MAP_SIZE;
+
+  test('goes from emblem to compact to dot as the map zooms out', () => {
+    expect(legible).toBeGreaterThan(range.boundary);
+    expect(tierFor(range.campaign, range, false)).toBe('emblem');
+    expect(tierFor(legible * 1.1, range, false)).toBe('emblem');
+    expect(tierFor(legible * 0.9, range, false)).toBe('compact');
     expect(tierFor(range.min, range, false)).toBe('dot');
   });
 
   test('draws an important Force one tier more detailed', () => {
     expect(tierFor(range.min, range, true)).toBe('compact');
-    expect(tierFor(range.boundary * 1.1, range, true)).toBe('figure');
-    expect(tierFor(range.campaign, range, true)).toBe('figure');
+    expect(tierFor(legible * 0.9, range, true)).toBe('emblem');
+    expect(tierFor(range.campaign, range, true)).toBe('emblem');
   });
 
   test('keeps the previous tier just past a threshold', () => {
@@ -55,12 +62,11 @@ describe('tierFor', () => {
   });
 });
 
-describe('spriteScale', () => {
-  test('holds sprites between one and three times their pixel size', () => {
-    expect(spriteScale(0.2, 1)).toBe(1);
-    expect(spriteScale(2.4, 1)).toBe(2);
-    expect(spriteScale(12, 1)).toBe(3);
-    expect(spriteScale(12, 2)).toBe(6);
+describe('emblemSize', () => {
+  test('follows the map between the least and greatest sizes', () => {
+    expect(emblemSize(0.2)).toBe(24);
+    expect(emblemSize(2.5)).toBe(30);
+    expect(emblemSize(12)).toBe(64);
   });
 });
 

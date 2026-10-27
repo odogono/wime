@@ -1,5 +1,5 @@
 // The Atlas map's level-of-detail policy (ADR-0006): which zoom band the
-// map is in, how each Force is drawn, how big sprites are and which
+// map is in, how each Force is drawn, how big Emblems are and which
 // geography is shown. Zoom is CSS pixels per map pixel throughout.
 
 // The original's Campaign Level shows 320 map pixels across its 320
@@ -10,9 +10,13 @@ export const CAMPAIGN_VIEW_WIDTH = 320;
 export const MAX_ZOOM_FACTOR = 4;
 // A Force's icon is 16 by 16 map pixels (finding:ui-campaign-level-display).
 export const SPRITE_SIZE = 16;
-// Sprites are drawn crisp, between these multiples of their pixel size.
-export const SPRITE_MIN_SCALE = 1;
-export const SPRITE_MAX_SCALE = 3;
+// An Emblem's 64-unit box covers this many map pixels, a little less
+// than the original's 16-pixel icon so that Compact markers keep a band
+// of zoom above the Full Map Level's, and is drawn between these sizes in CSS pixels: below the least it no
+// longer reads (docs/spec/atlas-emblems.md), so the Emblem tier ends there.
+export const EMBLEM_MAP_SIZE = 12;
+export const EMBLEM_MIN_SIZE = 24;
+export const EMBLEM_MAX_SIZE = 64;
 // How far past a threshold the zoom must go before a tier changes back,
 // so zooming across it does not flicker.
 export const HYSTERESIS = 0.08;
@@ -62,18 +66,18 @@ export const bandAt = (
 
 // From most to least detailed. Aggregates are decided afterwards, from
 // dots that crowd each other on screen.
-export const TIERS = ['figure', 'compact', 'dot'] as const;
+export const TIERS = ['emblem', 'compact', 'dot'] as const;
 export type Tier = (typeof TIERS)[number] | 'aggregate';
 
-// The zoom at or above which each tier is used: figures from halfway to
-// the Campaign Level's scale, compact markers through the rest of the
+// The zoom at or above which each tier is used: Emblems from where they
+// are drawn at their least size, Compact markers through the rest of the
 // Campaign Level band, dots in the Full Map Level band.
 export const tierThresholds = (
   range: ZoomRange
 ): Record<(typeof TIERS)[number], number> => ({
   compact: range.boundary,
   dot: 0,
-  figure: Math.max(range.boundary, range.campaign / 2)
+  emblem: Math.max(range.boundary, EMBLEM_MIN_SIZE / EMBLEM_MAP_SIZE)
 });
 
 // The tier a Force is drawn at. An important Force (selected, watched or
@@ -107,13 +111,10 @@ export const tierFor = (
   return TIERS[important ? Math.max(0, index - 1) : index]!;
 };
 
-// How many device pixels each sprite pixel covers: the map's own scale,
-// held between the minimum and maximum, and snapped to whole device
-// pixels so the art stays crisp.
-export const spriteScale = (zoom: number, devicePixelRatio: number): number => {
-  const css = Math.min(SPRITE_MAX_SCALE, Math.max(SPRITE_MIN_SCALE, zoom));
-  return Math.max(1, Math.round(css * devicePixelRatio));
-};
+// An Emblem's size in CSS pixels: the map's own scale, held between its
+// least and greatest sizes.
+export const emblemSize = (zoom: number): number =>
+  Math.min(EMBLEM_MAX_SIZE, Math.max(EMBLEM_MIN_SIZE, EMBLEM_MAP_SIZE * zoom));
 
 export interface ScreenDot {
   id: number;

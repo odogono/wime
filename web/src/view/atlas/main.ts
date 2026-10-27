@@ -16,10 +16,7 @@ const canvas = document.querySelector<HTMLCanvasElement>('#atlas')!;
 const hud = document.querySelector<HTMLElement>('#hud')!;
 
 const assets = await loadCampaignAssets();
-const atlas = await createAtlasMap(
-  canvas,
-  assets.forceIcons as TexImageSource & { height: number; width: number }
-);
+const atlas = await createAtlasMap(canvas);
 let sim: SimState = createSim(0x14_18, assets.startingState, assets.tilemap);
 let running = false;
 const selected = new Set<number>();
@@ -56,7 +53,12 @@ const frame = (now: number): void => {
   }
   atlas.draw(
     forcesOnMap(sim.roster),
-    { flashOn: true, important: isImportant, selected },
+    {
+      flashOn: true,
+      important: isImportant,
+      ringBearer: sim.ringBearer,
+      selected
+    },
     elapsed
   );
   const band = atlas.band();
