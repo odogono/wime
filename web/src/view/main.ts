@@ -587,10 +587,7 @@ const run = (
       return;
     }
     atlasLoading = true;
-    createAtlasMap(
-      atlasCanvas,
-      assets.forceIcons as TexImageSource & { height: number; width: number }
-    )
+    createAtlasMap(atlasCanvas)
       .then(map => {
         atlas = map;
         centreAtlas();
@@ -2813,6 +2810,7 @@ const run = (
       force.members.some(m => m.index === sim.ringBearer) ||
       (order.kind === 'pick-destination' &&
         force.leader.index === order.leaderIndex),
+    ringBearer: sim.ringBearer,
     selected: new Set(
       order.kind === 'pick-destination' ? [order.leaderIndex] : []
     )

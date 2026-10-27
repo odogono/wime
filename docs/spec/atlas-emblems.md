@@ -9,9 +9,9 @@ an SVG fitted by hand to this sheet.
 
 ## Samples
 
-| Character: Aragorn                    | Unit: Rohan cavalry                               |
-| ------------------------------------- | ------------------------------------------------- |
-| ![Aragorn](atlas-emblems/aragorn.svg) | ![Rohan cavalry](atlas-emblems/rohan-cavalry.svg) |
+| Character: Aragorn                                       | Unit: Rohan cavalry                                                  |
+| -------------------------------------------------------- | -------------------------------------------------------------------- |
+| ![Aragorn](../../web/src/view/atlas/emblems/aragorn.svg) | ![Rohan cavalry](../../web/src/view/atlas/emblems/rohan-cavalry.svg) |
 
 ## Palette
 
@@ -127,7 +127,10 @@ Every Emblem is made the same way, so that they stay one family.
      --out rohan-cavalry.svg
    ```
 
-3. Look at the result at 24 and 64 pixels. Regenerate rather than
+3. Save it in `web/src/view/atlas/emblems/`, name the Forces it is
+   drawn for in `web/src/view/atlas/emblems.ts`, and run
+   `bun run build-emblems` to compile the atlas the map draws from.
+4. Look at the result on the map at 24 and 64 pixels. Regenerate rather than
    retouch a device that does not read; edit the SVG by hand only for
    small fixes.
 

@@ -54,17 +54,23 @@ same world is shown and pointed at.
 Forces are drawn by how far the map is zoomed, each tier with a little
 hysteresis so it does not flicker:
 
-- **Figure:** the Leader's own figure or badge, as in Classic, drawn
-  crisp between one and three times its pixel size. Active Forces flash.
-- **Compact:** a marker in the Force's side colour, a disc for a
-  Character and a square for a Unit.
+- **Emblem:** the Force's own emblem (docs/spec/atlas-emblems.md, and
+  ADR-0007): a banner bearing its Leader's device for a Character, a
+  shield for a Unit, its field in the Force's side colour. It grows with
+  the map from 24 to 64 CSS pixels tall; zoomed out past where it would
+  be smaller than 24 pixels, the Force is drawn Compact. Active Forces
+  flash.
+- **Compact:** the Emblem's outline alone, 16 CSS pixels tall, in the
+  side colour with an ink rim: a banner for a Character, a shield for a
+  Unit.
 - **Dot:** a small dot in the side colour.
 - **Aggregate:** dots that would overlap merge into one, with how many it
   stands for beside it.
 
 The Ring-bearer's Force, and a Force being given an Order, are drawn one
-tier more detailed than the zoom alone gives. A Force standing on a
-Place stands beside its picture.
+tier more detailed than the zoom alone gives. The Ring-bearer's Emblem and
+Compact marker carry the Ring mark. An Emblem standing on
+a Place stands beside its picture.
 
 Pointing at a Force picks it by the picture drawn for it: hovering names
 it, clicking opens its window, and picking a Force for an Order takes

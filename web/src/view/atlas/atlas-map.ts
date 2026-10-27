@@ -4,15 +4,15 @@
 // Forces at their level-of-detail tiers. Whoever owns it, the game or
 // the prototype page, moves its camera and hands it the Forces to draw.
 import type { Force } from '../../sim/index';
-import { iconSourceRect } from '../campaign-level';
 import { loadBundle, type GeographyBundle } from './bundle';
+import { RING, emblemFor, loadEmblemAtlas } from './emblems';
 import {
   SPRITE_SIZE,
   bandAt,
   clusterDots,
+  emblemSize,
   placeLabels,
   rankZoom,
-  spriteScale,
   tierFor,
   zoomRange,
   type Band,
@@ -40,6 +40,8 @@ export interface DrawOptions {
   flashOn: boolean;
   // Forces drawn one tier more detailed (docs/spec/atlas-map.md).
   important: (force: Force) => boolean;
+  // The Ring-bearer's roster index: its Emblem carries the Ring mark.
+  ringBearer?: number | null;
   // Forces ringed as selected.
   selected?: ReadonlySet<number>;
 }
@@ -79,6 +81,8 @@ const rgba = (hex: string, alpha = 1): [number, number, number, number] => {
 // Side colours as on the Full Map Level: Evil red, Good blue, Neutral
 // green (GLOSSARY.md). Allegiance 0 is Evil and above 2 a mobilised Good
 // Force (finding:mobilisation-allegiance-byte).
+const RING_GOLD = '#c9a227';
+
 const sideColour = (force: Force): string =>
   force.leader.allegiance === 0
     ? '#b3372c'
@@ -88,7 +92,6 @@ const sideColour = (force: Force): string =>
 
 export const createAtlasMap = async (
   canvas: HTMLCanvasElement,
-  sprites: TexImageSource & { height: number; width: number },
   base = '/assets/'
 ): Promise<AtlasMap> => {
   const bundle = await loadBundle(`${base}geography/bundle.bin`);
@@ -99,7 +102,29 @@ export const createAtlasMap = async (
     ...bundle.pictograms,
     ...PEAKS
   ]);
-  const renderer = new AtlasRenderer(canvas, bundle, font, sprites, pictograms);
+  const emblems = await loadEmblemAtlas(base);
+  const renderer = new AtlasRenderer(canvas, bundle, font, emblems, pictograms);
+  // An emblem's 64-unit box in the atlas, in texels.
+  const emblemRect = (
+    name: string
+  ): { u0: number; u1: number; v0: number; v1: number } => {
+    const cell = emblems.cells[name]!;
+    const art = emblems.cell - emblems.margin * 2;
+    const u0 = cell.u + emblems.margin;
+    const v0 = cell.v + emblems.margin;
+    return { u0, u1: u0 + art, v0, v1: v0 + art };
+  };
+  // The Ring mark, a little over a quarter of the Emblem's width, on its
+  // top right corner.
+  const ringMark = (x: number, y: number, size: number): Quad => ({
+    colour: rgba(RING_GOLD),
+    h: size * 0.3,
+    mode: QuadMode.emblem,
+    w: size * 0.3,
+    x: x + size * 0.62,
+    y: y + size * 0.04,
+    ...emblemRect(RING)
+  });
   const mapSize = { height: bundle.bounds[3], width: bundle.bounds[2] };
   const camera: AtlasCamera = {
     x: mapSize.width / 2,
@@ -263,7 +288,7 @@ export const createAtlasMap = async (
     band = bandAt(camera.zoom, r, band);
     const picks: typeof drawn = [];
     const dots: { force: Force; x: number; y: number }[] = [];
-    const figures: Quad[] = [];
+    const emblemQuads: Quad[] = [];
     const markers: Quad[] = [];
     const selected = options.selected ?? new Set<number>();
     for (const force of forces) {
@@ -281,17 +306,19 @@ export const createAtlasMap = async (
       if (sx < -50 || sy < -50 || sx > width() + 50 || sy > height() + 50) {
         continue;
       }
-      if (tier === 'figure') {
-        const size = SPRITE_SIZE * spriteScale(camera.zoom, dpr);
+      const bearer =
+        options.ringBearer != null &&
+        force.members.some(m => m.index === options.ringBearer);
+      if (tier === 'emblem') {
+        const size = emblemSize(camera.zoom) * dpr;
         // A Force standing on a pictured Place stands beside its
         // picture, so the picture stays in view.
         const place = pictureUnder(force);
         const beside = place
           ? (pictogramSize(place.rank) * dpr) / 2 + size / 2
           : 0;
-        // Whole device pixels, so the sprite stays crisp.
-        const x = Math.round(sx * dpr - size / 2 + beside);
-        const y = Math.round(sy * dpr - size / 2);
+        const x = sx * dpr - size / 2 + beside;
+        const y = sy * dpr - size / 2;
         picks.push({
           box: { h: size / dpr, w: size / dpr, x: x / dpr, y: y / dpr },
           force
@@ -309,21 +336,20 @@ export const createAtlasMap = async (
             y: y - size * 0.15
           });
         }
-        const src = iconSourceRect(force.leader.icon);
-        figures.push({
-          colour: [1, 1, 1, 1],
+        emblemQuads.push({
+          colour: rgba(sideColour(force)),
           h: size,
-          mode: QuadMode.sprite,
-          u0: src.x,
-          u1: src.x + SPRITE_SIZE,
-          v0: src.y,
-          v1: src.y + SPRITE_SIZE,
+          mode: QuadMode.emblem,
           w: size,
           x,
-          y
+          y,
+          ...emblemRect(emblemFor(force))
         });
+        if (bearer) {
+          emblemQuads.push(ringMark(x, y, size));
+        }
       } else if (tier === 'compact') {
-        const size = 12;
+        const size = 16;
         picks.push({
           box: { h: size, w: size, x: sx - size / 2, y: sy - size / 2 },
           force
@@ -339,15 +365,22 @@ export const createAtlasMap = async (
             y: (sy - size / 2 - ring) * dpr
           });
         }
-        // Characters are discs and Units squares.
+        // The Emblem's outline: a banner for a Character, a shield for a
+        // Unit.
+        const x = (sx - size / 2) * dpr;
+        const y = (sy - size / 2) * dpr;
         markers.push({
           colour: rgba(sideColour(force)),
           h: size * dpr,
-          mode: force.leader.isUnit ? QuadMode.square : QuadMode.circle,
+          mode: QuadMode.compact,
           w: size * dpr,
-          x: (sx - size / 2) * dpr,
-          y: (sy - size / 2) * dpr
+          x,
+          y,
+          ...emblemRect(emblemFor(force))
         });
+        if (bearer) {
+          markers.push(ringMark(x, y, size * dpr));
+        }
       } else {
         dots.push({ force, x: sx, y: sy });
       }
@@ -575,7 +608,7 @@ export const createAtlasMap = async (
         y: topLeft.y,
         zoom: camera.zoom
       },
-      [...places, ...lettering, ...markers, ...figures, ...counters],
+      [...places, ...lettering, ...markers, ...emblemQuads, ...counters],
       maxRank,
       lineScale,
       // Roads show from just below the Campaign Level band.
