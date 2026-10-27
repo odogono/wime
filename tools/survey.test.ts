@@ -261,6 +261,13 @@ test('the CLI selects Shuffled Setup, independent counts and axes off', () => {
   expect(parseSurveyArgs(['--axes', 'c']).options.axes).toEqual(['c']);
 });
 
+test('the CLI turns the sceptre errand on or off for every plan', () => {
+  expect(parseSurveyArgs([]).options.tokens).toBe('plan');
+  expect(parseSurveyArgs(['--tokens', 'on']).options.tokens).toBe('on');
+  expect(parseSurveyArgs(['--tokens', 'off']).options.tokens).toBe('off');
+  expect(() => parseSurveyArgs(['--tokens', 'yes'])).toThrow();
+});
+
 describe.skipIf(!assetsExist())('Shuffled Setup survey', () => {
   test.each<('a' | 'b' | 'c')[][]>([
     [['a']],

@@ -70,3 +70,27 @@ describe.skipIf(!assetsExist())('the sceptre errand', () => {
     expect(milestones.warEvents).toEqual([{ day: 90, event: 3 }]);
   });
 });
+
+// Every plan runs the errand on the Classic Setup when Tokens is on
+// (#282): Frodo's road to Rivendell starts at the sceptre, so he takes
+// it, and Merry carries it to Denethor.
+describe.skipIf(!assetsExist())('the sceptre errand under every plan', () => {
+  test.each<PlanName>(['fellowship', 'muster', 'defensive'])(
+    '%s takes the sceptre and shows it to Denethor',
+    plan => {
+      const { inputs } = playCampaign(
+        1,
+        loadSoakAssets(),
+        policyFor(plan, { tokens: true }),
+        100
+      );
+      expect(
+        inputs.flatMap(input =>
+          input.kind === 'object'
+            ? [`${input.act} ${input.member} ${input.object}`]
+            : []
+        )
+      ).toEqual(['take 7 14', 'put-down 7 14', 'take 9 14', 'use 9 14']);
+    }
+  );
+});

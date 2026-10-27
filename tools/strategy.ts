@@ -41,8 +41,7 @@
 //   carry it past the Encounters in Gorgoroth, on a route round the
 //   Evil Forces there.
 //
-// With Tokens on, the default only for muster without the open war,
-// Frodo also picks up the sceptre on his way and Merry carries it to
+// With Tokens on, the default for muster and defensive, Frodo also picks up the sceptre on his way and Merry carries it to
 // Denethor, which wakes Gondor before the war (sceptreErrand).
 //
 // The policy plays as a player can: it reads only what the Campaign
@@ -1076,12 +1075,10 @@ export const defensivePolicy = (
 };
 
 // The plan's policy; `openWar` and `tokens`, when given, override the
-// plan's settings. Over seeds 1 to 40 the sceptre errand helped only the
-// muster plan without the open war, where Gondor otherwise waits for
-// day 149 (4 wins in place of 1); with the open war, event 7 wakes
-// Gondor within days of the Council anyway and the errand cost wins
-// (13 in place of 19), and it changed nothing for the fellowship (7)
-// and defensive (17) plans. So it is on only there.
+// plan's settings. Over Classic seeds 1 to 10,000 (#282) the sceptre
+// errand raised muster's win rate from 46.9% to 49.1% and defensive's
+// from 91.0% to 91.9%, and cost fellowship's (17.3% to 16.9%). So it
+// is on for muster and defensive.
 //
 // Going round the Encounter areas on the road to Rivendell brought 38
 // of seeds 1 to 40 to the Council in place of 30 under every plan, but
@@ -1116,7 +1113,7 @@ export const policyFor = (
         avoidEncounters:
           overrides.avoidEncounters ?? DEFAULT_MUSTER.avoidEncounters,
         openWar,
-        tokens: overrides.tokens ?? !openWar
+        tokens: overrides.tokens ?? true
       },
       knowledge
     );
@@ -1126,7 +1123,7 @@ export const policyFor = (
       ...DEFAULT_DEFENSIVE,
       avoidEncounters:
         overrides.avoidEncounters ?? DEFAULT_DEFENSIVE.avoidEncounters,
-      tokens: overrides.tokens ?? false
+      tokens: overrides.tokens ?? true
     },
     knowledge
   );

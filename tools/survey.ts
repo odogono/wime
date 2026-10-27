@@ -6,6 +6,11 @@
 //                [--players fellowship,muster,defensive,random]
 //                [--knowledge memorised,live] [--out report.json]
 //                [--setup classic|shuffled] [--setup-seeds N] [--axes a]
+//                [--tokens plan|on|off]
+//
+// --tokens sets whether the strategy plans carry the sceptre to Denethor
+// (sceptreErrand in tools/strategy.ts); plan keeps each plan's default,
+// on for muster and defensive (#282).
 //
 // Days are absolute campaign days, as in runToEnd. Spreads are min,
 // median (the mean of the middle pair for even samples), and max.
@@ -52,6 +57,8 @@ const STALL_STEPS = 10_000;
 
 export type SurveyPlayer = (typeof PLAYERS)[number];
 export type KnowledgeMode = (typeof KNOWLEDGE_MODES)[number];
+export const TOKENS = ['plan', 'on', 'off'] as const;
+export type SurveyTokens = (typeof TOKENS)[number];
 export type SurveyOutcome = Ending | 'day-cap' | 'softlock';
 
 export interface SurveyOptions {
@@ -63,6 +70,7 @@ export interface SurveyOptions {
   seeds: number;
   setup: SurveySetup;
   setupSeeds: number;
+  tokens: SurveyTokens;
 }
 
 export const DEFAULT_SURVEY: SurveyOptions = {
@@ -73,7 +81,8 @@ export const DEFAULT_SURVEY: SurveyOptions = {
   players: [...PLAYERS],
   seeds: 50,
   setup: 'classic',
-  setupSeeds: 1
+  setupSeeds: 1,
+  tokens: 'plan'
 };
 
 export interface FailedActsByAxis {
@@ -340,7 +349,16 @@ export const survey = (
           const policy =
             player === 'random'
               ? randomPlayer(seed)
-              : policyFor(player, {}, knowledge);
+              : policyFor(
+                  player,
+                  {
+                    tokens:
+                      options.tokens === 'plan'
+                        ? undefined
+                        : options.tokens === 'on'
+                  },
+                  knowledge
+                );
           runs.push(
             surveyRun(
               seed,
@@ -383,6 +401,7 @@ const validateOptions = (options: SurveyOptions): void => {
   }
   selections(options.players.join(','), PLAYERS, 'players');
   selections(options.knowledge.join(','), KNOWLEDGE_MODES, 'knowledge');
+  selections(options.tokens, TOKENS, 'tokens');
 };
 
 const selections = <T extends string>(
@@ -420,7 +439,8 @@ export const parseSurveyArgs = (
       'setup-seeds': {
         default: String(DEFAULT_SURVEY.setupSeeds),
         type: 'string'
-      }
+      },
+      tokens: { default: DEFAULT_SURVEY.tokens, type: 'string' }
     }
   });
   if (!SETUPS.some(setup => setup === values.setup)) {
@@ -434,7 +454,8 @@ export const parseSurveyArgs = (
     players: selections(values.players, PLAYERS, 'players'),
     seeds: Number(values.seeds),
     setup: selections(values.setup, SETUPS, 'setup')[0]!,
-    setupSeeds: Number(values['setup-seeds'])
+    setupSeeds: Number(values['setup-seeds']),
+    tokens: selections(values.tokens, TOKENS, 'tokens')[0]!
   };
   validateOptions(options);
   return { options, out: values.out };
@@ -455,7 +476,7 @@ const days = ({ count, max, median, min }: Spread): string =>
 export const formatSurvey = (report: SurveyReport): string => {
   const configurations = report.configurations;
   return [
-    `${report.setup === 'classic' ? 'Classic' : 'Shuffled'} Setup, sim seeds ${report.options.from}–${report.options.from + report.options.seeds - 1}, day cap ${report.options.days}`,
+    `${report.setup === 'classic' ? 'Classic' : 'Shuffled'} Setup, sim seeds ${report.options.from}–${report.options.from + report.options.seeds - 1}, day cap ${report.options.days}, Tokens ${report.options.tokens}`,
     report.setup === 'shuffled'
       ? `Setup seeds 0–${report.options.setupSeeds - 1}; axes ${report.options.axes.join(',') || 'off'}; Cartesian product with sim seeds.`
       : 'Setup seeds and axes do not apply to Classic.',
