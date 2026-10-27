@@ -62,6 +62,11 @@ export const turnEndingPage = (
   return { ...screen, page, until: page < last ? now + PAGE_MS : null };
 };
 
+// The last page waits for a key or click to open the menu after the
+// ending; the original waits for X and quits (finding:ui-ending-pages).
+export const endingAwaitsMenu = (screen: EndingScreen): boolean =>
+  screen.page === screen.pages.length - 1;
+
 export const stepEndingScreen = (
   screen: EndingScreen,
   now: number

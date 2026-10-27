@@ -11,11 +11,12 @@ same world is shown and pointed at.
 
 ## The setting
 
-- The in-game menu's Map item shows the setting, **Map: Classic** or
+- The in-game menu's Settings shows the setting, **Map: Classic** or
   **Map: Atlas**, and choosing it switches between them at once
   (docs/spec/game-menu.md). Classic is the default.
-- The setting is the player's own, kept in the browser, not in saved
-  games; a game loaded or started keeps it.
+- The setting is kept with the other settings in the browser, not in
+  saved games; a game loaded or started keeps it. The Debug views are
+  drawn on Classic only.
 - Switching keeps the map on the same spot.
 - Where the Atlas map cannot be made, for want of WebGL2 or of its
   exported geography, the map stays Classic.

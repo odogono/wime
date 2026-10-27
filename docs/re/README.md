@@ -6,13 +6,15 @@ Working notes on the Reference Build's executable, `WarInMiddleEarth` on Disk 1 
 - [`starting-state-tables.md`](starting-state-tables.md): the data hunk tables that hold the starting state, field by field.
 - [`labels.md`](labels.md): named addresses in the code and data hunks.
 - [`full-map-reference.md`](full-map-reference.md): how the Full Map Level reference captures were made.
-- [`combat-reference.md`](combat-reference.md): the combat reference scenarios and how they were set up.
-- [`war-events-reference.md`](war-events-reference.md): the War Event and trigger reference scenarios.
-- [`forces-reference.md`](forces-reference.md): the meeting and following reference scenarios.
+- [`combat-reference.md`](combat-reference.md): the combat Reference runs and how they were set up.
+- [`war-events-reference.md`](war-events-reference.md): the War Event and trigger Reference runs.
+- [`forces-reference.md`](forces-reference.md): the meeting and following Reference runs.
 - [`animation-level-reference.md`](animation-level-reference.md): the Animation Level and Encounter reference captures.
-- [`objects-reference.md`](objects-reference.md): the Put Down, Take and Use reference scenarios, Tokens and the Palantír.
-- [`endings-reference.md`](endings-reference.md): the win and lose reference scenarios and the ending pages.
+- [`objects-reference.md`](objects-reference.md): the Put Down, Take and Use Reference runs, Tokens and the Palantír.
+- [`endings-reference.md`](endings-reference.md): the win and lose Reference runs and the ending pages.
 - [`boot-sequence-reference.md`](boot-sequence-reference.md): timing the boot sequence's screens, the Title wait and Gandalf's letter.
+- [`campaign-flash-reference.md`](campaign-flash-reference.md): timing the Campaign Level's flashing icons at each Game Speed.
+- [`game-speed-reference.md`](game-speed-reference.md): timing each Game Speed's quarter-hour, and the Game Speed window.
 
 ## Addresses
 
@@ -38,8 +40,14 @@ The code uses the Aztec C small-data model: register A4 holds the data hunk's ad
 code+0x003a6  41ec9dea              lea.l -$6216(a4), a0  ; data+0x1de8 roster
 ```
 
-Each `d(a4)` operand is annotated with the data offset it reaches, and every address named in [`labels.md`](labels.md) gets its label, so searching for an address finds every access to it: `rg 'data\+0x1de8' extracted_asm/code.asm`. Name new addresses in `labels.md` and rerun `bun run disasm` to see them in the listing. A call through the jump table also names the routine it reaches (`; data+0x0252 jt_mulu32 -> code+0x1bb76 mulu32`).
+Each `d(a4)` operand is annotated with the data offset it reaches, and every address named in [`labels.md`](labels.md) gets its label, so searching for an address finds every access to it: `rg 'data\+0x1de8' extracted_asm/code.asm`. A call, direct or through the jump table, names the routine it reaches (`; -> code+0x00396 figureStep`, `; data+0x0252 jt_mulu32 -> code+0x1bb76 mulu32`).
 
-Read a routine with `bun run asm <address|label> [lines]`, for example `bun run asm pickUpObject 80` or `bun run asm 6a00`. The address need not start an instruction, so it works where an exact-match range such as `awk '/^code\+0x06a00/,…/'` prints nothing or runs to the end of the file. To find where a subsystem lives, start from the [code ranges in `labels.md`](labels.md#subsystems).
+Read the listing with `bun run asm`, never an `awk` or `sed` range over `code.asm`: the address need not start an instruction, where a range prints nothing or runs to the end of the file.
 
-`extracted_asm/code.bin` and `data.bin` hold the raw hunk contents for hex dumps. Never commit anything extracted from `artifacts/`.
+- `bun run asm pickUpObject 80`, `bun run asm 6a00 40 --before 20`: a slice, from a label or an address.
+- `bun run asm --routine 6a00`: the whole routine holding an address.
+- `bun run asm --refs figureStep`, `--refs roster`, `--refs data+0x1de8`: every call to a routine, or every A4 access to a data address, each tagged with the routine it sits in.
+
+To find where a subsystem lives, start from the [code ranges in `labels.md`](labels.md#subsystems). When you identify a routine or a variable, name it in `labels.md` in the same PR and rerun `bun run disasm`, so the next search finds it by name.
+
+`extracted_asm/code.bin` and `data.bin` hold the raw hunk contents for hex dumps. `bun run figure-script <frml> [entry]` decodes a figure set's Animation Level script from `data.bin`. Never commit anything extracted from `artifacts/`.

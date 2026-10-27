@@ -3,6 +3,7 @@ import {
   WIDE_WIDTH,
   drawMenu,
   layoutMenu,
+  loadListLines,
   menuRowAt,
   moveSelection,
   newestFirst,
@@ -15,22 +16,26 @@ import type { SlotSummary } from './save-slots';
 import type { WindowStyle } from './window-frame';
 
 // The title menu over the title screen once the boot sequence is over
-// (docs/spec/title-menu.md): Resume, New Game and Load. The original
+// (docs/spec/title-menu.md): Resume, New Game, Demo and Load. New Game
+// then offers the Classic Setup or a Shuffled Setup. The original
 // has none, so this is the port's own, framed as the game's windows
 // are (menu-window.ts). A pure state machine over keys and clicks;
 // main.ts carries out what it chooses.
 
 export type TitleChoice =
   | { id: number; kind: 'load' }
-  | { kind: 'new-game' }
+  | { kind: 'demo' }
+  | { kind: 'new-game'; shuffled: boolean }
   | { id: number; kind: 'resume' };
 
-type MainItem = 'load' | 'new-game' | 'resume';
+type MainItem = 'demo' | 'load' | 'new-game' | 'resume';
 
 export type TitleMenu =
   | { items: MainItem[]; kind: 'main'; selected: number }
   // Asked before a new game when there is a save to resume.
   | { kind: 'confirm'; selected: number }
+  // Which Setup a new game starts from.
+  | { kind: 'setup'; selected: number }
   | { kind: 'load'; selected: number; slots: SlotSummary[] }
   // A load that failed; any key or click goes back.
   | { kind: 'message'; lines: string[] };
@@ -57,13 +62,14 @@ export const latestSave = (saves: TitleSaves): SlotSummary | null =>
 
 export const openTitleMenu = (saves: TitleSaves): TitleMenu => ({
   items: latestSave(saves)
-    ? ['resume', 'new-game', 'load']
-    : ['new-game', 'load'],
+    ? ['resume', 'new-game', 'demo', 'load']
+    : ['new-game', 'demo', 'load'],
   kind: 'main',
   selected: 0
 });
 
 const MAIN_LABELS: Record<MainItem, string> = {
+  demo: 'Demo',
   load: 'Load',
   'new-game': 'New Game',
   resume: 'Resume'
@@ -75,6 +81,8 @@ export const CONFIRM_LINES = [
   'written over when it next runs.'
 ];
 const CONFIRM_ITEMS = ['Start a new game', 'Go back'];
+const SETUP_ITEMS = ['Classic Setup', 'Shuffled Setup', 'Back'];
+const SETUP_PAGE: TitleMenu = { kind: 'setup', selected: 0 };
 
 export const LOAD_FAILED: Record<'other-version' | 'other', string[]> = {
   other: ['That save could not be loaded.'],
@@ -112,9 +120,17 @@ export const titleMenuView = (menu: TitleMenu): MenuView => {
         width: WIDE_WIDTH
       };
     }
+    case 'setup': {
+      return {
+        lines: [],
+        rows: SETUP_ITEMS.map(label => ({ label })),
+        selected: menu.selected,
+        width: NARROW_WIDTH
+      };
+    }
     case 'load': {
       return {
-        lines: menu.slots.length > 0 ? [] : ['There are no saves to load.'],
+        lines: loadListLines(menu.slots, menu.selected),
         rows: [...menu.slots.map(slotRow), { label: 'Back' }],
         selected: menu.selected,
         width: WIDE_WIDTH
@@ -143,13 +159,21 @@ const choose = (menu: TitleMenu, saves: TitleSaves): TitleStep => {
       if (item === 'new-game') {
         return latestSave(saves)
           ? { menu: { kind: 'confirm', selected: 1 } }
-          : { choice: { kind: 'new-game' }, menu };
+          : { menu: SETUP_PAGE };
+      }
+      if (item === 'demo') {
+        return { choice: { kind: 'demo' }, menu };
       }
       return { menu: { kind: 'load', selected: 0, slots: loadList(saves) } };
     }
     case 'confirm': {
       return menu.selected === 0
-        ? { choice: { kind: 'new-game' }, menu }
+        ? { menu: SETUP_PAGE }
+        : { menu: openTitleMenu(saves) };
+    }
+    case 'setup': {
+      return menu.selected < 2
+        ? { choice: { kind: 'new-game', shuffled: menu.selected === 1 }, menu }
         : { menu: openTitleMenu(saves) };
     }
     case 'load': {
@@ -231,3 +255,17 @@ export const drawTitleMenu = (
 ): void => {
   drawMenu(ctx, style, colours, titleMenuView(menu));
 };
+
+// After this long with no input at the main title menu an idle Demo
+// starts (docs/spec/demo-mode.md). The Load list, the new-game
+// confirmation, the Setup page and a message pause the wait; any input starts it again.
+export const IDLE_DEMO_MS = 60_000;
+
+// The time idled at the title menu, after `elapsedMs` more of it on `menu`.
+export const stepTitleIdle = (
+  idleMs: number,
+  menu: TitleMenu,
+  elapsedMs: number
+): number => (menu.kind === 'main' ? idleMs + elapsedMs : idleMs);
+
+export const idleDemoDue = (idleMs: number): boolean => idleMs >= IDLE_DEMO_MS;

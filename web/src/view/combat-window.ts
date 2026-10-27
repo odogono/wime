@@ -1,5 +1,6 @@
 import {
   fightRound,
+  fightRowCap,
   finishFight,
   placeAt,
   setCombatOption,
@@ -40,9 +41,6 @@ export const ANNOUNCEMENT_MS = 720 * FRAME_MS;
 export const ORDERS_MS = 300 * FRAME_MS;
 export const MESSAGE_MS = 180 * FRAME_MS;
 export const RESULT_MS = 300 * FRAME_MS;
-// `provisional`: how long a round with no messages stays up on the
-// Animation Level (docs/spec/encounters.md).
-export const ANIMATION_ROUND_MS = 800;
 
 export const GOOD_WON = 'The good forces are victorious!';
 export const EVIL_WON = 'The forces of EVIL have won.';
@@ -110,16 +108,19 @@ export const announcementText = (sim: SimState, fight: Fight): string => {
   return `${capitalise(rowLabel(good.name, good.strength))} ${verb} attacked by ${enemy}.`;
 };
 
-// Drops the shown box, re-arming the timer for the next or closing.
+// Drops the shown box for the next, which waited for its deadline
+// (finding:ui-message-box-opening-waits-for-the-open-box). The last box
+// stays until the message box closes it or a later box replaces it
+// (message-box.ts).
 const nextBox = (
   ui: Extract<CombatUi, { kind: 'boxes' }>,
   now: number,
   speed: GameSpeed
-): CombatUi | null => {
+): CombatUi => {
   const [, ...rest] = ui.boxes;
   return rest.length > 0
     ? { ...ui, boxes: rest, until: now + messageDurationMs(speed) }
-    : null;
+    : ui;
 };
 
 export const startCombatUi = (sim: SimState, now: number): CombatUi | null =>
@@ -263,14 +264,13 @@ export const openCombatWindow = (sim: SimState, now: number): CombatUi => {
 
 // Advance the fight's presentation to `now`: the announcement times out
 // into "Ignore it", window messages give way to the next round, and an
-// ignored fight's boxes run out. Returns null once the fight is over
+// ignored fight's boxes give way to the next. Returns null once the fight is over
 // and nothing is left to show.
 export const stepCombatUi = (
   ui: CombatUi,
   sim: SimState,
   now: number,
   choose: Choose,
-  roundMs = 0,
   speed: GameSpeed = 'normal'
 ): { sim: SimState; ui: CombatUi | null } => {
   if (ui.kind === 'announcement') {
@@ -325,10 +325,6 @@ export const stepCombatUi = (
         pending,
         until: Math.max(window.until, now) + MESSAGE_MS
       };
-    } else if (roundMs > 0) {
-      // The Animation Level must show each round, including a round
-      // without a casualty message. This changes presentation only.
-      window = { ...window, until: now + roundMs };
     }
   }
   return { sim: next, ui: window };
@@ -364,11 +360,18 @@ export interface WindowLayout {
   rows: number;
 }
 
-export const layoutCombatWindow = (fight: Fight): WindowLayout => {
+export const layoutCombatWindow = (
+  fight: Fight,
+  roster: RosterEntry[]
+): WindowLayout => {
   const good = fight.rows.filter(row => row.side === 'good').length;
   const evil = fight.rows.length - good;
   const rows = Math.max(good, evil, 1);
-  const lineHeight = Math.max(good, evil) > 16 ? 8 : 9;
+  // Lines close up for a crowded side: over 16 rows, or over 6 when a
+  // side holds at most 9 (finding:ui-combat-window-line-height).
+  const most = Math.max(good, evil);
+  const lineHeight =
+    most > 16 || (fightRowCap(fight, roster) <= 9 && most > 6) ? 8 : 9;
   return {
     height: rows * lineHeight + 32,
     lineHeight,
@@ -386,9 +389,10 @@ const inBox = (box: Box, point: { x: number; y: number }): boolean =>
 // The option button under a point, as a Good row and an option.
 export const optionAt = (
   fight: Fight,
+  roster: RosterEntry[],
   point: { x: number; y: number }
 ): { option: (typeof OPTIONS)[number]; row: number } | null => {
-  const layout = layoutCombatWindow(fight);
+  const layout = layoutCombatWindow(fight, roster);
   let goodRow = 0;
   for (let row = 0; row < fight.rows.length; row++) {
     if (fight.rows[row]!.side !== 'good') {
@@ -432,15 +436,13 @@ export const pressCombatUi = (
       : { sim, ui: openCombatWindow(sim, now) };
   }
   if (ui.kind === 'window' && sim.fight) {
-    const hit = optionAt(sim.fight, point);
+    const hit = optionAt(sim.fight, sim.roster, point);
     return hit
       ? { sim: setCombatOption(sim, hit.row, hit.option), ui }
       : { sim, ui };
   }
-  // A press clears a message box early.
-  if (ui.kind === 'boxes') {
-    return { sim, ui: nextBox(ui, now, speed) };
-  }
+  // A message box has no buttons, so a press does nothing
+  // (finding:ui-message-box-presses-off-the-buttons).
   return { sim, ui };
 };
 
@@ -522,7 +524,7 @@ export const drawCombatUi = (
   if (!fight) {
     return;
   }
-  const layout = layoutCombatWindow(fight);
+  const layout = layoutCombatWindow(fight, sim.roster);
   drawWindowFrame(ctx, style, {
     height: layout.height,
     width: WINDOW_WIDTH,

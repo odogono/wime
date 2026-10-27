@@ -205,6 +205,33 @@ export const hoverTargetAt = (
   return kind ? { kind: 'place', name: kind } : null;
 };
 
+export type TopLeftWindow =
+  { kind: 'hover'; name: string } | { kind: 'paused' } | null;
+
+// The paused box and the hover name share the top-left window, so
+// only one is drawn: the hover name replaces the paused box while the
+// pointer is over something, and the box returns when it leaves. How
+// the original treats a hover while paused has not been traced. An
+// open message box, such as a clicked Force's window, takes the spot
+// over both.
+export const topLeftWindow = ({
+  boxOpen = false,
+  hoverName,
+  paused
+}: {
+  boxOpen?: boolean;
+  hoverName: string | null;
+  paused: boolean;
+}): TopLeftWindow => {
+  if (boxOpen) {
+    return null;
+  }
+  if (hoverName !== null) {
+    return { kind: 'hover', name: hoverName };
+  }
+  return paused ? { kind: 'paused' } : null;
+};
+
 // Draw the Campaign Level into the native buffer. Tile blits are 1:1
 // integer copies from the atlas, so a tile-aligned camera reproduces
 // tools/render-campaign-map.ts output pixel-for-pixel for the same region.
@@ -220,7 +247,10 @@ export const drawCampaignLevel = (
   assets: CampaignAssets,
   cameraIn: Camera,
   forces: Force[] = [],
-  flashOn = true
+  flashOn = true,
+  // Drawn over the tiles and under the figures, as the Debug views'
+  // terrain is.
+  underForces?: () => void
 ): void => {
   const { atlas, forceIcons, icons, tilemap, tiles } = assets;
   const camera = clampCamera(cameraIn, tilemap);
@@ -262,6 +292,8 @@ export const drawCampaignLevel = (
       );
     }
   }
+
+  underForces?.();
 
   for (const force of forces) {
     if (force.active && !flashOn) {

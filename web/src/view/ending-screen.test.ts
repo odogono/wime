@@ -4,6 +4,7 @@ import { textKey } from './assets';
 import {
   PAGE_MS,
   SCENE_ALONE_MS,
+  endingAwaitsMenu,
   endingScreen,
   stepEndingScreen,
   turnEndingPage
@@ -63,5 +64,15 @@ describe('the ending screen', () => {
     screen = turnEndingPage(turnEndingPage(screen, 6), 7);
     expect(screen.page).toBe(2);
     expect(turnEndingPage(screen, 8)).toBe(screen);
+  });
+
+  test('only the last page waits for the menu', () => {
+    let screen = endingScreen('lost-barad-dur', texts, 0);
+    for (let page = -1; page < 2; page++) {
+      expect(endingAwaitsMenu(screen)).toBe(false);
+      screen = turnEndingPage(screen, 0);
+    }
+    expect(screen.page).toBe(2);
+    expect(endingAwaitsMenu(screen)).toBe(true);
   });
 });

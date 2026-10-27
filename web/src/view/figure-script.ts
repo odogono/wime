@@ -57,6 +57,9 @@ export const SPELL_FLASH = 18;
 export interface ScriptWorld {
   // A spell adds a figure and moves the caster's battle line.
   castSpell?: (flash: Figure, line: 'line1' | 'line2', x: number) => void;
+  // The facing an errand set off with (data+0x5563), which condition 4
+  // turns back to; unflipped when none was saved.
+  facing?: boolean;
   // Fight delays converge on speed without the walking party's laggard
   // adjustment (finding:graphics-spell-flash).
   fighting?: boolean;
@@ -67,9 +70,21 @@ export interface ScriptWorld {
   // The two battle lines (data+0x5568, data+0x556a).
   line1: number;
   line2: number;
+  // Events 1, 2 and 4 of the object scripts: the picture taken up, the
+  // picture put down and the errand over
+  // (finding:objects-take-is-a-walk-to-the-picture-and-back,
+  // finding:objects-put-down-is-a-stoop-in-place).
+  objectEvent?: (event: 1 | 2 | 4, figure: Figure) => void;
   random: (n: number) => number;
   script: (frml: number) => number[];
+  // The talk's events: 3 holds the party, 5 sets it walking on, 6 and
+  // 7 report a side at its line, 12 opens the greeting and 13 the
+  // parting (finding:ui-advisor-talk-runs-on-the-advisors-script).
+  talkEvent?: (event: TalkEvent, figure: Figure) => void;
 }
+
+export type TalkEvent = 3 | 5 | 6 | 7 | 12 | 13;
+const TALK_EVENTS: readonly number[] = [3, 5, 6, 7, 12, 13];
 
 // A new figure, standing with its first frame's hot spot on (x, y)
 // (code+0x037d8). It runs from script entry `entry`.
@@ -111,6 +126,17 @@ export const startScript = (figure: Figure, entry: number): Figure => ({
     figure.next === STOPPED
       ? figure.returns
       : [figure.pc, ...figure.returns].slice(0, RETURN_DEPTH)
+});
+
+// Queue script entries on a figure, as the original's queue does
+// (code+0x0a5ce): run the first now, then each next as the one before
+// returns.
+export const runEntries = (figure: Figure, entries: number[]): Figure => ({
+  ...figure,
+  clamp: 0,
+  next: 0,
+  pc: (entries[0]! - 1) & 0xff,
+  returns: entries.slice(1, RETURN_DEPTH + 1)
 });
 
 // Show frame `frame`, keeping the anchor still: the hot spot, or for a
@@ -221,6 +247,18 @@ export const stepFigure = (
         }
         case 0x80: {
           figure = { ...figure, ...scriptEvent(n, figure) };
+          if (n === 1 || n === 2 || n === 4) {
+            world.objectEvent?.(n, { ...figure, flipped, pc, returns, x });
+          }
+          if (TALK_EVENTS.includes(n)) {
+            world.talkEvent?.(n as TalkEvent, {
+              ...figure,
+              flipped,
+              pc,
+              returns,
+              x
+            });
+          }
           if (n === 0x10) {
             castSpell({ ...figure, flipped, x }, world);
             figure = { ...figure, spells: (figure.spells ?? 0) + 1 };
@@ -296,8 +334,8 @@ const condition = (
     case 0x02:
       return flipped;
     case 0x04:
-      // provisional: data+0x5563, the side's facing, is taken as unflipped.
-      return flipped;
+      // Facing otherwise than the errand set off (data+0x5563).
+      return flipped !== (world.facing ?? false);
     case 0x06:
       return x < world.line1;
     case 0x08:

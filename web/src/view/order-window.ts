@@ -1,4 +1,10 @@
-import { placeAt, type Force, type Place, type Point } from '../sim/index';
+import {
+  LAST_GOOD_ENTRY,
+  placeAt,
+  type Force,
+  type Place,
+  type Point
+} from '../sim/index';
 import { forceAtPoint } from './campaign-level';
 import { measureLines, type FontMetrics } from './font';
 import { forceWindowLines } from './force-window';
@@ -25,8 +31,13 @@ export const IDLE_ORDER: OrderState = { kind: 'idle' };
 export const toggleOrder = (state: OrderState): OrderState =>
   state.kind === 'idle' ? { kind: 'pick-force' } : IDLE_ORDER;
 
-// Clicking an active Force while picking one moves to choosing
-// its destination, whole Force selected by default.
+// Clicking a Good Force while picking one moves to choosing its
+// destination, whole Force selected by default; whether it takes the
+// Order is the sim's roll (finding:movement-orders-accepted-by-allegiance-roll).
+// The original picks the first Good row listed near the click, and
+// rows are in roster order, so where icons overlap the lowest-numbered
+// Good Force is picked, not the one drawn on top: a Force parked on a
+// Stronghold is picked over its higher-numbered Garrison.
 export const pickForceAt = (
   state: OrderState,
   forces: Force[],
@@ -35,15 +46,47 @@ export const pickForceAt = (
   if (state.kind !== 'pick-force') {
     return state;
   }
-  const force = forceAtPoint(forces, point);
-  if (!force || !force.active || !force.onMap) {
+  const picked = forces
+    .filter(
+      force =>
+        force.onMap &&
+        force.leader.index >= 1 &&
+        force.leader.index <= LAST_GOOD_ENTRY &&
+        forceAtPoint([force], point)
+    )
+    .reduce<Force | null>(
+      (best, force) =>
+        !best || force.leader.index < best.leader.index ? force : best,
+      null
+    );
+  if (!picked) {
     return state;
   }
   return {
     kind: 'pick-destination',
-    leaderIndex: force.leader.index,
-    selected: force.leader.index
+    leaderIndex: picked.leader.index,
+    selected: picked.leader.index
   };
+};
+
+// The arrow pressed while a Force's info window is open orders that
+// Force straight away rather than asking for one: a port convenience,
+// not the original's flow. Only a Good Force on the map can be picked;
+// otherwise the arrow asks for a Force as usual.
+export const pickForceByLeader = (
+  forces: Force[],
+  leaderIndex: number
+): OrderState => {
+  const picked = forces.find(
+    force =>
+      force.onMap &&
+      force.leader.index === leaderIndex &&
+      leaderIndex >= 1 &&
+      leaderIndex <= LAST_GOOD_ENTRY
+  );
+  return picked
+    ? { kind: 'pick-destination', leaderIndex, selected: leaderIndex }
+    : { kind: 'pick-force' };
 };
 
 export const pickMember = (

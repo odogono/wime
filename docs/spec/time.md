@@ -62,21 +62,50 @@ knowledge of them (ADR-0002).
   "The Game is Paused." (`finding:executable-amiga-hunk-file`)
 - A quarter-hour waits for 256 frames on Normal and 30 on Hasty, at
   50 frames a second: 5.12 seconds and 0.6 seconds per tick. Very Hasty
-  has no clock wait: a tick lasts one sweep of the roster.
-  (`finding:time-game-speed-clock-limits`)
-- `provisional`: how long the original's roster sweep takes has not
-  been measured. Until it is, Very Hasty runs one tick per 50 Hz frame
-  (20 ms, 50 ticks a second), the original's display rate
-  (`finding:time-game-speed-clock-limits`), and never more than one
-  tick per rendered frame, so it runs at the same pace on any refresh
-  rate of 50 Hz or more (#164).
-- Generic message boxes with no buttons close after 60 frames
-  (1.2 seconds) on Very Hasty and 200 frames (4 seconds) otherwise.
-  The duration is set when each box opens. The Council of Elrond has
-  its own 1200-frame wait (docs/spec/council-of-elrond.md).
-  (`finding:ui-war-event-messages`, `finding:time-game-speed-clock-limits`)
-- `provisional`: the speed window's layout and graphics are
-  unconfirmed. We draw a plain window under the icon column listing
-  the three speeds, marking the current one, with a Pause/Resume line.
-  Changing Game Speed changes only how fast ticks arrive, never what
-  a tick does (#164).
+  has no clock wait: a tick lasts one sweep of the roster, which takes
+  4 frames on average on an A500, so a tick every 80 ms and an hour in
+  about 0.32 seconds. (`finding:time-game-speed-clock-limits`,
+  `finding:time-game-speed-rates-observed`)
+- Message boxes: only one is open at a time. Opening one sets its
+  deadline: 60 frames (1.2 seconds) on Very Hasty and 200 frames
+  (4 seconds) otherwise for a box with no buttons, 720 frames for a box
+  with buttons on the Campaign Level and 1,020 on the Animation Level.
+  A box raised before the open box's deadline waits for it, and the
+  game stands still meanwhile: no tick, and the Animation Level's
+  figures hold. Then the open box closes, its default pressed if it has
+  buttons, and the new one opens, so boxes show in the order raised.
+  Answering the open box ends the wait early.
+  (finding:ui-message-box-opening-waits-for-the-open-box,
+  `finding:ui-war-event-messages`, `finding:time-game-speed-clock-limits`)
+- A box with buttons is answered by its default at its deadline. A box
+  without buttons stays until a later box replaces it, or 1,220 frames
+  on the Campaign Level (1,080 on Very Hasty) and 1,500 on the
+  Animation Level (1,360). These are frames of real time, less time in
+  the in-game menu. On the Full Map Level no box times out
+  (finding:ui-message-box-timeouts-by-level).
+- Leaving a Level closes its box, pressing its default, and the Full
+  Map Level cannot be entered while a box with buttons is up
+  (finding:ui-message-box-closed-on-leaving-a-level). Accepted for
+  1.0: the port also closes the box on leaving the Animation Level,
+  which the Finding does not cover. It matches the other Levels, and
+  pressing the default loses no state.
+- A press off a box's buttons does nothing. A click on a Force or a
+  Place on the Campaign Level closes the box, pressing its default, and
+  opens that Force's or Place's window in its place; the combat window
+  and the Council of Elrond also close the open box. The Council has
+  its own 1200-frame wait (docs/spec/council-of-elrond.md). N presses
+  a box's default and Y its other button
+  (finding:ui-message-box-presses-off-the-buttons).
+- A pressed icon or button flashes before the press acts: six times,
+  4 frames apart, swapping each of its colours c for c XOR 8, while the
+  game, keys included, stands still. The magnifying glass flashes the
+  icon of the Force it found four times. (finding:ui-press-flash)
+- The hourglass, or T, first closes the open box, pressing its default,
+  then opens a box at (184, 5), 90 by 68, headed "Rate of Time
+  Passage", with framed buttons for Very Hasty, Hasty and Normal. The
+  current speed's button is red and is the box's default. The clock
+  holds while it is up; a button sets its speed and closes it, N or Y
+  and the timeout of a box with buttons press the default, and a press
+  off the buttons does nothing. Changing Game Speed changes only how
+  fast ticks arrive, never what a tick does.
+  (`finding:ui-game-speed-window`)

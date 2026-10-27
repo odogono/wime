@@ -82,8 +82,9 @@ export const startBoot = (
     ? { boot: { ...boot, startedAt: now }, started: true }
     : { boot, started: false };
 
-// A key press (finding:ui-boot-sequence-key-skips). Clicks only start
-// the sequence; once the Ring verse is up, keys do nothing either.
+// A key press or click (finding:ui-boot-sequence-key-skips). In the
+// original clicks do nothing and nothing moves past the Ring verse; the
+// port lets either skip every screen, the verse included.
 export const pressBootKey = (boot: BootSequence, now: number): BootSequence => {
   const started = startBoot(boot, now);
   if (started.started || boot.done) {
@@ -92,6 +93,9 @@ export const pressBootKey = (boot: BootSequence, now: number): BootSequence => {
   const frame = bootFrame(boot, now);
   if (frame < BOOT_FRAMES.logo) {
     return { ...boot, done: true, kept: 'all' };
+  }
+  if (boot.verseAt !== null) {
+    return { ...boot, done: true };
   }
   if (frame >= verseFadeFrom(boot)) {
     return boot;

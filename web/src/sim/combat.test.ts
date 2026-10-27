@@ -1,3 +1,4 @@
+import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, test } from 'bun:test';
 
 import {
@@ -6,6 +7,8 @@ import {
   findFight,
   finishFight,
   glassWatches,
+  listFightOnAnimationLevel,
+  playedOnAnimationLevel,
   resolveFight,
   setCombatOption,
   startFight
@@ -233,7 +236,7 @@ describe('starting a fight', () => {
 });
 
 describe('rows', () => {
-  test('Leaders within 9 pixels join with their followers, and like names merge', () => {
+  test('Leaders within 9 pixels join with their followers, and like-named Evil Leaders merge', () => {
     const sim = world([
       character(15, 'FARAMIR', 10, 5, { position: CALEMBEL }),
       unit(16, 'Rangers', 200, { allegiance: 1, leader: 15 }),
@@ -249,9 +252,192 @@ describe('rows', () => {
     ).toEqual([
       ['good', [15], 1, false],
       ['good', [16], 200, true],
-      ['good', [73, 74], 1800, false],
+      ['good', [73], 1000, false],
+      ['good', [74], 800, false],
       ['evil', [141, 142], 800, false]
     ]);
+  });
+
+  test('like-named Good Leaders keep rows of their own, and a follower joins the first', () => {
+    const sim = world([
+      unit(62, 'elves', 400, { position: CALEMBEL }),
+      unit(63, 'elves', 300, { position: CALEMBEL }),
+      unit(64, 'elves', 500, { leader: 62 }),
+      unit(142, 'orcs', 300, { ...EVIL, position: CALEMBEL })
+    ]);
+    expect(
+      combatRows(sim.roster, CALEMBEL).map(row => [row.side, row.entries])
+    ).toEqual([
+      ['good', [62, 64]],
+      ['good', [63]],
+      ['evil', [142]]
+    ]);
+  });
+});
+
+// Lone Leaders of distinct names at Calembel, from `first` on.
+const leaders = (
+  first: number,
+  count: number,
+  over: Record<string, unknown> = {}
+): Record<string, unknown>[] =>
+  Array.from({ length: count }, (_, i) =>
+    unit(first + i, `troop ${first + i}`, 100, { position: CALEMBEL, ...over })
+  );
+
+const rowEntries = (
+  rows: { entries: number[]; side: string }[],
+  side: string
+) => rows.filter(row => row.side === side).map(row => row.entries);
+
+// finding:combat-rows-capped-by-level-and-enemy,
+// finding:combat-rows-relisted-without-lone-followers,
+// finding:combat-animation-level-lists-the-fight-again
+describe('row caps', () => {
+  test('a side holds 19 rows on the Campaign Level, and the Evil side one more', () => {
+    const sim = world([...leaders(1, 25), ...leaders(100, 25, EVIL)]);
+    const rows = combatRows(sim.roster, CALEMBEL);
+    expect(rowEntries(rows, 'good')).toHaveLength(19);
+    expect(rowEntries(rows, 'evil')).toHaveLength(20);
+    expect(rowEntries(rows, 'evil').at(-1)).toEqual([119]);
+  });
+
+  test('against a balrog each side holds 7 rows, and the Evil side 8', () => {
+    const sim = world([
+      ...leaders(1, 10),
+      ...leaders(100, 10, EVIL),
+      unit(183, 'a balrog', 1, { figure: 12 })
+    ]);
+    const rows = combatRows(sim.roster, CALEMBEL, {
+      animationFight: false,
+      enemy: 183,
+      level: 'campaign',
+      watched: null
+    });
+    expect(rowEntries(rows, 'good')).toHaveLength(7);
+    expect(rowEntries(rows, 'evil')).toHaveLength(8);
+  });
+
+  test('too many Good rows are listed again without lone follower Characters', () => {
+    const sim = world([
+      ...leaders(1, 18),
+      character(30, 'GIMLI', 6, 4, { leader: 1 }),
+      character(31, 'LEGOLAS', 6, 4, { leader: 2 }),
+      unit(32, 'Rangers', 50, { leader: 3 })
+    ]);
+    const good = rowEntries(combatRows(sim.roster, CALEMBEL), 'good');
+    expect(good).toHaveLength(19);
+    expect(good.flat()).not.toContain(30);
+    expect(good.flat()).not.toContain(31);
+    expect(good.flat()).toContain(32);
+  });
+
+  test('against Shelob she is the only Evil row', () => {
+    const sim = world([
+      ...leaders(1, 1),
+      unit(150, 'orcs', 100, { ...EVIL, position: CALEMBEL }),
+      unit(151, 'SHELOB', 1, { ...EVIL, position: CALEMBEL })
+    ]);
+    const rows = combatRows(sim.roster, CALEMBEL, {
+      animationFight: false,
+      enemy: 151,
+      level: 'campaign',
+      watched: null
+    });
+    expect(rowEntries(rows, 'evil')).toEqual([[151]]);
+  });
+});
+
+// Whether a fight started by `mover` is played on the Animation Level.
+const fightOf = (entries: Record<string, unknown>[], mover: number) => {
+  const sim = fought(world(entries), mover);
+  return playedOnAnimationLevel(sim.fight!, sim.roster);
+};
+
+describe('a fight on the Animation Level', () => {
+  const elsewhere = { x: 1296, y: 1160 };
+
+  test('is listed again around the watched Character: it first, entry 78 left out, 9 rows a side', () => {
+    const sim = fought(
+      world([
+        character(15, 'FARAMIR', 10, 5, { position: elsewhere }),
+        ...leaders(1, 12),
+        unit(78, 'troop 78', 100, { position: CALEMBEL }),
+        ...leaders(100, 12, EVIL)
+      ]),
+      100
+    );
+    const listed = listFightOnAnimationLevel(
+      {
+        ...sim,
+        roster: sim.roster.map(entry =>
+          entry.index === 15 ? { ...entry, position: CALEMBEL } : entry
+        )
+      },
+      15
+    );
+    const good = rowEntries(listed.fight!.rows, 'good');
+    expect(good).toHaveLength(9);
+    expect(good[0]).toEqual([15]);
+    expect(good.flat()).not.toContain(78);
+    expect(rowEntries(listed.fight!.rows, 'evil')).toHaveLength(10);
+  });
+
+  test('a fight elsewhere leaves the watched Character out', () => {
+    const sim = world([
+      character(7, 'FRODO', 4, 3, { position: { x: 640, y: 368 } }),
+      ...eomerAndCavalry(300)
+    ]);
+    const fight = findFight({ ...sim, watching: 7 }, 13);
+    expect(fight!.rows.flatMap(row => row.entries)).not.toContain(7);
+  });
+
+  test('against an Encounter, it is the only Evil row', () => {
+    const sim = fought(
+      world([
+        character(15, 'FARAMIR', 10, 5, { position: CALEMBEL }),
+        unit(142, 'orcs', 300, { ...EVIL, position: CALEMBEL })
+      ]),
+      15
+    );
+    const against = {
+      ...sim,
+      fight: { ...sim.fight!, evil: 160 },
+      roster: [
+        ...sim.roster,
+        ...Array.from({ length: 9 }, (_, i) => ({
+          ...sim.roster[0]!,
+          index: 152 + i,
+          name: 'a troll',
+          strength: 1
+        }))
+      ]
+    };
+    const listed = listFightOnAnimationLevel(against, 15);
+    expect(rowEntries(listed.fight!.rows, 'evil')).toEqual([[160]]);
+  });
+
+  test('is played only when no Good row holds a Unit and Elrond leads none', () => {
+    const orcs = unit(142, 'orcs', 300, { ...EVIL, position: CALEMBEL });
+    expect(
+      fightOf(
+        [character(15, 'FARAMIR', 10, 5, { position: CALEMBEL }), orcs],
+        15
+      )
+    ).toBe(true);
+    expect(
+      fightOf([character(3, 'ELROND', 10, 5, { position: CALEMBEL }), orcs], 3)
+    ).toBe(false);
+    expect(
+      fightOf(
+        [
+          character(15, 'FARAMIR', 10, 5, { position: CALEMBEL }),
+          unit(16, 'Rangers', 200, { leader: 15 }),
+          orcs
+        ],
+        15
+      )
+    ).toBe(false);
   });
 });
 
@@ -514,6 +700,8 @@ const strengthsAfterFightAt = (position: Point): number[] =>
   ).roster.map(entry => entry.strength);
 
 const MORANNON = { x: 1744, y: 1008 };
+const MINAS_TIRITH = { x: 1616, y: 1184 };
+const LORIEN = { x: 1344, y: 656 };
 
 // What a 3,000-strong attacker loses, on average, against 1,000 orcs
 // of a given fighting strength.
@@ -541,8 +729,9 @@ const attackerLoss = (fighting: number): number => {
   return lost / 200;
 };
 
-// Defended Places are defended only by their Garrisons' stats
-// (finding:places-defended-by-garrison-units,
+// A Place is defended by whoever is awake near the attacked party; its
+// Garrisons count only through their stats
+// (finding:combat-place-defended-by-the-forces-near-the-fight,
 // finding:combat-no-place-or-terrain-modifier).
 describe('garrisons', () => {
   test("a Garrison's fighting strength makes an assault cost more than on troops in the field", () => {
@@ -567,4 +756,81 @@ describe('garrisons', () => {
       strengthsAfterFightAt(CALEMBEL)
     );
   });
+});
+
+// Who defends a Place (finding:combat-place-defended-by-the-forces-near-the-fight,
+// finding:combat-sleeping-leaders-take-no-part-in-a-fight).
+describe('who defends a Place', () => {
+  test('a Leader near the Place joins, though it stands off it', () => {
+    const sim = world([
+      unit(34, 'infantry', 600, { position: MINAS_TIRITH }),
+      unit(69, 'infantry', 1000, { position: { x: 1624, y: 1184 } }),
+      unit(142, 'orcs', 300, { ...EVIL, position: MINAS_TIRITH })
+    ]);
+    expect(
+      combatRows(sim.roster, MINAS_TIRITH).map(row => row.entries)
+    ).toEqual([[34], [69], [142]]);
+  });
+
+  test('a sleeping Garrison is neither attacked nor drawn into the fight', () => {
+    const sim = world([
+      unit(60, 'elves', 500, {
+        destination: LORIEN,
+        position: { x: 1344, y: 655 },
+        state: 0
+      }),
+      unit(61, 'elves', 1000, {
+        destination: LORIEN,
+        position: { x: 1344, y: 655 },
+        state: 0
+      }),
+      character(59, 'CELEBORN', 10, 5, { position: LORIEN }),
+      unit(142, 'orcs', 300, { ...EVIL, position: LORIEN })
+    ]);
+    expect(combatRows(sim.roster, LORIEN).map(row => row.entries)).toEqual([
+      [59],
+      [142]
+    ]);
+    const asleep = world([
+      unit(61, 'elves', 1000, {
+        destination: LORIEN,
+        position: { x: 1344, y: 655 },
+        state: 0
+      }),
+      unit(142, 'orcs', 300, { ...EVIL, position: LORIEN })
+    ]);
+    expect(findFight(asleep, 142)).toBeNull();
+  });
+
+  // The exported starting state is gitignored and absent in CI.
+  const startingStatePath = new URL(
+    '../../public/assets/starting-state.json',
+    import.meta.url
+  );
+  const start = (): SimState =>
+    createSim(1, JSON.parse(readFileSync(startingStatePath, 'utf8')));
+
+  test.skipIf(!existsSync(startingStatePath))(
+    'at the start, Minas Tirith is defended by Denethor, the tower guards and both infantry',
+    () => {
+      expect(
+        combatRows(start().roster, MINAS_TIRITH).map(row => row.entries)
+      ).toEqual([[32], [33], [34], [69]]);
+    }
+  );
+
+  test.skipIf(!existsSync(startingStatePath))(
+    'at the start, an Evil Force walking into Lórien finds nobody to fight',
+    () => {
+      const sim = start();
+      const orcs = sim.roster[104]!;
+      const roster = sim.roster.map(entry =>
+        entry === orcs ? { ...entry, position: LORIEN, state: 1 } : entry
+      );
+      expect(combatRows(roster, LORIEN)).toEqual([
+        expect.objectContaining({ entries: [104], side: 'evil' })
+      ]);
+      expect(findFight({ ...sim, roster }, 104)).toBeNull();
+    }
+  );
 });

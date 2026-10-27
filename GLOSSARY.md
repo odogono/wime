@@ -72,11 +72,11 @@ A named point on the map, such as Hobbiton or Cirith Ungol. Every Place has a ki
 _Avoid_: Location, site, town
 
 **Stronghold**:
-One of the five major Good Places (the Hornburg, Edoras, Minas Tirith, Lórien and Thranduil's Palace). Losing any three loses the game.
+One of the five major Good Places (the Hornburg, Edoras, Minas Tirith, Lórien and Thranduil's Palace). Each stands or falls with one named Garrison, and losing any three loses the game.
 _Avoid_: Capital, base
 
 **Garrison**:
-A Unit that stands at a Place with no destination and never moves until triggered, defending it. Each Stronghold has one, and the Stronghold falls when its Garrison is destroyed.
+A Unit that starts at a Place and stays there unless the player orders it away or its Leader moves. Some start asleep until a War Event wakes them. A Place may have several.
 _Avoid_: Defenders, guard, fort troops
 
 ## Play
@@ -137,11 +137,43 @@ _Avoid_: Poem, Ring poem, inscription
 The note from Gandalf to Frodo shown once, in a window over the first Animation Level.
 _Avoid_: Intro text, Gandalf's message
 
+**Demo**:
+A recorded winning campaign that the game plays by itself, from New Game to its ending.
+_Avoid_: Attract mode, replay, demo script
+
+**Demo mode**:
+The state of the game while a Demo plays: the player watches, and never gives Orders or touches a save.
+_Avoid_: Attract mode, autoplay
+
 ## Project
 
 **Reference Build**:
 The release of the original game that settles questions of how it worked: the Amiga v1.0 release. Other versions may be consulted but are never authoritative.
 _Avoid_: Original, master copy
+
+**Reference run**:
+A recorded run of the Reference Build in an emulator, set up to observe one behaviour and cited as evidence by Findings.
+_Avoid_: Scenario, test case
+
+**Scenario**:
+A playable game: the starting forces, Places and map, and the rules that run them. The game the original shipped with is one Scenario.
+_Avoid_: Mod, campaign, Level
+
+**Setup**:
+Where a Scenario's game starts: the objects lying on the map, the Encounter figures' areas and first days, and the Nazgûl's starting positions.
+_Avoid_: Start, layout, map seed
+
+**Classic Setup**:
+The Setup the original shipped with, the same in every game.
+_Avoid_: Default setup, original layout
+
+**Shuffled Setup**:
+A Setup drawn from a Setup seed, within limits the Scenario sets. The rules are unchanged.
+_Avoid_: Random map, randomised game
+
+**Scenario Script**:
+The code that gives a Scenario its rules.
+_Avoid_: Script, mod
 
 **Finding**:
 A single recorded fact about how the original game worked, with its sources and how certain it is.
@@ -154,3 +186,7 @@ _Avoid_: Retrospective, learning
 **Spec**:
 A statement of what the reimplementation must do, citing the Findings it rests on.
 _Avoid_: Requirement doc, design doc
+
+**Debug view**:
+An overlay on the Campaign Level that shows the game's hidden workings, such as terrain or where Forces are heading, for those developing the port. Not part of the game as played.
+_Avoid_: Cheat, overlay mode

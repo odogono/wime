@@ -18,7 +18,8 @@ import {
   iconPlacements,
   iconSourceRect,
   maxCamera,
-  stepCamera
+  stepCamera,
+  topLeftWindow
 } from './campaign-level';
 import { fixedFont } from './test-font';
 import { windowStyle } from './window-frame';
@@ -148,6 +149,7 @@ const fakeAssets = (draws: DrawCall[]): CampaignAssets => {
     // The real IMAG 100 sheet is 80 by 96 (finding:data-formats-imag-bitmaps).
     forceIcons: { height: 96, width: 80 } as HTMLCanvasElement,
     icons: [],
+    palette: [],
     startingState: null,
     texts: new Map(),
     tilemap: {
@@ -218,7 +220,7 @@ describe('rendering', () => {
   });
 
   test('icons stack right-aligned from the top right', () => {
-    const image = { height: 12, width: 21 } as HTMLImageElement;
+    const image = { height: 12, width: 21 } as HTMLCanvasElement;
     const placements = iconPlacements([
       { image, name: 'eye' },
       { image, name: 'map' }
@@ -400,5 +402,28 @@ describe('manifest lookup', () => {
     expect(assetByKind(manifest, 'text')).toBeUndefined();
     expect(assetBySource(manifest, 'AMaps.res', 'IMAG', 99)).toBeUndefined();
     expect(assetBySource(manifest, 'BScene.res', 'IMAG', 26)).toBeUndefined();
+  });
+});
+
+describe('topLeftWindow', () => {
+  test('a hover name replaces the paused box rather than overdrawing it', () => {
+    expect(topLeftWindow({ hoverName: 'ETHRING', paused: true })).toEqual({
+      kind: 'hover',
+      name: 'ETHRING'
+    });
+    expect(topLeftWindow({ hoverName: null, paused: true })).toEqual({
+      kind: 'paused'
+    });
+    expect(topLeftWindow({ hoverName: 'infantry', paused: false })).toEqual({
+      kind: 'hover',
+      name: 'infantry'
+    });
+    expect(topLeftWindow({ hoverName: null, paused: false })).toBeNull();
+  });
+
+  test('an open box, such as a clicked Force, replaces the paused box', () => {
+    expect(
+      topLeftWindow({ boxOpen: true, hoverName: null, paused: true })
+    ).toBeNull();
   });
 });

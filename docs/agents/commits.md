@@ -15,6 +15,9 @@ type(scope)!: Sentence-case imperative description (#issue)
   - `fix`: a behaviour that was wrong.
   - `perf`: the same behaviour, faster or smaller.
   - `refactor`, `docs`, `test`, `build`, `ci`, `chore`, `revert`: no change a player would notice. Analysis of the original game is `docs(re)`.
+
+  Pick the type from what the diff does, not from the branch name or the issue's wording: a `fix/issue-141` branch that adds a behaviour the port never had is `feat`.
+
 - **scope**, optional, one of:
   - `sim`: the headless simulation, `web/src/sim/`.
   - `view`: rendering, UI and the tick driver, `web/src/view/`.
@@ -49,9 +52,10 @@ A PR scoped `re` adds or changes at least one Finding under `docs/findings/`. An
 
 Versions are `0.x.y`: each roadmap milestone (#2) is a minor version, with patch versions for fixes in between, and `1.0.0` is the whole game playable. To release:
 
-1. On a branch, run `bun run changelog:release 0.1.0`. It writes `releases/changelog/0.1.0.md`, updates the index, deletes the fragments and bumps `package.json`.
-2. Merge it as `chore(repo): Release 0.1.0`.
-3. Tag the merge commit on `main`: `git tag v0.1.0 && git push origin v0.1.0`.
+1. With the assets exported (`bun run extract-all`), run `bun test tools/strategy.test.ts web/src/view/demo-mode.test.ts`. CI has no assets, so it cannot replay the Demos (docs/spec/demo-mode.md); a failure means a change has broken one.
+2. On a branch, run `bun run changelog:release 0.1.0`. It writes `releases/changelog/0.1.0.md`, updates the index, deletes the fragments and bumps `package.json`.
+3. Merge it as `chore(repo): Release 0.1.0`.
+4. Tag the merge commit on `main`: `git tag v0.1.0 && git push origin v0.1.0`.
 
 ## Checking locally
 

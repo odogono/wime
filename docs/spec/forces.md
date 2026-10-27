@@ -1,7 +1,7 @@
 # Forces
 
 How Forces meet, join and split. Facts cite their Findings (ADR-0004),
-recovered from the Reference Build for #68. The reference scenarios are
+recovered from the Reference Build for #68. The Reference runs are
 in `docs/re/forces-reference.md`. Ordering part of a Force is in
 `docs/spec/movement.md`; the followers of a Leader who dies in a fight
 are in `docs/spec/combat.md`.
@@ -87,14 +87,28 @@ are in `docs/spec/combat.md`.
   and the clock runs on under it.
   (finding:forces-gollum-sneaks-away-from-a-wizard,
   finding:time-game-speed-clock-limits, finding:ui-war-event-messages)
-- `provisional`: the one-line box would leave its buttons, at 30,
-  outside its 24 pixels, so it is drawn 44 high like the two-line
-  box. No capture records how the original drew it (#168).
-- `provisional`: the deadline runs in real time, so time on the Full
-  Map Level counts against it, as for a fight's announcement (#168).
-- `provisional`: a War Event announcement waits, its time kept, while
-  the window is up, as it does for a fight's windows
-  (docs/spec/war-events.md, #168).
+- Accepted for 1.0: a plain meeting's one-line box would leave its
+  "Go there" and "Continue on" buttons, at 30, outside its 24 pixels,
+  so it is drawn 44 high like the two-line box and both buttons stay
+  inside the frame. The original opens it 24 high with its buttons at
+  30; how that shows and where its buttons take clicks needs a
+  capture. Gollum's notice above has no buttons and is not affected.
+  (finding:ui-meeting-window)
+- In the original the deadline counts real frames, and the Full Map
+  Level cannot be entered while the window is up, so no time there
+  counts against it (finding:ui-message-box-timeouts-by-level,
+  finding:ui-message-box-closed-on-leaving-a-level).
+- In the original only one box is open at a time: a box raised while
+  another is up waits out that box's 200-frame deadline, the game
+  standing still, then replaces it
+  (finding:ui-message-box-opening-waits-for-the-open-box).
+- The port does the same (docs/spec/time.md, "Message boxes"). The
+  Full Map Level cannot be entered, by its icon or U, while the window
+  is up, and the other icons do nothing. A press off its buttons does
+  nothing, but a click on a Force or a Place answers "Continue on" and
+  opens that Force's or Place's window instead; N answers "Continue
+  on" and Y the other button
+  (finding:ui-message-box-presses-off-the-buttons).
 
 ## Leaving a Force
 

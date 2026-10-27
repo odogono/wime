@@ -2,7 +2,7 @@
 
 How the war moves on without the player: the War Events and when they
 are set. Facts cite their Findings (ADR-0004), recovered from the
-Reference Build for #57. The reference scenarios are in
+Reference Build for #57. The Reference runs are in
 `docs/re/war-events-reference.md`. The triggers that wake Forces (#59),
 the presentation of the announcements (#60) and the movement tripwires
 (#49) have their own sections below.
@@ -157,15 +157,22 @@ When an entry's trigger is met (finding:ai-trigger-what-waking-changes):
 
 - Each announcement is shown on the Campaign Level in a one-line box
   with no buttons at the top left: 144 by 24 lo-res pixels for
-  Saruman's, 160 by 24 for the Dark Lord's, at (10, 5). It closes by
-  itself after 60 frames (1.2 seconds) on Very Hasty or 200 frames
+  Saruman's, 160 by 24 for the Dark Lord's, at (10, 5). A later box may
+  replace it after 60 frames (1.2 seconds) on Very Hasty or 200 frames
   (4 seconds) otherwise, and game time runs on while it is up.
   (`finding:time-game-speed-clock-limits`)
 - Announcements are shown one at a time, oldest first. The view takes
   each from the sim only as it shows it, so one not yet shown survives
   a save, and one already shown is never shown again.
-- `provisional`: the original queues every message box, so an
-  announcement and a fight's windows wait for each other. The view
-  shows a fight's windows first and keeps an announcement, with the
-  time it has left, until they close. Likewise on the Full Map Level,
-  where time stands still (#168).
+- In the original only one box is open at a time, and a box raised
+  while another is up waits out that box's 200-frame deadline, the
+  game standing still, then replaces it: boxes show in the order they
+  are raised. A box without buttons lasts until a later one replaces
+  it, or 1,220 frames on the Campaign Level and 1,500 on the Animation
+  Level, and leaving a Level closes it
+  (finding:ui-message-box-opening-waits-for-the-open-box,
+  finding:ui-message-box-timeouts-by-level,
+  finding:ui-message-box-closed-on-leaving-a-level).
+- The port does the same (docs/spec/time.md, "Message boxes"), on the
+  Animation Level as on the Campaign Level: there is no priority
+  between an announcement, a pass-by, a meeting and a fight.

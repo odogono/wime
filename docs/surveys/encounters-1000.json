@@ -1,0 +1,608 @@
+{
+  "configurations": [
+    {
+      "endings": {
+        "day-cap": 0,
+        "lost-barad-dur": 563,
+        "lost-strongholds": 200,
+        "softlock": 0,
+        "won-barad-dur": 0,
+        "won-mount-doom": 237
+      },
+      "failedActs": 0,
+      "failedActsByAxis": {
+        "a": 0,
+        "b": 0,
+        "c": 0,
+        "unattributed": 0
+      },
+      "finalDay": {
+        "count": 1000,
+        "max": 129,
+        "median": 118,
+        "min": 31
+      },
+      "knowledge": "memorised",
+      "milestones": {
+        "council": {
+          "count": 978,
+          "max": 47,
+          "median": 27,
+          "min": 25
+        },
+        "mobilisation": {
+          "count": 978,
+          "max": 119,
+          "median": 110,
+          "min": 106
+        },
+        "warEvents": {
+          "3": {
+            "count": 978,
+            "max": 119,
+            "median": 110,
+            "min": 106
+          },
+          "4": {
+            "count": 978,
+            "max": 119,
+            "median": 110,
+            "min": 106
+          },
+          "5": {
+            "count": 978,
+            "max": 119,
+            "median": 110,
+            "min": 106
+          },
+          "6": {
+            "count": 978,
+            "max": 119,
+            "median": 110,
+            "min": 106
+          },
+          "7": {
+            "count": 978,
+            "max": 118,
+            "median": 110,
+            "min": 105
+          }
+        }
+      },
+      "player": "fellowship",
+      "runs": 1000,
+      "winRate": 0.237,
+      "wins": 237
+    },
+    {
+      "endings": {
+        "day-cap": 0,
+        "lost-barad-dur": 603,
+        "lost-strongholds": 180,
+        "softlock": 0,
+        "won-barad-dur": 0,
+        "won-mount-doom": 217
+      },
+      "failedActs": 0,
+      "failedActsByAxis": {
+        "a": 0,
+        "b": 0,
+        "c": 0,
+        "unattributed": 0
+      },
+      "finalDay": {
+        "count": 1000,
+        "max": 130,
+        "median": 118,
+        "min": 31
+      },
+      "knowledge": "live",
+      "milestones": {
+        "council": {
+          "count": 924,
+          "max": 55,
+          "median": 28,
+          "min": 19
+        },
+        "mobilisation": {
+          "count": 924,
+          "max": 122,
+          "median": 111,
+          "min": 100
+        },
+        "warEvents": {
+          "3": {
+            "count": 924,
+            "max": 122,
+            "median": 111,
+            "min": 100
+          },
+          "4": {
+            "count": 924,
+            "max": 122,
+            "median": 111,
+            "min": 100
+          },
+          "5": {
+            "count": 924,
+            "max": 122,
+            "median": 111,
+            "min": 100
+          },
+          "6": {
+            "count": 924,
+            "max": 122,
+            "median": 111,
+            "min": 100
+          },
+          "7": {
+            "count": 924,
+            "max": 121,
+            "median": 110,
+            "min": 99
+          }
+        }
+      },
+      "player": "fellowship",
+      "runs": 1000,
+      "winRate": 0.217,
+      "wins": 217
+    },
+    {
+      "endings": {
+        "day-cap": 8,
+        "lost-barad-dur": 75,
+        "lost-strongholds": 409,
+        "softlock": 0,
+        "won-barad-dur": 508,
+        "won-mount-doom": 0
+      },
+      "failedActs": 0,
+      "failedActsByAxis": {
+        "a": 0,
+        "b": 0,
+        "c": 0,
+        "unattributed": 0
+      },
+      "finalDay": {
+        "count": 1000,
+        "max": 400,
+        "median": 126,
+        "min": 31
+      },
+      "knowledge": "memorised",
+      "milestones": {
+        "council": {
+          "count": 978,
+          "max": 47,
+          "median": 27,
+          "min": 25
+        },
+        "mobilisation": {
+          "count": 978,
+          "max": 97,
+          "median": 90,
+          "min": 87
+        },
+        "warEvents": {
+          "3": {
+            "count": 978,
+            "max": 97,
+            "median": 90,
+            "min": 87
+          },
+          "4": {
+            "count": 978,
+            "max": 97,
+            "median": 90,
+            "min": 87
+          },
+          "5": {
+            "count": 978,
+            "max": 97,
+            "median": 90,
+            "min": 87
+          },
+          "6": {
+            "count": 978,
+            "max": 97,
+            "median": 90,
+            "min": 87
+          },
+          "7": {
+            "count": 978,
+            "max": 96,
+            "median": 89,
+            "min": 87
+          }
+        }
+      },
+      "player": "muster",
+      "runs": 1000,
+      "winRate": 0.508,
+      "wins": 508
+    },
+    {
+      "endings": {
+        "day-cap": 4,
+        "lost-barad-dur": 124,
+        "lost-strongholds": 426,
+        "softlock": 0,
+        "won-barad-dur": 446,
+        "won-mount-doom": 0
+      },
+      "failedActs": 0,
+      "failedActsByAxis": {
+        "a": 0,
+        "b": 0,
+        "c": 0,
+        "unattributed": 0
+      },
+      "finalDay": {
+        "count": 1000,
+        "max": 400,
+        "median": 125,
+        "min": 31
+      },
+      "knowledge": "live",
+      "milestones": {
+        "council": {
+          "count": 924,
+          "max": 55,
+          "median": 28,
+          "min": 19
+        },
+        "mobilisation": {
+          "count": 924,
+          "max": 97,
+          "median": 91,
+          "min": 82
+        },
+        "warEvents": {
+          "3": {
+            "count": 924,
+            "max": 97,
+            "median": 91,
+            "min": 82
+          },
+          "4": {
+            "count": 924,
+            "max": 97,
+            "median": 91,
+            "min": 82
+          },
+          "5": {
+            "count": 924,
+            "max": 97,
+            "median": 91,
+            "min": 82
+          },
+          "6": {
+            "count": 924,
+            "max": 97,
+            "median": 91,
+            "min": 82
+          },
+          "7": {
+            "count": 924,
+            "max": 96,
+            "median": 91,
+            "min": 81
+          }
+        }
+      },
+      "player": "muster",
+      "runs": 1000,
+      "winRate": 0.446,
+      "wins": 446
+    },
+    {
+      "endings": {
+        "day-cap": 8,
+        "lost-barad-dur": 32,
+        "lost-strongholds": 32,
+        "softlock": 0,
+        "won-barad-dur": 0,
+        "won-mount-doom": 928
+      },
+      "failedActs": 0,
+      "failedActsByAxis": {
+        "a": 0,
+        "b": 0,
+        "c": 0,
+        "unattributed": 0
+      },
+      "finalDay": {
+        "count": 1000,
+        "max": 400,
+        "median": 235,
+        "min": 31
+      },
+      "knowledge": "memorised",
+      "milestones": {
+        "council": {
+          "count": 978,
+          "max": 47,
+          "median": 27,
+          "min": 25
+        },
+        "mobilisation": {
+          "count": 978,
+          "max": 149,
+          "median": 149,
+          "min": 149
+        },
+        "warEvents": {
+          "3": {
+            "count": 978,
+            "max": 149,
+            "median": 149,
+            "min": 149
+          },
+          "4": {
+            "count": 978,
+            "max": 149,
+            "median": 149,
+            "min": 149
+          },
+          "5": {
+            "count": 978,
+            "max": 149,
+            "median": 149,
+            "min": 149
+          },
+          "6": {
+            "count": 978,
+            "max": 170,
+            "median": 170,
+            "min": 170
+          },
+          "7": {
+            "count": 978,
+            "max": 169,
+            "median": 169,
+            "min": 169
+          }
+        }
+      },
+      "player": "defensive",
+      "runs": 1000,
+      "winRate": 0.928,
+      "wins": 928
+    },
+    {
+      "endings": {
+        "day-cap": 5,
+        "lost-barad-dur": 87,
+        "lost-strongholds": 29,
+        "softlock": 0,
+        "won-barad-dur": 0,
+        "won-mount-doom": 879
+      },
+      "failedActs": 0,
+      "failedActsByAxis": {
+        "a": 0,
+        "b": 0,
+        "c": 0,
+        "unattributed": 0
+      },
+      "finalDay": {
+        "count": 1000,
+        "max": 400,
+        "median": 233,
+        "min": 31
+      },
+      "knowledge": "live",
+      "milestones": {
+        "council": {
+          "count": 924,
+          "max": 55,
+          "median": 28,
+          "min": 19
+        },
+        "mobilisation": {
+          "count": 924,
+          "max": 149,
+          "median": 149,
+          "min": 149
+        },
+        "warEvents": {
+          "3": {
+            "count": 924,
+            "max": 149,
+            "median": 149,
+            "min": 149
+          },
+          "4": {
+            "count": 924,
+            "max": 149,
+            "median": 149,
+            "min": 149
+          },
+          "5": {
+            "count": 924,
+            "max": 149,
+            "median": 149,
+            "min": 149
+          },
+          "6": {
+            "count": 924,
+            "max": 170,
+            "median": 170,
+            "min": 170
+          },
+          "7": {
+            "count": 924,
+            "max": 169,
+            "median": 169,
+            "min": 169
+          }
+        }
+      },
+      "player": "defensive",
+      "runs": 1000,
+      "winRate": 0.879,
+      "wins": 879
+    },
+    {
+      "endings": {
+        "day-cap": 0,
+        "lost-barad-dur": 586,
+        "lost-strongholds": 414,
+        "softlock": 0,
+        "won-barad-dur": 0,
+        "won-mount-doom": 0
+      },
+      "failedActs": 0,
+      "failedActsByAxis": {
+        "a": 0,
+        "b": 0,
+        "c": 0,
+        "unattributed": 0
+      },
+      "finalDay": {
+        "count": 1000,
+        "max": 307,
+        "median": 29,
+        "min": 11
+      },
+      "knowledge": "memorised",
+      "milestones": {
+        "council": {
+          "count": 13,
+          "max": 111,
+          "median": 41,
+          "min": 28
+        },
+        "mobilisation": {
+          "count": 470,
+          "max": 149,
+          "median": 13,
+          "min": 1
+        },
+        "warEvents": {
+          "3": {
+            "count": 470,
+            "max": 149,
+            "median": 13,
+            "min": 1
+          },
+          "4": {
+            "count": 470,
+            "max": 149,
+            "median": 13,
+            "min": 1
+          },
+          "5": {
+            "count": 468,
+            "max": 149,
+            "median": 13,
+            "min": 1
+          },
+          "6": {
+            "count": 466,
+            "max": 170,
+            "median": 13,
+            "min": 1
+          },
+          "7": {
+            "count": 470,
+            "max": 169,
+            "median": 13,
+            "min": 1
+          }
+        }
+      },
+      "player": "random",
+      "runs": 1000,
+      "winRate": 0,
+      "wins": 0
+    },
+    {
+      "endings": {
+        "day-cap": 0,
+        "lost-barad-dur": 586,
+        "lost-strongholds": 414,
+        "softlock": 0,
+        "won-barad-dur": 0,
+        "won-mount-doom": 0
+      },
+      "failedActs": 0,
+      "failedActsByAxis": {
+        "a": 0,
+        "b": 0,
+        "c": 0,
+        "unattributed": 0
+      },
+      "finalDay": {
+        "count": 1000,
+        "max": 307,
+        "median": 29,
+        "min": 11
+      },
+      "knowledge": "live",
+      "milestones": {
+        "council": {
+          "count": 13,
+          "max": 111,
+          "median": 41,
+          "min": 28
+        },
+        "mobilisation": {
+          "count": 470,
+          "max": 149,
+          "median": 13,
+          "min": 1
+        },
+        "warEvents": {
+          "3": {
+            "count": 470,
+            "max": 149,
+            "median": 13,
+            "min": 1
+          },
+          "4": {
+            "count": 470,
+            "max": 149,
+            "median": 13,
+            "min": 1
+          },
+          "5": {
+            "count": 468,
+            "max": 149,
+            "median": 13,
+            "min": 1
+          },
+          "6": {
+            "count": 466,
+            "max": 170,
+            "median": 13,
+            "min": 1
+          },
+          "7": {
+            "count": 470,
+            "max": 169,
+            "median": 13,
+            "min": 1
+          }
+        }
+      },
+      "player": "random",
+      "runs": 1000,
+      "winRate": 0,
+      "wins": 0
+    }
+  ],
+  "options": {
+    "axes": ["b"],
+    "days": 400,
+    "from": 1,
+    "knowledge": ["memorised", "live"],
+    "players": ["fellowship", "muster", "defensive", "random"],
+    "seeds": 100,
+    "setup": "shuffled",
+    "setupSeeds": 10
+  },
+  "setup": "shuffled",
+  "version": 2
+}

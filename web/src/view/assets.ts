@@ -56,7 +56,7 @@ export interface TilesMeta {
 }
 
 export interface CampaignIcon {
-  image: HTMLImageElement;
+  image: HTMLCanvasElement;
   name: string;
 }
 
@@ -68,6 +68,8 @@ export interface CampaignAssets {
   // map instead of in a black square.
   forceIcons: CanvasImageSource & { height: number; width: number };
   icons: CampaignIcon[];
+  // The Campaign Level's colours, as hex strings.
+  palette: string[];
   // The parsed starting-state.json, still unvalidated here: the sim
   // loads and checks it (loadStartingState in src/sim), so a bad asset
   // fails there with the sim's own error.
@@ -221,10 +223,17 @@ const loadFont = async (manifest: Manifest, base: string): Promise<Font> => {
   return font;
 };
 
-// Pure black is colour 0 of the sheet's palette, its background. The
-// figures and badges are outlined in other colours, so clearing black
-// to transparent keeps every icon's shape. How the original masked
-// its blit has not been traced; this is provisional.
+// Pure black is colour 0 of the palette, which the original's image
+// blitter leaves clear (finding:graphics-campaign-icons-cookie-cut-on-colour-0).
+// Clearing it keeps the artwork and outlines in the other colours.
+//
+// Browsers that guard against fingerprinting (Safari's Advanced
+// Fingerprinting Protection, Firefox's resistFingerprinting) perturb
+// what getImageData reads back by a step or two, so black is matched
+// to within half an RGB4 step (17), which still keeps colour 2, #100.
+const NEAR_BLACK = 9;
+export const isNearBlack = (r: number, g: number, b: number): boolean =>
+  r < NEAR_BLACK && g < NEAR_BLACK && b < NEAR_BLACK;
 export const blackToTransparent = (
   image: HTMLImageElement
 ): HTMLCanvasElement => {
@@ -239,9 +248,7 @@ export const blackToTransparent = (
   const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height);
   for (let i = 0; i < pixels.data.length; i += 4) {
     if (
-      pixels.data[i] === 0 &&
-      pixels.data[i + 1] === 0 &&
-      pixels.data[i + 2] === 0
+      isNearBlack(pixels.data[i]!, pixels.data[i + 1]!, pixels.data[i + 2]!)
     ) {
       pixels.data[i + 3] = 0;
     }
@@ -312,7 +319,10 @@ export const loadCampaignAssets = async (
   for (const { id, name } of CAMPAIGN_ICONS) {
     const asset = assetBySource(manifest, 'AMaps.res', 'IMAG', id);
     if (asset) {
-      icons.push({ image: await loadImage(base + asset.path), name });
+      icons.push({
+        image: blackToTransparent(await loadImage(base + asset.path)),
+        name
+      });
     }
   }
 
@@ -320,6 +330,7 @@ export const loadCampaignAssets = async (
     atlas,
     forceIcons: blackToTransparent(forceIconSheet),
     icons,
+    palette: palette.hex,
     startingState,
     texts: textsByKey(texts),
     tilemap,
@@ -407,9 +418,16 @@ export interface AnimationIcon {
   y: number;
 }
 
+const OBJECT_PICTURE_BASE = 50;
+const OBJECT_PICTURES = 16;
+
 export interface AnimationAssets {
   figures: Map<number, FigureSetAsset>;
   icons: AnimationIcon[];
+  // Objects lying on the ground, by object: BScene.res IMAG 50 plus the
+  // object, colour 0 clear
+  // (finding:objects-lying-on-the-ground-are-pictures).
+  objectPictures: Map<number, HTMLCanvasElement>;
   // The 32 colours (finding:graphics-animation-level-palette).
   palette: string[];
   // Scenery strips by IMAG id, colour 0 clear.
@@ -485,9 +503,26 @@ export const loadAnimationAssets = async (
       )
     )
   ]);
+  const objectPictures = await Promise.all(
+    Array.from({ length: OBJECT_PICTURES }, async (_, object) => {
+      const asset = assetBySource(
+        manifest,
+        'BScene.res',
+        'IMAG',
+        OBJECT_PICTURE_BASE + object
+      );
+      return asset
+        ? ([
+            object,
+            blackToTransparent(await loadImage(base + asset.path))
+          ] as const)
+        : null;
+    })
+  );
   return {
     figures: new Map(sets.map(set => [set.id, set])),
     icons,
+    objectPictures: new Map(objectPictures.filter(entry => entry !== null)),
     palette: palette.hex,
     strips: new Map(strips),
     tables,

@@ -1,53 +1,74 @@
 import {
+  DEBUG_VIEW_LABELS,
+  DEBUG_VIEW_ORDER,
+  type DebugViews
+} from './debug-views';
+import {
   NARROW_WIDTH,
   WIDE_WIDTH,
   drawMenu,
+  loadListLines,
   menuRowAt,
   moveSelection,
   newestFirst,
+  setupLabel,
   slotRow,
   type MenuColours,
   type MenuView
 } from './menu-window';
 import type { SlotFailure, SlotSummary } from './save-slots';
+import { nextSize, sizeLabel, type Settings } from './settings';
 import { LOAD_FAILED, loadList, type TitleSaves } from './title-menu';
 import type { WindowStyle } from './window-frame';
 
-// The in-game menu (docs/spec/game-menu.md): Save, Load, Return to
-// title and Close, opened during play on every Level. The original has
+// The in-game menu (docs/spec/game-menu.md): Save, Load, Settings,
+// Return to title and Close, opened during play on every Level. The original has
 // none; its Archive window keeps its own single slot
 // (finding:ui-archive-window). A pure state machine over keys and
 // clicks, as the title menu is; main.ts carries out what it chooses.
+// After the ending's last page a shorter menu, Return to title and Load,
+// is the way out (docs/spec/winning-and-losing.md). Each step takes the
+// menu that Back and Escape return to, the in-game menu by default.
+// In a chosen Demo both are shorter still: Resume, Settings and Return
+// to title,
+// and after the ending Return to title alone (docs/spec/demo-mode.md).
+// A game started from a Shuffled Setup names it over the first menu
+// (docs/spec/shuffled-setup.md).
 
 export type GameMenuChoice =
   | { id: number; kind: 'load' }
   | { id: number; kind: 'save-over' }
   | { kind: 'close' }
-  // Switch the map between Classic and Atlas (docs/spec/atlas-map.md).
-  | { kind: 'map-style' }
   | { kind: 'save-new'; name: string }
+  // Settings asked for its rows; main.ts opens them with what holds now.
+  | { kind: 'settings' }
+  // A setting changed, to be applied and stored.
+  | { kind: 'set'; settings: Settings }
   | { kind: 'title' };
 
-type MainItem = 'close' | 'load' | 'map' | 'save' | 'title';
-const MAIN_ITEMS: MainItem[] = ['save', 'load', 'title', 'map', 'close'];
+type MainItem = 'close' | 'load' | 'resume' | 'save' | 'settings' | 'title';
+const MAIN_ITEMS: MainItem[] = ['save', 'load', 'settings', 'title', 'close'];
+const ENDED_ITEMS: MainItem[] = ['title', 'load'];
+const DEMO_ITEMS: MainItem[] = ['resume', 'settings', 'title'];
+const DEMO_ENDED_ITEMS: MainItem[] = ['title'];
 const MAIN_LABELS: Record<MainItem, string> = {
   close: 'Close',
   load: 'Load',
-  map: 'Map',
+  resume: 'Resume',
   save: 'Save',
+  settings: 'Settings',
   title: 'Return to title'
 };
 
-// How the map is drawn: the original's tiles, or the Atlas map.
-export type MapStyle = 'atlas' | 'classic';
-const MAP_STYLE_LABELS: Record<MapStyle, string> = {
-  atlas: 'Map: Atlas',
-  classic: 'Map: Classic'
-};
-
 export type GameMenu =
-  // `mapStyle` is the setting the Map item shows.
-  | { kind: 'main'; mapStyle?: MapStyle; selected: number }
+  | {
+      demo?: true;
+      ended?: true;
+      kind: 'main';
+      selected: number;
+      // The Shuffled Setup's seed; absent for the Classic Setup.
+      setupSeed?: number;
+    }
   // The named slots to save into; the autosave is not offered.
   | { kind: 'save'; selected: number; slots: SlotSummary[] }
   // Naming a new save, typed in.
@@ -60,13 +81,52 @@ export type GameMenu =
       slot: SlotSummary;
     }
   | { kind: 'load'; selected: number; slots: SlotSummary[] }
+  // Sound, Window size, Glass shows Evil, Debug views where they are
+  // offered, and Back.
+  | {
+      debug: boolean;
+      kind: 'settings';
+      selected: number;
+      settings: Settings;
+    }
+  // Each Debug view's switch, then Back to the settings.
+  | { kind: 'debug'; selected: number; settings: Settings }
   // What a save or load came to; any key or click goes back.
   | { kind: 'message'; lines: string[] };
 
-export const openGameMenu = (mapStyle?: MapStyle): GameMenu =>
-  mapStyle
-    ? { kind: 'main', mapStyle, selected: 0 }
-    : { kind: 'main', selected: 0 };
+export const openGameMenu = (demo = false, setupSeed?: number): GameMenu => ({
+  ...(demo ? { demo: true } : {}),
+  kind: 'main',
+  selected: 0,
+  ...(setupSeed === undefined ? {} : { setupSeed })
+});
+
+export const openSettingsMenu = (
+  settings: Settings,
+  debug = false
+): GameMenu => ({
+  debug,
+  kind: 'settings',
+  selected: 0,
+  settings
+});
+
+export const openEndedMenu = (demo = false, setupSeed?: number): GameMenu => ({
+  ...(demo ? { demo: true } : {}),
+  ended: true,
+  kind: 'main',
+  selected: 0,
+  ...(setupSeed === undefined ? {} : { setupSeed })
+});
+
+const mainItems = (menu: { demo?: true; ended?: true }): MainItem[] =>
+  menu.demo
+    ? menu.ended
+      ? DEMO_ENDED_ITEMS
+      : DEMO_ITEMS
+    : menu.ended
+      ? ENDED_ITEMS
+      : MAIN_ITEMS;
 
 export const NAME_LIMIT = 24;
 const NAME_ITEMS = ['Save', 'Back'];
@@ -96,16 +156,13 @@ export const loadFailed = (reason: SlotFailure): string[] =>
 export const gameMenuView = (menu: GameMenu): MenuView => {
   switch (menu.kind) {
     case 'main': {
+      // The Setup's label is wider than the narrow window.
+      const seed = menu.setupSeed;
       return {
-        lines: [],
-        rows: MAIN_ITEMS.map(item => ({
-          label:
-            item === 'map'
-              ? MAP_STYLE_LABELS[menu.mapStyle ?? 'classic']
-              : MAIN_LABELS[item]
-        })),
+        lines: seed === undefined ? [] : [setupLabel(seed)],
+        rows: mainItems(menu).map(item => ({ label: MAIN_LABELS[item] })),
         selected: menu.selected,
-        width: NARROW_WIDTH
+        width: seed === undefined ? NARROW_WIDTH : WIDE_WIDTH
       };
     }
     case 'save': {
@@ -148,8 +205,40 @@ export const gameMenuView = (menu: GameMenu): MenuView => {
     }
     case 'load': {
       return {
-        lines: menu.slots.length > 0 ? [] : ['There are no saves to load.'],
+        lines: loadListLines(menu.slots, menu.selected),
         rows: [...menu.slots.map(slotRow), { label: 'Back' }],
+        selected: menu.selected,
+        width: WIDE_WIDTH
+      };
+    }
+    case 'settings': {
+      return {
+        lines: [],
+        rows: [
+          { label: `Sound: ${menu.settings.sound ? 'On' : 'Off'}` },
+          { label: `Window size: ${sizeLabel(menu.settings.size)}` },
+          {
+            label: `Glass shows Evil: ${menu.settings.glassShowsEvil ? 'On' : 'Off'}`
+          },
+          {
+            label: `Map: ${menu.settings.map === 'atlas' ? 'Atlas' : 'Classic'}`
+          },
+          ...(menu.debug ? [{ label: 'Debug views' }] : []),
+          { label: 'Back' }
+        ],
+        selected: menu.selected,
+        width: WIDE_WIDTH
+      };
+    }
+    case 'debug': {
+      return {
+        lines: [],
+        rows: [
+          ...DEBUG_VIEW_ORDER.map(key => ({
+            label: `${DEBUG_VIEW_LABELS[key]}: ${menu.settings.debug[key] ? 'On' : 'Off'}`
+          })),
+          { label: 'Back' }
+        ],
         selected: menu.selected,
         width: WIDE_WIDTH
       };
@@ -162,10 +251,14 @@ export const gameMenuView = (menu: GameMenu): MenuView => {
 
 export type GameMenuStep = { choice?: GameMenuChoice; menu: GameMenu };
 
-const choose = (menu: GameMenu, saves: TitleSaves): GameMenuStep => {
+const choose = (
+  menu: GameMenu,
+  saves: TitleSaves,
+  home: GameMenu
+): GameMenuStep => {
   switch (menu.kind) {
     case 'main': {
-      switch (MAIN_ITEMS[menu.selected]) {
+      switch (mainItems(menu)[menu.selected]) {
         case 'save': {
           return {
             menu: {
@@ -180,11 +273,11 @@ const choose = (menu: GameMenu, saves: TitleSaves): GameMenuStep => {
             menu: { kind: 'load', selected: 0, slots: loadList(saves) }
           };
         }
+        case 'settings': {
+          return { choice: { kind: 'settings' }, menu };
+        }
         case 'title': {
           return { choice: { kind: 'title' }, menu };
-        }
-        case 'map': {
-          return { choice: { kind: 'map-style' }, menu };
         }
         default: {
           return { choice: { kind: 'close' }, menu };
@@ -200,16 +293,16 @@ const choose = (menu: GameMenu, saves: TitleSaves): GameMenuStep => {
         ? {
             menu: { action: 'save-over', kind: 'confirm', selected: 1, slot }
           }
-        : { menu: openGameMenu() };
+        : { menu: home };
     }
     case 'name': {
       return menu.selected === 0
         ? { choice: { kind: 'save-new', name: menu.text }, menu }
-        : { menu: openGameMenu() };
+        : { menu: home };
     }
     case 'confirm': {
       if (menu.selected !== 0) {
-        return { menu: openGameMenu() };
+        return { menu: home };
       }
       return {
         choice: {
@@ -222,14 +315,57 @@ const choose = (menu: GameMenu, saves: TitleSaves): GameMenuStep => {
     case 'load': {
       const slot = menu.slots[menu.selected];
       if (!slot) {
-        return { menu: openGameMenu() };
+        return { menu: home };
       }
       return slot.loadable
         ? { menu: { action: 'load', kind: 'confirm', selected: 1, slot } }
         : { menu: gameMenuMessage(LOAD_FAILED['other-version']) };
     }
+    case 'settings': {
+      const { settings } = menu;
+      if (menu.debug && menu.selected === 4) {
+        return { menu: { kind: 'debug', selected: 0, settings } };
+      }
+      const changed =
+        menu.selected === 0
+          ? { ...settings, sound: !settings.sound }
+          : menu.selected === 1
+            ? { ...settings, size: nextSize(settings.size) }
+            : menu.selected === 2
+              ? { ...settings, glassShowsEvil: !settings.glassShowsEvil }
+              : menu.selected === 3
+                ? {
+                    ...settings,
+                    map:
+                      settings.map === 'atlas'
+                        ? ('classic' as const)
+                        : ('atlas' as const)
+                  }
+                : null;
+      return changed
+        ? {
+            choice: { kind: 'set', settings: changed },
+            menu: { ...menu, settings: changed }
+          }
+        : { menu: home };
+    }
+    case 'debug': {
+      const key = DEBUG_VIEW_ORDER[menu.selected];
+      if (!key) {
+        return { menu: openSettingsMenu(menu.settings, true) };
+      }
+      const debug: DebugViews = {
+        ...menu.settings.debug,
+        [key]: !menu.settings.debug[key]
+      };
+      const changed = { ...menu.settings, debug };
+      return {
+        choice: { kind: 'set', settings: changed },
+        menu: { ...menu, settings: changed }
+      };
+    }
     case 'message': {
-      return { menu: openGameMenu() };
+      return { menu: home };
     }
   }
 };
@@ -257,10 +393,11 @@ const typeName = (
 export const pressGameMenuKey = (
   menu: GameMenu,
   key: string,
-  saves: TitleSaves
+  saves: TitleSaves,
+  home: GameMenu = openGameMenu()
 ): GameMenuStep => {
   if (menu.kind === 'message') {
-    return { menu: openGameMenu() };
+    return { menu: home };
   }
   const moved = moveSelection(
     menu.selected,
@@ -271,17 +408,21 @@ export const pressGameMenuKey = (
     return { menu: select(menu, moved) };
   }
   if (key === 'Enter') {
-    return choose(menu, saves);
+    return choose(menu, saves, home);
   }
   if (key === 'Escape') {
-    return menu.kind === 'main'
-      ? { choice: { kind: 'close' }, menu }
-      : { menu: openGameMenu() };
+    if (menu.kind === 'debug') {
+      return { menu: openSettingsMenu(menu.settings, true) };
+    }
+    if (menu.kind !== 'main') {
+      return { menu: home };
+    }
+    return menu.ended ? { menu } : { choice: { kind: 'close' }, menu };
   }
   if (menu.kind === 'name') {
     return { menu: typeName(menu, key) ?? menu };
   }
-  return key === ' ' ? choose(menu, saves) : { menu };
+  return key === ' ' ? choose(menu, saves, home) : { menu };
 };
 
 export const hoverGameMenu = (
@@ -296,13 +437,14 @@ export const hoverGameMenu = (
 export const clickGameMenu = (
   menu: GameMenu,
   point: { x: number; y: number },
-  saves: TitleSaves
+  saves: TitleSaves,
+  home: GameMenu = openGameMenu()
 ): GameMenuStep => {
   if (menu.kind === 'message') {
-    return { menu: openGameMenu() };
+    return { menu: home };
   }
   const row = menuRowAt(gameMenuView(menu), point);
-  return row === null ? { menu } : choose(select(menu, row), saves);
+  return row === null ? { menu } : choose(select(menu, row), saves, home);
 };
 
 export const drawGameMenu = (

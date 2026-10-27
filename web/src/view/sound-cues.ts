@@ -26,6 +26,8 @@ export interface SoundView {
   // The tile byte of the Place the Animation Level's scene was built for,
   // when it has scenery of its own.
   placeTile: number | null;
+  // How many presses on a button or an icon there have been.
+  presses: number;
 }
 
 export type SoundCue =
@@ -42,7 +44,8 @@ export const QUIET: SoundView = {
   following: null,
   level: 'animation',
   levelEntries: 0,
-  placeTile: null
+  placeTile: null,
+  presses: 0
 };
 
 // Figures drawn on frame 9 or 11 play Whoosh or Sword at random, and a
@@ -120,6 +123,12 @@ export const soundCues = (previous: SoundView, next: SoundView): SoundCue[] => {
     } else if (next.ending === 'won-last-page') {
       cues.push({ kind: 'stop' }, { entry: PIECE.ultVict, kind: 'play' });
     }
+  }
+
+  // The bell as a button or an icon is pressed
+  // (finding:sound-reverb-bells-ring-on-a-press).
+  if (next.presses > previous.presses) {
+    cues.push({ effect: EFFECT.bell, kind: 'effect' });
   }
 
   // The bell as each message box opens (finding:sound-fight-effects).

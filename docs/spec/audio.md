@@ -17,8 +17,8 @@ are laid out is in the Findings of #130; how the browser plays them is
   arrangement. The full one plays only when the game found memory to
   spare at start-up. The port has memory to spare, so it always plays
   the full arrangement. (finding:sound-full-arrangements-need-memory)
-- A piece plays through once from start to end. Whether it repeats is
-  provisional (#170). (finding:sound-music-stops-between-levels)
+- A piece plays through once from start to end and never repeats.
+  (finding:sound-a-piece-plays-once)
 - Moving to another Level stops the piece playing: no piece carries
   from one Level to the next. (finding:sound-music-stops-between-levels)
 
@@ -70,14 +70,16 @@ are laid out is in the Findings of #130; how the browser plays them is
   (finding:sound-fight-effects)
 - On the Animation Level, a figure turning to frame 9 or 11 of its set
   plays Whoosh or Sword at random, and a figure's script casting a spell
-  plays Magic. The original also draws the spell's flash, a figure of
-  set 18, which the port does not yet. (finding:sound-fight-effects)
+  plays Magic, as the spell's flash, a figure of set 18, sets off
+  (docs/spec/animation-level.md). (finding:sound-fight-effects,
+  finding:graphics-spell-flash)
 - The original's Sword never sounds: its Disk 2 copy cannot play the
   note asked for. The port departs from this and plays Disk 1's sword,
   so every blow is heard. (finding:sound-disk-2-sword-is-silent)
-- `provisional`: a second ReverbBells rings after a picture is copied
-  into some boxes; which boxes was not traced (#170).
-  (finding:sound-fight-effects)
+- ReverbBells also rings as a click lands on any button or icon, and
+  when the magnifying glass finds Forces near its spot; a box the click
+  opens rings it again. N and Y ring nothing of their own.
+  (finding:sound-reverb-bells-ring-on-a-press)
 
 ## Switching sound off
 

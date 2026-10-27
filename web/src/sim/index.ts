@@ -18,12 +18,16 @@ export {
   type DisplayTime
 } from './clock';
 export {
+  LAST_GOOD_ENTRY,
   combatRows,
   glassWatches,
   fightRound,
   findFight,
   findMatch,
   finishFight,
+  fightRowCap,
+  listFightOnAnimationLevel,
+  playedOnAnimationLevel,
   resolveFight,
   setCombatOption,
   startFight,
@@ -33,7 +37,8 @@ export {
   type CombatSide,
   type Fight,
   type Match,
-  type MatchWorld
+  type MatchWorld,
+  type RowListing
 } from './combat';
 export {
   closeCouncil,
@@ -43,6 +48,31 @@ export {
   RIVENDELL,
   type CouncilMessage
 } from './council';
+export {
+  DEMO_VERSION,
+  campaignMilestones,
+  campaignOver,
+  isGoodVictory,
+  replayDemo,
+  runToEnd,
+  sameClock,
+  sameMeeting,
+  startCampaign,
+  startDemo,
+  stepCampaign,
+  stepDemo,
+  type CampaignResult,
+  type CampaignRun,
+  type Command,
+  type DemoAssets,
+  type DemoInput,
+  type DemoPlan,
+  type DemoRun,
+  type DemoScript,
+  type Milestones,
+  type ObjectCommand,
+  type Player
+} from './demo';
 export {
   BILBO,
   FIRST_ENCOUNTER,
@@ -62,6 +92,7 @@ export {
 } from './meetings';
 export {
   canOrder,
+  takesOrder,
   desiredFacing,
   destinationForClick,
   giveOrder,
@@ -84,6 +115,7 @@ export {
   MIRROR_HEADING,
   MIRROR_ROW_LIMIT,
   mirrorListing,
+  statusLine,
   type MirrorListing,
   type MirrorRow
 } from './mirror';
@@ -140,11 +172,13 @@ export {
   type Trigger
 } from './starting-state';
 export {
+  readSaveSetup,
   restoreSave,
   SAVE_VERSION,
   serialiseSave,
   type RestoreResult,
-  type SavedState
+  type SavedState,
+  type SaveSetup
 } from './save';
 export {
   createSim,
@@ -183,3 +217,14 @@ export {
   type WarEventAnnouncement,
   type WarEvents
 } from './war-events';
+
+export { OBJECT_LIMITS, type ObjectLimit } from './setup-limits';
+export {
+  SETUP_AXES,
+  SHUFFLED_SETUP_AXES,
+  setupAxisRng,
+  shuffleSetup,
+  validateSetupAxes,
+  type SetupAxis,
+  type SetupData
+} from './shuffled-setup';

@@ -30,14 +30,16 @@ Build for #103. Carrying, taking and dropping objects in general is in
   (finding:objects-dead-drop-their-objects)
 - At the end of the fight a Ring lying exactly at the fight's place is
   taken from the ground, and goes to one of the winners; with nobody
-  to take it, it is lost. (finding:objects-ring-taken-by-last-awake-winner)
+  to take it, it is lost. (finding:objects-encounter-revives-third-nazgul)
   - **Good wins:** the first living Hobbit in the Good rows; with no
     Hobbit, the last-listed awake row, Character or Unit alike. Gollum
     takes it only if he is all that is left of the Good side.
   - **Evil wins:** the last-listed awake Evil row. If the winner was
-    an Encounter, not a Force, "The 3rd NAZGUL is sent to the site."
-    and the 3rd Nazgûl takes it if awake, where he stands on the
-    Campaign Level.
+    an Encounter, the game shows "The 3rd NAZGUL is sent to the site."
+    The 3rd Nazgûl, entry 81, is moved to the Ring's place on the
+    Campaign Level, woken with state 1, restored to strength 1 and
+    maximum health, and always takes the Ring. This happens only
+    when the Ring lies at the fight's place.
 - The new bearer gets the Ring and becomes the Ring-bearer, with
   "<name> now has the RING." ("have" for a Unit). An Evil bearer is
   given Barad-dûr as its destination, leaves its Leader and loses its
@@ -45,7 +47,7 @@ Build for #103. Carrying, taking and dropping objects in general is in
   Orders and is sent to Dol Guldur, the Morannon or Minas Morgul, at
   random, with Minas Morgul twice as likely as each of the others.
   The messages share the notice box after the fight's windows close.
-  (finding:objects-ring-taken-by-last-awake-winner)
+  (finding:objects-encounter-revives-third-nazgul)
 
 ### Worn when wounded
 
@@ -95,9 +97,12 @@ Build for #103. Carrying, taking and dropping objects in general is in
   lost when three or more of the Garrisons of Minas Tirith (entry 33),
   Lórien (61), Thranduil's Palace (64), Edoras (67) and the Hornburg
   (68) have no strength left. This is tested before Barad-dûr's
-  Garrison, so a fight that does both loses the game.
+  Garrison, so a fight that does both loses the game. The Garrisons of
+  Lórien and Thranduil's Palace start asleep and can't be fought, so
+  neither Stronghold can fall until its Garrison wakes.
   (finding:places-stronghold-falls-with-its-garrison,
-  finding:places-three-strongholds-lost-loses)
+  finding:places-three-strongholds-lost-loses,
+  finding:combat-sleeping-leaders-take-no-part-in-a-fight)
 
 ## The end of the game
 
@@ -132,9 +137,14 @@ Build for #103. Carrying, taking and dropping objects in general is in
   seconds pass; the last page stays and ignores every other key and
   click. (finding:ui-ending-pages,
   finding:ui-ending-scenes-are-still-pictures)
-- The original then quits when X is pressed. The port instead stays on
-  the last page; a new game is the view's to offer.
-  (finding:ui-ending-pages)
+- The original then quits when X is pressed, with no way back into the
+  game. The port deliberately differs: on the last page any key or
+  click opens a menu, in the in-game menu's window, with two options.
+  **Return to title** goes to the title menu, and the ended game is not
+  saved. **Load** opens the save slot list, and backing out of it
+  returns to this menu. The menu has no Close option, and Escape does
+  not close it. The Menu button is hidden and Escape does nothing while
+  the ending is shown. (finding:ui-ending-pages)
 - The view shows the ending once any fight's windows have closed.
 
 ## Saving

@@ -16,6 +16,8 @@ port's own, built on its save slots (docs/spec/saving.md).
   or on (`finding:sound-q-toggles-sound`).
 - A key that skips the boot sequence brings the menu up at once.
 - Nothing is saved while the menu is up.
+- After 60 seconds with no input at the menu's first page, an idle Demo
+  starts (docs/spec/demo-mode.md).
 
 ## The choices
 
@@ -26,9 +28,18 @@ port's own, built on its save slots (docs/spec/saving.md).
 - **New Game** starts the game from its opening, with Gandalf's letter.
   When there is a save to resume it asks first, its answer resting on
   Go back: named saves are kept, but the autosave is written over when
-  it next runs.
+  it next runs. It then offers **Classic Setup**, **Shuffled Setup**
+  and **Back**: the Classic Setup is the original's start, and a
+  Shuffled Setup a fresh one (docs/spec/shuffled-setup.md). Back
+  returns to the first menu.
+- **Demo** starts a chosen Demo at once, a recorded campaign playing
+  itself from a New Game, without asking: it touches no save
+  (docs/spec/demo-mode.md).
 - **Load** lists the autosave, then the named slots newest first, each
-  with its in-game date, and ends with Back. A save of another version
+  with its in-game date, and ends with Back. When a save listed is from
+  a Shuffled Setup, a line over the list names the selected save's
+  Setup, `Shuffled Setup <seed>`, and is blank for a Classic save. A
+  save of another version
   is lettered in grey, colour 22, and, chosen, answers with a message instead of
   loading. The list shows six rows at a time, scrolling with the
   selection.

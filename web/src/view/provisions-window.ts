@@ -94,10 +94,9 @@ const button = (
   y: y - 1
 });
 
-// The Character who acts: the last one chosen if it is in the Force on
+// The Character who acts: the selected one if it is in the Force on
 // screen and awake, else the first awake member
-// (finding:ui-provisions-chosen-character). provisional: figures cannot
-// be clicked yet, so the first awake member acts unless one was kept.
+// (finding:ui-provisions-chosen-character).
 export const chooseCharacter = (
   sim: SimState,
   party: number[],
@@ -205,7 +204,7 @@ export const openObjectList = (
 
 // What Use shows, in its box's width and depth
 // (finding:objects-use-message-boxes). The Palantír shares the session's
-// tip history with advisors (finding:ui-advisors-share-advice). The
+// tip history with advisors (finding:ui-advisor-talk-has-two-boxes). The
 // texts keep their own line breaks, which fit these boxes in lord/10.
 const effectMessage = (
   font: FontMetrics,
@@ -254,10 +253,7 @@ const effectMessage = (
       );
     }
     case 'palantir': {
-      // As with advisors, use a proverb once all tips have been given.
-      const id = outcome.vision
-        ? VISION_TEXT
-        : (drawTip(givenTips, random) ?? 28 + random(6));
+      const id = outcome.vision ? VISION_TEXT : drawTip(givenTips, random);
       return message(
         [
           `Looking deep into the crystal, ${name} sees a vision:`,
@@ -273,9 +269,9 @@ const effectMessage = (
 
 // Choose an object from a list: act on the sim and show what happened
 // (finding:objects-take-message,
-// finding:objects-put-down-message-after-the-animation). provisional:
-// the walk to the object and the putting down are not animated, so the
-// put-down message shows at once.
+// finding:objects-put-down-message-after-the-animation). The caller
+// sends the figure on its errand and holds Put Down's message until the
+// object is down (main.ts, startErrand).
 export const chooseObject = (
   font: FontMetrics,
   sim: SimState,

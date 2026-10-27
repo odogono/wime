@@ -32,7 +32,7 @@ const MET_ONCE_CHANCE = 100;
 const RETURNS_CHANCE = 1;
 
 // "<A> passes <B>." and the like: a one-line message, with nothing
-// changed (finding:forces-anonymous-encounters-pass-by).
+// changed (finding:forces-pass-by-walks-past-on-animation-level).
 // An Encounter passed by, or a message from the Ring's passing after a
 // fight (docs/spec/winning-and-losing.md); all share the notice box.
 export type Passing =

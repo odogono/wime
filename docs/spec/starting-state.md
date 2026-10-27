@@ -2,6 +2,9 @@
 
 What the simulation holds when a new game begins: the clock, every Character and Unit, how they are grouped into Forces, the Places and the objects. Rules that later change this state, such as movement, triggers and Encounters, belong to their own Specs. This Spec only fixes the values and their meaning at the start.
 
+For a complete position index, including follower roster IDs and Encounter
+areas, see [Starting positions](../starting-positions.md).
+
 ## Source
 
 The starting state comes from the Reference Build's data hunk, which the game loads as its starting state with no code to build it (finding:data-formats-archive-dat-is-roster-dump). `bun run export:web` writes it to `web/public/assets/starting-state.json` through `tools/extract-starting-state.ts`. The simulation must load that file rather than copy its values into code, so the starting state can't drift from the Reference Build. The tables below are generated from the same file, for review.
@@ -59,21 +62,18 @@ Only entries 1 to 151 take part in the main loop. Entries 152 to 195 are Encount
 
 - The port has no copy protection. The original asks for the map coordinates of a Place from day 92 and ends the game on a wrong answer (finding:places-grid-reference-byte); the port never asks. The grid references stay in the starting state as data only.
 
-## Unconfirmed
+## Settled points
 
-These facts are provisional or not yet recovered, and the simulation should treat them as open (#171):
+Every roster byte now has a meaning: byte 37 is padding (finding:data-formats-roster-byte-37-is-padding). Allegiance is the chance a Force accepts an Order (finding:movement-orders-accepted-by-allegiance-roll), and only the trigger, the Council of Elrond, the Silver Orb and the 3rd Nazgûl's call wake a sleeping entry (finding:ai-what-wakes-an-entry). Game Speed is in `docs/spec/time.md`. The last open points were settled in #200:
 
-- Roster bytes 19, 24 and 37, and byte 29 for entries 1 to 151, have no settled meaning (finding:data-formats-roster-unsettled-fields). The JSON carries them raw.
-- Named Places have no kind of their own in the data. `tile_kind` is inferred from the generic kind of the tile underneath, and 41 of the 69 named Places stand on no such tile (finding:places-kinds-matched-by-map-tile).
-- Bree's position is one tile west of its town graphic on the map (finding:map-positions-are-campaign-pixels); whether the game uses it as is has not been observed.
-- How Game Speed sets the real time per quarter-hour has not been traced (finding:time-clock-advances-after-each-roster-sweep, finding:time-game-speed-settings).
-- Allegiance values other than 0, 1 and 99 (Boromir 70, Gollum 40, Glorfindel 4, the advisors 3, the Ents 2) have no settled meaning (finding:mobilisation-allegiance-byte).
-- Which picture each Animation Level figure number selects has not been matched to the extracted graphics. The Campaign Level icons are matched (finding:graphics-campaign-icon-sheet-is-imag-100), but how the original masks an icon onto the map, and the rate at which active Forces flash, have not been traced.
-- Other code may wake entries directly. The Council of Elrond wakes Gandalf and puts the Nazgûl to sleep (`docs/spec/council-of-elrond.md`); other such code has not been looked for (finding:ai-trigger-conditions).
+- Named Places have no kind, and the original never shows one: wherever it shows a Place it prints only the record's name. A kind is only the name of a generic record 70 to 84, which names a point on its tile that is not a named Place (finding:places-named-places-show-only-their-name, finding:places-kinds-matched-by-map-tile). The "Kind from tile" column below is the port's own inference, not an attribute of the original, and the simulation must not rely on it.
+- Bree's town graphic covers two small-town tiles, and its Place position is the western one. The game uses the position as it is: a point on the eastern tile is "a small town" (finding:map-bree-place-is-the-town-west-tile).
+- A roster entry's Animation Level figure byte below 20 is the id of its FRML figure set (finding:graphics-figure-byte-is-the-frml-id).
+- A Campaign Level icon (finding:graphics-campaign-icon-sheet-is-imag-100) is cut onto the map with colour 0 clear, its top-left corner 4 pixels above the Force's position (finding:graphics-campaign-icons-cookie-cut-on-colour-0). The icons of leaders with allegiance above 2 flip between shown and hidden at each Campaign Level redraw: every 64 frames while the clock waits, at each quarter-hour step on Hasty, each hour on Very Hasty, and about every 4 frames while the map scrolls (finding:ui-campaign-icons-flash-at-each-redraw).
 
 ## Places at the start
 
-Positions and grid references from finding:places-named-places-matched-by-position and finding:places-grid-reference-byte. "Kind from tile" is the inference noted under Unconfirmed.
+Positions and grid references from finding:places-named-places-matched-by-position and finding:places-grid-reference-byte. "Kind from tile" is the port's inference noted under Settled points.
 
 | Place | Name               | x, y       | Grid | Attacks announced | Kind from tile  |
 | ----: | ------------------ | ---------- | ---- | ----------------- | --------------- |

@@ -1,96 +1,107 @@
-import { GAME_SPEEDS, type GameSpeed } from './tick-driver';
-import { drawWindowFrame, windowText, type WindowStyle } from './window-frame';
+import { measureText, type FontMetrics } from './font';
+import { BUTTONS_DEADLINE_FRAMES } from './message-timing';
+import { FRAME_MS, type GameSpeed } from './tick-driver';
+import {
+  drawWindowFrame,
+  windowText,
+  type Box,
+  type WindowStyle
+} from './window-frame';
 
-// The Game Speed window the hourglass icon opens (docs/spec/time.md):
-// it lists the speeds, clicking one sets it and closes the window.
-// It is framed as every window is (finding:ui-window-frame-tiles);
-// its layout is provisional, as the original's has not been traced. The last line pauses or resumes (the original pauses
-// with the P key).
+// The Game Speed window the hourglass opens, "Rate of Time Passage"
+// (docs/spec/time.md, finding:ui-game-speed-window): a box at (184, 5),
+// 90 by 68, with a framed button for each speed. The current speed's
+// button is lettered and framed in colour 10 and is the box's default.
+// The clock holds while it is up, and after the deadline of a box with
+// buttons it closes, pressing its default. Positions are the original's,
+// in lo-res pixels (finding:ui-window-box-geometry).
 
-export interface SpeedWindowOption {
-  height: number;
+export interface SpeedButton extends Box {
   label: string;
-  value: GameSpeed | 'pause';
-  width: number;
-  x: number;
-  y: number;
+  speed: GameSpeed;
 }
 
 export interface SpeedWindow {
-  height: number;
-  options: SpeedWindowOption[];
-  width: number;
-  x: number;
-  y: number;
+  box: Box;
+  buttons: SpeedButton[];
+  heading: string;
+  // When it presses its default, the current speed; null for never, as
+  // on the Full Map Level.
+  until: number | null;
 }
 
-const LINE_HEIGHT = 10;
-const PADDING = 8;
-const WIDTH = 80;
+const BUTTONS: readonly [string, GameSpeed][] = [
+  ['Very Hasty', 'very-hasty'],
+  ['Hasty', 'hasty'],
+  ['Normal', 'normal']
+];
 
-export const layoutSpeedWindow = (
-  anchorRight: number,
-  anchorTop: number,
-  paused: boolean
+const TEXT_X = 10;
+const TEXT_Y = 8;
+
+export const openSpeedWindow = (
+  font: FontMetrics,
+  now: number,
+  level: 'animation' | 'campaign' | 'full-map'
 ): SpeedWindow => {
-  const labels: { label: string; value: GameSpeed | 'pause' }[] = [
-    ...GAME_SPEEDS.map(({ label, speed }) => ({
-      label,
-      value: speed as GameSpeed | 'pause'
-    })),
-    { label: paused ? 'Resume' : 'Pause', value: 'pause' }
-  ];
-  const x = anchorRight - WIDTH;
-  const y = anchorTop;
+  const box = { height: 68, width: 90, x: 184, y: 5 };
+  // The buttons stand in a column at x 26, so all take the first's
+  // width (finding:ui-stacked-buttons-share-a-width); a button's area
+  // starts a pixel above its text and is 4 wider (code+0x03a54).
+  const width = measureText(font, BUTTONS[0]![0]) + 4;
   return {
-    height: labels.length * LINE_HEIGHT + PADDING * 2,
-    options: labels.map(({ label, value }, i) => ({
-      height: LINE_HEIGHT,
+    box,
+    buttons: BUTTONS.map(([label, speed], i) => ({
+      height: font.height,
       label,
-      value,
-      width: WIDTH - PADDING * 2,
-      x: x + PADDING,
-      y: y + PADDING + i * LINE_HEIGHT
+      speed,
+      width,
+      x: box.x + 26,
+      y: box.y + 22 + 15 * i - 1
     })),
-    width: WIDTH,
-    x,
-    y
+    heading: 'Rate of Time Passage',
+    until:
+      level === 'full-map'
+        ? null
+        : now +
+          BUTTONS_DEADLINE_FRAMES[
+            level === 'animation' ? 'animation' : 'campaign'
+          ] *
+            FRAME_MS
   };
 };
 
-export const speedWindowOptionAt = (
+export const speedAt = (
   window: SpeedWindow,
   px: number,
   py: number
-): SpeedWindowOption | undefined =>
-  window.options.find(
-    option =>
-      px >= option.x &&
-      px < option.x + option.width &&
-      py >= option.y &&
-      py < option.y + option.height
-  );
+): GameSpeed | undefined =>
+  window.buttons.find(
+    b => px >= b.x && px < b.x + b.width && py >= b.y && py < b.y + b.height
+  )?.speed;
 
 export const drawSpeedWindow = (
   ctx: CanvasRenderingContext2D,
   style: WindowStyle,
   window: SpeedWindow,
-  currentSpeed: GameSpeed,
-  paused: boolean
+  current: GameSpeed
 ): void => {
-  drawWindowFrame(ctx, style, window);
-  for (const option of window.options) {
-    const selected =
-      option.value === 'pause'
-        ? paused
-        : option.value === currentSpeed && !paused;
-    windowText(
-      ctx,
-      style,
-      option.label,
-      option.x + 2,
-      option.y + 1,
-      selected ? style.colours.red : style.colours.text
-    );
+  const box = drawWindowFrame(ctx, style, window.box);
+  windowText(
+    ctx,
+    style,
+    window.heading,
+    box.x + TEXT_X,
+    box.y + TEXT_Y,
+    style.colours.blue
+  );
+  ctx.lineWidth = 1;
+  for (const b of window.buttons) {
+    const colour = b.speed === current ? style.colours.red : style.colours.text;
+    // From (x - 1, y - 2), 6 wider and 2 deeper than the label
+    // (finding:ui-message-box-text-colour).
+    ctx.strokeStyle = colour;
+    ctx.strokeRect(b.x - 0.5, b.y - 0.5, b.width + 1, b.height + 1);
+    windowText(ctx, style, b.label, b.x + 2, b.y + 1, colour);
   }
 };

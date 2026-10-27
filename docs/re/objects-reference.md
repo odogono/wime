@@ -1,6 +1,6 @@
-# Objects reference scenarios
+# Objects Reference runs
 
-The `observed:objects-…` scenarios in the Findings are these runs, made in FS-UAE 3.2 on the Reference Build (issue #102). Each drives the game's own object handler from the debugger, then reads the result back from memory and the screen.
+The `observed:objects-…` sources in the Findings are these Reference runs, made in FS-UAE 3.2 on the Reference Build (issue #102). Each drives the game's own object handler from the debugger, then reads the result back from memory and the screen.
 
 ## Setting up
 
@@ -12,11 +12,11 @@ The `observed:objects-…` scenarios in the Findings are these runs, made in FS-
 
 This skips the provisions window, so the lists themselves (finding:objects-provisions-lists) rest on the code alone. The window texts are string literals in the code, quoted in that Finding.
 
-## Scenarios
+## Reference runs
 
 All use Frodo, entry 7, as both chosen and watched Character.
 
-| Scenario                       | Set-up                                                          | Observed                                                                                                                                                |
+| Reference run                  | Set-up                                                          | Observed                                                                                                                                                |
 | ------------------------------ | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `objects-use-palantir`         | Day 0, mask 0x05. Objects 0x0091 (Ring, Elven blade, Palantír). | "Looking deep into the crystal, FRODO sees a vision:" and BScene CSTR 37. Mask 0x85, event 7 day 0. Objects still 0x0091.                               |
 | `objects-use-palantir-again`   | Straight after.                                                 | The same opening, then "South of Mount Gram, a band of Orcs being pursued by Rangers cast aside their spoils." Mask still 0x85.                         |

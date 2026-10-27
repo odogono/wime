@@ -77,8 +77,8 @@ describe('the boot sequence', () => {
     expect(shown).toMatchObject({ done: false, verseAt: VERSE });
     expect(stepBoot(shown, at(VERSE + 3000), true).done).toBe(false);
     expect(stepBoot(shown, at(VERSE + 3000), false).done).toBe(true);
-    // Keys do nothing once it is up.
-    expect(pressBootKey(shown, at(VERSE + 10))).toBe(shown);
+    // A key or click moves past it.
+    expect(pressBootKey(shown, at(VERSE + 10)).done).toBe(true);
   });
 
   test('holds the Ring verse a while even when Title has ended', () => {

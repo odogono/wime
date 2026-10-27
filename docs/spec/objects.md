@@ -59,22 +59,51 @@ and "Use an object". (finding:objects-handled-on-animation-level)
 - The chosen Character is the last figure clicked, if it is in the
   Force on screen and awake, else the first awake member. With none,
   or a Unit, "Please select an active member of the party." is shown
-  instead. (finding:ui-provisions-chosen-character) `provisional`:
-  figures cannot be clicked yet, so the last Character to act, or the
-  first awake member, is chosen (#161).
+  instead. The Character the sack picks becomes the selected one
+  (docs/spec/animation-level.md, "Selecting and status").
+  (finding:ui-provisions-chosen-character)
 - A list is a box at (112, 5), 176 wide and 28 plus 10 for each line
   deep, its heading in colour 8 and one unframed line per object.
   (finding:ui-object-list-window)
 - A box with buttons stops the clock and the Force's figures, and
   closes by itself after 1,020 frames; there is no Cancel. A message
-  without buttons lasts 200 frames and lets time run.
+  without buttons lets time run.
   (finding:ui-provisions-window, finding:ui-object-list-empty-messages,
-  finding:objects-use-message-boxes) `provisional`: a press off the
-  buttons closes the box (#168).
-- `provisional`: the walk to the object and the putting down are not
-  animated, so the put-down message is shown at once, and objects on
-  the ground are not drawn (finding:objects-lying-on-the-ground-are-pictures,
-  #162).
+  finding:objects-use-message-boxes) A message without buttons stays,
+  like any box on the Animation Level, until a later box replaces it or
+  1,500 frames after it opens (finding:ui-message-box-timeouts-by-level).
+  A press off the buttons does nothing, the icons and U included; N
+  presses the default, closing the box
+  (finding:ui-message-box-presses-off-the-buttons).
+- Objects lying exactly where the watched Character stands are drawn
+  when each scene is built, at most six: BScene.res IMAG 50 plus the
+  object, its top left at x 200 plus up to 39 and y 165, at depth 0x99
+  among the figures
+  (finding:objects-on-the-ground-drawn-when-the-scene-is-built,
+  finding:objects-lying-on-the-ground-are-pictures).
+- Take sends the Character's figure walking to the picture (script
+  entry 0xd4): its message shows as it sets off, the picture goes when
+  it stoops, and it walks back and turns to its old facing
+  (finding:objects-take-is-a-walk-to-the-picture-and-back).
+- Put Down makes the figure stoop where it stands (entry 0xde): the
+  picture appears at its feet, 2 pixels left of it at y 161 and behind
+  every figure, and only then the message shows
+  (finding:objects-put-down-is-a-stoop-in-place). Without a figure on
+  screen, or for Take without the picture, the message shows at once.
+- Clicking an object's picture, with no object list open, shows the
+  object's name in a box without buttons at (10, 5), 100 by 24, in
+  colour 5; a figure in front of the picture takes the click instead
+  (finding:objects-lying-on-the-ground-are-pictures).
+- These were read from the code and then played in the port's 1.0
+  acceptance run: Take, Use (a blue potion healed Frodo), Put Down,
+  clicking a picture for its name, and the Elven cloak letting a Force
+  slip past a Nazgûl
+  ([#218](https://github.com/odogono/wime/issues/218#issuecomment-6343132455)).
+  Giving an object to another Character, by one putting it down and
+  the other taking it, was played later: Frodo put down the Elven
+  blade and Sam, selected by a click on his figure, took it, in the
+  same scene
+  ([#269](https://github.com/odogono/wime/issues/269)).
 
 The **chosen** Character is the party member selected; the
 **position** is the watched Character's position, the Force on
@@ -167,9 +196,10 @@ position and the ruler is awake. (finding:mobilisation-token-shown-to-ruler)
   Lord's armies march forth!". (finding:objects-palantir-vision-or-tip,
   finding:ai-war-events-set-once,
   finding:mobilisation-tripwires-follow-arrival)
-- Otherwise it shows one of the advisors' tips not yet given, as an
-  advisor would. (finding:objects-palantir-vision-or-tip,
-  finding:ui-advisors-share-advice)
+- Otherwise it shows one of the advisors' tips, drawn as an advisor
+  draws one: rerolled up to 50 times to find one not yet given, so
+  repeating once all have been. (finding:objects-palantir-vision-or-tip,
+  finding:ui-advisor-talk-has-two-boxes)
 - The Palantír is never used up. (finding:objects-palantir-vision-or-tip)
 
 ## Dropping on death

@@ -138,13 +138,40 @@ export const animationIconAt = (
     );
   });
 
+// An object lying on the ground, drawn as its picture, BScene.res
+// IMAG 50 plus the object (finding:objects-lying-on-the-ground-are-pictures).
+export interface GroundPicture {
+  depth: number;
+  object: number;
+  // Top left.
+  x: number;
+  y: number;
+}
+
+// A member fetching or putting down an object: its figure runs the
+// object script, and these remember what to do at its events
+// (finding:objects-take-is-a-walk-to-the-picture-and-back,
+// finding:objects-put-down-is-a-stoop-in-place).
+export interface Errand {
+  // Facing and x as it set off (data+0x5563, data+0x556c).
+  facing: boolean;
+  kind: 'put-down' | 'take';
+  object: number;
+  owner: number;
+  startX: number;
+}
+
 // The watched Force's figures crossing the scene.
 export interface Stage {
+  errand?: Errand | null;
   figures: Figure[];
   // A spell moves its caster's battle line (finding:graphics-spell-flash).
   lines?: Pick<ScriptWorld, 'line1' | 'line2'>;
   // The party's count, for the laggard line (data+0x555d).
   party: number;
+  pictures?: GroundPicture[];
+  // Put Down's picture is down and its message is due, until taken.
+  putDownDue?: boolean;
 }
 
 export interface StageMember {
@@ -241,9 +268,13 @@ export const stepStage = (
 ): Stage => {
   const laggardLine = stage.party * 16 + leftmostX(stage);
   let figures = stage.figures.slice();
+  let pictures = stage.pictures ?? [];
+  let errand = stage.errand ?? null;
+  let putDownDue = stage.putDownDue ?? false;
   const scripts: ScriptWorld = {
     ...world,
     ...stage.lines,
+    ...(errand ? { facing: errand.facing } : {}),
     castSpell: (flash, line, x) => {
       // Remove only spent flashes; combatant indices stay stable for combat.
       // The original does this on each cast (finding:graphics-spell-flash).
@@ -253,7 +284,38 @@ export const stepStage = (
       figures.push(flash);
       scripts[line] = x;
     },
-    laggardLine
+    laggardLine,
+    objectEvent: (event, figure) => {
+      if (!errand || figure.owner !== errand.owner) {
+        return;
+      }
+      if (event === 1) {
+        // Taken up: the picture goes off screen and the walk back is to
+        // where the figure set off from.
+        const taken = errand.object;
+        pictures = pictures.map(picture =>
+          picture.object === taken ? { ...picture, y: 200 } : picture
+        );
+        scripts.line1 = errand.startX;
+      } else if (event === 2) {
+        // Put down: the picture lies at the figure's feet, behind every
+        // figure, and the message is due.
+        if (pictures.length < MAX_PICTURES) {
+          pictures = [
+            ...pictures,
+            {
+              depth: PUT_DOWN_DEPTH,
+              object: errand.object,
+              x: figure.x - 2,
+              y: PUT_DOWN_Y
+            }
+          ];
+        }
+        putDownDue = true;
+      } else {
+        errand = null;
+      }
+    }
   };
   // New flashes run alongside the other figures, including on this update.
   for (let i = 0; i < figures.length; i++) {
@@ -267,25 +329,126 @@ export const stepStage = (
   }
   return {
     ...stage,
+    errand,
     figures,
-    lines: { line1: scripts.line1, line2: scripts.line2 }
+    lines: { line1: scripts.line1, line2: scripts.line2 },
+    pictures,
+    putDownDue
   };
 };
+
+// Object pictures in a scene: at most six, the first placements lying
+// exactly where the watched Character stands, each at x 200 plus up
+// to 39, top at 165 and depth 0x99
+// (finding:objects-on-the-ground-drawn-when-the-scene-is-built).
+export const MAX_PICTURES = 6;
+const GROUND_DEPTH = 0x99;
+const GROUND_Y = 165;
+const PUT_DOWN_DEPTH = 0x95;
+const PUT_DOWN_Y = 161;
+const TAKE_ENTRY = 0xd4;
+const PUT_DOWN_ENTRY = 0xde;
+
+export const groundPictures = (
+  placements: readonly ({
+    object: number;
+    position: { x: number; y: number };
+  } | null)[],
+  at: { x: number; y: number },
+  random: (n: number) => number
+): GroundPicture[] =>
+  placements
+    .filter(
+      placement =>
+        placement !== null &&
+        placement.position.x === at.x &&
+        placement.position.y === at.y
+    )
+    .slice(0, MAX_PICTURES)
+    .map(placement => ({
+      depth: GROUND_DEPTH,
+      object: placement!.object,
+      x: 200 + random(40),
+      y: GROUND_Y
+    }));
+
+// Send the member's figure for an object: Take walks to its picture
+// and back, Put Down stoops where it stands. Without a figure, or for
+// Take without the picture, the stage is left as it is (null).
+export const startErrand = (
+  stage: Stage,
+  kind: Errand['kind'],
+  owner: number,
+  object: number
+): Stage | null => {
+  const index = stage.figures.findIndex(figure => figure.owner === owner);
+  const figure = stage.figures[index];
+  if (!figure) {
+    return null;
+  }
+  const picture = (stage.pictures ?? []).find(
+    candidate => candidate.object === object && candidate.y < 200
+  );
+  if (kind === 'take' && !picture) {
+    return null;
+  }
+  const figures = stage.figures.slice();
+  figures[index] = startScript(
+    figure,
+    kind === 'take' ? TAKE_ENTRY : PUT_DOWN_ENTRY
+  );
+  return {
+    ...stage,
+    errand: {
+      facing: figure.flipped,
+      kind,
+      object,
+      owner,
+      startX: figure.x
+    },
+    figures,
+    lines: {
+      line1: picture?.x ?? stage.lines?.line1 ?? 1000,
+      line2: stage.lines?.line2 ?? 1000
+    }
+  };
+};
+
+// Put Down's message is due once its picture is down, whether or not
+// the errand has run to its end in the same step.
+export const takeLanded = (stage: Stage): { due: boolean; stage: Stage } =>
+  stage.putDownDue
+    ? { due: true, stage: { ...stage, putDownDue: false } }
+    : { due: false, stage };
 
 // The level goes up by itself once the party has walked off the right
 // edge (code+0x0b220, finding:ui-animation-level-figures-walk-off).
 export const walkedOff = (stage: Stage): boolean =>
   stage.figures.length > 0 && leftmostX(stage) > 330;
 
-// Draw the figures, nearer (higher depth) last; a mirrored frame is
-// flipped within its own box.
+// Draw the figures and the object pictures, nearer (higher depth) last;
+// a mirrored frame is flipped within its own box.
 export const drawFigures = (
   ctx: CanvasRenderingContext2D,
   assets: AnimationAssets,
   stage: Stage
 ): void => {
-  const order = [...stage.figures].sort((a, b) => a.depth - b.depth);
-  for (const figure of order) {
+  const order = [
+    ...stage.figures.map(figure => ({ depth: figure.depth, figure })),
+    ...(stage.pictures ?? []).map(picture => ({
+      depth: picture.depth,
+      picture
+    }))
+  ].sort((a, b) => a.depth - b.depth);
+  for (const item of order) {
+    if ('picture' in item) {
+      const image = assets.objectPictures.get(item.picture.object);
+      if (image && item.picture.y < 200) {
+        ctx.drawImage(image, item.picture.x, item.picture.y);
+      }
+      continue;
+    }
+    const { figure } = item;
     const set = assets.figures.get(figure.frml);
     const frame = set?.frames[figure.frame];
     if (!set || !frame) {

@@ -17,11 +17,20 @@ keeps the original's look and messages (`finding:ui-archive-window`).
 
 - Each slot holds a game written by `serialiseSave`, its name, when it
   was saved (wall-clock time) and the in-game date (`formatClock`).
+- A game from a Shuffled Setup (docs/spec/shuffled-setup.md) is saved
+  with its Setup seed, beside the state rather than in it, and loads
+  with it. A save without one is from the Classic Setup, as every save
+  from before Shuffled Setups is, so adding it needed no
+  `SAVE_VERSION` bump. A damaged Setup is refused as a damaged state
+  is.
 - Slots can be listed, saved into, saved over (keeping their name),
   loaded, renamed and deleted. An empty name becomes `Save <n>`. Slot
   ids are never reused.
 - A save of another `SAVE_VERSION` is listed but cannot be loaded, as
-  the single slot refused it before.
+  the single slot refused it before. A save whose state is damaged is
+  refused too, never loaded in part. There is no migration: 0.9.0
+  wrote `SAVE_VERSION` 8, so its saves load while the version stays 8
+  and are refused with the other-version message once it changes.
 - Storage that is full or unavailable is reported as a failure, never
   thrown; a failed save leaves the existing slots as they were.
 - Slots live in `localStorage`: an index under `wime.slots` and each
@@ -48,6 +57,10 @@ The port also saves the game by itself to a reserved autosave slot
   passed then is saved once they are over. Meetings, the Council and
   messages do not hold it back: a restore already gives a restored
   meeting or Council a fresh window and drops the messages on screen.
+- When the ending starts, the autosave is deleted, so Resume cannot
+  return to a game that has ended or is about to end; the original has
+  no way back into an ended game (finding:ui-ending-pages). Named slots
+  are kept.
 - Game Speed and the camera are not saved, as for the named slots.
 - A failed autosave is dropped without a message, and play goes on; the
   previous autosave is kept.

@@ -287,6 +287,7 @@ describe('Tokens', () => {
     const { state } = applyObject(sim, FRODO, 12, EDORAS);
     expect(restoreSave(serialiseSave(state), null)).toEqual({
       ok: true,
+      setup: null,
       state
     });
   });

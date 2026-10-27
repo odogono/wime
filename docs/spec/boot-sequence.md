@@ -91,12 +91,14 @@ not covered here.
 - On the first Animation Level of a new game, a window without buttons
   opens at (10, 5), shown at x 8, 256 by 112, with BScene.res CSTR 56
   in colour 5 of the Animation Level palette.
-- It closes by itself after 200 frames, about 4 seconds, or 60 at the
-  clock limit 0 (finding:ui-war-event-messages), while Frodo, Sam and
-  Pippin walk on beneath it.
+- It closes by itself as any box without buttons on the Animation
+  Level does, 1,500 frames after it opens, or 1,360 at the clock limit
+  0, unless a later box replaces it after 200 frames (60)
+  (finding:ui-gandalfs-letter, finding:ui-message-box-timeouts-by-level),
+  while Frodo, Sam and Pippin walk on beneath it.
 - It is shown once per game, and is not saved: a restored game does not
-  show it. `provisional`: whether the original shows
-  it again after restoring the Archive (#171).
+  show it, as in the original, where restoring the Archive never
+  brings it back. (finding:ui-gandalfs-letter-not-shown-after-restoring)
 
 ## In the port
 
@@ -105,6 +107,9 @@ The port's own departures, since a browser page is not a floppy boot.
 - Browsers play sound only after the player's first input, so the page
   opens on the Melbourne House screen, fading in, and the timetable and
   Title start with the first key or click. That input skips nothing.
+- After that a click does what a key does, and a key or click on the
+  Ring verse ends the sequence, so every screen can be skipped; in the
+  original clicks do nothing and nothing moves past the verse.
 - The Animation Level loads at once, so the Ring verse is held for at
   least 150 frames, 3 seconds, where the original showed it while
   loading. Without sound, or with Q switching it off, nothing else

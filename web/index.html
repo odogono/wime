@@ -12,24 +12,27 @@
         overflow: hidden;
         background: #000;
       }
+      /* Settings may shrink it to 75% or 50%, centred. */
       canvas {
-        display: block;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
         width: 100vw;
         height: 100vh;
         image-rendering: pixelated;
         touch-action: none;
       }
-      /* The Atlas map, under the game's canvas, which takes all input
+      /* The Atlas map fills the window under the game's canvas, whatever
+         its size; the game's canvas takes all input
          (docs/spec/atlas-map.md). */
       #atlas-map {
-        position: fixed;
-        inset: 0;
+        top: 0;
+        left: 0;
+        transform: none;
         display: none;
         image-rendering: auto;
         pointer-events: none;
-      }
-      #screen {
-        position: relative;
       }
       /* Opens the in-game menu, as Escape does (docs/spec/game-menu.md). */
       #menu {

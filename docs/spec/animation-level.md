@@ -29,8 +29,15 @@ talks and fights shown here are in `docs/spec/encounters.md`.
   Game Speed: a sweep every 151 frames while the watched Character
   travels, and a quarter-hour every 256 frames when it rests or has
   nowhere to go. Pause still stops it.
-  `provisional`: the original moves one roster entry a frame; the port
-  runs the whole sweep at once at the end of those frames.
+  Accepted for 1.0: the original moves one roster entry a frame; the
+  port runs the whole sweep at once at the end of those frames. The
+  order of moves within a sweep is the same, and both stop at a fight
+  or meeting and hold at the watched Character. An Encounter, meeting
+  or fight can still come up at a different moment, and the player's
+  clicks can fall between moves differently, so the same clicks need
+  not give the same game.
+  (finding:time-clock-advances-after-each-roster-sweep,
+  finding:time-animation-level-holds-the-sweep-at-the-watched-character)
 - A fight with a Unit on the Good side, a meeting other than a watched
   advisor talk, or the game's end brings the Campaign Level up. A
   Character fight involving the watched Character and advisor talks
@@ -44,8 +51,11 @@ talks and fights shown here are in `docs/spec/encounters.md`.
   nobody watched; no figures walk, and it stays until the map icon is
   pressed
   (finding:ui-magnifying-glass-watches-the-first-good-leader-near-the-spot).
-  `provisional`: the original flashes the chosen row's icon four times
-  first, which the port does not.
+  With Glass shows Evil on in the settings (docs/spec/game-menu.md), an
+  Evil Force under the glass shows its figures walking past instead,
+  still with nobody watched.
+  When there are rows, the first row's icon flashes four times first
+  (docs/spec/time.md, finding:ui-press-flash).
 
 ## The screen
 
@@ -56,8 +66,44 @@ talks and fights shown here are in `docs/spec/encounters.md`.
   centred on its point. The map goes up to the Campaign Level.
   (finding:ui-animation-level-icons)
 - The sack opens Put Down, Take and Use; see `docs/spec/objects.md`.
-  (finding:objects-handled-on-animation-level) `provisional`: the eye
-  does nothing yet (#161).
+  (finding:objects-handled-on-animation-level)
+
+## Selecting and status
+
+- A click hits the nearest figure whose current frame holds the point:
+  the highest depth, and of equal depth the one added first. An icon or
+  an open box takes the click before any figure behind it.
+  (finding:ui-animation-level-click-takes-the-frontmost-figure)
+- A figure clicked shows its entry's status line, the line Galadriel's
+  Mirror gives it, in a box at (10, 5), 208 by 24, with no buttons,
+  which closes as any box without buttons does, after 1,500 frames
+  (1,360 on Very Hasty) unless a later box replaces it
+  (finding:ui-message-box-timeouts-by-level). If the entry is
+  one of roster entries 1 to 78 it becomes the selected Character.
+  Nothing happens during a fight. The watched Character does not
+  change. (finding:ui-animation-level-clicking-a-figure-selects-it)
+- The selected Character is one for the whole game: a figure clicked,
+  the magnifying glass's pick, or the sack's Character. A new or
+  loaded game starts with none.
+- The eye, or S, shows the selected Character's status in a box at
+  (10, 5), 260 wide: "Through the mist swirling within the glass you
+  perceive..." in colour 8, then its status line; for a Character
+  "He is" and its health, of "near death" to "hale and hardy", and
+  what it carries, four names to a line and at most eight; for a Unit
+  "They have" and its morale, of "poor" to "excellent". A dead entry
+  gets only its status line. With nobody selected it reads "Please
+  select someone before requesting status." It has no buttons and
+  closes as the click's box does.
+  (finding:ui-animation-level-eye-shows-the-selected-status)
+- Accepted for 1.0: the original's click point is the hand pointer's
+  fingertip; the port's is the browser pointer's, a deliberate
+  platform difference. An Evil or Encounter figure shows its status
+  line as a Good one does, from the same routine (code+0x04528), but
+  leaves the selection alone. Whether a still-picture Encounter figure
+  shows one at all was not traced.
+  (finding:ui-animation-level-click-takes-the-frontmost-figure,
+  finding:ui-animation-level-clicking-a-figure-selects-it)
+
 - Every colour comes from the Animation Level palette.
   (finding:graphics-animation-level-palette)
 - Windows use the shared frame with AMaps.res IMAG 12.
@@ -94,7 +140,7 @@ talks and fights shown here are in `docs/spec/encounters.md`.
 - A figure byte below 20 names the FRML figure set; 20 or more is a
   still picture with that IMAG id.
   (finding:ui-animation-level-figures-walk-off,
-  finding:graphics-animation-level-figure-sets)
+  finding:graphics-figure-byte-is-the-frml-id)
 - A frame is placed with its hot spot on the figure's position.
   (finding:data-formats-frml-frame-lists)
 - Figures are moved by their set's script: frames, steps, waits,

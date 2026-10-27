@@ -1,14 +1,14 @@
 # Animation Level reference
 
-The `observed:animation-level-opening` scenario in the Findings is this run, made in FS-UAE 3.2.35 on the Reference Build (issue #80).
+The `observed:animation-level-opening` source in the Findings is this Reference run, made in FS-UAE 3.2.35 on the Reference Build (issue #80).
 
 ## Setting up
 
 Boot as in [the combat reference](combat-reference.md): the WHDLoad install on an A500+ with Kickstart 2.04, 1 MB chip and 4 MB fast memory. Mouse clicks did not move past the Ring verse; a key press (space) did. Capture the window with `screencapture`, as the other references do, and keep the captures in a gitignored directory such as `build/fs-uae/`.
 
-## Scenario
+## Reference run
 
-| Scenario                  | Steps                                                         | Observed                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| Reference run             | Steps                                                         | Observed                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | ------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `animation-level-opening` | Boot, press space at the title, the Ring verse and the letter | The title screen and the Ring verse, then the Animation Level: a stone bridge over a stream below Hobbiton's houses, a blue sky with clouds, and the eye, map and sack icons in a column at the top right. Gandalf's letter shows over it in a framed window while Frodo, Sam and Pippin walk right across the bridge. After the letter closes they walk off the right edge and the bare scene stays. The picture fills 320 by 200 of the screen. |
 
@@ -21,7 +21,6 @@ Not yet traced:
 - The per-Place special scenery switch on bits 10–15 of the scene word (code+0x00d3c, switch at code+0x01f0e).
 - Figure script events other than 1, 2, 0xf, 0x10 and 0x11, and jump condition 0x18.
 - Where the battle lines (data+0x5568, data+0x556a) and the start lines (data+0x5564, data+0x5566) are set: code+0x0a316 and code+0x0a936.
-- What the eye (button 0xf0) and sack (0xf9) icons open.
 
 ## Encounters (issue #81)
 
@@ -88,3 +87,15 @@ in `docs/spec/encounters.md`.
 3. On the Animation Level the sweep (data+0x56b3) sat at 6 while the figures crossed, about 25 seconds a crossing. At each walk-off it moved to 7, Frodo moved one pixel diagonally and a new scene was built. Over five crossings the clock went from 85 to 90 and Frodo to (645, 389); his destination and state never changed. "FRODO passes a Ranger." and "FRODO passes an elf." came in between.
 
 Not captured: the glass on a spot with no Good Leader (entry 0 watched), a watched Character that is resting, and the Level ending when the watched Character arrives. Two clicks on the map icon during this run did not take the game up; the cause was not found.
+
+## Clicking a figure and the eye (issue #161)
+
+`observed:animation-level-figure-click` and `observed:animation-level-eye` were played in FS-UAE 3.2.35 with the usual boot drive (code 0x1d0c8, data 0x390e8). Space through the boot and Gandalf's letter; the Level went up by itself, and the glass, clicked on Frodo near (640, 384) with the view at (480, 272), went back down watching entry 7 at night.
+
+1. The object list (data+0x5100, count data+0x50fe; each entry a handle to a record with type at byte 0, depth at 6, entry at 7, top-left at +0x10 and size at +0x14) held the eye, map and sack at depths 240, 246 and 249, then Pippin, Sam and Frodo at 154, 152 and 150.
+2. The pointer was steered by host mouse moves, about 2 host points to an Amiga pixel, checked by dumping data+0x5026. Writing data+0x5026 from the debugger does not stick: the input code puts it back. With the fingertip at (150, 169) and a breakpoint at code+0x056da (0x227a2), clicks were posted until a figure was hit: Pippin, entry 10. The box read "PIPPIN is following FRODO."; data+0x5559 became 10 and data+0x08cc stayed 7.
+3. The fingertip moved to (300, 10) and the eye clicked: a box 272 by 48 at (8, 5) read "Through the mist swirling within the glass you perceive...", "PIPPIN is following FRODO." and "He is hale and hardy.".
+
+On the Campaign Level the icon at (300, 10) gave "Peering through the orb you discern..." with a line for each of Frodo, Sam and Pippin, the first with "He has the Ring and an Elven blade.".
+
+Not captured: overlapping figures clicked where both rectangles hold the point, a click during a fight, an Evil or Encounter figure clicked, the eye with nobody selected, on a Unit, or on a Character carrying more than two objects.

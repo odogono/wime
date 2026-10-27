@@ -15,7 +15,7 @@ How `observed:boot-sequence-timing` was captured. Boot as in [`fs-uae.md`](fs-ua
 
 Don't set a breakpoint at code+0x02830: the wait loop branches back to it, so every `g` stops there again.
 
-| Scenario                      | Setup                                                   | Observed (frames)                                                                                                             |
+| Reference run                 | Setup                                                   | Observed (frames)                                                                                                             |
 | ----------------------------- | ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
 | `boot-low-memory`             | 1 MB and then 2 MB chip memory; no keys                 | flag 0; pictures 1, 273, 572; logo 676; verse 2810; count restarts while loading; wait 21 to 3219; letter 3575, deadline 3775 |
 | `boot-credits`                | `f 1F242`, then `W 3E0D9 1` at the stop to set the flag | pictures 1, 273, 572; logo 789; Credits 1000 to 3457; verse 3603                                                              |
@@ -23,3 +23,5 @@ Don't set a breakpoint at code+0x02830: the wait loop branches back to it, so ev
 | `boot-keys-during-verse`      | five spaces, 2 s apart, from 5 s after the verse        | the wait for Title still lasted about 62 s                                                                                    |
 
 Under WHDLoad the memory flag stays 0 whatever the chip memory, so the Credits show only when the flag is set by hand. Captures taken without stopping, 18 to 75 s after setting it, showed the bare title screen, the logo and the first Credits rising, the full columns, and the title screen fading out.
+
+`message-box-letter-timeout` (issue #168): booted with spaces pressed through the pictures, then `S` dumps of data+0x4fee to data+0x5034 (0x3E0D6) while Gandalf's letter was up. The letter's deadline was frame 640; at frame 1298 its width word data+0x502e was still 0x100, and at frame 2284 it was 0.

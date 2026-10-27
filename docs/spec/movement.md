@@ -1,8 +1,8 @@
 # Movement
 
 How Forces travel once given an Order: destinations, pace, terrain,
-stamina and rest. Facts cite their Findings (ADR-0004). The reference
-scenarios below were `observed` in the original Amiga v1.0 release
+stamina and rest. Facts cite their Findings (ADR-0004). The Reference
+runs below were `observed` in the original Amiga v1.0 release
 (WHDLoad) under FS-UAE for #6, reading the game clock and roster from
 emulator memory, so times are exact quarter-hours. They are the
 expected results for headless tests (ADR-0002). Run logs are kept in
@@ -19,9 +19,31 @@ under a position is (x ÷ 16, y ÷ 16)
 
 - The player picks a Force, then a destination. The Force finds its
   own route and travels at its own pace
-  (`finding:movement-destination-only-orders`). Only active Forces
-  take Orders, and only on the Campaign Level
+  (`finding:movement-destination-only-orders`). Orders are given only
+  on the Campaign Level
   (`finding:movement-only-active-forces-take-orders`).
+- Any Good Force on the map can be picked. As it is picked it rolls:
+  it takes the Order only if the picked entry's allegiance is above a
+  roll of 2 to 97, drawn from the sim's RNG at every attempt. So a
+  mobilised Force, 99, always obeys and an unmobilised one, 1, never
+  does; Boromir, 70, obeys 68 times in 96. Otherwise "The force will
+  not accept your orders." shows, and the arrow stays armed for another
+  pick. Where icons overlap, the pick is the lowest-numbered Good
+  Force under the click, as the original takes the first Good row in
+  roster order, so a Force parked on a Stronghold is picked over its
+  Garrison. (`finding:movement-orders-accepted-by-allegiance-roll`)
+- Accepted for 1.0: the original keeps the refused pick and seems to
+  roll again once the refusal's box has had its time; the port drops
+  the pick instead, and the player picks again. The re-roll is read
+  from code but not observed, re-picking takes one click, and each
+  attempt rolls the same odds.
+  (`finding:movement-orders-accepted-by-allegiance-roll`)
+- Port additions, not in the original: pressing the arrow while a
+  Good Force's info window is open picks that Force at once, rolling
+  as above; with no Force shown, "Click a Force to order" asks for
+  one. Once the destination is clicked, the ordered entry's status
+  line ("ÉOMER is going to EDORAS.", or "heading <direction>." away
+  from a Place) shows as a plain notice to confirm the Order.
 - An Order's destination is the clicked spot rounded down to its
   tile origin, so a click in a Place's tile lands on the Place.
   Clicking near Bree set (784, 384); clicking near Osgiliath set
@@ -32,9 +54,21 @@ under a position is (x ÷ 16, y ÷ 16)
 - On arrival the entry turns resting and takes the next stop off its
   Default Orders route; the destination only clears when that route
   is empty (`finding:movement-arrival-pops-next-route-stop`).
+- A Nazgûl, entries 79 to 87, whose orders end on Place 22, the Ford
+  of Bruinen, goes to sleep (state 0) instead of resting, with its
+  trigger set to the Ring-bearer test: it has no Full Map dot or
+  Campaign Level icon, takes no part in fights, and wakes when the
+  Ring-bearer's Force comes within 9 pixels on each axis
+  (`finding:forces-nazgul-hide-at-ford-of-bruinen`,
+  `finding:ai-trigger-distances-are-square`).
   Arrival is tested exactly on the destination pixel at a tile
   origin, so a destination that is not tile-aligned can never be
   arrived at.
+- A Leader among roster entries 1 to 78 arriving at a Place shows a
+  box: "<name> has reached <Place>.", with "have" for a strength
+  above 1. Nothing is shown at the Grey Havens, the Barrow Downs,
+  Rivendell or Lórien, nor for the Nazgûl and the Evil Units
+  (`finding:movement-arrival-announced-except-at-four-places`).
 - Ordering part of a Force: clicking a Character in the Order
   window gives the Order to that Character and all of its
   followers, splitting them off from the rest of the Force
@@ -80,7 +114,7 @@ under a position is (x ÷ 16, y ÷ 16)
   following. (`finding:movement-mixed-force-at-leader-pace`)
 - `observed`: on the Animation Level the watched Character takes
   extra steps (2 steps within one quarter-hour at the start), so
-  scenarios are recorded on the Campaign Level.
+  Reference runs are recorded on the Campaign Level.
 
 ## Stamina and rest
 
@@ -122,12 +156,12 @@ under a position is (x ÷ 16, y ÷ 16)
   tile ahead scores under the bank tiles to either side. Our
   seeded RNG is not the original's (ADR-0002), so a run may
   eventually blunder across where the observed run did not; the
-  scenario's expected result is the looping, not a guarantee.
+  Reference run's expected result is the looping, not a guarantee.
   (`finding:movement-greedy-tile-steering`)
 
-## Reference scenarios
+## Reference runs
 
-Each scenario starts from the game's starting state on the Campaign
+Each Reference run starts from the game's starting state on the Campaign
 Level. Orders were given in the game's own UI. Game Speed in the
 original was left at its starting setting throughout; the emulator's
 warp mode was used to pass real time faster in later runs, which does
@@ -199,7 +233,7 @@ leader's class-3 pace (see Pace).
 
 A cavalry Force off-road is no faster than Frodo's off-road: about
 1 px/tick, well under the class-4 road pace of 1.80 px/tick. The
-scenario's expected result is non-arrival: after 4 days the Force
+Reference run's expected result is non-arrival: after 4 days the Force
 is still on the east bank of the Entwash with its destination set.
 
 ### S4. Terrain pace comparison

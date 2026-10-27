@@ -1,6 +1,6 @@
 {
   "name": "wime",
-  "version": "0.9.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "workspaces": [
@@ -18,7 +18,11 @@
     "extract-manual": "bun tools/extract-manual.ts",
     "disasm": "bun tools/disasm.ts",
     "asm": "bun tools/asm.ts",
+    "figure-script": "bun tools/figure-script.ts",
     "render-campaign-map": "bun tools/render-campaign-map.ts",
+    "soak": "bun tools/soak.ts",
+    "strategy": "bun tools/strategy.ts",
+    "survey": "bun tools/survey.ts",
     "export:web": "bun tools/export-web.ts",
     "build-geography": "bun tools/build-geography.ts",
     "extract-all": "bun tools/extract-all.ts",

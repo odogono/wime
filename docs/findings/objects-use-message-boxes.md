@@ -17,7 +17,7 @@ issue: 105
 ---
 
 **Choosing an object to use closes the list at once, plays no animation, and shows its result in a box at (10, 5) without buttons, with the text at (10, 8) in colour 5; the box's width and depth depend on the message.**
-Use (code+0x06e70) does not queue a figure command or mark an order under way. Every box closes by itself after 200 frames (finding:ui-war-event-messages).
+Use (code+0x06e70) does not queue a figure command or mark an order under way. Every box has the 200-frame deadline of a box without buttons and closes by itself 1,300 frames after it (finding:ui-message-box-timeouts-by-level).
 
 | Use (finding)                                      | Width × depth       | Text                                                |
 | -------------------------------------------------- | ------------------- | --------------------------------------------------- |

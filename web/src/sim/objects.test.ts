@@ -239,7 +239,7 @@ describe('dropping on death', () => {
     expect(next.roster[7]?.state).toBe(0);
     expect(next.roster[7]?.objects).toEqual([0, 4]);
     // The Ring is then taken from the ground even with no winner left
-    // to carry it (finding:objects-ring-taken-by-last-awake-winner).
+    // to carry it (finding:objects-encounter-revives-third-nazgul).
     expect(next.objectPlacements.slice(0, 2)).toEqual([
       null,
       { object: 4, position: HERE }
@@ -252,6 +252,7 @@ describe('saving', () => {
     const moved = takeObject(putDownObject(world(), 7, 4, HERE), 8, 9, HERE);
     expect(restoreSave(serialiseSave(moved), null)).toEqual({
       ok: true,
+      setup: null,
       state: moved
     });
   });
