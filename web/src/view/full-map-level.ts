@@ -104,6 +104,14 @@ export const drawFullMapLevel = (
     ctx.fillStyle = level.palette.hex[colourIndex] ?? '#fff';
     ctx.fillRect(dot.x, dot.y, FULL_MAP_DOT_WIDTH, FULL_MAP_DOT_HEIGHT);
   }
+  drawFullMapIcons(ctx, level);
+};
+
+// The Full Map Level's icons, drawn on their own over the Atlas map.
+export const drawFullMapIcons = (
+  ctx: CanvasRenderingContext2D,
+  level: Pick<FullMapLevel, 'icons'>
+): void => {
   for (const { icon, x, y } of fullMapIconPlacements(level.icons)) {
     ctx.drawImage(icon.image, x, y);
   }

@@ -43,8 +43,10 @@ export interface Screen {
   // The 640 by 200 buffer for the Full Map Level.
   hires: CanvasRenderingContext2D;
   // Copy a buffer to the visible canvas, integer-scaled and centred.
-  // Both fill the same frame, so a hi-res pixel is half as wide.
-  present(resolution?: Resolution): void;
+  // Both fill the same frame, so a hi-res pixel is half as wide. Over
+  // the Atlas map the canvas is cleared to transparent, not black, so
+  // the map shows through wherever the buffer is clear.
+  present(resolution?: Resolution, transparent?: boolean): void;
   // Resize the visible canvas to the window, in device pixels.
   resize(): Fit;
 }
@@ -77,11 +79,18 @@ export const createScreen = (canvas: HTMLCanvasElement): Screen => {
     return fit;
   };
 
-  const present = (resolution: Resolution = 'lores'): void => {
+  const present = (
+    resolution: Resolution = 'lores',
+    transparent = false
+  ): void => {
     // Resizing a canvas resets its context state, so set this every time.
     visible.imageSmoothingEnabled = false;
-    visible.fillStyle = '#000';
-    visible.fillRect(0, 0, canvas.width, canvas.height);
+    if (transparent) {
+      visible.clearRect(0, 0, canvas.width, canvas.height);
+    } else {
+      visible.fillStyle = '#000';
+      visible.fillRect(0, 0, canvas.width, canvas.height);
+    }
     visible.drawImage(
       resolution === 'hires' ? hiresCanvas : bufferCanvas,
       fit.x,

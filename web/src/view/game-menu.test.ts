@@ -51,13 +51,26 @@ const centre = (menu: GameMenu, row: number) => {
 };
 
 describe('the in-game menu', () => {
-  test('offers Save, Load, Return to title and Close', () => {
+  test('offers Save, Load, Return to title, the Map setting and Close', () => {
     expect(labels(openGameMenu())).toEqual([
       'Save',
       'Load',
       'Return to title',
+      'Map: Classic',
       'Close'
     ]);
+  });
+
+  test('shows the Map setting and chooses to switch it', () => {
+    const menu = {
+      kind: 'main' as const,
+      mapStyle: 'atlas' as const,
+      selected: 0
+    };
+    expect(labels(menu)[3]).toBe('Map: Atlas');
+    expect(keys(menu, 'ArrowUp', 'ArrowUp', 'Enter').choice).toEqual({
+      kind: 'map-style'
+    });
   });
 
   test('Escape or Close closes it', () => {
@@ -153,7 +166,7 @@ describe('the in-game menu', () => {
     expect(hoverGameMenu(menu, centre(menu, 2))).toMatchObject({
       selected: 2
     });
-    expect(clickGameMenu(menu, centre(menu, 3), SAVES).choice).toEqual({
+    expect(clickGameMenu(menu, centre(menu, 4), SAVES).choice).toEqual({
       kind: 'close'
     });
     expect(clickGameMenu(menu, { x: 0, y: 0 }, SAVES).menu).toBe(menu);

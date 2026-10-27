@@ -43,6 +43,10 @@ save slots (docs/spec/saving.md), and shares the title menu's window
 - **Return to title** autosaves the game, then goes back to the title
   menu, with Title playing. If the autosave fails, the game stays in
   play and a message says so.
+- **Map** shows how the map is drawn, Map: Classic or Map: Atlas, and
+  choosing it switches between them at once; the menu stays open. The
+  setting is kept in the browser, not in saved games
+  (docs/spec/atlas-map.md).
 
 ## Keys and the mouse
 

@@ -23,20 +23,31 @@ export type GameMenuChoice =
   | { id: number; kind: 'load' }
   | { id: number; kind: 'save-over' }
   | { kind: 'close' }
+  // Switch the map between Classic and Atlas (docs/spec/atlas-map.md).
+  | { kind: 'map-style' }
   | { kind: 'save-new'; name: string }
   | { kind: 'title' };
 
-type MainItem = 'close' | 'load' | 'save' | 'title';
-const MAIN_ITEMS: MainItem[] = ['save', 'load', 'title', 'close'];
+type MainItem = 'close' | 'load' | 'map' | 'save' | 'title';
+const MAIN_ITEMS: MainItem[] = ['save', 'load', 'title', 'map', 'close'];
 const MAIN_LABELS: Record<MainItem, string> = {
   close: 'Close',
   load: 'Load',
+  map: 'Map',
   save: 'Save',
   title: 'Return to title'
 };
 
+// How the map is drawn: the original's tiles, or the Atlas map.
+export type MapStyle = 'atlas' | 'classic';
+const MAP_STYLE_LABELS: Record<MapStyle, string> = {
+  atlas: 'Map: Atlas',
+  classic: 'Map: Classic'
+};
+
 export type GameMenu =
-  | { kind: 'main'; selected: number }
+  // `mapStyle` is the setting the Map item shows.
+  | { kind: 'main'; mapStyle?: MapStyle; selected: number }
   // The named slots to save into; the autosave is not offered.
   | { kind: 'save'; selected: number; slots: SlotSummary[] }
   // Naming a new save, typed in.
@@ -52,7 +63,10 @@ export type GameMenu =
   // What a save or load came to; any key or click goes back.
   | { kind: 'message'; lines: string[] };
 
-export const openGameMenu = (): GameMenu => ({ kind: 'main', selected: 0 });
+export const openGameMenu = (mapStyle?: MapStyle): GameMenu =>
+  mapStyle
+    ? { kind: 'main', mapStyle, selected: 0 }
+    : { kind: 'main', selected: 0 };
 
 export const NAME_LIMIT = 24;
 const NAME_ITEMS = ['Save', 'Back'];
@@ -84,7 +98,12 @@ export const gameMenuView = (menu: GameMenu): MenuView => {
     case 'main': {
       return {
         lines: [],
-        rows: MAIN_ITEMS.map(item => ({ label: MAIN_LABELS[item] })),
+        rows: MAIN_ITEMS.map(item => ({
+          label:
+            item === 'map'
+              ? MAP_STYLE_LABELS[menu.mapStyle ?? 'classic']
+              : MAIN_LABELS[item]
+        })),
         selected: menu.selected,
         width: NARROW_WIDTH
       };
@@ -163,6 +182,9 @@ const choose = (menu: GameMenu, saves: TitleSaves): GameMenuStep => {
         }
         case 'title': {
           return { choice: { kind: 'title' }, menu };
+        }
+        case 'map': {
+          return { choice: { kind: 'map-style' }, menu };
         }
         default: {
           return { choice: { kind: 'close' }, menu };

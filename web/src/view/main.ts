@@ -58,6 +58,11 @@ import {
   type CampaignAssets,
   type TitleAssets
 } from './assets';
+import {
+  createAtlasMap,
+  type AtlasMap,
+  type DrawOptions
+} from './atlas/atlas-map';
 import { loadGameAudio, type GameAudio } from './audio';
 import { autosaveDue, autosavePoint, type AutosaveView } from './autosave';
 import {
@@ -73,6 +78,7 @@ import {
 import {
   clampCamera,
   dragCamera,
+  drawCampaignIcons,
   drawCampaignLevel,
   edgeScrollDirection,
   hoverTargetAt,
@@ -136,6 +142,7 @@ import {
 import {
   BLINK_PHASE_MS,
   campaignCameraFor,
+  drawFullMapIcons,
   drawFullMapLevel,
   fullMapIconAt,
   fullMapIconPlacements,
@@ -153,13 +160,15 @@ import {
   pressGameMenuKey,
   saveFailed,
   type GameMenu,
-  type GameMenuStep
+  type GameMenuStep,
+  type MapStyle
 } from './game-menu';
 import {
   drawGandalfsLetter,
   stepGandalfsLetter,
   type GandalfsLetter
 } from './gandalfs-letter';
+import { loadMapStyle, saveMapStyle } from './map-style';
 import {
   drawMeetingUi,
   meetingHoldsTime,
@@ -412,6 +421,86 @@ const run = (
   };
   let camera: Camera = openingCamera();
   let fit: Fit = screen.resize();
+  // The Map setting and, once it has loaded, the Atlas map, which stands
+  // in for the drawing of both map Levels (docs/spec/atlas-map.md).
+  const preferences = ((): Storage | null => {
+    try {
+      return window.localStorage;
+    } catch {
+      return null;
+    }
+  })();
+  let mapStyle: MapStyle = loadMapStyle(preferences);
+  let atlas: AtlasMap | null = null;
+  let atlasLoading = false;
+  const atlasCanvas = document.querySelector<HTMLCanvasElement>('#atlas-map');
+  // The pointer in page pixels: the Atlas map reads it more finely than
+  // the native screen's pixels.
+  let client: Camera = { x: 0, y: 0 };
+  const atlasOn = (): boolean =>
+    mapStyle === 'atlas' &&
+    atlas !== null &&
+    !onTitle() &&
+    (level === 'campaign' || level === 'full-map');
+  // The Classic Campaign view and the Atlas map look at the same spot:
+  // whichever moved last sets the other.
+  const centreAtlas = (): void => {
+    atlas?.centreOn({
+      x: camera.x + viewWidthPx(assets.tilemap) / 2,
+      y: camera.y + viewHeightPx(assets.tilemap) / 2
+    });
+  };
+  const cameraFromAtlas = (): void => {
+    if (atlas) {
+      camera = clampCamera(
+        {
+          x: Math.round(atlas.camera.x - viewWidthPx(assets.tilemap) / 2),
+          y: Math.round(atlas.camera.y - viewHeightPx(assets.tilemap) / 2)
+        },
+        assets.tilemap
+      );
+    }
+  };
+  // The Atlas map is made the first time it is wanted. If it cannot be,
+  // WebGL2 or its geography missing, the map stays Classic.
+  const ensureAtlas = (): void => {
+    if (atlas || atlasLoading || !atlasCanvas) {
+      return;
+    }
+    atlasLoading = true;
+    createAtlasMap(
+      atlasCanvas,
+      assets.forceIcons as TexImageSource & { height: number; width: number }
+    )
+      .then(map => {
+        atlas = map;
+        centreAtlas();
+        if (level === 'full-map') {
+          map.camera.zoom = map.range().min;
+          map.centreOn(map.camera);
+        }
+      })
+      .catch(() => {
+        mapStyle = 'classic';
+      })
+      .finally(() => {
+        atlasLoading = false;
+      });
+  };
+  const setMapStyle = (style: MapStyle): void => {
+    if (style === 'classic' && atlasOn()) {
+      cameraFromAtlas();
+    }
+    mapStyle = style;
+    saveMapStyle(preferences, style);
+    if (style === 'atlas') {
+      ensureAtlas();
+      centreAtlas();
+    }
+  };
+  if (mapStyle === 'atlas') {
+    ensureAtlas();
+  }
   let pointer: Camera | null = null;
   let drag: { camera: Camera; pointer: Camera } | null = null;
   let speedWindow: SpeedWindow | null = null;
@@ -754,6 +843,11 @@ const run = (
     level = 'campaign';
     sim = watchEntry(sim, null);
     setOrder(IDLE_ORDER);
+    centreAtlas();
+    if (atlas) {
+      atlas.camera.zoom = atlas.range().campaign;
+      centreAtlas();
+    }
   };
 
   const beginTalk = (meeting: Meeting, now: number): void => {
@@ -838,7 +932,16 @@ const run = (
   // Up to the Full Map Level (manual, pdf-p3). Any half-given Order or
   // open window is dropped, as when a decision window opens
   // (finding:ui-pointer-and-icon-column).
-  const goUp = (): void => {
+  // On the Atlas map, the map glides out to the Full Map Level band
+  // unless the player's own zoom has already brought it there.
+  const goUp = (glide = true): void => {
+    if (atlasOn() && atlas) {
+      cameraFromAtlas();
+      if (glide) {
+        const range = atlas.range();
+        atlas.flyTo({ zoom: Math.max(range.min, range.boundary * 0.6) });
+      }
+    }
     level = 'full-map';
     zooming = false;
     mirror = null;
@@ -856,12 +959,34 @@ const run = (
     canvas.style.cursor = magnifier ? 'none' : 'zoom-in';
   };
 
-  // Down to the Campaign Level, centred on the clicked spot.
+  // Down to the Campaign Level, centred on the clicked spot; on the
+  // Atlas map it glides in to that spot.
   const goDown = (point: Camera): void => {
-    camera = campaignCameraFor(point, assets.tilemap);
+    if (atlasOn() && atlas) {
+      const spot = atlas.toMap(client);
+      atlas.flyTo({ ...spot, zoom: atlas.range().campaign });
+      camera = clampCamera(
+        {
+          x: Math.round(spot.x - viewWidthPx(assets.tilemap) / 2),
+          y: Math.round(spot.y - viewHeightPx(assets.tilemap) / 2)
+        },
+        assets.tilemap
+      );
+    } else {
+      camera = campaignCameraFor(point, assets.tilemap);
+    }
+    enterCampaign();
+  };
+  // The Campaign Level's own state on arriving from the Full Map Level,
+  // by the magnifying glass or by zooming the Atlas map in.
+  const enterCampaign = (): void => {
     level = 'campaign';
     zooming = false;
     hiresPointer = null;
+    mirror = null;
+    archive = null;
+    speedWindow = null;
+    canvas.style.cursor = 'grab';
     setOrder(IDLE_ORDER);
   };
 
@@ -908,21 +1033,47 @@ const run = (
       }
     } else if (zooming && !icon) {
       goDown(point);
+    } else if (atlasOn() && !icon) {
+      // The Atlas map pans on the Full Map Level too.
+      drag = { camera, pointer: toNative(event) };
+      dragClient = client;
+      canvas.setPointerCapture(event.pointerId);
     }
   };
 
-  // The map point under the pointer, or null outside the map view.
-  const mapPoint = (native: Camera | null): Camera | null =>
-    native &&
-    native.x >= 0 &&
-    native.x < viewWidthPx(assets.tilemap) &&
-    native.y >= 0 &&
-    native.y < viewHeightPx(assets.tilemap)
+  // The map point under the pointer, or null outside the map view. The
+  // Atlas map fills the window, and reads the pointer's page position.
+  const mapPoint = (native: Camera | null): Camera | null => {
+    if (native && atlasOn() && atlas) {
+      const point = atlas.toMap(client);
+      return {
+        x: Math.max(0, Math.min(viewEdge('x'), Math.floor(point.x))),
+        y: Math.max(0, Math.min(viewEdge('y'), Math.floor(point.y)))
+      };
+    }
+    return native &&
+      native.x >= 0 &&
+      native.x < viewWidthPx(assets.tilemap) &&
+      native.y >= 0 &&
+      native.y < viewHeightPx(assets.tilemap)
       ? { x: native.x + camera.x, y: native.y + camera.y }
       : null;
+  };
+  const viewEdge = (axis: 'x' | 'y'): number =>
+    (axis === 'x' ? assets.tilemap.width : assets.tilemap.height) *
+      assets.tilemap.tile_width -
+    1;
+  // On the Atlas map a Force is found by the picture drawn for it, a
+  // figure, a marker or a dot, which need not cover its 16 map pixels.
+  const atlasForce = (): Force | null =>
+    atlasOn() && atlas ? atlas.forceAt(client) : null;
 
   const targetAt = (native: Camera | null, forces: Force[]) => {
     const point = mapPoint(native);
+    const force = native ? atlasForce() : null;
+    if (force) {
+      return { force, kind: 'force' as const, name: force.leader.name };
+    }
     return point
       ? hoverTargetAt(forces, sim.places, sim.placeKinds, assets.tilemap, point)
       : null;
@@ -964,7 +1115,14 @@ const run = (
       return;
     }
     if (order.kind === 'pick-force') {
-      setOrder(pickForceAt(order, forcesOnMap(sim.roster), point));
+      const force = atlasForce();
+      setOrder(
+        pickForceAt(
+          order,
+          forcesOnMap(sim.roster),
+          force ? { x: force.position.x + 8, y: force.position.y + 8 } : point
+        )
+      );
     } else if (order.kind === 'pick-destination') {
       sim = giveOrder(sim, order.selected, point);
       setOrder(IDLE_ORDER);
@@ -1006,7 +1164,39 @@ const run = (
   };
 
   canvas.style.cursor = 'grab';
+  const trackClient = (event: PointerEvent | WheelEvent): void => {
+    client = { x: event.clientX, y: event.clientY };
+  };
+  // On the Atlas map the wheel zooms about the pointer, and zooming
+  // across the bands changes Level (docs/spec/atlas-map.md).
+  canvas.addEventListener(
+    'wheel',
+    event => {
+      if (!atlasOn() || !atlas || gameMenu || onTitle()) {
+        return;
+      }
+      event.preventDefault();
+      trackClient(event);
+      const delta = event.deltaMode === 1 ? event.deltaY * 16 : event.deltaY;
+      atlas.zoomAt(Math.exp(-delta * 0.0015), client);
+      const range = atlas.range();
+      if (level === 'campaign' && atlas.camera.zoom < range.boundary * 0.92) {
+        goUp(false);
+      } else if (
+        level === 'full-map' &&
+        atlas.camera.zoom > range.boundary * 1.08 &&
+        !archive &&
+        !mirror
+      ) {
+        enterCampaign();
+      }
+    },
+    { passive: false }
+  );
+  // Where the last drag event was, for panning the Atlas map.
+  let dragClient: Camera | null = null;
   canvas.addEventListener('pointerdown', event => {
+    trackClient(event);
     if (gameMenu) {
       chooseInGame(clickGameMenu(gameMenu, toNative(event), titleSaves()));
       return;
@@ -1061,6 +1251,7 @@ const run = (
             }),
             assets.tilemap
           );
+          centreAtlas();
         }
       }
       return;
@@ -1147,11 +1338,13 @@ const run = (
     // Drags starting on an icon are for the icon, not the map.
     if (!icon) {
       drag = { camera, pointer };
+      dragClient = client;
       canvas.setPointerCapture(event.pointerId);
       canvas.style.cursor = 'grabbing';
     }
   });
   canvas.addEventListener('pointermove', event => {
+    trackClient(event);
     if (gameMenu) {
       gameMenu = hoverGameMenu(gameMenu, toNative(event));
       return;
@@ -1163,17 +1356,26 @@ const run = (
     if (boot || level === 'animation') {
       return;
     }
+    if (atlasOn() && atlas && drag && dragClient) {
+      atlas.panBy(client.x - dragClient.x, client.y - dragClient.y);
+      dragClient = client;
+    }
     if (level === 'full-map') {
       hiresPointer = toHires(event);
       return;
     }
     pointer = toNative(event);
-    if (drag) {
+    if (drag && !atlasOn()) {
       camera = dragCamera(drag.camera, drag.pointer, pointer, assets.tilemap);
     }
   });
   const endDrag = (event: PointerEvent): void => {
-    if (drag && !onTitle()) {
+    trackClient(event);
+    dragClient = null;
+    if (drag && atlasOn() && level === 'campaign') {
+      cameraFromAtlas();
+    }
+    if (drag && !onTitle() && level === 'campaign') {
       const released = toNative(event);
       const moved = Math.max(
         Math.abs(released.x - drag.pointer.x),
@@ -1182,7 +1384,9 @@ const run = (
       // A press that did not pan is a click: it opens the window at
       // the top left naming what was clicked (manual, pdf-p16).
       if (moved <= CLICK_TOLERANCE_PX) {
-        camera = drag.camera;
+        if (!atlasOn()) {
+          camera = drag.camera;
+        }
         const target = targetAt(released, forcesOnMap(sim.roster));
         infoWindow =
           target?.kind === 'force'
@@ -1208,6 +1412,7 @@ const run = (
   });
   window.addEventListener('resize', () => {
     fit = screen.resize();
+    atlas?.resize();
   });
   window.addEventListener('keydown', event => {
     // The original's keys: U goes up a Level, M picks up the
@@ -1446,6 +1651,10 @@ const run = (
     audio?.stop();
     level = 'campaign';
     camera = openingCamera();
+    if (atlas) {
+      atlas.camera.zoom = atlas.range().campaign;
+    }
+    centreAtlas();
     const watch = isNew ? sim.ringBearer : sim.watching;
     sim = watchEntry(sim, null);
     if (watch !== null) {
@@ -1521,7 +1730,7 @@ const run = (
       NATIVE_HEIGHT
     );
     drag = null;
-    gameMenu = openGameMenu();
+    gameMenu = openGameMenu(mapStyle);
     menuOpenedAt = performance.now();
     return true;
   };
@@ -1577,10 +1786,18 @@ const run = (
   };
   // Carry out what the in-game menu chose.
   const chooseInGame = (step: GameMenuStep): void => {
-    gameMenu = step.menu;
+    // The first menu shows the Map setting as it stands.
+    gameMenu =
+      step.menu.kind === 'main' ? { ...step.menu, mapStyle } : step.menu;
     const choice = step.choice;
     switch (choice?.kind) {
       case undefined: {
+        return;
+      }
+      case 'map-style': {
+        setMapStyle(mapStyle === 'atlas' ? 'classic' : 'atlas');
+        gameMenu =
+          step.menu.kind === 'main' ? { ...step.menu, mapStyle } : step.menu;
         return;
       }
       case 'close': {
@@ -1618,6 +1835,18 @@ const run = (
       }
     }
   };
+  // The Atlas map draws the Ring-bearer's Force, and the Force being
+  // ordered, one tier more detailed (docs/spec/atlas-map.md).
+  const atlasDrawOptions = (now: number): DrawOptions => ({
+    flashOn: Math.floor(now / FLASH_INTERVAL_MS) % 2 === 0,
+    important: (force: Force): boolean =>
+      force.members.some(m => m.index === sim.ringBearer) ||
+      (order.kind === 'pick-destination' &&
+        force.leader.index === order.leaderIndex),
+    selected: new Set(
+      order.kind === 'pick-destination' ? [order.leaderIndex] : []
+    )
+  });
   const frame = (realNow: number): void => {
     const now = realNow - menuMs;
     const elapsedMs = Math.min(1000, now - lastTime);
@@ -1625,10 +1854,24 @@ const run = (
     if (menuButton) {
       menuButton.hidden = onTitle() || gameMenu !== null;
     }
+    if (atlasCanvas) {
+      const show = atlasOn();
+      if (show !== (atlasCanvas.style.display === 'block')) {
+        atlasCanvas.style.display = show ? 'block' : 'none';
+        if (show) {
+          atlas?.resize();
+        }
+      }
+    }
     if (gameMenu) {
+      // Over the Atlas map the menu's backdrop is the overlay alone; the
+      // map stays as it was.
+      if (atlasOn()) {
+        screen.buffer.clearRect(0, 0, NATIVE_WIDTH, NATIVE_HEIGHT);
+      }
       screen.buffer.drawImage(backdrop, 0, 0);
       drawGameMenu(screen.buffer, title.window, title.menuColours, gameMenu);
-      screen.present();
+      screen.present('lores', atlasOn());
       requestAnimationFrame(frame);
       return;
     }
@@ -1683,12 +1926,18 @@ const run = (
         false,
         driver.speed
       ));
-      drawFullMapLevel(
-        screen.hires,
-        fullMap,
-        fullMapDots(sim.roster),
-        Math.floor(now / BLINK_PHASE_MS) % 2 === 0
-      );
+      if (atlasOn() && atlas) {
+        screen.hires.clearRect(0, 0, screen.hires.canvas.width, NATIVE_HEIGHT);
+        drawFullMapIcons(screen.hires, fullMap);
+        atlas.draw(forcesOnMap(sim.roster), atlasDrawOptions(now), elapsedMs);
+      } else {
+        drawFullMapLevel(
+          screen.hires,
+          fullMap,
+          fullMapDots(sim.roster),
+          Math.floor(now / BLINK_PHASE_MS) % 2 === 0
+        );
+      }
       // The pointer becomes the magnifying glass, centred on the spot.
       if (zooming && magnifier && hiresPointer) {
         screen.hires.drawImage(
@@ -1716,7 +1965,7 @@ const run = (
         );
         screen.hires.restore();
       }
-      screen.present('hires');
+      screen.present('hires', atlasOn());
       requestAnimationFrame(frame);
       return;
     }
@@ -1954,16 +2203,23 @@ const run = (
     ));
     // Hovering the icon column does not scroll the map under it, and
     // dragging pans instead of edge scrolling.
+    // The Atlas map is moved by dragging and the wheel, not the edges.
     const direction =
-      drag || (pointer && isOverIcons(pointer, placements))
+      drag || atlasOn() || (pointer && isOverIcons(pointer, placements))
         ? { x: 0, y: 0 }
         : edgeScrollDirection(pointer, assets.tilemap);
     camera = stepCamera(camera, direction, elapsedMs / 1000, assets.tilemap);
     const forces = forcesOnMap(sim.roster);
     const flashOn = Math.floor(now / FLASH_INTERVAL_MS) % 2 === 0;
-    drawCampaignLevel(screen.buffer, assets, camera, forces, flashOn);
+    if (atlasOn() && atlas) {
+      screen.buffer.clearRect(0, 0, NATIVE_WIDTH, NATIVE_HEIGHT);
+      drawCampaignIcons(screen.buffer, assets.icons);
+      atlas.draw(forces, atlasDrawOptions(now), elapsedMs);
+    } else {
+      drawCampaignLevel(screen.buffer, assets, camera, forces, flashOn);
+    }
     drawOverlay(forces);
-    screen.present();
+    screen.present('lores', atlasOn());
     requestAnimationFrame(frame);
   };
   requestAnimationFrame(frame);
