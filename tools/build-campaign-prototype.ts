@@ -164,14 +164,22 @@ for (let ty = 0; ty < region.height; ty++) {
           (r === 34 && g === 68 && b === 17);
         const rocks = r === 136 && g === 136 && b === 136;
         const hills = r === 238 && g === 170 && b === 136;
+        // Both tan and pale cream occur along the source road through the
+        // forest. Keep a road channel for canopy clearance as well as drawing.
+        const road = hills || (r === 238 && g === 238 && b === 187);
         forest += Number(trees);
         rock += Number(rocks);
         hill += Number(hills);
-        pixels.push([Number(trees), Number(rocks), Number(isWater(r, g, b))]);
+        pixels.push([
+          Number(trees),
+          Number(rocks),
+          Number(isWater(r, g, b)),
+          Number(road)
+        ]);
         if (isWater(r, g, b)) {
           water.data.set([255, 255, 255, 255], destination);
         }
-        if (hills) {
+        if (road) {
           roads.data.set([255, 255, 255, 255], destination);
         }
       }
@@ -203,11 +211,12 @@ for (let ty = 0; ty < region.height; ty++) {
       x: tx,
       y: ty
     });
-    // Peach pixels on hills/buildings describe scenery, not a path.
+    // These colours on hills/buildings describe scenery, not a path.
     if (category !== 'grass' && category !== 'forest') {
       for (let y = 0; y < 16; y++) {
         for (let x = 0; x < 16; x++) {
           roads.data[((ty * 16 + y) * width + tx * 16 + x) * 4 + 3] = 0;
+          pixels[y * 16 + x]![3] = 0;
         }
       }
     }

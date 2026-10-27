@@ -4,7 +4,7 @@
 
 Can a small painted sprite library reconstruct an actual Campaign Level section, preserve its geographic relationships, and remain stable while scrolling?
 
-Yes for this bounded experiment: four generated PNGs supply two textures and twelve reusable scenery symbols. A real 44×32 tile region produces 1,615 fixed scenery placements, viewed through the original 20×12 tile window. Panning away and back restores identical canvas pixels in Chromium. This establishes reusable composition, not production-ready artwork or complete terrain coverage. User evaluation of this prototype is pending.
+Yes for this bounded experiment: four generated PNGs supply two textures and twelve reusable scenery symbols. A real 44×32 tile region produces 1,513 fixed scenery placements, viewed through the original 20×12 tile window. Panning away and back restores identical canvas pixels in Chromium. This establishes reusable composition, not production-ready artwork or complete terrain coverage. User evaluation of this prototype is pending.
 
 The user accepted the earlier Animation Level river prototype and deferred game integration. This follow-up explores the Campaign Level separately; it makes no production renderer, simulation, save, asset-loader or public interface changes.
 
@@ -17,7 +17,7 @@ bun run prototype:campaign
 
 Open `build/graphics-remaster/campaign-prototype.html`. The first command exports the original game data; the second verifies cached art or downloads the four SHA-256-pinned PNGs, then embeds all artwork and map data in a single offline HTML file. No server, account or API credential is needed to open the built file.
 
-Alternatively, [save the standalone HTML](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/7e9b2d4400b1e7b08378dbb1fb08e4618e146cd9/campaign-prototype.html) as `campaign-prototype.html`, then open it locally. GitHub serves the raw HTML as text, so save it before opening. All artwork, full-resolution captures, prompts and the demo are in the [same secret gist](https://gist.github.com/odogono/f6b575409714ee9a0036152250a11587), revision `9bceacfd53081bc7cd5697e9e11fabd3d0b8d3a1`. Anyone with its URL can view it.
+Alternatively, [save the standalone HTML](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/d5363962893723d2b9b8c9225bbc5f671dda650a/campaign-prototype.html) as `campaign-prototype.html`, then open it locally. GitHub serves the raw HTML as text, so save it before opening. All artwork, full-resolution captures, prompts and the demo are in the [same secret gist](https://gist.github.com/odogono/f6b575409714ee9a0036152250a11587), revision `95eaf1a1c717ee05c5ec1926027315293733e975`. Anyone with its URL can view it.
 
 The prototype source is captured on branch `experiment/graphics-remaster` in [PR #182](https://github.com/odogono/wime/pull/182). It is intentionally outside the production build.
 
@@ -27,8 +27,8 @@ The prototype source is captured on branch `experiment/graphics-remaster` in [PR
 - Region: zero-based columns 40–83 and rows 14–45, covering Bree, Weathertop, Rivendell and surrounding terrain. The [704×512 source crop](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/457c2af3dfa6125223427d6014619dcc285cf620/campaign-region-source.png) matches the independently rendered extracted map exactly: zero mismatched colour channels.
 - Viewport: 320×192 logical pixels (20×12 tiles), painted into a 1280×768 canvas. Source and painted views use identical camera coordinates. These are terrain-compositor captures, not emulator screenshots or captures of the game's complete UI.
 - Water: the original atlas's two blue colours define a region-wide mask. A repeating painted water texture is clipped to it, with interpolated edges and a soft bank. There is no generated full-map river painting.
-- Paths: peach source pixels on grass/forest tiles receive a simple path colour. This heuristic is provisional; peach pixels on hills and buildings are excluded.
-- Scenery: per-tile colour coverage selects experimental grass, forest, hill, mountain or Place recipes. Forested tiles offer up to sixteen candidate tree anchors, with jitter in both axes, source-colour coverage, occasional gaps and water clearance; hills and mountains use overlapping ridge symbols. The source grid controls geography, while sprite crowns and ridges can extend beyond their cells.
+- Paths: tan and pale cream source pixels on grass/forest tiles form the road mask. The same colours on hills/buildings are excluded. A separate road channel lets tree placement reserve the full projected crown footprint plus a narrow verge, including across tile edges. This preserves the source route through the forest rather than painting a new one.
+- Scenery: per-tile colour coverage selects experimental grass, forest, hill, mountain or Place recipes. Forested tiles offer up to sixteen candidate tree anchors, with jitter in both axes, source-colour coverage, occasional gaps, water clearance and road-corridor clearance; hills and mountains use overlapping ridge symbols. The source grid controls geography, while sprite crowns and ridges can extend beyond their cells.
 - Settlements: generic Place-kind tiles select shared symbols. Six named landmarks lacking generic kinds receive explicit prototype symbols: Hobbiton, Woodhall, Bombadil's House, Deadman's Dike, Weathertop and Rivendell. These are artistic choices, not reconstructed original rules; Rivendell's generic elven hall is not a faithful architectural reconstruction.
 - A coordinate hash selects variants and modest placement jitter. It never consumes simulation randomness and never changes when the camera moves. All scenery is sorted by its ground-contact position before drawing.
 
@@ -57,7 +57,7 @@ All four were generated separately with built-in `image_gen.imagegen`. The earli
 
 **Painted composition**
 
-![Reusable painted terrain around Bree](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/230b8a226222cb1c3ebb7280d979f7729ee8f83d/campaign-bree-painted.png)
+![Reusable painted terrain around Bree](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/069a1f315da160e7f79be1c8c43f0d59739b6c85/campaign-bree-painted.png)
 
 ### Rivendell and the Misty Mountains
 
@@ -67,13 +67,29 @@ All four were generated separately with built-in `image_gen.imagegen`. The earli
 
 **Painted composition**
 
-![Reusable painted terrain around Rivendell](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/7761bd386abf8f4ceedb75dc84db7c89a7843bfb/campaign-rivendell-painted.png)
+![Reusable painted terrain around Rivendell](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/090ae5017b58cd0d9d7acf3545655e78c8f521a3/campaign-rivendell-painted.png)
 
-[Weathertop original](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/5b343a2b9e0c5141ef417f58b6575501951359fc/campaign-weathertop-original.png) · [Weathertop painted](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/a7936c03803ef7df6c60931cc322554413c33f4f/campaign-weathertop-painted.png) · [Terrain classifications](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/d2ca9da921d615b871f55d6bb6cf838673ba32ae/campaign-footprints.png) · [Grid overlay](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/cd46e04d58d84d5a26e72ccbd3bcbb2691be850d/campaign-grid.png) · [Desktop controls](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/f2a9bcf5409a0c6d74aabd0d2664dce3474b7d88/campaign-prototype-desktop.png) · [Narrow-screen controls](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/afde1517ae4d5ccfa575409de2504ee7c03d031f/campaign-prototype-mobile.png)
+[Weathertop original](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/5b343a2b9e0c5141ef417f58b6575501951359fc/campaign-weathertop-original.png) · [Weathertop painted](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/5207b454324bc0b1982357130c90bc6433cd5ff7/campaign-weathertop-painted.png) · [Terrain classifications](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/d2ca9da921d615b871f55d6bb6cf838673ba32ae/campaign-footprints.png) · [Grid overlay](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/a49ccd7a0ce646a117a86484ac8aa8e69f764cb8/campaign-grid.png) · [Desktop controls](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/2697f63ea8608cdac4bdc7e76518c8e5b2dc4b9f/campaign-prototype-desktop.png) · [Narrow-screen controls](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/fe9842aebcd3135719ed4c0943235fbec788c787/campaign-prototype-mobile.png)
 
 All canvas captures are 1280×768 and come from the working compositor, not separate generated whole-screen illustrations. Place labels are optional prototype overlays derived from the source names; they are not text embedded in the generated artwork.
 
-## Forest density revision — 2026-10-27
+## Forest road preservation — 2026-10-27
+
+The user noticed that the road through the Rivendell forest was missing. The mask omitted the source's pale cream road pixels, and dense crowns could cover the partial mask that remained. The builder now includes both tan (238,170,136) and pale cream (238,238,187) on grass/forest tiles, with a fourth per-pixel channel for the road. The rendered road is light tan. This remains a bounded visual mask, not a new simulation terrain rule.
+
+Placement now checks each candidate's complete projected crown rectangle plus a one-logical-pixel verge against source road pixels across tile edges. Candidates that cover the road are omitted. The dense small-tree treatment remains elsewhere: 1,130 trees remain from the previous 1,232; other scenery is unchanged. Total placements are now 1,513. No generated artwork, source map coordinates or simulation behaviour changes.
+
+**Earlier canopy obscuring the road**
+
+![Earlier forest without a visible road](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/7761bd386abf8f4ceedb75dc84db7c89a7843bfb/campaign-rivendell-painted.png)
+
+**Source road preserved through the canopy**
+
+![Restored source road through the painted forest](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/090ae5017b58cd0d9d7acf3545655e78c8f521a3/campaign-rivendell-painted.png)
+
+[Road revision verification](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/bfb68356b3d84bb4b8b9a4d6f1fbf3f61386911d/campaign-road-revision-verification.json) confirms no tree crown/verge rectangle intersects the road channel. All 103 visible source-road samples on forest tiles in the Rivendell preset are byte-identical with trees drawn and hidden, proving that the canopy does not obscure those samples. The check also covers stable panning, layer and variant restoration, offline loading, narrow-screen layout and unchanged non-tree scenery. Current downloads and main captures include this correction.
+
+## Earlier forest density revision — 2026-10-27
 
 The user rejected the sparse, evenly separated small trees because they did not read as a forest. Crown widths remain 6.5–7.5 logical pixels, but forest tiles now offer sixteen closely spaced candidate positions rather than four. Fixed coordinate hashes vary both axes and omit occasional candidates; source-colour coverage and water checks trim the edge. Overlapping small crowns form a continuous canopy with irregular gaps instead of isolated rows.
 
@@ -87,7 +103,7 @@ Across the bounded region, tree placements increased from 386 to 1,232 (about 3.
 
 ![Dense irregular forest arrangement](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/7761bd386abf8f4ceedb75dc84db7c89a7843bfb/campaign-rivendell-painted.png)
 
-[Forest revision verification](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/338223c6b0975e4d12e591c8c56d0fcfa6b7775e/campaign-forest-revision-verification.json) records density, unchanged non-tree scenery, source footprint and water checks, deterministic panning, layer restoration, offline loading and narrow-screen layout. The standalone download and main captures above include this revision. User evaluation is pending; this is still a visual prototype.
+[Forest revision verification](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/338223c6b0975e4d12e591c8c56d0fcfa6b7775e/campaign-forest-revision-verification.json) records density, unchanged non-tree scenery, source footprint and water checks, deterministic panning, layer restoration, offline loading and narrow-screen layout. The road preservation correction above keeps this dense treatment while removing crowns that cover the source road. User evaluation is pending; this is still a visual prototype.
 
 ## Earlier tree readability revision — 2026-10-27
 
