@@ -9,11 +9,12 @@
 // sheet's three tones. The atlas holds a distance field per tone: red is
 // ink, green the whole silhouette and blue the parchment device. The
 // field is drawn in the Side colour wherever neither ink nor device lies.
-// Writes DIR/atlas.bin (RGB, row by row) and DIR/atlas.json (default
+// Writes DIR/atlas.bin (RGB, row by row, gzipped) and DIR/atlas.json (default
 // web/public/assets/emblems/).
 import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import { parseArgs } from 'node:util';
+import { gzipSync } from 'node:zlib';
 
 import { Resvg } from '@resvg/resvg-js';
 
@@ -21,10 +22,10 @@ import type { EmblemAtlas as WebEmblemAtlas } from '../web/src/view/atlas/emblem
 import { INF, edt } from '../web/src/view/atlas/sdf-font';
 
 export const EMBLEM_DIR = 'web/src/view/atlas/emblems';
-export const SCALE = 3;
+export const SCALE = 2;
 // Texels the field spans either side of an edge: deep enough inside for
 // a Compact marker's rim, which is cut from the silhouette's field.
-export const RADIUS = 24;
+export const RADIUS = 16;
 
 const INK = [0x3a, 0x2c, 0x1c];
 const FIELD = [0x2f, 0x58, 0xa8];
@@ -155,7 +156,7 @@ export const main = (argv: string[] = process.argv.slice(2)): number => {
     }));
   const { atlas, data } = buildEmblems(svgs);
   mkdirSync(out, { recursive: true });
-  writeFileSync(join(out, 'atlas.bin'), data);
+  writeFileSync(join(out, 'atlas.bin'), gzipSync(data));
   writeFileSync(join(out, 'atlas.json'), `${JSON.stringify(atlas)}\n`);
   console.log(
     `build-emblems: ${svgs.length} emblems, ${atlas.width}x${atlas.height} atlas in ${out}/`

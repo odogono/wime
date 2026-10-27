@@ -1,6 +1,21 @@
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 import { expect, test } from 'bun:test';
 
-import { buildEmblems, distanceField, toneMasks } from './build-emblems';
+import { EMBLEMS } from '../web/src/view/atlas/emblems';
+import {
+  EMBLEM_DIR,
+  SCALE,
+  buildEmblems,
+  distanceField,
+  toneMasks
+} from './build-emblems';
+
+test('has an SVG for every emblem a Force can be drawn with', () => {
+  expect(
+    EMBLEMS.filter(n => !existsSync(join(EMBLEM_DIR, `${n}.svg`)))
+  ).toEqual([]);
+});
 
 test('sorts each opaque pixel into its nearest tone', () => {
   const pixels = new Uint8Array([
@@ -33,7 +48,8 @@ test('lays the emblems out in cells, three channels each', () => {
   });
   expect(data.length).toBe(atlas.width * atlas.height * 3);
   // The square's centre is field: inside the silhouette, no ink or device.
-  const centre = ((atlas.margin + 96) * atlas.width + atlas.margin + 96) * 3;
+  const centre =
+    ((atlas.margin + 32 * SCALE) * atlas.width + atlas.margin + 32 * SCALE) * 3;
   expect(data[centre + 1]!).toBeGreaterThan(128);
   expect(data[centre]!).toBeLessThan(128);
   expect(data[centre + 2]!).toBeLessThan(128);
