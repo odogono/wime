@@ -178,10 +178,11 @@ void main() {
   v_colour = u_colours[s];
   v_along = mix(a_along, a_alongTo, a_corner.x);
   v_style = s;
-  // A line with its own width, such as a river, keeps it at every zoom,
-  // but never thinner than its style's.
+  // A line with its own width, such as a river, follows it.
   float own = mix(a_width, a_widthTo, a_corner.x) / 4.0 * u_mapScale / 2.0;
-  float halfWidth = a_width > 0.0 ? max(u_widths[s], own) : u_widths[s];
+  // Held to between the style's own width and three times it on screen,
+  // so the ink tapers but never swamps the map.
+  float halfWidth = a_width > 0.0 ? clamp(own * 0.5, u_widths[s], u_widths[s] * 3.0) : u_widths[s];
   vec2 clip = toClip(mix(from, to, a_corner.x)) + vec2(normal.x, -normal.y) * halfWidth * u_pixel;
   gl_Position = vec4(clip, 0.0, 1.0);
 }`;
@@ -222,7 +223,7 @@ void main() {
   if (k >= 4) size = max(u_sizes[k], (a_variant + 8.0) * u_mapScale);
   // A peak's variant is its size class times 3 plus its lean.
   // Its quad covers the atlas cell, margin and all.
-  if (k == 1 && a_rank <= u_maxRank) size = u_sizes[k] * (0.9 + floor(a_variant / 3.0) * 0.3) * u_peakPad;
+  if (k == 1 && a_rank <= u_maxRank) size = u_sizes[k] * (0.9 + floor(mod(a_variant, 16.0) / 3.0) * 0.3) * u_peakPad;
   v_local = a_corner;
   v_kind = k;
   v_variant = a_variant;
@@ -245,7 +246,7 @@ uniform vec3 u_leaf;
 uniform vec3 u_marsh;
 uniform sampler2D u_pictograms;
 uniform vec2 u_pictogramSize;
-uniform vec2 u_peakCells[8]; // each peak shape's cell origin, in texels
+uniform vec2 u_peakCells[11]; // each peak shape's cell origin, in texels
 uniform float u_peakCell; // a cell's size, in texels
 out vec4 colour;
 float stroke(float d, float w, float aa) { return 1.0 - smoothstep(w - aa, w + aa, abs(d)); }
@@ -278,9 +279,12 @@ void main() {
     c = mix(c, vec4(u_ink, 1.0), ink);
   } else if (v_kind == 1) {
     // A peak, drawn from the pictogram atlas: red is ink, green paper.
-    int size = int(v_variant / 3.0);
-    int lean = int(mod(v_variant, 3.0));
-    int shape = size == 0 ? 6 + lean % 2
+    bool dark = v_variant >= 16.0;
+    float variant = dark ? v_variant - 16.0 : v_variant;
+    int size = int(variant / 3.0);
+    int lean = int(mod(variant, 3.0));
+    int shape = dark ? (size <= 1 ? 10 : 8 + lean % 2)
+      : size == 0 ? 6 + lean % 2
       : size == 1 ? (lean == 0 ? 3 : 6 + lean % 2)
       : size == 2 ? 3 + lean
       : size == 3 ? (lean == 2 ? 4 : lean)

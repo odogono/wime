@@ -35,7 +35,12 @@ const ground = (d: string): Part => ({ d, stroke: 2.2 });
 // kinked ridge line, with short hachures down its eastern slope only.
 // `ridge` runs from the western foot over the summit to the eastern foot,
 // on a baseline at y 56.
-const peak = (ridge: [number, number][], hachures: number): Part[] => {
+const peak = (
+  ridge: [number, number][],
+  hachures: number,
+  // Evil ranges are inked heavier, with longer hachures.
+  dark = false
+): Part[] => {
   const summit = ridge.reduce(
     (best, p, i) => (p[1] < ridge[best]![1] ? i : best),
     0
@@ -61,14 +66,14 @@ const peak = (ridge: [number, number][], hachures: number): Part[] => {
   // towards the foot.
   const strokes = Array.from({ length: hachures }, (_, i) => {
     const [x, y] = at((i + 0.7) / (hachures + 0.9));
-    const len = Math.min(14, (56 - y) * 0.5);
+    const len = Math.min(dark ? 20 : 14, (56 - y) * (dark ? 0.75 : 0.5));
     return `M${x - 1.2} ${y + 1.5} l${-len * 0.42} ${len}`;
   }).join(' ');
   const line = ridge.map(([x, y], i) => `${i ? 'L' : 'M'}${x} ${y}`).join(' ');
   return [
     { body: true, d: `${line} Z` },
-    { d: strokes, stroke: 2.3 },
-    { d: line, stroke: 3.4 }
+    { d: strokes, stroke: dark ? 2.8 : 2.3 },
+    { d: line, stroke: dark ? 4 : 3.4 }
   ];
 };
 
@@ -183,6 +188,56 @@ export const PEAK_ART: Record<string, Part[]> = {
       [60, 56]
     ],
     5
+  ),
+  // Evil ranges: sharper, hooked and notched summits.
+  'peak-dark-hook': peak(
+    [
+      [6, 56],
+      [14, 44],
+      [20, 36],
+      [24, 22],
+      [27, 26],
+      [31, 6],
+      [36, 12],
+      [34, 18],
+      [40, 28],
+      [46, 38],
+      [58, 56]
+    ],
+    7,
+    true
+  ),
+  'peak-dark-jag': peak(
+    [
+      [4, 56],
+      [12, 44],
+      [17, 38],
+      [20, 28],
+      [24, 32],
+      [29, 14],
+      [33, 20],
+      [37, 9],
+      [42, 24],
+      [48, 36],
+      [60, 56]
+    ],
+    6,
+    true
+  ),
+  'peak-dark-low': peak(
+    [
+      [6, 56],
+      [14, 46],
+      [20, 40],
+      [24, 32],
+      [28, 36],
+      [33, 26],
+      [38, 34],
+      [46, 44],
+      [58, 56]
+    ],
+    4,
+    true
   )
 };
 export const PEAKS = Object.keys(PEAK_ART);

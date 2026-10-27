@@ -398,8 +398,34 @@ const frame = (): void => {
     })
     .filter(l => l.opacity > 0.02);
   // Place names, the most important first, never overlapping.
+  // Pictured Places, the most important first: one whose picture would
+  // land on a picture already drawn is left out, picture and name, so
+  // Places that share a spot, such as Minas Tirith and the Rammas Forts,
+  // show as the greater one.
+  const pictured: typeof bundle.places = [];
+  const hidden = new Set<(typeof bundle.places)[number]>();
+  for (const p of [...bundle.places].sort((a, b) => a.rank - b.rank)) {
+    if (
+      p.pictogram === AREA ||
+      CROSSINGS.has(p.pictogram) ||
+      camera.zoom < rankZoom(p.rank, range)
+    ) {
+      continue;
+    }
+    const [sx, sy] = toScreen(p.x, p.y);
+    const size = pictogramSize(p.rank) * 0.8;
+    const clash = pictured.some(q => {
+      const [qx, qy] = toScreen(q.x, q.y);
+      return Math.abs(qx - sx) < size && Math.abs(qy - sy) < size;
+    });
+    if (clash) {
+      hidden.add(p);
+    } else {
+      pictured.push(p);
+    }
+  }
   const labels = bundle.places
-    .filter(p => camera.zoom >= rankZoom(p.rank, range))
+    .filter(p => !hidden.has(p) && camera.zoom >= rankZoom(p.rank, range))
     .sort((a, b) => a.rank - b.rank)
     .map(p => {
       const px = p.rank === 0 ? 15 : 12;
@@ -460,39 +486,32 @@ const frame = (): void => {
     )
   );
   // Each pictured Place's ink picture.
-  const places = bundle.places
-    .filter(
-      p =>
-        p.pictogram !== AREA &&
-        !CROSSINGS.has(p.pictogram) &&
-        camera.zoom >= rankZoom(p.rank, range)
-    )
-    .flatMap((p): Quad[] => {
-      const cell = pictograms.cells.get(bundle.pictograms[p.pictogram]!);
-      if (!cell) {
-        return [];
+  const places = pictured.flatMap((p): Quad[] => {
+    const cell = pictograms.cells.get(bundle.pictograms[p.pictogram]!);
+    if (!cell) {
+      return [];
+    }
+    const [sx, sy] = toScreen(p.x, p.y);
+    // The picture's 64-unit box is `size` across; its cell has a margin
+    // for the distance field either side.
+    const size = pictogramSize(p.rank);
+    const quad =
+      (size * pictograms.cell) / (pictograms.cell - pictograms.margin * 2);
+    return [
+      {
+        colour: [1, 1, 1, 1],
+        h: quad * dpr,
+        mode: QuadMode.pictogram,
+        u0: cell.u,
+        u1: cell.u + pictograms.cell,
+        v0: cell.v,
+        v1: cell.v + pictograms.cell,
+        w: quad * dpr,
+        x: (sx - quad / 2) * dpr,
+        y: (sy - quad / 2) * dpr
       }
-      const [sx, sy] = toScreen(p.x, p.y);
-      // The picture's 64-unit box is `size` across; its cell has a margin
-      // for the distance field either side.
-      const size = pictogramSize(p.rank);
-      const quad =
-        (size * pictograms.cell) / (pictograms.cell - pictograms.margin * 2);
-      return [
-        {
-          colour: [1, 1, 1, 1],
-          h: quad * dpr,
-          mode: QuadMode.pictogram,
-          u0: cell.u,
-          u1: cell.u + pictograms.cell,
-          v0: cell.v,
-          v1: cell.v + pictograms.cell,
-          w: quad * dpr,
-          x: (sx - quad / 2) * dpr,
-          y: (sy - quad / 2) * dpr
-        }
-      ];
-    });
+    ];
+  });
 
   quads.push(...places, ...lettering, ...markers, ...figures, ...counters);
   drawn = picks;

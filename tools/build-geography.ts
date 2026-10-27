@@ -1351,6 +1351,9 @@ export const joinPieces = (pieces: Point[][]): Point[][] => {
   return lines;
 };
 
+// The widest a river line is drawn, in map pixels.
+const MAX_RIVER_WIDTH = 4;
+
 export const traceRiverLines = (
   source: SourceData,
   ground: Ground
@@ -1418,7 +1421,9 @@ export const traceRiverLines = (
       const typical = [...raw].sort((a, b) => a - b)[
         Math.floor(raw.length / 2)
       ]!;
-      const capped = raw.map(w => Math.min(w, typical * 1.3));
+      // Where a river opens into marsh or a lake its measured width runs
+      // away; no river line is drawn wider than a broad river.
+      const capped = raw.map(w => Math.min(w, typical * 1.3, MAX_RIVER_WIDTH));
       const widths = capped.map((_, i) => {
         const near = capped.slice(Math.max(0, i - 3), i + 4);
         return near.reduce((sum, w) => sum + w, 0) / near.length;
@@ -1512,7 +1517,16 @@ export const insideDistance = (
 const peakSize = (inside: number): number =>
   inside < 6 ? 0 : inside < 10 ? 1 : inside < 16 ? 2 : inside < 24 ? 3 : 4;
 
-export const placePeaks = (ground: Ground): GeographyFeature[] => {
+// A peak in an evil range adds this to its variant, for darker shapes.
+export const DARK_PEAK = 16;
+// How near an evil Place a range must come to be evil.
+const EVIL_REACH = 40;
+
+export const placePeaks = (
+  ground: Ground,
+  // Where the evil Places stand: their ranges are drawn darker.
+  evil: Point[] = []
+): GeographyFeature[] => {
   const { step, width } = ground;
   const height = ground.kinds.length / width;
   const mountain = GROUND_KINDS.indexOf('mountain');
@@ -1520,6 +1534,36 @@ export const placePeaks = (ground: Ground): GeographyFeature[] => {
   for (let i = 0; i < mask.length; i++) {
     mask[i] = Number(ground.kinds[i] === mountain);
   }
+  // Each range is one connected run of mountain; it is evil when it comes
+  // near an evil Place.
+  const ranges = components(Int32Array.from(mask), width, height);
+  const evilRanges = new Set<number>();
+  for (const [ex, ey] of evil) {
+    for (let dy = -EVIL_REACH; dy <= EVIL_REACH; dy += step) {
+      for (let dx = -EVIL_REACH; dx <= EVIL_REACH; dx += step) {
+        const cx = Math.floor((ex + dx) / step);
+        const cy = Math.floor((ey + dy) / step);
+        if (
+          cx < 0 ||
+          cy < 0 ||
+          cx >= width ||
+          cy >= height ||
+          Math.hypot(dx, dy) > EVIL_REACH
+        ) {
+          continue;
+        }
+        const i = cy * width + cx;
+        if (mask[i]) {
+          evilRanges.add(ranges.component[i]!);
+        }
+      }
+    }
+  }
+  const darkAt = ([x, y]: Point): boolean =>
+    evilRanges.has(
+      ranges.component[Math.floor(y / step) * width + Math.floor(x / step)] ??
+        -1
+    );
   const inside = insideDistance(mask, width, height, step);
   const insideAt = ([x, y]: Point): number =>
     inside[Math.floor(y / step) * width + Math.floor(x / step)] ?? 0;
@@ -1594,7 +1638,7 @@ export const placePeaks = (ground: Ground): GeographyFeature[] => {
         kind: 'peak',
         layer: 'symbol',
         rank: p.rank,
-        variant: p.size * 3 + p.lean
+        variant: p.size * 3 + p.lean + (darkAt([p.x, p.y]) ? DARK_PEAK : 0)
       },
       type: 'Feature'
     }));
@@ -2163,7 +2207,16 @@ export const main = async (): Promise<number> => {
       ...traceRiverLines(source, ground),
       ...roads.features,
       ...scatterSymbols(source, ground, roads.clearing),
-      ...placePeaks(ground),
+      ...placePeaks(
+        ground,
+        source.places
+          .filter(
+            p =>
+              ['an evil citadel'].includes(p.tile_kind ?? '') ||
+              /BARAD-DUR|MORANNON|DOL GULDUR|MT\. DOOM/.test(p.name)
+          )
+          .map(p => [p.position.x + TILE / 2, p.position.y + TILE / 2])
+      ),
       ...placeLabels(source)
     ],
     type: 'FeatureCollection'
