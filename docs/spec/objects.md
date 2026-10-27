@@ -100,7 +100,10 @@ and "Use an object". (finding:objects-handled-on-animation-level)
   slip past a Nazgûl
   ([#218](https://github.com/odogono/wime/issues/218#issuecomment-6343132455)).
   Giving an object to another Character, by one putting it down and
-  the other taking it, has not been played.
+  the other taking it, was played later: Frodo put down the Elven
+  blade and Sam, selected by a click on his figure, took it, in the
+  same scene
+  ([#269](https://github.com/odogono/wime/issues/269)).
 
 The **chosen** Character is the party member selected; the
 **position** is the watched Character's position, the Force on
