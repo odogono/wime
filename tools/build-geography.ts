@@ -553,7 +553,7 @@ export const traceTerrainRegions = (
     arcs,
     c.first,
     c.label,
-    shapeWith(TILE, 11, 3)
+    shapeWith(TILE, 0, 0)
   );
   return regions.map(region => {
     const kind = REGION_KINDS[Math.floor(region.label / 1000)]!;
@@ -572,39 +572,161 @@ export const traceTerrainRegions = (
   });
 };
 
-// Rivers and lakes drawn inside land tiles, traced from their water
-// pixels at a two-pixel step.
-export const traceRivers = (
-  source: SourceData,
-  kinds: RegionKind[]
-): GeographyFeature[] => {
+// The kinds of ground the map is drawn with: the Terrain Region kinds,
+// and rivers, water too narrow to be sea or lake.
+export const GROUND_KINDS = [...REGION_KINDS, 'river'] as const;
+export type GroundKind = (typeof GROUND_KINDS)[number];
+
+// The drawn ground, traced from the tiles' pixels rather than whole tiles,
+// so woods, mountains and coasts keep the shapes the original's artist
+// drew instead of the tile grid. Passability stays with the tile-aligned
+// Terrain Regions.
+export interface Ground {
+  features: GeographyFeature[];
+  // The kind of each cell, GROUND_KINDS indices, `step` map pixels square.
+  kinds: Uint8Array;
+  step: number;
+  width: number;
+}
+
+// How much of a window around each cell must show a kind's colours for
+// the cell to be that kind, checked in this order.
+const DENSITY: [GroundKind, Set<number>, number][] = [
+  ['mountain', ROCK_COLOURS, 0.3],
+  ['forest', FOREST_COLOURS, 0.28],
+  ['hill', HILL_COLOURS, 0.22]
+];
+const WINDOW = 7;
+// Specks smaller than this many cells join the ground around them.
+const MIN_CELLS = 16;
+// Water bodies at least this many cells are sea or lake, smaller rivers.
+const MIN_LAKE_CELLS = 4000;
+
+export const traceGround = (source: SourceData): Ground => {
   const STEP = 2;
   const { atlas, tilemap } = source;
   const [mapW, mapH] = mapSize(tilemap);
+  const columns = atlas.width / TILE;
+  const colourAt = (x: number, y: number): number => {
+    const tile =
+      tilemap.indices[
+        Math.floor(y / TILE) * tilemap.width + Math.floor(x / TILE)
+      ]!;
+    return rgb(
+      atlas,
+      (tile % columns) * TILE + (x % TILE),
+      Math.floor(tile / columns) * TILE + (y % TILE)
+    );
+  };
+  // Summed-area tables of each colour class, for window densities.
+  const stride = mapW + 1;
+  const tables = DENSITY.map(() => new Int32Array(stride * (mapH + 1)));
+  const water = new Uint8Array(mapW * mapH);
+  for (let y = 0; y < mapH; y++) {
+    for (let x = 0; x < mapW; x++) {
+      const c = colourAt(x, y);
+      water[y * mapW + x] = Number(WATER_COLOURS.has(c));
+      DENSITY.forEach(([, colours], i) => {
+        const t = tables[i]!;
+        t[(y + 1) * stride + x + 1] =
+          Number(colours.has(c)) +
+          t[y * stride + x + 1]! +
+          t[(y + 1) * stride + x]! -
+          t[y * stride + x]!;
+      });
+    }
+  }
+  const density = (i: number, cx: number, cy: number): number => {
+    const x0 = Math.max(0, cx - WINDOW);
+    const y0 = Math.max(0, cy - WINDOW);
+    const x1 = Math.min(mapW, cx + WINDOW);
+    const y1 = Math.min(mapH, cy + WINDOW);
+    const t = tables[i]!;
+    const sum =
+      t[y1 * stride + x1]! -
+      t[y0 * stride + x1]! -
+      t[y1 * stride + x0]! +
+      t[y0 * stride + x0]!;
+    return sum / ((x1 - x0) * (y1 - y0));
+  };
   const width = mapW / STEP;
   const height = mapH / STEP;
-  const columns = atlas.width / TILE;
   const labels = new Int32Array(width * height);
+  const plain = GROUND_KINDS.indexOf('plain');
+  const wet = GROUND_KINDS.indexOf('water');
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       const px = x * STEP;
       const py = y * STEP;
-      const tile =
-        tilemap.indices[
-          Math.floor(py / TILE) * tilemap.width + Math.floor(px / TILE)
-        ]!;
-      if (kinds[tile] === 'water') {
-        continue;
-      }
-      let wet = 0;
+      let wetPixels = 0;
       for (let dy = 0; dy < STEP; dy++) {
         for (let dx = 0; dx < STEP; dx++) {
-          const ax = (tile % columns) * TILE + ((px + dx) % TILE);
-          const ay = Math.floor(tile / columns) * TILE + ((py + dy) % TILE);
-          wet += Number(WATER_COLOURS.has(rgb(atlas, ax, ay)));
+          wetPixels += water[(py + dy) * mapW + px + dx]!;
         }
       }
-      labels[y * width + x] = Number(wet >= 2);
+      let label = plain;
+      if (wetPixels >= 2) {
+        label = wet;
+      } else {
+        const found = DENSITY.findIndex(
+          (_, i) => density(i, px + 1, py + 1) >= DENSITY[i]![2]
+        );
+        if (found !== -1) {
+          label = GROUND_KINDS.indexOf(DENSITY[found]![0]);
+        }
+      }
+      labels[y * width + x] = label;
+    }
+  }
+  // Fold specks into the ground around them, so the ink stays clean.
+  const speckle = components(labels, width, height);
+  const sizes = new Int32Array(speckle.first.length);
+  for (const id of speckle.component) {
+    sizes[id]!++;
+  }
+  for (let i = 0; i < labels.length; i++) {
+    const id = speckle.component[i]!;
+    const limit = labels[i] === wet ? 3 : MIN_CELLS;
+    if (sizes[id]! >= limit) {
+      continue;
+    }
+    const x = i % width;
+    const y = Math.floor(i / width);
+    const votes = new Map<number, number>();
+    for (const [nx, ny] of [
+      [x - 1, y],
+      [x + 1, y],
+      [x, y - 1],
+      [x, y + 1],
+      [x - 2, y],
+      [x + 2, y],
+      [x, y - 2],
+      [x, y + 2]
+    ] as const) {
+      if (nx < 0 || ny < 0 || nx >= width || ny >= height) {
+        continue;
+      }
+      const j = ny * width + nx;
+      if (speckle.component[j] === id) {
+        continue;
+      }
+      votes.set(labels[j]!, (votes.get(labels[j]!) ?? 0) + 1);
+    }
+    const best = [...votes].sort((a, b) => b[1] - a[1])[0];
+    if (best) {
+      labels[i] = best[0];
+    }
+  }
+  // Narrow water is a river; big water is sea or lake.
+  const pass = components(labels, width, height);
+  const waterSizes = new Int32Array(pass.first.length);
+  for (const id of pass.component) {
+    waterSizes[id]!++;
+  }
+  const river = GROUND_KINDS.indexOf('river');
+  for (let i = 0; i < labels.length; i++) {
+    if (labels[i] === wet && waterSizes[pass.component[i]!]! < MIN_LAKE_CELLS) {
+      labels[i] = river;
     }
   }
   const c = components(labels, width, height);
@@ -613,24 +735,22 @@ export const traceRivers = (
     arcs,
     c.first,
     c.label,
-    shapeWith(STEP, 1.2, 2)
+    shapeWith(STEP, 1, 2)
   );
-  return regions
-    .filter(r => r.label === 1)
-    .map(r => ({
-      ...r,
-      polygons: r.polygons.filter(p => Math.abs(signedArea(p[0]!)) >= 12)
-    }))
-    .filter(r => r.polygons.length)
-    .map(region => {
-      const x = (region.first % width) * STEP;
-      const y = Math.floor(region.first / width) * STEP;
-      return {
-        geometry: { coordinates: region.polygons, type: 'MultiPolygon' },
-        properties: { id: `river:${x},${y}`, layer: 'river' },
-        type: 'Feature'
-      };
-    });
+  const features: GeographyFeature[] = regions.map(region => {
+    const x = (region.first % width) * STEP;
+    const y = Math.floor(region.first / width) * STEP;
+    return {
+      geometry: { coordinates: region.polygons, type: 'MultiPolygon' },
+      properties: {
+        id: `ground:${x},${y}`,
+        kind: GROUND_KINDS[region.label]!,
+        layer: 'ground'
+      },
+      type: 'Feature'
+    };
+  });
+  return { features, kinds: Uint8Array.from(labels), step: STEP, width };
 };
 
 // A deterministic hash for scattering symbols.
@@ -647,39 +767,20 @@ const hash = (x: number, y: number, salt = 0): number => {
 // each with a rank so the renderer can thin them as the map zooms out.
 export const scatterSymbols = (
   source: SourceData,
-  kinds: RegionKind[],
-  rivers: GeographyFeature[]
+  ground: Ground
 ): GeographyFeature[] => {
-  const { tilemap } = source;
-  const [mapW, mapH] = mapSize(tilemap);
-  const kindAt = (x: number, y: number): RegionKind | null =>
+  const [mapW, mapH] = mapSize(source.tilemap);
+  const kindAt = (x: number, y: number): GroundKind | null =>
     x < 0 || y < 0 || x >= mapW || y >= mapH
       ? null
-      : kinds[
-          tilemap.indices[
-            Math.floor(y / TILE) * tilemap.width + Math.floor(x / TILE)
+      : GROUND_KINDS[
+          ground.kinds[
+            Math.floor(y / ground.step) * ground.width +
+              Math.floor(x / ground.step)
           ]!
         ]!;
-  const riverRings = rivers.flatMap(r =>
-    (r.geometry.coordinates as Ring[][]).map(p => p[0]!)
-  );
-  const nearRiver = (x: number, y: number): boolean =>
-    riverRings.some(
-      ring =>
-        pointInRing([x, y], ring) ||
-        pointInRing([x + 3, y], ring) ||
-        pointInRing([x - 3, y], ring) ||
-        pointInRing([x, y + 3], ring)
-    );
-  // Rivers are a few thousand rings; bucket them by tile to keep this fast.
-  const wetTiles = new Set<number>();
-  for (const ring of riverRings) {
-    for (const [x, y] of ring) {
-      wetTiles.add(Math.floor(y / TILE) * tilemap.width + Math.floor(x / TILE));
-    }
-  }
   const spacing: Record<SymbolKind, number> = { hill: 22, peak: 13, tree: 9 };
-  const kindFor: Partial<Record<RegionKind, SymbolKind>> = {
+  const kindFor: Partial<Record<GroundKind, SymbolKind>> = {
     forest: 'tree',
     hill: 'hill',
     mountain: 'peak'
@@ -706,11 +807,6 @@ export const scatterSymbols = (
             [0, 5]
           ].some(([dx, dy]) => kindAt(x + dx!, y + dy!) !== kind)
         ) {
-          continue;
-        }
-        const tile =
-          Math.floor(y / TILE) * tilemap.width + Math.floor(x / TILE);
-        if (wetTiles.has(tile) && nearRiver(x, y)) {
           continue;
         }
         // Rank 0 shows at every zoom; higher ranks only closer in.
@@ -954,7 +1050,7 @@ const segmentKey = (a: Point, b: Point): string =>
   a[0] < b[0] || (a[0] === b[0] && a[1] < b[1]) ? `${a}|${b}` : `${b}|${a}`;
 
 const layerOrder = (layer: string): number =>
-  ['terrain-region', 'river', 'symbol', 'place'].indexOf(layer);
+  ['terrain-region', 'ground', 'symbol', 'place'].indexOf(layer);
 
 export const compileBundle = (geography: Geography): Uint8Array => {
   const fill: number[] = [];
@@ -964,25 +1060,28 @@ export const compileBundle = (geography: Geography): Uint8Array => {
     bounds: geography.bounds,
     lineStyles: LINE_STYLES,
     places: [],
-    regionKinds: [...REGION_KINDS, 'river'],
+    regionKinds: GROUND_KINDS,
     regions: [],
     sections: {} as BundleHeader['sections'],
     symbolKinds: SYMBOL_KINDS,
     version: 1
   };
-  // Ink is drawn only where the kind of ground changes, not between
-  // regions that differ only in passability. Shared borders are the same
-  // segments in both regions, so each segment is matched with its twin.
+  // The map is drawn from the ground; the Terrain Regions only go in the
+  // header, for the sim's later use. Ink is drawn only where the kind of
+  // ground changes. Shared borders are the same segments either side, so
+  // each segment is matched with its twin.
   const STYLE_BY_KIND: Partial<Record<string, number>> = {
     forest: LINE_STYLES.indexOf('forest'),
     mountain: LINE_STYLES.indexOf('mountain'),
+    river: LINE_STYLES.indexOf('river'),
     water: LINE_STYLES.indexOf('coast')
   };
-  // Where two kinds meet, the stronger line wins.
-  const PRIORITY = ['water', 'mountain', 'forest', 'hill', 'plain'];
+  // Where two kinds meet, the stronger line wins; hills and plains are
+  // not outlined.
+  const PRIORITY = ['water', 'river', 'mountain', 'forest', 'hill', 'plain'];
   const sideKinds = new Map<string, string[]>();
   for (const f of geography.features) {
-    if (f.properties.layer !== 'terrain-region') {
+    if (f.properties.layer !== 'ground') {
       continue;
     }
     for (const polygon of f.geometry.coordinates as Ring[][]) {
@@ -1003,23 +1102,17 @@ export const compileBundle = (geography: Geography): Uint8Array => {
   const drawn = new Set<string>();
   for (const f of sorted) {
     const { layer } = f.properties;
-    if (layer === 'terrain-region' || layer === 'river') {
-      const kind = layer === 'river' ? 'river' : (f.properties.kind as string);
-      const kindIndex = header.regionKinds.indexOf(kind);
-      if (layer === 'terrain-region') {
-        header.regions.push({
-          id: f.properties.id,
-          kind,
-          terrain: f.properties.terrain as number
-        });
-      }
+    if (layer === 'terrain-region') {
+      header.regions.push({
+        id: f.properties.id,
+        kind: f.properties.kind as string,
+        terrain: f.properties.terrain as number
+      });
+    } else if (layer === 'ground') {
+      const kindIndex = header.regionKinds.indexOf(f.properties.kind as string);
       for (const polygon of f.geometry.coordinates as Ring[][]) {
         triangulate(polygon, fill, kindIndex);
         for (const ring of polygon) {
-          if (layer === 'river') {
-            strokeRing(ring, lines, LINE_STYLES.indexOf('river'));
-            continue;
-          }
           strokeRing(ring, lines, -1, (a, b) => {
             const k = segmentKey(a, b);
             const kinds = sideKinds.get(k) ?? [];
@@ -1031,7 +1124,7 @@ export const compileBundle = (geography: Geography): Uint8Array => {
             const strongest = [...kinds].sort(
               (x, y) => PRIORITY.indexOf(x) - PRIORITY.indexOf(y)
             )[0]!;
-            return STYLE_BY_KIND[strongest] ?? LINE_STYLES.indexOf('forest');
+            return STYLE_BY_KIND[strongest] ?? -1;
           });
         }
       }
@@ -1123,14 +1216,14 @@ export const main = async (): Promise<number> => {
   }
   const source = await loadSource(assets);
   const kinds = tileKinds(source.atlas, source.terrainByTile);
-  const rivers = traceRivers(source, kinds);
+  const ground = traceGround(source);
   const [w, h] = mapSize(source.tilemap);
   const traced: Geography = {
     bounds: [0, 0, w, h],
     features: [
       ...traceTerrainRegions(source, kinds),
-      ...rivers,
-      ...scatterSymbols(source, kinds, rivers),
+      ...ground.features,
+      ...scatterSymbols(source, ground),
       ...placeLabels(source)
     ],
     type: 'FeatureCollection'
