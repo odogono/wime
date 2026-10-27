@@ -3,7 +3,7 @@
 // before createSim loads it, and never consumes the simulation's RNG.
 import { isEncounter } from './encounters';
 import { createRng, nextRandom } from './rng';
-import { ENCOUNTER_LIMITS, OBJECT_LIMITS } from './setup-limits';
+import { ENCOUNTER_LIMITS, NAZGUL_LIMITS, OBJECT_LIMITS } from './setup-limits';
 import {
   TILE_SIZE,
   tileOf,
@@ -26,6 +26,7 @@ export interface SetupData {
       earliest_day: number;
     } | null;
     index: number;
+    position: Point | null;
   }[];
 }
 
@@ -180,13 +181,50 @@ const shuffleEncounters = (
   });
 };
 
-// Each implemented axis, and the Setup fields it replaces. Every axis
-// reads the Classic Setup, so their order cannot matter.
+const shuffleNazgul = (
+  classic: SetupData,
+  seed: number
+): SetupData['roster'] => {
+  const riders = classic.roster.filter(
+    entry =>
+      entry.index >= NAZGUL_LIMITS[0]!.roster &&
+      entry.index <= NAZGUL_LIMITS.at(-1)!.roster
+  );
+  if (
+    riders.length !== NAZGUL_LIMITS.length ||
+    NAZGUL_LIMITS.some(
+      limit => !riders.some(entry => entry.index === limit.roster)
+    ) ||
+    riders.some(entry => !entry.position)
+  ) {
+    throw new Error('Nazgûl limits do not match the Classic roster');
+  }
+  const position = placeLookup(classic, 'Nazgûl');
+  const draw = axisDraw(seed, 'c');
+  // Only the start moves: destination and route, the rider's Default
+  // Orders, stay as they are (finding:ai-default-orders-are-place-queues).
+  const starts = new Map(
+    NAZGUL_LIMITS.map(limit => [
+      limit.roster,
+      position(limit.places[draw(limit.places.length)]!)
+    ])
+  );
+  return classic.roster.map(entry => {
+    const start = starts.get(entry.index);
+    return start ? { ...entry, position: { ...start } } : entry;
+  });
+};
+
+// Each implemented axis, and the Setup fields it replaces. Axes b and c both
+// replace the roster, so each works on the Setup so far; they change
+// disjoint fields and never read what another axis changed, so their order
+// cannot matter.
 const AXIS_SHUFFLES: Partial<
   Record<SetupAxis, (classic: SetupData, seed: number) => Partial<SetupData>>
 > = {
   a: (classic, seed) => ({ object_placements: shuffleObjects(classic, seed) }),
-  b: (classic, seed) => ({ roster: shuffleEncounters(classic, seed) })
+  b: (classic, seed) => ({ roster: shuffleEncounters(classic, seed) }),
+  c: (classic, seed) => ({ roster: shuffleNazgul(classic, seed) })
 };
 
 export const shuffleSetup = <T extends SetupData>(
@@ -199,7 +237,7 @@ export const shuffleSetup = <T extends SetupData>(
   }
   validateSetupAxes(axes);
   return axes.reduce(
-    (setup, axis) => ({ ...setup, ...AXIS_SHUFFLES[axis]!(classic, seed) }),
+    (setup, axis) => ({ ...setup, ...AXIS_SHUFFLES[axis]!(setup, seed) }),
     classic
   );
 };

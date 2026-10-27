@@ -581,3 +581,79 @@ export const ENCOUNTER_LIMITS: readonly EncounterLimit[] = [
     roster: 195
   }
 ];
+
+// A rider starts at one named Place's exact position. Riders may share a
+// Place: they are one side and never fight each other.
+export interface NazgulLimit {
+  places: readonly number[];
+  reason: string;
+  roster: number;
+}
+
+export const NAZGUL_EXCLUSION_ZONES = [
+  {
+    marginTiles: 2,
+    place: 2,
+    reason:
+      "Keep Hobbiton and two rings of neighbouring tiles clear of riders, matching the Encounter opening. A rider's meeting reach is under half a tile, so the Ring-bearer has at least two tiles' head start whichever way it leaves."
+  }
+] as const;
+
+// Western Shire and Bree-land Places outside the opening zone. Bree and
+// Buckland are left out: Aragorn and Merry stand within a rider's meeting
+// reach of them at the start, so a rider there would fight on the first tick.
+// All rows are provisional Scenario design.
+export const NAZGUL_LIMITS: readonly NazgulLimit[] = [
+  {
+    places: [1, 5, 8, 10, 14],
+    reason:
+      'The Lord rides from anywhere in the western or northern Shire; provisional, since his speed lets the widest spread still reach Hobbiton quickly.',
+    roster: 79
+  },
+  {
+    places: [1, 5, 10, 14],
+    reason: 'Keep the second rider in the Shire, west or east of Hobbiton.',
+    roster: 80
+  },
+  {
+    places: [1, 5, 10, 14],
+    reason:
+      'Move the third rider off its Classic tile next to Hobbiton to a Shire Place outside the opening zone.',
+    roster: 81
+  },
+  {
+    places: [5, 8, 10, 14],
+    reason: 'Keep the fourth rider in the western or eastern Shire.',
+    roster: 82
+  },
+  {
+    places: [10, 12, 13, 17],
+    reason:
+      'Keep the fifth rider between the Shire border, the Old Forest and Sarn Ford.',
+    roster: 83
+  },
+  {
+    places: [12, 13, 17, 18],
+    reason:
+      'Keep the sixth rider in southern Bree-land; provisional eastern reach to Midgewater.',
+    roster: 84
+  },
+  {
+    places: [5, 13, 17],
+    reason:
+      'Keep the seventh rider by Sarn Ford or swing it west to Michel Delving or east to the Barrow Downs.',
+    roster: 85
+  },
+  {
+    places: [12, 13, 15, 18],
+    reason:
+      "Keep the eighth rider in Bree-land; provisional northern reach to Deadman's Dike.",
+    roster: 86
+  },
+  {
+    places: [13, 15, 17, 18],
+    reason:
+      "Keep the ninth rider across Bree-land; provisional northern reach to Deadman's Dike.",
+    roster: 87
+  }
+];

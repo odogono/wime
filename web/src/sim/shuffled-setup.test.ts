@@ -1,15 +1,18 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, test } from 'bun:test';
 
+import { ROW_DISTANCE } from './combat';
 import { nextRandom } from './rng';
 import {
   ENCOUNTER_EXCLUSION_ZONES,
   ENCOUNTER_LIMITS,
+  NAZGUL_EXCLUSION_ZONES,
+  NAZGUL_LIMITS,
   OBJECT_LIMITS
 } from './setup-limits';
 import { setupAxisRng, shuffleSetup, type SetupData } from './shuffled-setup';
 import { tileOf } from './starting-state';
-import { createSim } from './state';
+import { createSim, tickSim } from './state';
 
 // Synthetic data: identifiers come from the design table; positions and
 // metadata are invented. CI needs no original assets for the invariants.
@@ -25,7 +28,9 @@ const classic = {
       ...ENCOUNTER_LIMITS.flatMap(limit =>
         limit.areas.flatMap(area => [...area])
       ),
-      ...ENCOUNTER_EXCLUSION_ZONES.map(zone => zone.place)
+      ...ENCOUNTER_EXCLUSION_ZONES.map(zone => zone.place),
+      ...NAZGUL_LIMITS.flatMap(limit => [...limit.places]),
+      ...NAZGUL_EXCLUSION_ZONES.map(zone => zone.place)
     ]),
     index => ({
       index,
@@ -43,7 +48,8 @@ const classic = {
             earliest_day: 0
           },
     index,
-    objects: index === 1 ? [0, 4] : [3]
+    objects: index === 1 ? [0, 4] : [3],
+    position: index === 6 ? null : { x: index * 8, y: 480 }
   }))
 };
 
@@ -229,7 +235,9 @@ test('invalid seeds, unimplemented axes and incompatible Scenario data fail loud
   for (const seed of [-1, 1.5, Number.NaN, Infinity, 0x1_00_00_00_00]) {
     expect(() => shuffleSetup(classic, seed, ['a'])).toThrow('32-bit');
   }
-  expect(() => shuffleSetup(classic, 1, ['a', 'c'])).toThrow('not implemented');
+  expect(() => shuffleSetup(classic, 1, ['a', 'd' as 'c'])).toThrow(
+    'not implemented'
+  );
   expect(() => shuffleSetup(classic, 1, ['a', 'a'])).toThrow('unique');
   expect(() =>
     shuffleSetup({ ...classic, object_placements: [] }, 1, ['a'])
@@ -250,6 +258,95 @@ test('invalid seeds, unimplemented axes and incompatible Scenario data fail loud
       ['a']
     )
   ).toThrow('distinct tiles');
+});
+
+const riderTile = (setup: SetupData, index: number) =>
+  tileOf(setup.roster.find(entry => entry.index === index)!.position!);
+
+const expectOutsideRiderZone = (
+  setup: SetupData,
+  tile: { x: number; y: number }
+) => {
+  for (const zone of NAZGUL_EXCLUSION_ZONES) {
+    const center = tileOf(
+      setup.places.find(place => place.index === zone.place)!.position
+    );
+    expect(
+      Math.max(Math.abs(tile.x - center.x), Math.abs(tile.y - center.y))
+    ).toBeGreaterThan(zone.marginTiles);
+  }
+};
+
+const expectNazgulLimits = (setup: SetupData) => {
+  for (const limit of NAZGUL_LIMITS) {
+    const rider = setup.roster.find(entry => entry.index === limit.roster)!;
+    expect(
+      limit.places.map(
+        index => setup.places.find(place => place.index === index)!.position
+      )
+    ).toContainEqual(rider.position!);
+    expectOutsideRiderZone(setup, riderTile(setup, limit.roster));
+  }
+};
+
+// Every roster entry with the riders' starts put back.
+const withClassicRiders = (setup: SetupData, base: SetupData) =>
+  setup.roster.map((entry, index) =>
+    entry.index >= 79 && entry.index <= 87
+      ? { ...entry, position: base.roster[index]!.position }
+      : entry
+  );
+
+test('Nazgûl limits cover exactly entries 79–87, each candidate outside the opening zone', () => {
+  expect(NAZGUL_LIMITS.map(limit => limit.roster)).toEqual(
+    Array.from({ length: 9 }, (_, i) => 79 + i)
+  );
+  for (const limit of NAZGUL_LIMITS) {
+    expect(limit.places.length).toBeGreaterThan(0);
+    expect(new Set(limit.places).size).toBe(limit.places.length);
+  }
+});
+
+test('1,000 Nazgûl seeds keep every rider in its candidates and outside the zone, changing nothing else', () => {
+  const before = structuredClone(classic);
+  for (let seed = 0; seed < 1000; seed++) {
+    const shuffled = shuffleSetup(classic, seed, ['c']);
+    expectNazgulLimits(shuffled);
+    expect(withClassicRiders(shuffled, classic)).toEqual(classic.roster);
+    expect({ ...shuffled, roster: classic.roster }).toEqual(classic);
+  }
+  expect(classic).toEqual(before);
+});
+
+test('with axis c off the Setup is unchanged, and c is independent of a, b and axis order', () => {
+  for (const seed of [0, 1, 42, 1234, 0xff_ff_ff_ff]) {
+    const ab = shuffleSetup(classic, seed, ['a', 'b']);
+    const c = shuffleSetup(classic, seed, ['c']);
+    const all = shuffleSetup(classic, seed, ['a', 'b', 'c']);
+    expect({ ...all, roster: withClassicRiders(all, classic) }).toEqual(ab);
+    expect(all.roster.slice(79, 88)).toEqual(c.roster.slice(79, 88));
+    expect(shuffleSetup(classic, seed, ['c', 'b', 'a'])).toEqual(all);
+    expect(shuffleSetup(classic, seed, ['c'])).toEqual(c);
+  }
+  expect(shuffleSetup(classic, 0, ['c'])).not.toEqual(
+    shuffleSetup(classic, 1, ['c'])
+  );
+});
+
+test('Nazgûl shuffling rejects a missing or unplaced rider and missing Places', () => {
+  for (const roster of [
+    classic.roster.filter(entry => entry.index !== 83),
+    classic.roster.map(entry =>
+      entry.index === 83 ? { ...entry, position: null } : entry
+    )
+  ]) {
+    expect(() => shuffleSetup({ ...classic, roster }, 0, ['c'])).toThrow(
+      'Classic roster'
+    );
+  }
+  expect(() => shuffleSetup({ ...classic, places: [] }, 0, ['c'])).toThrow(
+    'missing Place'
+  );
 });
 
 const asset = new URL(
@@ -309,6 +406,42 @@ describe.skipIf(!existsSync(asset))('exported Classic Setup', () => {
           )
         ).toContainEqual(slot!.position);
       });
+    }
+  });
+
+  test('every real rider candidate is outside the zone and out of reach of every Good Force, and 1,000 seeds load and tick without a fight', () => {
+    const raw = JSON.parse(readFileSync(asset, 'utf8')) as SetupData;
+    const before = createSim(99, raw);
+    const good = before.roster.filter(
+      entry =>
+        entry.allegiance !== 0 && entry.position !== null && entry.index <= 78
+    );
+    for (const limit of NAZGUL_LIMITS) {
+      for (const index of limit.places) {
+        const at = raw.places.find(place => place.index === index)!.position;
+        expectOutsideRiderZone(raw, tileOf(at));
+        for (const entry of good) {
+          expect(
+            Math.abs(entry.position!.x - at.x) > ROW_DISTANCE ||
+              Math.abs(entry.position!.y - at.y) > ROW_DISTANCE
+          ).toBe(true);
+        }
+      }
+    }
+    for (let seed = 0; seed < 1000; seed++) {
+      const shuffled = shuffleSetup(raw, seed, ['c']);
+      expectNazgulLimits(shuffled);
+      const after = createSim(99, shuffled);
+      expect(after.rng).toBe(before.rng);
+      expect({
+        ...after,
+        roster: after.roster.map((entry, index) =>
+          entry.index >= 79 && entry.index <= 87
+            ? { ...entry, position: before.roster[index]!.position }
+            : entry
+        )
+      }).toEqual(before);
+      expect(tickSim(after).fight).toBeNull();
     }
   });
 });

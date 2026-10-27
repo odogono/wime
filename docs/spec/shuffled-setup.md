@@ -19,10 +19,9 @@ Nothing draws from or changes `SimState.rng` during generation.
 
 - **a, objects:** implemented here.
 - **b, Encounters:** areas and first days, with chances fixed.
-- **c, Nazgûl:** reserved for #274; rider positions, with Default Orders fixed.
+- **c, Nazgûl:** the nine riders' start positions, with Default Orders fixed.
 
-Until implemented, requesting c fails explicitly. Unknown axes and
-invalid seeds also fail. No view, save, Demo or `createSim` changes are needed.
+Unknown axes and invalid seeds fail. No view, save, Demo or `createSim` changes are needed.
 
 ## Object limits
 
@@ -108,12 +107,52 @@ particular, review Círdan at Forlond (152), Treebeard at named Derndingle
 broad Encounters, so a fixed chance does not imply a fixed overall risk.
 The table deliberately gives story-bound figures singleton candidate sets.
 
+## Nazgûl limits
+
+Axis c changes only `position` in roster entries 79–87, the nine riders.
+Their destination and route, the Place queue of their Default Orders
+(`finding:ai-default-orders-are-place-queues`), stay as they are, so a
+moved rider rides from somewhere new toward the same Places. No other Evil
+Force moves, and every other roster field stays unchanged. Axes b and c
+both write the roster but change disjoint fields, and each draws only from
+its own stream, so any order and combination of axes gives the same
+result. Turning c off gives exactly the result of the other axes.
+
+`NAZGUL_LIMITS` in `setup-limits.ts` has one row per rider, identified by
+roster number. Each row lists candidate Places in the western Shire and
+Bree-land, and its design reason. Axis c's stream draws one Place uniformly
+per row, in row order, and the rider starts at that Place's exact position.
+Riders may share a Place: they are one side and never fight each other, so
+the object axis's distinct-tile rule is not needed.
+
+`NAZGUL_EXCLUSION_ZONES` reserves Hobbiton (Place 2) and every tile within a
+Chebyshev distance of two tiles, as for Encounters. A rider meets a Force
+within 7 pixels (`MEETING_DISTANCE`), under half a tile, so the margin gives
+the Ring-bearer at least two tiles' head start whichever way it leaves.
+Waymeet, Tuckborough and Green Hills fall inside the zone, so the shuffle
+never starts a rider where three of the Classic riders start; the Classic
+third rider is a tile from Hobbiton. Bree and Buckland are not candidates:
+Aragorn and Merry stand within a rider's reach of them at the start. Tests
+check every real candidate against the zone and against every Good Force's
+starting position, and that 1,000 Setups load and take a first tick
+without a fight.
+
+The "Ring-bearer near" trigger (`finding:ai-trigger-conditions`) cannot fire
+from a moved rider. It is tested only for entries whose trigger byte has
+bit 0 set, and it compares the Ring-bearer with that waiting entry. The
+riders start awake with a trigger byte of 0, and no waiting entry moves, so
+no start, on the first tick or later, fires it.
+
+**Design review priorities:** the two-tile margin, the Lord's wide row
+(79), the Midgewater and Deadman's Dike reaches (84, 86, 87), and rider 85's
+westward swing to Michel Delving. All rows are provisional.
+
 ## Survey
 
 `bun run survey` accepts `--setup classic|shuffled`, `--setup-seeds N`, and
 `--axes a,b,c` in addition to its existing options. The defaults remain
 Classic, one Setup seed, and axis a. `--axes ''` disables every axis.
-Reserved axes fail rather than silently giving a partial shuffle.
+Unknown axes fail rather than silently giving a partial shuffle.
 
 For Shuffled Setup it crosses every sim seed in `[from, from + seeds)` with
 every Setup seed in `[0, setup-seeds)`. Thus 100 sim seeds and 10 Setup seeds
@@ -132,4 +171,5 @@ decisions with multiple object acts, remain unattributed. This is a
 conservative attribution, not a claim that every failed act was caused by
 shuffling. Axis b changes passive Encounters, which are not object acts;
 its failed-act column stays zero rather than attributing incidental failures
-to an Encounter. No win-rate threshold is a CI check.
+to an Encounter. The same holds for axis c: no Player act depends on a
+rider's position. No win-rate threshold is a CI check.
