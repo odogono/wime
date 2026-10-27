@@ -25,6 +25,7 @@
     "survey": "bun tools/survey.ts",
     "export:web": "bun tools/export-web.ts",
     "build-geography": "bun tools/build-geography.ts",
+    "trace-emblem": "bun tools/trace-emblem.ts",
     "extract-all": "bun tools/extract-all.ts",
     "fs-uae:setup": "bun tools/fs-uae/setup.ts",
     "dev": "bun run --cwd web dev",
@@ -48,6 +49,7 @@
     "earcut": "^3.2.4",
     "eslint": "^10.8.1",
     "prettier": "^3.9.6",
+    "svgo": "^4.1.0",
     "typescript": "^5.9.0"
   },
   "dependencies": {
