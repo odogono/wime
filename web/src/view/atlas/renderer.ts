@@ -35,7 +35,14 @@ export interface Quad {
   y: number;
 }
 
-export const QuadMode = { circle: 2, glyph: 1, sprite: 0, square: 3 } as const;
+export const QuadMode = {
+  circle: 2,
+  glyph: 1,
+  // A Place's ink picture; `edge` carries its PICTOGRAMS index.
+  pictogram: 4,
+  sprite: 0,
+  square: 3
+} as const;
 export type QuadMode = (typeof QuadMode)[keyof typeof QuadMode];
 
 const hex = (value: string): [number, number, number] => {
@@ -311,9 +318,115 @@ uniform sampler2D u_font;
 uniform vec2 u_spriteSize;
 uniform vec2 u_fontSize;
 uniform vec3 u_ink;
+uniform vec3 u_paper;
 out vec4 colour;
+
+float box(vec2 p, vec2 c, vec2 h) {
+  vec2 d = abs(p - c) - h;
+  return length(max(d, 0.0)) + min(max(d.x, d.y), 0.0);
+}
+float tri(vec2 p, vec2 a, vec2 b, vec2 c) {
+  vec2 e0 = b - a, e1 = c - b, e2 = a - c;
+  vec2 v0 = p - a, v1 = p - b, v2 = p - c;
+  vec2 pq0 = v0 - e0 * clamp(dot(v0, e0) / dot(e0, e0), 0.0, 1.0);
+  vec2 pq1 = v1 - e1 * clamp(dot(v1, e1) / dot(e1, e1), 0.0, 1.0);
+  vec2 pq2 = v2 - e2 * clamp(dot(v2, e2) / dot(e2, e2), 0.0, 1.0);
+  float s = sign(e0.x * e2.y - e0.y * e2.x);
+  vec2 d = min(min(vec2(dot(pq0, pq0), s * (v0.x * e0.y - v0.y * e0.x)),
+                   vec2(dot(pq1, pq1), s * (v1.x * e1.y - v1.y * e1.x))),
+                   vec2(dot(pq2, pq2), s * (v2.x * e2.y - v2.y * e2.x)));
+  return -sqrt(d.x) * sign(d.y);
+}
+float house(vec2 p, vec2 c, float s) {
+  return min(box(p, c + vec2(0.0, 0.25) * s, vec2(0.45, 0.32) * s),
+             tri(p, c + vec2(0.0, -0.55) * s, c + vec2(-0.62, -0.05) * s, c + vec2(0.62, -0.05) * s));
+}
+
+// A Place's picture as two signed distances, x for its paper body and y
+// for solid ink, in its square from -1 to 1 with y down. The body is
+// outlined in ink.
+vec2 pictogram(int k, vec2 p) {
+  const float NONE = 1e3;
+  if (k == 1) { // town: a cluster of houses
+    return vec2(min(min(house(p, vec2(-0.42, 0.18), 0.85), house(p, vec2(0.42, 0.3), 0.75)), house(p, vec2(0.0, -0.22), 0.8)), NONE);
+  }
+  if (k == 2) { // city: a ring wall about a tower
+    float wall = abs(length(p - vec2(0.0, 0.1)) - 0.72) - 0.12;
+    float keep = min(box(p, vec2(0.0, 0.05), vec2(0.2, 0.42)), tri(p, vec2(0.0, -0.75), vec2(-0.3, -0.35), vec2(0.3, -0.35)));
+    return vec2(min(wall, keep), NONE);
+  }
+  if (k == 3) { // castle: a crenellated wall and keep
+    float wall = box(p, vec2(0.0, 0.42), vec2(0.78, 0.3));
+    float merlons = min(min(box(p, vec2(-0.62, 0.0), vec2(0.15, 0.14)), box(p, vec2(0.62, 0.0), vec2(0.15, 0.14))), box(p, vec2(0.0, -0.3), vec2(0.26, 0.45)));
+    float gate = box(p, vec2(0.0, 0.57), vec2(0.13, 0.16));
+    return vec2(min(wall, merlons), gate);
+  }
+  if (k == 4) { // ruin: broken walls and rubble
+    float a = box(p, vec2(-0.45, 0.2), vec2(0.17, 0.5));
+    float b = box(p, vec2(0.38, 0.42), vec2(0.17, 0.28));
+    float rubble = box(p, vec2(0.0, 0.78), vec2(0.8, 0.06));
+    return vec2(min(a, b), rubble);
+  }
+  if (k == 5) { // tower: one tall dark tower, horned
+    float t = min(box(p, vec2(0.0, 0.12), vec2(0.2, 0.78)),
+                  min(tri(p, vec2(-0.32, -0.95), vec2(-0.2, -0.6), vec2(-0.05, -0.6)), tri(p, vec2(0.32, -0.95), vec2(0.05, -0.6), vec2(0.2, -0.6))));
+    return vec2(NONE, t);
+  }
+  if (k == 6) { // citadel: jagged black towers
+    float t = min(box(p, vec2(0.0, 0.25), vec2(0.42, 0.62)),
+                  min(min(tri(p, vec2(-0.3, -0.95), vec2(-0.42, -0.35), vec2(-0.12, -0.35)), tri(p, vec2(0.3, -0.85), vec2(0.12, -0.35), vec2(0.42, -0.35))),
+                      tri(p, vec2(0.0, -0.6), vec2(-0.14, -0.35), vec2(0.14, -0.35))));
+    return vec2(NONE, t);
+  }
+  if (k == 7) { // gate: a wall with a dark arch
+    float wall = box(p, vec2(0.0, 0.2), vec2(0.88, 0.5));
+    float arch = min(length(p - vec2(0.0, 0.3)) - 0.28, box(p, vec2(0.0, 0.5), vec2(0.28, 0.2)));
+    return vec2(wall, arch);
+  }
+  if (k == 8) { // elven: a great tree over a small arched hall
+    float crown = length(p - vec2(0.0, -0.3)) - 0.52;
+    float trunk = box(p, vec2(0.0, 0.35), vec2(0.07, 0.3));
+    float hall = min(length(p - vec2(0.0, 0.62)) - 0.22, box(p, vec2(0.0, 0.75), vec2(0.22, 0.13)));
+    return vec2(min(crown, hall), trunk);
+  }
+  if (k == 9) { // hold: a mountain with a door at its foot
+    float mountain = tri(p, vec2(0.0, -0.9), vec2(-0.95, 0.78), vec2(0.95, 0.78));
+    float door = min(length(p - vec2(0.0, 0.48)) - 0.18, box(p, vec2(0.0, 0.64), vec2(0.18, 0.14)));
+    return vec2(mountain, door);
+  }
+  if (k == 10) { // bridge: an arch under a deck
+    float deck = box(p, vec2(0.0, -0.05), vec2(0.92, 0.09));
+    float arch = max(abs(length(p - vec2(0.0, 0.75)) - 0.62) - 0.08, p.y - 0.7);
+    float piers = min(box(p, vec2(-0.78, 0.35), vec2(0.08, 0.38)), box(p, vec2(0.78, 0.35), vec2(0.08, 0.38)));
+    return vec2(NONE, min(min(deck, arch), piers));
+  }
+  if (k == 11) { // ford: stepping stones across the water
+    float d = min(min(length(p - vec2(-0.6, 0.15)), length(p - vec2(0.0, -0.05))), length(p - vec2(0.6, 0.15))) - 0.2;
+    return vec2(d, NONE);
+  }
+  if (k == 12) { // volcano: a black cone, its crater aglow
+    float cone = max(tri(p, vec2(0.0, -1.3), vec2(-0.95, 0.8), vec2(0.95, 0.8)), -(p.y + 0.45));
+    return vec2(NONE, cone);
+  }
+  return vec2(NONE);
+}
+
 void main() {
-  if (v_mode == 0) {
+  if (v_mode == 4) {
+    vec2 d = pictogram(int(v_edge + 0.5), v_uv);
+    float aa = fwidth(v_uv.x) * 1.2;
+    float w = max(0.06, aa * 1.1);
+    float body = 1.0 - smoothstep(-aa, aa, d.x);
+    float rim = 1.0 - smoothstep(w - aa, w + aa, abs(d.x));
+    float solid = 1.0 - smoothstep(-aa, aa, d.y);
+    float ink = max(rim, solid);
+    float a = max(body, ink);
+    if (a < 0.01) discard;
+    vec3 c = mix(u_paper, u_ink, ink);
+    // Mt. Doom's crater glows.
+    if (int(v_edge + 0.5) == 12 && v_uv.y < -0.3 && abs(v_uv.x) < 0.3) c = vec3(0.75, 0.2, 0.1);
+    colour = vec4(c, a * v_colour.a);
+  } else if (v_mode == 0) {
     vec4 t = texture(u_sprites, v_uv / u_spriteSize);
     if (t.a < 0.5) discard;
     colour = t;
@@ -636,7 +749,10 @@ export class AtlasRenderer {
     const data = new Float32Array(quads.length * 6 * 10);
     let i = 0;
     for (const q of quads) {
-      const marker = q.mode === QuadMode.circle || q.mode === QuadMode.square;
+      const marker =
+        q.mode === QuadMode.circle ||
+        q.mode === QuadMode.square ||
+        q.mode === QuadMode.pictogram;
       const [u0, v0, u1, v1] = marker
         ? [-1, -1, 1, 1]
         : [q.u0!, q.v0!, q.u1!, q.v1!];
@@ -663,6 +779,7 @@ export class AtlasRenderer {
     gl.uniform2f(u('u_spriteSize'), ...this.spriteSize);
     gl.uniform2f(u('u_fontSize'), ...this.fontSize);
     gl.uniform3f(u('u_ink'), ...hex(INK));
+    gl.uniform3f(u('u_paper'), ...hex('#f4ead0'));
     gl.bindVertexArray(this.screen.vao);
     gl.bindBuffer(gl.ARRAY_BUFFER, this.screen.buffer);
     gl.bufferData(gl.ARRAY_BUFFER, data, gl.STREAM_DRAW);

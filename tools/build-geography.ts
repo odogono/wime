@@ -480,7 +480,11 @@ interface Tilemap {
 
 interface SourceData {
   atlas: PNG;
-  places: { name: string; position: { x: number; y: number } }[];
+  places: {
+    name: string;
+    position: { x: number; y: number };
+    tile_kind: string | null;
+  }[];
   strongholds: Set<string>;
   terrainByTile: number[];
   tilemap: Tilemap;
@@ -1098,6 +1102,36 @@ export const scatterSymbols = (
   return features;
 };
 
+// The ink pictures Places are drawn with. `area` is a named stretch of
+// country, lettered but not pictured.
+export const PICTOGRAMS = [
+  'area',
+  'town',
+  'city',
+  'castle',
+  'ruin',
+  'tower',
+  'citadel',
+  'gate',
+  'elven',
+  'hold',
+  'bridge',
+  'ford',
+  'volcano'
+] as const;
+export type Pictogram = (typeof PICTOGRAMS)[number];
+
+// Each kind of Place the data names (finding:places-kinds-matched-by-map-tile)
+// and its picture. Places with no kind get theirs from a patch.
+const PICTOGRAM_BY_KIND: Record<string, Pictogram> = {
+  'a castle': 'castle',
+  'a large town': 'city',
+  'an evil citadel': 'citadel',
+  'a ruin': 'ruin',
+  'a ruined castle': 'ruin',
+  'a small town': 'town'
+};
+
 export const placeLabels = (source: SourceData): GeographyFeature[] =>
   source.places.map(place => ({
     geometry: {
@@ -1108,6 +1142,7 @@ export const placeLabels = (source: SourceData): GeographyFeature[] =>
       id: `place:${place.name}`,
       layer: 'place',
       name: place.name,
+      pictogram: PICTOGRAM_BY_KIND[place.tile_kind ?? ''] ?? 'area',
       rank: source.strongholds.has(place.name) ? 0 : 1
     },
     type: 'Feature'
@@ -1141,8 +1176,10 @@ export const applyPatches = (
         if (!old) {
           throw new Error(`patch replaces unknown ${id}`);
         }
+        // A patch with no geometry changes only properties.
         byId.set(id, {
           ...feature,
+          geometry: feature.geometry ?? old.geometry,
           properties: { ...old.properties, ...properties }
         });
       } else {
@@ -1266,7 +1303,14 @@ export interface BundleHeader {
   fillChunks: { firstIndex: number; firstVertex: number }[];
   fixedPoint: number;
   lineStyles: readonly string[];
-  places: { name: string; rank: number; x: number; y: number }[];
+  pictograms: readonly string[];
+  places: {
+    name: string;
+    pictogram: number;
+    rank: number;
+    x: number;
+    y: number;
+  }[];
   regionKinds: readonly string[];
   regionLabels: { name: string; rank: number; x: number; y: number }[];
   sections: Record<SectionName, { count: number; offset: number }>;
@@ -1375,6 +1419,7 @@ export const compileBundle = (geography: Geography): Uint8Array => {
     fillChunks: fill.chunks,
     fixedPoint: FIXED_POINT,
     lineStyles: LINE_STYLES,
+    pictograms: PICTOGRAMS,
     places: [],
     regionKinds: GROUND_KINDS,
     regionLabels: [],
@@ -1466,6 +1511,7 @@ export const compileBundle = (geography: Geography): Uint8Array => {
       const [x, y] = f.geometry.coordinates as Point;
       header.places.push({
         name: f.properties.name as string,
+        pictogram: PICTOGRAMS.indexOf(f.properties.pictogram as Pictogram),
         rank: f.properties.rank as number,
         x,
         y

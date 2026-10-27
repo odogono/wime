@@ -197,6 +197,23 @@ interface Drawn {
 }
 let drawn: Drawn[] = [];
 
+const AREA = bundle.pictograms.indexOf('area');
+// A Place's picture grows with the map, between a least and greatest size
+// in CSS pixels; Strongholds are drawn larger.
+const pictogramSize = (rank: number): number =>
+  Math.min(40, Math.max(14, 16 * camera.zoom)) * (rank === 0 ? 1.25 : 1);
+// The pictured Place a Force stands on, if any: Places are a tile apart
+// at least, so within half a tile is on it.
+const pictureUnder = (
+  force: Force
+): (typeof bundle.places)[number] | undefined =>
+  bundle.places.find(
+    p =>
+      p.pictogram !== AREA &&
+      Math.abs(p.x - force.position.x - SPRITE_SIZE / 2) <= 8 &&
+      Math.abs(p.y - force.position.y - SPRITE_SIZE / 2) <= 8
+  );
+
 const isImportant = (force: Force): boolean =>
   selected.has(force.leader.index) ||
   (sim.ringBearer !== null &&
@@ -240,8 +257,14 @@ const frame = (): void => {
       const scale = spriteScale(camera.zoom, dpr);
       const size = SPRITE_SIZE * scale;
       const src = iconSourceRect(force.leader.icon);
+      // A Force standing on a pictured Place stands beside its picture,
+      // so the picture stays in view.
+      const place = pictureUnder(force);
+      const beside = place
+        ? (pictogramSize(place.rank) * dpr) / 2 + size / 2
+        : 0;
       // Whole device pixels, so the sprite stays crisp.
-      const x = Math.round(sx * dpr - size / 2);
+      const x = Math.round(sx * dpr - size / 2 + beside);
       const y = Math.round(sy * dpr - size / 2);
       if (selected.has(force.leader.index)) {
         markers.push({
@@ -359,6 +382,7 @@ const frame = (): void => {
       const [sx, sy] = toScreen(r.x, r.y);
       return {
         box: { height: px, width, x: sx - width / 2, y: sy - px / 2 },
+        colour: REGION_INK,
         opacity,
         px,
         text: r.name,
@@ -376,8 +400,17 @@ const frame = (): void => {
       const text = p.name.toUpperCase();
       const width = measure(font, text, px, tracking);
       const [sx, sy] = toScreen(p.x, p.y);
+      // Named country is lettered where it lies; a pictured Place is
+      // lettered under its picture.
+      const area = p.pictogram === AREA;
       return {
-        box: { height: px, width, x: sx - width / 2, y: sy + 9 },
+        box: {
+          height: px,
+          width,
+          x: sx - width / 2,
+          y: area ? sy - px / 2 : sy + pictogramSize(p.rank) / 2 + 2
+        },
+        colour: area ? REGION_INK : INK,
         opacity: 1,
         px,
         text,
@@ -397,24 +430,23 @@ const frame = (): void => {
       l.box.x,
       l.box.y + l.px * 0.8,
       l.px,
-      l.px >= 15 && regionLabels.some(r => r.text === l.text)
-        ? REGION_INK
-        : INK,
+      l.colour,
       PAPER,
       l.tracking,
       l.opacity
     )
   );
-  // Each Place's own mark: a small inked ring.
+  // Each pictured Place's ink picture.
   const places = bundle.places
-    .filter(p => camera.zoom >= rankZoom(p.rank, range))
+    .filter(p => p.pictogram !== AREA && camera.zoom >= rankZoom(p.rank, range))
     .map((p): Quad => {
       const [sx, sy] = toScreen(p.x, p.y);
-      const size = p.rank === 0 ? 9 : 6;
+      const size = pictogramSize(p.rank);
       return {
-        colour: rgba(PAPER),
+        colour: [1, 1, 1, 1],
+        edge: p.pictogram,
         h: size * dpr,
-        mode: QuadMode.circle,
+        mode: QuadMode.pictogram,
         w: size * dpr,
         x: (sx - size / 2) * dpr,
         y: (sy - size / 2) * dpr

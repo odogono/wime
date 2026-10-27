@@ -18,7 +18,15 @@ export interface GeographyBundle extends Record<SectionName, Section> {
   // Map coordinates are stored multiplied by this.
   fixedPoint: number;
   lineStyles: string[];
-  places: { name: string; rank: number; x: number; y: number }[];
+  // Each Place's picture, an index into `pictograms`.
+  pictograms: string[];
+  places: {
+    name: string;
+    pictogram: number;
+    rank: number;
+    x: number;
+    y: number;
+  }[];
   regionKinds: string[];
   regionLabels: { name: string; rank: number; x: number; y: number }[];
   symbolKinds: string[];
@@ -63,6 +71,7 @@ export const parseBundle = (buffer: ArrayBuffer): GeographyBundle => {
     fixedPoint: header.fixedPoint,
     linePoints: section('linePoints'),
     lineStyles: header.lineStyles,
+    pictograms: header.pictograms,
     places: header.places,
     regionKinds: header.regionKinds,
     regionLabels: header.regionLabels,
