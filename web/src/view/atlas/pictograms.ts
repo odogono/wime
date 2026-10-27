@@ -31,7 +31,164 @@ const ellipse = (cx: number, cy: number, rx: number, ry: number): string =>
 const outlined = (d: string, stroke = 2.6): Part => ({ body: true, d, stroke });
 const ground = (d: string): Part => ({ d, stroke: 2.2 });
 
+// A mountain peak after Tolkien's maps: a paper body under an open,
+// kinked ridge line, with short hachures down its eastern slope only.
+// `ridge` runs from the western foot over the summit to the eastern foot,
+// on a baseline at y 56.
+const peak = (ridge: [number, number][], hachures: number): Part[] => {
+  const summit = ridge.reduce(
+    (best, p, i) => (p[1] < ridge[best]![1] ? i : best),
+    0
+  );
+  const east = ridge.slice(summit);
+  const lengths = east
+    .slice(1)
+    .map((p, i) => Math.hypot(p[0] - east[i]![0], p[1] - east[i]![1]));
+  const total = lengths.reduce((a, b) => a + b, 0);
+  const at = (t: number): [number, number] => {
+    let left = t * total;
+    for (const [i, len] of lengths.entries()) {
+      if (left <= len) {
+        const [ax, ay] = east[i]!;
+        const [bx, by] = east[i + 1]!;
+        return [ax + ((bx - ax) * left) / len, ay + ((by - ay) * left) / len];
+      }
+      left -= len;
+    }
+    return east.at(-1)!;
+  };
+  // Each hachure starts just inside the slope and runs down and in, shorter
+  // towards the foot.
+  const strokes = Array.from({ length: hachures }, (_, i) => {
+    const [x, y] = at((i + 0.7) / (hachures + 0.9));
+    const len = Math.min(14, (56 - y) * 0.5);
+    return `M${x - 1.2} ${y + 1.5} l${-len * 0.42} ${len}`;
+  }).join(' ');
+  const line = ridge.map(([x, y], i) => `${i ? 'L' : 'M'}${x} ${y}`).join(' ');
+  return [
+    { body: true, d: `${line} Z` },
+    { d: strokes, stroke: 2.3 },
+    { d: line, stroke: 3.4 }
+  ];
+};
+
+// Eight peaks, from tall spires to low foothills: PEAKS in size order.
+export const PEAK_ART: Record<string, Part[]> = {
+  'peak-low': peak(
+    [
+      [4, 56],
+      [14, 46],
+      [24, 36],
+      [32, 32],
+      [40, 38],
+      [50, 47],
+      [60, 56]
+    ],
+    2
+  ),
+  'peak-low-double': peak(
+    [
+      [4, 56],
+      [12, 46],
+      [20, 38],
+      [27, 43],
+      [36, 33],
+      [44, 41],
+      [52, 48],
+      [60, 56]
+    ],
+    2
+  ),
+  'peak-mid': peak(
+    [
+      [6, 56],
+      [16, 45],
+      [24, 34],
+      [32, 22],
+      [38, 30],
+      [44, 36],
+      [50, 45],
+      [58, 56]
+    ],
+    3
+  ),
+  'peak-mid-lean': peak(
+    [
+      [6, 56],
+      [14, 42],
+      [20, 30],
+      [24, 24],
+      [30, 32],
+      [40, 42],
+      [48, 48],
+      [58, 56]
+    ],
+    3
+  ),
+  'peak-mid-shoulder': peak(
+    [
+      [4, 56],
+      [12, 48],
+      [18, 40],
+      [22, 42],
+      [30, 28],
+      [34, 24],
+      [40, 32],
+      [46, 40],
+      [54, 48],
+      [60, 56]
+    ],
+    3
+  ),
+  'peak-tall-broad': peak(
+    [
+      [3, 56],
+      [13, 45],
+      [19, 38],
+      [26, 26],
+      [34, 9],
+      [39, 19],
+      [44, 28],
+      [50, 40],
+      [61, 56]
+    ],
+    5
+  ),
+  'peak-tall-spire': peak(
+    [
+      [8, 56],
+      [16, 46],
+      [20, 38],
+      [24, 30],
+      [28, 16],
+      [31, 5],
+      [34, 14],
+      [38, 24],
+      [42, 34],
+      [48, 44],
+      [56, 56]
+    ],
+    5
+  ),
+  'peak-tall-twin': peak(
+    [
+      [4, 56],
+      [14, 43],
+      [21, 31],
+      [25, 22],
+      [29, 27],
+      [36, 11],
+      [42, 23],
+      [48, 36],
+      [60, 56]
+    ],
+    5
+  )
+};
+export const PEAKS = Object.keys(PEAK_ART);
+
 export const PICTOGRAM_ART: Record<string, Part[]> = {
+  ...PEAK_ART,
   // Water and stepping stones across it, on the diagonal.
   ford: [
     ground('M2 24 Q11 20 20 24'),

@@ -6,6 +6,7 @@ import {
   assembleRegions,
   components,
   followSkeleton,
+  insideDistance,
   signedArea,
   smooth,
   thin,
@@ -194,5 +195,21 @@ describe('traceCrossings', () => {
     expect(crossings.map(c => [c.properties.kind, c.properties.place])).toEqual(
       [['ford', 'F']]
     );
+  });
+});
+
+describe('insideDistance', () => {
+  test('measures how deep each cell lies inside the mask', () => {
+    // A 7 by 7 block inside a 9 by 9 grid, 2 map pixels a cell.
+    const size = 9;
+    const mask = new Uint8Array(size * size);
+    for (let y = 1; y <= 7; y++) {
+      for (let x = 1; x <= 7; x++) {
+        mask[y * size + x] = 1;
+      }
+    }
+    const d = insideDistance(mask, size, size, 2);
+    const row = Array.from(d.slice(4 * size, 5 * size));
+    expect(row).toEqual([0, 2, 4, 6, 8, 6, 4, 2, 0]);
   });
 });

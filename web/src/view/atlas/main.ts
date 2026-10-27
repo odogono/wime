@@ -25,7 +25,7 @@ import {
   type Tier,
   type ZoomRange
 } from './lod';
-import { buildPictogramAtlas } from './pictograms';
+import { PEAKS, buildPictogramAtlas } from './pictograms';
 import { AtlasRenderer, INK, PAPER, QuadMode, type Quad } from './renderer';
 import { buildSdfFont, measure, type SdfFont } from './sdf-font';
 
@@ -58,7 +58,7 @@ const [assets, bundle] = await Promise.all([
 const font: SdfFont = buildSdfFont(
   " ABCDEFGHIJKLMNOPQRSTUVWXYZÛabcdefghijklmnopqrstuvwxyz0123456789'-.,()&"
 );
-const pictograms = buildPictogramAtlas(bundle.pictograms);
+const pictograms = buildPictogramAtlas([...bundle.pictograms, ...PEAKS]);
 const renderer = new AtlasRenderer(
   canvas,
   bundle,

@@ -3,7 +3,7 @@
 // terrain symbols, and then a screen-space layer of Force sprites,
 // markers and lettering built fresh each frame.
 import { NO_SEGMENT, type GeographyBundle } from './bundle';
-import type { PictogramAtlas } from './pictograms';
+import { PEAKS, type PictogramAtlas } from './pictograms';
 import type { SdfFont } from './sdf-font';
 
 export interface View {
@@ -75,7 +75,7 @@ const LINE_STYLE: Record<string, { colour: string; width: number }> = {
 const DASH = [5, 3];
 // Each symbol's size in map pixels.
 // Tree, peak, hill, marsh, bridge, ford.
-const SYMBOL_SIZE = [10, 15, 13, 11, 16, 16];
+const SYMBOL_SIZE = [10, 17, 13, 11, 16, 16];
 
 const compile = (
   gl: WebGL2RenderingContext,
@@ -200,6 +200,7 @@ layout(location = 4) in float a_rank;
 layout(location = 5) in float a_angle; // 0 to 255 over half a turn
 uniform float u_sizes[6]; // device pixels
 uniform float u_mapScale; // device pixels per map pixel
+uniform float u_peakPad; // an atlas cell's size over its drawing's
 uniform float u_maxRank;
 uniform vec2 u_pixel;
 out vec2 v_local;
@@ -211,6 +212,9 @@ void main() {
   float size = a_rank > u_maxRank ? 0.0 : u_sizes[k] * (0.85 + a_variant * 0.12);
   // A crossing spans its water: its variant is that width in map pixels.
   if (k >= 4) size = max(u_sizes[k], (a_variant + 8.0) * u_mapScale);
+  // A peak's variant is its size class times 3 plus its lean.
+  // Its quad covers the atlas cell, margin and all.
+  if (k == 1 && a_rank <= u_maxRank) size = u_sizes[k] * (0.9 + floor(a_variant / 3.0) * 0.3) * u_peakPad;
   v_local = a_corner;
   v_kind = k;
   v_variant = a_variant;
@@ -231,6 +235,10 @@ uniform vec3 u_ink;
 uniform vec3 u_paper;
 uniform vec3 u_leaf;
 uniform vec3 u_marsh;
+uniform sampler2D u_pictograms;
+uniform vec2 u_pictogramSize;
+uniform vec2 u_peakCells[8]; // each peak shape's cell origin, in texels
+uniform float u_peakCell; // a cell's size, in texels
 out vec4 colour;
 float stroke(float d, float w, float aa) { return 1.0 - smoothstep(w - aa, w + aa, abs(d)); }
 float fill(float d, float aa) { return 1.0 - smoothstep(-aa, aa, d); }
@@ -261,14 +269,20 @@ void main() {
     float ink = max(stroke(crown, w, aa), fill(trunk, aa));
     c = mix(c, vec4(u_ink, 1.0), ink);
   } else if (v_kind == 1) {
-    // A peak: an inked triangle, its eastern face hatched.
-    float lean = (v_variant - 1.0) * 0.12;
-    vec2 a = vec2(lean, -0.9), b = vec2(-0.92, 0.75), d = vec2(0.92, 0.75);
-    float t = sdTriangle(p, a, b, d);
-    float body = fill(t, aa);
-    float hatch = stroke(fract((p.x - p.y * 0.6) * 3.2) - 0.5, 0.12, 0.08) * step(lean, p.x) * body;
-    c = vec4(u_paper, body);
-    c = mix(c, vec4(u_ink, 1.0), max(stroke(t, w, aa) * step(p.y, 0.74), hatch * 0.8));
+    // A peak, drawn from the pictogram atlas: red is ink, green paper.
+    int size = int(v_variant / 3.0);
+    int lean = int(mod(v_variant, 3.0));
+    int shape = size == 0 ? 6 + lean % 2
+      : size == 1 ? (lean == 0 ? 3 : 6 + lean % 2)
+      : size == 2 ? 3 + lean
+      : size == 3 ? (lean == 2 ? 4 : lean)
+      : lean;
+    vec2 uv = u_peakCells[shape] + (p * 0.5 + 0.5) * u_peakCell;
+    vec2 t = texture(u_pictograms, uv / u_pictogramSize).rg;
+    float edge = max(fwidth(t.r), fwidth(t.g)) * 0.75;
+    float ink = smoothstep(0.5 - edge, 0.5 + edge, t.r);
+    float body = smoothstep(0.5 - edge, 0.5 + edge, t.g);
+    c = vec4(mix(u_paper, u_ink, ink), max(ink, body));
   } else if (v_kind == 2) {
     // A hill: a rounded mound, inked over its crest, its eastern flank
     // shaded with short strokes, as on Tolkien's maps.
@@ -409,6 +423,9 @@ export class AtlasRenderer {
   };
   private readonly spriteSize: [number, number];
   private readonly pictogramSize: [number, number];
+  private readonly peakCells: number[];
+  private readonly peakCell: number;
+  private readonly peakMargin: number;
   private readonly fontSize: [number, number];
   private readonly lineStyles: string[];
 
@@ -597,6 +614,12 @@ export class AtlasRenderer {
       gl.LINEAR
     );
     this.pictogramSize = [pictograms.texture.width, pictograms.texture.height];
+    this.peakCells = PEAKS.flatMap(name => {
+      const cell = pictograms.cells.get(name);
+      return cell ? [cell.u, cell.v] : [0, 0];
+    });
+    this.peakCell = pictograms.cell;
+    this.peakMargin = pictograms.margin;
     this.spriteSize = [sprites.width, sprites.height];
     this.fontSize = [font.texture.width, font.texture.height];
   }
@@ -688,6 +711,14 @@ export class AtlasRenderer {
     );
     gl.uniform1f(u('u_maxRank'), maxRank);
     gl.uniform1f(u('u_mapScale'), view.zoom * view.devicePixelRatio);
+    gl.uniform1i(u('u_pictograms'), 2);
+    gl.uniform2f(u('u_pictogramSize'), ...this.pictogramSize);
+    gl.uniform2fv(u('u_peakCells'), this.peakCells);
+    gl.uniform1f(u('u_peakCell'), this.peakCell);
+    gl.uniform1f(
+      u('u_peakPad'),
+      this.peakCell / (this.peakCell - this.peakMargin * 2)
+    );
     gl.uniform2f(u('u_pixel'), ...pixel);
     gl.uniform3f(u('u_ink'), ...hex(INK));
     gl.uniform3f(u('u_paper'), ...hex('#efe4c8'));

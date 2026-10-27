@@ -1239,7 +1239,6 @@ export const scatterSymbols = (
   const spacing: Partial<Record<SymbolKind, number>> = {
     hill: 12,
     marsh: 7,
-    peak: 13,
     tree: 9
   };
   const kindFor: Partial<Record<GroundKind, SymbolKind>> = {
@@ -1295,6 +1294,170 @@ export const scatterSymbols = (
     }
   }
   return features;
+};
+
+// ---------------------------------------------------------------------------
+// Mountain ranges: peaks lined up along each range's spine, larger where
+// the range is broad, with smaller foothills towards its edges, as
+// Tolkien drew them. A peak's variant packs its size class (0 to 4) and
+// its lean (0 to 2) as size × 3 + lean.
+
+// Distance in map pixels from each cell of a mask to the nearest cell
+// outside it, by a two-pass chamfer.
+export const insideDistance = (
+  mask: Uint8Array,
+  width: number,
+  height: number,
+  step: number
+): Float32Array => {
+  const d = new Float32Array(mask.length);
+  for (let i = 0; i < mask.length; i++) {
+    d[i] = mask[i] ? 1e9 : 0;
+  }
+  const a = step;
+  const b = step * Math.SQRT2;
+  const relax = (i: number, j: number, cost: number): void => {
+    if (d[j]! + cost < d[i]!) {
+      d[i] = d[j]! + cost;
+    }
+  };
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const i = y * width + x;
+      if (!d[i]) {
+        continue;
+      }
+      // Off the map counts as outside.
+      if (x === 0 || y === 0 || x === width - 1 || y === height - 1) {
+        d[i] = Math.min(d[i]!, a);
+      }
+      if (x > 0) {
+        relax(i, i - 1, a);
+      }
+      if (y > 0) {
+        relax(i, i - width, a);
+      }
+      if (x > 0 && y > 0) {
+        relax(i, i - width - 1, b);
+      }
+      if (x < width - 1 && y > 0) {
+        relax(i, i - width + 1, b);
+      }
+    }
+  }
+  for (let y = height - 1; y >= 0; y--) {
+    for (let x = width - 1; x >= 0; x--) {
+      const i = y * width + x;
+      if (!d[i]) {
+        continue;
+      }
+      if (x < width - 1) {
+        relax(i, i + 1, a);
+      }
+      if (y < height - 1) {
+        relax(i, i + width, a);
+      }
+      if (x < width - 1 && y < height - 1) {
+        relax(i, i + width + 1, b);
+      }
+      if (x > 0 && y < height - 1) {
+        relax(i, i + width - 1, b);
+      }
+    }
+  }
+  return d;
+};
+
+// A peak's size class from how far it stands inside its range.
+const peakSize = (inside: number): number =>
+  inside < 6 ? 0 : inside < 10 ? 1 : inside < 16 ? 2 : inside < 24 ? 3 : 4;
+
+export const placePeaks = (ground: Ground): GeographyFeature[] => {
+  const { step, width } = ground;
+  const height = ground.kinds.length / width;
+  const mountain = GROUND_KINDS.indexOf('mountain');
+  const mask = new Uint8Array(ground.kinds.length);
+  for (let i = 0; i < mask.length; i++) {
+    mask[i] = Number(ground.kinds[i] === mountain);
+  }
+  const inside = insideDistance(mask, width, height, step);
+  const insideAt = ([x, y]: Point): number =>
+    inside[Math.floor(y / step) * width + Math.floor(x / step)] ?? 0;
+  // The spine: the mask thinned to its centre lines, short spurs dropped.
+  const spine = mask.slice();
+  thin(spine, width, height);
+  const ridges = followSkeleton(spine, width, height)
+    .map(line =>
+      line.map(([x, y]): Point => [(x + 0.5) * step, (y + 0.5) * step])
+    )
+    .filter(line => lineLength(line) >= 12);
+  const peaks: {
+    lean: number;
+    rank: number;
+    size: number;
+    x: number;
+    y: number;
+  }[] = [];
+  const clear = (x: number, y: number, gap: number): boolean =>
+    peaks.every(p => Math.hypot(p.x - x, p.y - y) >= gap);
+  for (const ridge of ridges) {
+    // Walk the spine, a peak every so often: further apart where peaks
+    // are bigger.
+    let next = 0;
+    let walked = 0;
+    for (let i = 0; i < ridge.length - 1; i++) {
+      const [ax, ay] = ridge[i]!;
+      const [bx, by] = ridge[i + 1]!;
+      const len = Math.hypot(bx - ax, by - ay);
+      while (next <= walked + len) {
+        const t = (next - walked) / (len || 1);
+        const x = ax + (bx - ax) * t;
+        const y = ay + (by - ay) * t;
+        const size = peakSize(insideAt([x, y]));
+        const r = hash(Math.round(x), Math.round(y), 7);
+        if (clear(x, y, 7 + size * 2)) {
+          peaks.push({ lean: r % 3, rank: size >= 2 ? 0 : 1, size, x, y });
+        }
+        next += 9 + size * 3;
+      }
+      walked += len;
+    }
+  }
+  // Foothills: small peaks scattered between the spine and the edges.
+  const SPACING = 12;
+  for (let gy = 0; gy * SPACING < height * step; gy++) {
+    for (let gx = 0; gx * SPACING < width * step; gx++) {
+      const r = hash(gx, gy, 11);
+      const x = (gx + 0.5) * SPACING + ((r % 101) / 100 - 0.5) * SPACING * 0.8;
+      const y =
+        (gy + 0.5) * SPACING + (((r >>> 8) % 101) / 100 - 0.5) * SPACING * 0.8;
+      const depth = insideAt([x, y]);
+      if (depth < 4 || !clear(x, y, 9)) {
+        continue;
+      }
+      peaks.push({
+        lean: (r >>> 16) % 3,
+        rank: 2,
+        size: depth < 10 ? 0 : 1,
+        x,
+        y
+      });
+    }
+  }
+  // Back to front, so nearer peaks overlap those behind.
+  return peaks
+    .sort((a, b) => a.y - b.y)
+    .map(p => ({
+      geometry: { coordinates: [p.x, p.y], type: 'Point' },
+      properties: {
+        id: `symbol:peak:${Math.round(p.x)},${Math.round(p.y)}`,
+        kind: 'peak',
+        layer: 'symbol',
+        rank: p.rank,
+        variant: p.size * 3 + p.lean
+      },
+      type: 'Feature'
+    }));
 };
 
 // The ink pictures Places are drawn with. `area` is a named stretch of
@@ -1833,6 +1996,7 @@ export const main = async (): Promise<number> => {
       ...ground.features,
       ...roads.features,
       ...scatterSymbols(source, ground, roads.clearing),
+      ...placePeaks(ground),
       ...placeLabels(source)
     ],
     type: 'FeatureCollection'
