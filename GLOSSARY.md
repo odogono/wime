@@ -20,6 +20,29 @@ _Avoid_: Tile map, local map
 A detailed view of a single place, where each individual is animated against a background.
 _Avoid_: Scene, close-up
 
+**Classic map**:
+The map drawn as the original draws it, from its tiles and its full-map picture, with its own sprites and dots for Forces. The default.
+_Avoid_: Retro mode, pixel map
+
+**Atlas map**:
+The port's own drawing of the map, one ink-on-parchment map in the manner of Tolkien's, with Forces drawn in their own style. It changes how the world is shown, never the rules.
+_Avoid_: Vector map, HD mode, Tolkien map
+
+**Emblem**:
+A Force's picture on the Atlas map when zoomed in: its Leader's heraldic device for a Character, or a shield of its Nation and Unit Type for a Unit.
+_Avoid_: Figure, sprite, icon (a figure is the Classic map's sprite)
+
+**Compact marker**:
+A Force's picture on the Atlas map at middle zoom: its Emblem's simplified outline in its Side colour.
+_Avoid_: Badge
+
+**Dot**:
+A Force's picture when zoomed far out: a small dot in its Side colour.
+
+**Aggregate**:
+On the Atlas map, one mark standing for several Forces whose Dots would overlap, with their number beside it.
+_Avoid_: Cluster, stack
+
 ## Forces
 
 **Character**:
