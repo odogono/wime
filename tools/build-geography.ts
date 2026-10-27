@@ -648,6 +648,9 @@ const WINDOW = 7;
 const MIN_CELLS = 16;
 // Water bodies at least this many cells are sea or lake, smaller rivers.
 const MIN_LAKE_CELLS = 4000;
+// Water deeper than this many map pixels from its banks is a lake, not a
+// river, however small.
+const MAX_RIVER_DEPTH = 7;
 
 export const traceGround = (source: SourceData): Ground => {
   const STEP = 2;
@@ -764,15 +767,24 @@ export const traceGround = (source: SourceData): Ground => {
       labels[i] = best[0];
     }
   }
-  // Narrow water is a river; big water is sea or lake.
+  // Narrow water is a river; big or broad water is sea or lake.
   const pass = components(labels, width, height);
+  const wetMask = Uint8Array.from(labels, l => Number(l === wet));
+  const depth = insideDistance(wetMask, width, height, STEP);
   const waterSizes = new Int32Array(pass.first.length);
-  for (const id of pass.component) {
+  const waterDepths = new Float32Array(pass.first.length);
+  for (const [i, id] of pass.component.entries()) {
     waterSizes[id]!++;
+    waterDepths[id] = Math.max(waterDepths[id]!, depth[i]!);
   }
   const river = GROUND_KINDS.indexOf('river');
   for (let i = 0; i < labels.length; i++) {
-    if (labels[i] === wet && waterSizes[pass.component[i]!]! < MIN_LAKE_CELLS) {
+    const id = pass.component[i]!;
+    if (
+      labels[i] === wet &&
+      waterSizes[id]! < MIN_LAKE_CELLS &&
+      waterDepths[id]! <= MAX_RIVER_DEPTH
+    ) {
       labels[i] = river;
     }
   }
@@ -873,24 +885,23 @@ export const followSkeleton = (
   width: number,
   height: number
 ): Point[][] => {
+  const set = (x: number, y: number): boolean =>
+    x >= 0 && y >= 0 && x < width && y < height && mask[y * width + x] === 1;
+  // A diagonal neighbour counts only where no straight neighbour already
+  // makes that step, so a stair step is a plain run, not a junction.
   const neighbours = (i: number): number[] => {
     const x = i % width;
     const y = Math.floor(i / width);
     const out: number[] = [];
     for (let dy = -1; dy <= 1; dy++) {
       for (let dx = -1; dx <= 1; dx++) {
-        const nx = x + dx;
-        const ny = y + dy;
-        if (
-          (dx || dy) &&
-          nx >= 0 &&
-          ny >= 0 &&
-          nx < width &&
-          ny < height &&
-          mask[ny * width + nx]
-        ) {
-          out.push(ny * width + nx);
+        if (!(dx || dy) || !set(x + dx, y + dy)) {
+          continue;
         }
+        if (dx && dy && (set(x + dx, y) || set(x, y + dy))) {
+          continue;
+        }
+        out.push((y + dy) * width + x + dx);
       }
     }
     return out;
@@ -1297,6 +1308,135 @@ export const scatterSymbols = (
 };
 
 // ---------------------------------------------------------------------------
+// Rivers as Tolkien drew them: one ink line down each river's middle, as
+// wide as the river at each point, so streams taper towards their
+// sources. The river areas stay in the ground, uninked.
+
+// Join skeleton pieces end to end wherever exactly two meet, so a river
+// is smoothed as one line rather than many stair-step fragments.
+export const joinPieces = (pieces: Point[][]): Point[][] => {
+  const key = ([x, y]: Point): string => `${x},${y}`;
+  const at = new Map<string, number[]>();
+  pieces.forEach((piece, i) => {
+    for (const end of [piece[0]!, piece.at(-1)!]) {
+      at.set(key(end), [...(at.get(key(end)) ?? []), i]);
+    }
+  });
+  const used = new Set<number>();
+  const lines: Point[][] = [];
+  const extend = (line: Point[]): void => {
+    for (;;) {
+      const here = at.get(key(line.at(-1)!)) ?? [];
+      const next = here.length === 2 ? here.find(i => !used.has(i)) : undefined;
+      if (next === undefined) {
+        return;
+      }
+      used.add(next);
+      const piece = pieces[next]!;
+      const forward = key(piece[0]!) === key(line.at(-1)!);
+      line.push(...(forward ? piece : [...piece].reverse()).slice(1));
+    }
+  };
+  pieces.forEach((piece, i) => {
+    if (used.has(i)) {
+      return;
+    }
+    used.add(i);
+    const line = [...piece];
+    extend(line);
+    line.reverse();
+    extend(line);
+    lines.push(line);
+  });
+  return lines;
+};
+
+export const traceRiverLines = (
+  source: SourceData,
+  ground: Ground
+): GeographyFeature[] => {
+  // Traced from the original's water pixels themselves: many streams are
+  // only two or three pixels wide, too thin for the ground's grid. Sea,
+  // lakes and marsh are left out.
+  const [width, height] = mapSize(source.tilemap);
+  const step = 1;
+  const colourAt = pixelReader(source);
+  const river = GROUND_KINDS.indexOf('river');
+  const mask = new Uint8Array(width * height);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const kind =
+        ground.kinds[
+          Math.floor(y / ground.step) * ground.width +
+            Math.floor(x / ground.step)
+        ];
+      mask[y * width + x] = Number(
+        kind === river ||
+          (kind !== GROUND_KINDS.indexOf('water') &&
+            kind !== GROUND_KINDS.indexOf('marsh') &&
+            DEEP_COLOURS.has(colourAt(x, y)))
+      );
+    }
+  }
+  const inside = insideDistance(mask, width, height, step);
+  // Thinning erases a line only two pixels wide, so the mask is widened
+  // by a pixel first; widths still come from the river itself.
+  const middle = new Uint8Array(mask.length);
+  for (let y = 1; y < height - 1; y++) {
+    for (let x = 1; x < width - 1; x++) {
+      if (mask[y * width + x]) {
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            middle[(y + dy) * width + x + dx] = 1;
+          }
+        }
+      }
+    }
+  }
+  thin(middle, width, height);
+  return joinPieces(followSkeleton(middle, width, height))
+    .filter(line => lineLength(line) >= 4)
+    .map(line => {
+      const points = smooth(
+        simplify(
+          line.map(([x, y]): Point => [(x + 0.5) * step, (y + 0.5) * step]),
+          1.2
+        ),
+        3
+      );
+      const raw = points.map(([x, y]) =>
+        Math.max(
+          1,
+          2 *
+            (inside[Math.floor(y / step) * width + Math.floor(x / step)] ?? 1) -
+            step
+        )
+      );
+      // Junctions and bends measure wide; cap each width near the river's
+      // typical one and average it with its neighbours, so the line swells
+      // and tapers smoothly rather than in beads.
+      const typical = [...raw].sort((a, b) => a - b)[
+        Math.floor(raw.length / 2)
+      ]!;
+      const capped = raw.map(w => Math.min(w, typical * 1.3));
+      const widths = capped.map((_, i) => {
+        const near = capped.slice(Math.max(0, i - 3), i + 4);
+        return near.reduce((sum, w) => sum + w, 0) / near.length;
+      });
+      const [x, y] = points[0]!;
+      return {
+        geometry: { coordinates: points, type: 'LineString' },
+        properties: {
+          id: `river-line:${Math.round(x)},${Math.round(y)}`,
+          layer: 'river-line',
+          widths
+        },
+        type: 'Feature'
+      };
+    });
+};
+
+// ---------------------------------------------------------------------------
 // Mountain ranges: peaks lined up along each range's spine, larger where
 // the range is broad, with smaller foothills towards its edges, as
 // Tolkien drew them. A peak's variant packs its size class (0 to 4) and
@@ -1644,7 +1784,8 @@ export const validate = (
 // fillIndices:  u16 per triangle corner, counted from the first vertex of
 //               its chunk, so each chunk of up to 65,536 vertices is drawn
 //               on its own (header.fillChunks)
-// linePoints:   u16 x, u16 y, f32 along, u8 style, 3 pad  12 bytes each.
+// linePoints:   u16 x, u16 y, f32 along, u8 style, u8 width (quarters of
+//               a map pixel, 0 for the style's own), 2 pad  12 bytes each.
 //               Each point starts a segment to the next point, drawn in
 //               its style; NO_SEGMENT ends a run of line. `along` is the
 //               distance along the line, for dashes.
@@ -1716,7 +1857,7 @@ const triangulate = (polygon: Ring[], out: Fill, kind: number): void => {
   }
 };
 
-// x, y, along, style per point.
+// x, y, along, style, width per point.
 type LinePoints = number[];
 
 // A line as runs of points, each segment in the style `styleOf` gives it,
@@ -1726,13 +1867,19 @@ const stroke = (
   closed: boolean,
   out: LinePoints,
   fixed: number,
-  styleOf?: (a: Point, b: Point) => number
+  styleOf?: (a: Point, b: Point) => number,
+  // Each point's width in map pixels, where the line has its own.
+  widths?: number[]
 ): void => {
   let along = 0;
   let open = -1;
+  const widthAt = (i: number): number =>
+    widths
+      ? Math.min(255, Math.round((widths[i % points.length] ?? 0) * 4))
+      : 0;
   const end = (at: Point, distance: number): void => {
     if (open >= 0) {
-      out.push(at[0], at[1], distance, NO_SEGMENT);
+      out.push(at[0], at[1], distance, NO_SEGMENT, widthAt(points.indexOf(at)));
       open = -1;
     }
   };
@@ -1749,7 +1896,7 @@ const stroke = (
       }
     }
     if (open >= 0 && len) {
-      out.push(a[0], a[1], along, open);
+      out.push(a[0], a[1], along, open, widthAt(i));
     }
     along += len;
   }
@@ -1763,6 +1910,7 @@ const layerOrder = (layer: string): number =>
   [
     'terrain-region',
     'ground',
+    'river-line',
     'road',
     'symbol',
     'crossing',
@@ -1794,12 +1942,20 @@ export const compileBundle = (geography: Geography): Uint8Array => {
   const STYLE_BY_KIND: Partial<Record<string, number>> = {
     forest: LINE_STYLES.indexOf('forest'),
     mountain: LINE_STYLES.indexOf('mountain'),
-    river: LINE_STYLES.indexOf('river'),
     water: LINE_STYLES.indexOf('coast')
   };
   // Where two kinds meet, the stronger line wins; hills and plains are
   // not outlined.
-  const PRIORITY = ['water', 'river', 'mountain', 'forest', 'hill', 'plain'];
+  // Rivers are drawn as their centre lines, so their banks are not inked.
+  const PRIORITY = [
+    'water',
+    'mountain',
+    'forest',
+    'hill',
+    'plain',
+    'marsh',
+    'river'
+  ];
   const sideKinds = new Map<string, string[]>();
   for (const f of geography.features) {
     if (f.properties.layer !== 'ground') {
@@ -1843,6 +1999,15 @@ export const compileBundle = (geography: Geography): Uint8Array => {
           });
         }
       }
+    } else if (layer === 'river-line') {
+      stroke(
+        f.geometry.coordinates as Point[],
+        false,
+        lines,
+        LINE_STYLES.indexOf('river'),
+        undefined,
+        f.properties.widths as number[]
+      );
     } else if (layer === 'road') {
       stroke(
         f.geometry.coordinates as Point[],
@@ -1895,7 +2060,7 @@ export const compileBundle = (geography: Geography): Uint8Array => {
   const sizes: Record<SectionName, [count: number, bytes: number]> = {
     fillIndices: [fill.indices.length, 2],
     fillVertices: [fill.vertices.length / 3, 6],
-    linePoints: [lines.length / 4, 12],
+    linePoints: [lines.length / 5, 12],
     symbols: [symbols.length / 6, 8]
   };
   let offset = 0;
@@ -1926,11 +2091,12 @@ export const compileBundle = (geography: Geography): Uint8Array => {
     at += 2;
   }
   at = start('linePoints');
-  for (let i = 0; i < lines.length; i += 4) {
+  for (let i = 0; i < lines.length; i += 5) {
     view.setUint16(at, fixed(lines[i]!), true);
     view.setUint16(at + 2, fixed(lines[i + 1]!), true);
     view.setFloat32(at + 4, lines[i + 2]!, true);
     view.setUint8(at + 8, lines[i + 3]!);
+    view.setUint8(at + 9, lines[i + 4]!);
     at += 12;
   }
   at = start('symbols');
@@ -1994,6 +2160,7 @@ export const main = async (): Promise<number> => {
     features: [
       ...traceTerrainRegions(source, kinds),
       ...ground.features,
+      ...traceRiverLines(source, ground),
       ...roads.features,
       ...scatterSymbols(source, ground, roads.clearing),
       ...placePeaks(ground),
@@ -2001,6 +2168,16 @@ export const main = async (): Promise<number> => {
     ],
     type: 'FeatureCollection'
   };
+  // Lines that start at the same junction would share an id; number the
+  // repeats, in trace order, so every feature keeps its own.
+  const seen = new Map<string, number>();
+  for (const f of traced.features) {
+    const n = (seen.get(f.properties.id) ?? 0) + 1;
+    seen.set(f.properties.id, n);
+    if (n > 1) {
+      f.properties.id = `${f.properties.id}~${n}`;
+    }
+  }
   // Crossings are traced from the patched Places and roads, so patches to
   // crossings apply after them.
   const patches = await loadPatches(join(root, 'geography/patches'));

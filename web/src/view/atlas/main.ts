@@ -410,14 +410,21 @@ const frame = (): void => {
       // Named country is lettered where it lies; a pictured Place is
       // lettered under its picture.
       const area = p.pictogram === AREA;
+      const half = pictogramSize(p.rank) / 2;
+      const at = (x: number, y: number) => ({ height: px, width, x, y });
       return {
-        box: {
-          height: px,
-          width,
-          x: sx - width / 2,
-          y: area ? sy - px / 2 : sy + pictogramSize(p.rank) / 2 + 2
-        },
+        // Clear of any Force there: above the picture, then to either side.
+        alternatives: area
+          ? []
+          : [
+              at(sx - width / 2, sy - half - px - 2),
+              at(sx + half + 4, sy - px / 2),
+              at(sx - half - 4 - width, sy - px / 2)
+            ],
+        box: at(sx - width / 2, area ? sy - px / 2 : sy + half + 2),
         colour: area ? REGION_INK : INK,
+        // A Stronghold's name always shows; lesser names give way.
+        keep: p.rank === 0,
         opacity: 1,
         px,
         text,
@@ -431,7 +438,16 @@ const frame = (): void => {
         l.box.y < innerHeight &&
         l.box.y + l.box.height > 0
     );
-  const lettering = placeLabels([...regionLabels, ...labels]).flatMap(l =>
+  const forceBoxes = picks.map(({ box }) => ({
+    height: box.h,
+    width: box.w,
+    x: box.x,
+    y: box.y
+  }));
+  const lettering = placeLabels(
+    [...regionLabels, ...labels],
+    forceBoxes
+  ).flatMap(l =>
     textQuads(
       l.text,
       l.box.x,

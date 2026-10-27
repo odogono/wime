@@ -172,23 +172,33 @@ export interface Box {
   y: number;
 }
 
-// Keep labels from overlapping: take them in order (most important
-// first) and drop any that would touch one already placed.
-export const placeLabels = <T extends { box: Box }>(
+// Keep labels from overlapping each other and the obstacles: take them in
+// order (most important first), moving each to its first free place and
+// dropping any with none.
+export const placeLabels = <
+  T extends { alternatives?: Box[]; box: Box; keep?: boolean }
+>(
   labels: T[],
+  // Boxes no label may cover, such as Forces on the map.
+  obstacles: Box[] = [],
   gap = 4
 ): T[] => {
   const placed: T[] = [];
+  const overlaps = (b: Box, p: Box): boolean =>
+    b.x < p.x + p.width + gap &&
+    b.x + b.width + gap > p.x &&
+    b.y < p.y + p.height + gap &&
+    b.y + b.height + gap > p.y;
+  const free = (b: Box): boolean =>
+    !placed.some(({ box }) => overlaps(b, box)) &&
+    !obstacles.some(o => overlaps(b, o));
   for (const label of labels) {
-    const b = label.box;
-    const clash = placed.some(
-      ({ box: p }) =>
-        b.x < p.x + p.width + gap &&
-        b.x + b.width + gap > p.x &&
-        b.y < p.y + p.height + gap &&
-        b.y + b.height + gap > p.y
-    );
-    if (!clash) {
+    // Each label tries its own place, then its alternatives in order; one
+    // that must show keeps its own place if none is free.
+    const box = [label.box, ...(label.alternatives ?? [])].find(free);
+    if (box) {
+      placed.push({ ...label, box });
+    } else if (label.keep) {
       placed.push(label);
     }
   }

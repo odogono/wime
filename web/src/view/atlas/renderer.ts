@@ -58,7 +58,8 @@ const REGION_COLOURS: Record<string, string> = {
   marsh: '#dfe3c6',
   mountain: '#e4d6bb',
   plain: '#f0e4c4',
-  river: '#a9c2c4',
+  // Rivers are drawn as ink lines over parchment.
+  river: '#f0e4c4',
   water: '#bfd0c8'
 };
 export const INK = '#3a2c1c';
@@ -154,6 +155,9 @@ layout(location = 2) in float a_style;
 layout(location = 3) in vec2 a_to;
 layout(location = 4) in float a_alongTo;
 layout(location = 5) in vec2 a_corner; // 0 or 1 along the segment, then side
+layout(location = 6) in float a_width; // quarters of a map pixel; 0 for the style's
+layout(location = 7) in float a_widthTo;
+uniform float u_mapScale; // device pixels per map pixel
 uniform float u_widths[5]; // half widths in device pixels
 uniform vec4 u_colours[5];
 uniform vec2 u_pixel; // one device pixel in clip space
@@ -174,7 +178,11 @@ void main() {
   v_colour = u_colours[s];
   v_along = mix(a_along, a_alongTo, a_corner.x);
   v_style = s;
-  vec2 clip = toClip(mix(from, to, a_corner.x)) + vec2(normal.x, -normal.y) * u_widths[s] * u_pixel;
+  // A line with its own width, such as a river, keeps it at every zoom,
+  // but never thinner than its style's.
+  float own = mix(a_width, a_widthTo, a_corner.x) / 4.0 * u_mapScale / 2.0;
+  float halfWidth = a_width > 0.0 ? max(u_widths[s], own) : u_widths[s];
+  vec2 clip = toClip(mix(from, to, a_corner.x)) + vec2(normal.x, -normal.y) * halfWidth * u_pixel;
   gl_Position = vec4(clip, 0.0, 1.0);
 }`;
 
@@ -523,6 +531,8 @@ export class AtlasRenderer {
         pointer(2, 1, gl.UNSIGNED_BYTE, 12, 8, 1);
         pointer(3, 2, gl.UNSIGNED_SHORT, 12, 12, 1);
         pointer(4, 1, gl.FLOAT, 12, 16, 1);
+        pointer(6, 1, gl.UNSIGNED_BYTE, 12, 9, 1);
+        pointer(7, 1, gl.UNSIGNED_BYTE, 12, 21, 1);
       })
     };
     this.symbols = {
@@ -697,6 +707,7 @@ export class AtlasRenderer {
     );
     gl.uniform1f(u('u_zoom'), view.zoom);
     gl.uniform2f(u('u_dash'), DASH[0]!, DASH[1]!);
+    gl.uniform1f(u('u_mapScale'), view.zoom * view.devicePixelRatio);
     gl.uniform2f(u('u_pixel'), ...pixel);
     gl.bindVertexArray(this.lines.vao);
     gl.drawArraysInstanced(gl.TRIANGLES, 0, 6, this.lines.count);

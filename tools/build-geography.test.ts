@@ -7,6 +7,7 @@ import {
   components,
   followSkeleton,
   insideDistance,
+  joinPieces,
   signedArea,
   smooth,
   thin,
@@ -211,5 +212,50 @@ describe('insideDistance', () => {
     const d = insideDistance(mask, size, size, 2);
     const row = Array.from(d.slice(4 * size, 5 * size));
     expect(row).toEqual([0, 2, 4, 6, 8, 6, 4, 2, 0]);
+  });
+});
+
+describe('joinPieces', () => {
+  test('joins pieces end to end where exactly two meet', () => {
+    const lines = joinPieces([
+      [
+        [0, 0],
+        [1, 0]
+      ],
+      [
+        [2, 0],
+        [1, 0]
+      ],
+      [
+        [2, 0],
+        [3, 0]
+      ]
+    ]);
+    expect(lines).toEqual([
+      [
+        [3, 0],
+        [2, 0],
+        [1, 0],
+        [0, 0]
+      ]
+    ]);
+  });
+
+  test('stops at a junction of three', () => {
+    const lines = joinPieces([
+      [
+        [0, 0],
+        [1, 0]
+      ],
+      [
+        [1, 0],
+        [2, 0]
+      ],
+      [
+        [1, 0],
+        [1, 1]
+      ]
+    ]);
+    expect(lines).toHaveLength(3);
   });
 });

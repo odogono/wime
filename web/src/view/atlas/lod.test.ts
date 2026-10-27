@@ -90,6 +90,22 @@ describe('rankZoom', () => {
 const box = (x: number) => ({ box: { height: 10, width: 40, x, y: 0 } });
 
 describe('placeLabels', () => {
+  test('moves a label to its first free alternative', () => {
+    const obstacle = { height: 10, width: 40, x: 0, y: 0 };
+    const label = {
+      alternatives: [{ height: 10, width: 40, x: 0, y: 30 }],
+      box: { height: 10, width: 40, x: 0, y: 0 }
+    };
+    expect(placeLabels([label], [obstacle])[0]!.box.y).toBe(30);
+  });
+
+  test('keeps a label that must show when nowhere is free', () => {
+    const obstacle = { height: 10, width: 40, x: 0, y: 0 };
+    const box = { height: 10, width: 40, x: 0, y: 0 };
+    expect(placeLabels([{ box }], [obstacle])).toEqual([]);
+    expect(placeLabels([{ box, keep: true }], [obstacle])).toHaveLength(1);
+  });
+
   test('drops a later label that would overlap an earlier one', () => {
     expect(placeLabels([box(0), box(20), box(100)]).map(l => l.box.x)).toEqual([
       0, 100
