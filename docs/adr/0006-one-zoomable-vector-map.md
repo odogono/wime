@@ -9,3 +9,5 @@ The source geography is GeoJSON in the original's pixel coordinates, with y poin
 The original bitmap renderer stays as the Classic mode, and the Map setting chooses between them (docs/spec/atlas-map.md). It is the visual reference for fidelity and the fallback where WebGL is unavailable.
 
 This is staged against ADR-0002. At first the geography is presentation only, and the sim still reads the tile grid. Later the sim's terrain queries may be answered from the vector geography instead, but only once sampled answers agree with the tile grid away from region edges and every movement and reference-scenario test still passes. Any deliberate change to movement beyond that needs its own ADR, backed by Findings.
+
+Its clause on drawing the original's pixel sprites on the Atlas map is superseded by ADR-0007.
