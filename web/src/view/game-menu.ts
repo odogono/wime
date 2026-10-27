@@ -7,9 +7,11 @@ import {
   NARROW_WIDTH,
   WIDE_WIDTH,
   drawMenu,
+  loadListLines,
   menuRowAt,
   moveSelection,
   newestFirst,
+  setupLabel,
   slotRow,
   type MenuColours,
   type MenuView
@@ -30,6 +32,8 @@ import type { WindowStyle } from './window-frame';
 // In a chosen Demo both are shorter still: Resume, Settings and Return
 // to title,
 // and after the ending Return to title alone (docs/spec/demo-mode.md).
+// A game started from a Shuffled Setup names it over the first menu
+// (docs/spec/shuffled-setup.md).
 
 export type GameMenuChoice =
   | { id: number; kind: 'load' }
@@ -57,7 +61,14 @@ const MAIN_LABELS: Record<MainItem, string> = {
 };
 
 export type GameMenu =
-  | { demo?: true; ended?: true; kind: 'main'; selected: number }
+  | {
+      demo?: true;
+      ended?: true;
+      kind: 'main';
+      selected: number;
+      // The Shuffled Setup's seed; absent for the Classic Setup.
+      setupSeed?: number;
+    }
   // The named slots to save into; the autosave is not offered.
   | { kind: 'save'; selected: number; slots: SlotSummary[] }
   // Naming a new save, typed in.
@@ -83,10 +94,11 @@ export type GameMenu =
   // What a save or load came to; any key or click goes back.
   | { kind: 'message'; lines: string[] };
 
-export const openGameMenu = (demo = false): GameMenu => ({
+export const openGameMenu = (demo = false, setupSeed?: number): GameMenu => ({
   ...(demo ? { demo: true } : {}),
   kind: 'main',
-  selected: 0
+  selected: 0,
+  ...(setupSeed === undefined ? {} : { setupSeed })
 });
 
 export const openSettingsMenu = (
@@ -99,11 +111,12 @@ export const openSettingsMenu = (
   settings
 });
 
-export const openEndedMenu = (demo = false): GameMenu => ({
+export const openEndedMenu = (demo = false, setupSeed?: number): GameMenu => ({
   ...(demo ? { demo: true } : {}),
   ended: true,
   kind: 'main',
-  selected: 0
+  selected: 0,
+  ...(setupSeed === undefined ? {} : { setupSeed })
 });
 
 const mainItems = (menu: { demo?: true; ended?: true }): MainItem[] =>
@@ -143,11 +156,13 @@ export const loadFailed = (reason: SlotFailure): string[] =>
 export const gameMenuView = (menu: GameMenu): MenuView => {
   switch (menu.kind) {
     case 'main': {
+      // The Setup's label is wider than the narrow window.
+      const seed = menu.setupSeed;
       return {
-        lines: [],
+        lines: seed === undefined ? [] : [setupLabel(seed)],
         rows: mainItems(menu).map(item => ({ label: MAIN_LABELS[item] })),
         selected: menu.selected,
-        width: NARROW_WIDTH
+        width: seed === undefined ? NARROW_WIDTH : WIDE_WIDTH
       };
     }
     case 'save': {
@@ -190,7 +205,7 @@ export const gameMenuView = (menu: GameMenu): MenuView => {
     }
     case 'load': {
       return {
-        lines: menu.slots.length > 0 ? [] : ['There are no saves to load.'],
+        lines: loadListLines(menu.slots, menu.selected),
         rows: [...menu.slots.map(slotRow), { label: 'Back' }],
         selected: menu.selected,
         width: WIDE_WIDTH

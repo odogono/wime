@@ -398,7 +398,7 @@ describe('the message', () => {
   test('survives a save', () => {
     const held = tickSim(arrival());
     const restored = restoreSave(serialiseSave(held), null);
-    expect(restored).toEqual({ ok: true, state: held });
+    expect(restored).toEqual({ ok: true, setup: null, state: held });
     const playOn = (state: SimState) => tickSim(tickSim(closeCouncil(state)));
     expect(restored.ok && playOn(restored.state)).toEqual(playOn(held));
   });

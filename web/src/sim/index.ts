@@ -172,11 +172,13 @@ export {
   type Trigger
 } from './starting-state';
 export {
+  readSaveSetup,
   restoreSave,
   SAVE_VERSION,
   serialiseSave,
   type RestoreResult,
-  type SavedState
+  type SavedState,
+  type SaveSetup
 } from './save';
 export {
   createSim,
@@ -219,6 +221,7 @@ export {
 export { OBJECT_LIMITS, type ObjectLimit } from './setup-limits';
 export {
   SETUP_AXES,
+  SHUFFLED_SETUP_AXES,
   setupAxisRng,
   shuffleSetup,
   validateSetupAxes,

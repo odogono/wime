@@ -21,7 +21,26 @@ Nothing draws from or changes `SimState.rng` during generation.
 - **b, Encounters:** areas and first days, with chances fixed.
 - **c, Nazgûl:** the nine riders' start positions, with Default Orders fixed.
 
-Unknown axes and invalid seeds fail. No view, save, Demo or `createSim` changes are needed.
+Unknown axes and invalid seeds fail. `createSim` and Demos are unchanged.
+
+## In the app
+
+- New Game offers the Classic Setup or a Shuffled Setup
+  (docs/spec/title-menu.md). There is no setting for it and no way to
+  enter a seed.
+- A Shuffled Setup turns on axes a, b and c together, as one switch:
+  `SHUFFLED_SETUP_AXES`, pinned rather than following every axis, so a
+  later axis joins it only by a deliberate change noted in the changelog.
+- Its Setup seed is drawn at random. The sim seed is the one every New
+  Game uses, so a Setup seed alone gives the same start and the same
+  dice.
+- A game from a Shuffled Setup is labelled `Shuffled Setup <seed>`, the
+  seed in decimal, over the in-game menu (docs/spec/game-menu.md) and
+  over the Load lists when its save is selected. A Classic game shows
+  nothing new.
+- A save keeps the Setup seed beside the state (docs/spec/saving.md).
+- Demos, chosen or idle, always play the Classic Setup they were
+  recorded on.
 
 ## Object limits
 

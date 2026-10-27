@@ -26,6 +26,9 @@ save slots (docs/spec/saving.md), and shares the title menu's window
 
 ## The choices
 
+- In a game from a Shuffled Setup, a line over the first menu names it,
+  `Shuffled Setup <seed>`, and the window is widened to fit
+  (docs/spec/shuffled-setup.md). A Classic game shows no line.
 - **Save** lists New save, then the named slots newest first, each with
   its in-game date, then Back. The autosave is not offered.
   - New save asks for a name, typed in, up to 24 letters; a bar marks

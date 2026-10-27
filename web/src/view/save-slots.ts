@@ -1,8 +1,10 @@
 import {
   SAVE_VERSION,
   formatClock,
+  readSaveSetup,
   restoreSave,
   serialiseSave,
+  type SaveSetup,
   type SimState
 } from '../sim/index';
 
@@ -26,6 +28,14 @@ export interface SlotSummary {
   // When it was saved, in ms since the epoch; null for an imported
   // Archive save, whose time was never recorded.
   savedAt: number | null;
+  // The Shuffled Setup's seed, or null for the Classic Setup.
+  setupSeed: number | null;
+}
+
+// A loaded game: its state and the Setup it started from.
+export interface LoadedGame {
+  setup: SaveSetup | null;
+  state: SimState;
 }
 
 export type SlotFailure =
@@ -39,6 +49,8 @@ interface SlotEntry {
   id: number;
   name: string;
   savedAt: number | null;
+  // Absent from entries written before Shuffled Setups: the Classic Setup.
+  setupSeed?: number | null;
   version: number | null;
 }
 
@@ -87,16 +99,22 @@ const summary = (entry: SlotEntry): SlotSummary => ({
   id: entry.id,
   loadable: entry.version === SAVE_VERSION,
   name: entry.name,
-  savedAt: entry.savedAt
+  savedAt: entry.savedAt,
+  setupSeed: entry.setupSeed ?? null
 });
 
-// The version and in-game date of a serialised save, read without
-// restoring it; nulls where the save is not one.
+// The version, in-game date and Setup seed of a serialised save, read
+// without restoring it; nulls where the save is not one.
 const describeSave = (
   data: string
-): { gameDate: string | null; version: number | null } => {
+): {
+  gameDate: string | null;
+  setupSeed: number | null;
+  version: number | null;
+} => {
   try {
     const file = JSON.parse(data) as {
+      setup?: unknown;
       state?: Partial<SimState>;
       version?: unknown;
     } | null;
@@ -104,27 +122,41 @@ const describeSave = (
     const clock = file?.state?.clock;
     const gameDate =
       clock && typeof clock.day === 'number' ? formatClock(clock) : null;
-    return { gameDate, version };
+    const setupSeed = readSaveSetup(file?.setup)?.seed ?? null;
+    return { gameDate, setupSeed, version };
   } catch {
-    return { gameDate: null, version: null };
+    return { gameDate: null, setupSeed: null, version: null };
   }
 };
 
+// Each save is given the Setup its game started from, null for the
+// Classic Setup.
 export interface SaveSlots {
   // Over the autosave slot.
-  autosave: (state: SimState) => SlotResult<SlotSummary>;
+  autosave: (
+    state: SimState,
+    setup: SaveSetup | null
+  ) => SlotResult<SlotSummary>;
   // The autosave slot, or null when there is none.
   autosaved: () => SlotResult<SlotSummary | null>;
   // Drops the autosave, as for a game that has ended.
   clearAutosave: () => SlotResult<void>;
   list: () => SlotResult<SlotSummary[]>;
-  load: (id: number, tilemap: SimState['tilemap']) => SlotResult<SimState>;
-  loadAutosave: (tilemap: SimState['tilemap']) => SlotResult<SimState>;
+  load: (id: number, tilemap: SimState['tilemap']) => SlotResult<LoadedGame>;
+  loadAutosave: (tilemap: SimState['tilemap']) => SlotResult<LoadedGame>;
   remove: (id: number) => SlotResult<void>;
   rename: (id: number, name: string) => SlotResult<SlotSummary>;
   // Into a new slot.
-  save: (name: string, state: SimState) => SlotResult<SlotSummary>;
-  saveOver: (id: number, state: SimState) => SlotResult<SlotSummary>;
+  save: (
+    name: string,
+    state: SimState,
+    setup: SaveSetup | null
+  ) => SlotResult<SlotSummary>;
+  saveOver: (
+    id: number,
+    state: SimState,
+    setup: SaveSetup | null
+  ) => SlotResult<SlotSummary>;
 }
 
 export const createSaveSlots = (
@@ -224,15 +256,17 @@ export const createSaveSlots = (
 
   const entryFor = (
     state: SimState,
+    setup: SaveSetup | null,
     id: number,
     name: string
   ): { data: string; entry: SlotEntry } => ({
-    data: serialiseSave(state),
+    data: serialiseSave(state, setup),
     entry: {
       gameDate: formatClock(state.clock),
       id,
       name,
       savedAt: now(),
+      setupSeed: setup?.seed ?? null,
       version: SAVE_VERSION
     }
   });
@@ -253,7 +287,7 @@ export const createSaveSlots = (
   const loadFrom = (
     key: string,
     tilemap: SimState['tilemap']
-  ): SlotResult<SimState> => {
+  ): SlotResult<LoadedGame> => {
     let data: string | null;
     try {
       data = storage!.getItem(key);
@@ -265,17 +299,22 @@ export const createSaveSlots = (
     }
     const result = restoreSave(data, tilemap);
     return result.ok
-      ? { ok: true, value: result.state }
+      ? { ok: true, value: { setup: result.setup, state: result.state } }
       : { ok: false, reason: result.reason };
   };
 
   return {
-    autosave: state => {
+    autosave: (state, setup) => {
       const index = readIndex();
       if (!index.ok) {
         return index;
       }
-      const { data, entry } = entryFor(state, AUTOSAVE_ID, AUTOSAVE_NAME);
+      const { data, entry } = entryFor(
+        state,
+        setup,
+        AUTOSAVE_ID,
+        AUTOSAVE_NAME
+      );
       let previous: string | null = null;
       try {
         previous = storage!.getItem(AUTOSAVE_KEY);
@@ -377,23 +416,23 @@ export const createSaveSlots = (
       return { ok: true, value: summary(renamed) };
     },
 
-    save: (name, state) => {
+    save: (name, state, setup) => {
       const index = readIndex();
       if (!index.ok) {
         return index;
       }
       const id = index.value.nextId;
-      const { data, entry } = entryFor(state, id, cleanName(name, id));
+      const { data, entry } = entryFor(state, setup, id, cleanName(name, id));
       return write(index.value, entry, data, true);
     },
 
-    saveOver: (id, state) => {
+    saveOver: (id, state, setup) => {
       const found = find(id);
       if (!found.ok) {
         return found;
       }
       const { entry, index } = found.value;
-      const next = entryFor(state, id, entry.name);
+      const next = entryFor(state, setup, id, entry.name);
       return write(index, next.entry, next.data, false);
     }
   };

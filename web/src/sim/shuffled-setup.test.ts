@@ -10,7 +10,12 @@ import {
   NAZGUL_LIMITS,
   OBJECT_LIMITS
 } from './setup-limits';
-import { setupAxisRng, shuffleSetup, type SetupData } from './shuffled-setup';
+import {
+  SHUFFLED_SETUP_AXES,
+  setupAxisRng,
+  shuffleSetup,
+  type SetupData
+} from './shuffled-setup';
 import { tileOf } from './starting-state';
 import { createSim, tickSim } from './state';
 
@@ -444,4 +449,10 @@ describe.skipIf(!existsSync(asset))('exported Classic Setup', () => {
       expect(tickSim(after).fight).toBeNull();
     }
   });
+});
+
+// A player's Shuffled Setup is pinned to axes (a)–(c): a later axis
+// joins it only by a deliberate change (#276).
+test('a player’s Shuffled Setup turns on axes a, b and c', () => {
+  expect(SHUFFLED_SETUP_AXES).toEqual(['a', 'b', 'c']);
 });

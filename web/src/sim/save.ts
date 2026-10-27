@@ -13,15 +13,46 @@ export const SAVE_VERSION = 8;
 
 export type SavedState = Omit<SimState, 'tilemap'>;
 
+// The Shuffled Setup a game started from (docs/spec/shuffled-setup.md),
+// kept beside the state rather than in it, so the sim never reads it.
+// A save without one started from the Classic Setup, as every save made
+// before Shuffled Setups did, so adding it needed no SAVE_VERSION bump.
+export interface SaveSetup {
+  seed: number;
+}
+
 interface SaveFile {
+  setup?: SaveSetup;
   state: SavedState;
   version: number;
 }
 
-export const serialiseSave = (state: SimState): string => {
+export const serialiseSave = (
+  state: SimState,
+  setup: SaveSetup | null = null
+): string => {
   const { tilemap: _tilemap, ...saved } = state;
-  const file: SaveFile = { state: saved, version: SAVE_VERSION };
+  const file: SaveFile = {
+    ...(setup ? { setup } : {}),
+    state: saved,
+    version: SAVE_VERSION
+  };
   return JSON.stringify(file);
+};
+
+// The saved Setup, null for the Classic Setup; undefined when it is
+// damaged.
+export const readSaveSetup = (setup: unknown): SaveSetup | null | undefined => {
+  if (setup === undefined) {
+    return null;
+  }
+  const seed = (setup as Partial<SaveSetup> | null)?.seed;
+  return typeof seed === 'number' &&
+    Number.isInteger(seed) &&
+    seed >= 0 &&
+    seed <= 0xff_ff_ff_ff
+    ? { seed }
+    : undefined;
 };
 
 // A shallow check that the saved state is the right kind of object, so
@@ -34,7 +65,7 @@ const looksLikeState = (state: unknown): state is SavedState =>
   (state as Partial<SavedState>).clock !== null;
 
 export type RestoreResult =
-  | { ok: true; state: SimState }
+  | { ok: true; setup: SaveSetup | null; state: SimState }
   | { ok: false; reason: 'invalid' | 'other-version' };
 
 export const restoreSave = (
@@ -53,5 +84,9 @@ export const restoreSave = (
   if (file.version !== SAVE_VERSION) {
     return { ok: false, reason: 'other-version' };
   }
-  return { ok: true, state: { ...file.state, tilemap } };
+  const setup = readSaveSetup(file.setup);
+  if (setup === undefined) {
+    return { ok: false, reason: 'invalid' };
+  }
+  return { ok: true, setup, state: { ...file.state, tilemap } };
 };

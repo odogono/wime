@@ -536,7 +536,7 @@ describe('saving with Encounters', () => {
     );
     expect(met.meeting).toEqual({ a: 7, b: 153, kind: 'talk' });
     const restored = restoreSave(serialiseSave(met), met.tilemap);
-    expect(restored).toEqual({ ok: true, state: met });
+    expect(restored).toEqual({ ok: true, setup: null, state: met });
     if (!restored.ok) {
       return;
     }

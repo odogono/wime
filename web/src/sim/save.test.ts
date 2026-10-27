@@ -180,7 +180,42 @@ describe('save', () => {
     const state = createSim(7, undefined, tilemap);
     const data = serialiseSave(state);
     expect(data).not.toContain('"tilemap"');
-    expect(restoreSave(data, tilemap)).toEqual({ ok: true, state });
+    expect(restoreSave(data, tilemap)).toEqual({
+      ok: true,
+      setup: null,
+      state
+    });
+  });
+
+  test('keeps a Shuffled Setup beside the state; none means Classic', () => {
+    const state = createSim(7, undefined, tilemap);
+    const data = serialiseSave(state, { seed: 1234 });
+    expect(JSON.parse(data)).toMatchObject({ setup: { seed: 1234 } });
+    expect(restoreSave(data, tilemap)).toEqual({
+      ok: true,
+      setup: { seed: 1234 },
+      state
+    });
+    expect(JSON.parse(serialiseSave(state))).not.toHaveProperty('setup');
+  });
+
+  test('refuses a damaged Setup', () => {
+    const file = JSON.parse(serialiseSave(createSim(7))) as {
+      setup?: unknown;
+    };
+    for (const setup of [
+      null,
+      {},
+      { seed: -1 },
+      { seed: 1.5 },
+      { seed: 2 ** 32 }
+    ]) {
+      file.setup = setup;
+      expect(restoreSave(JSON.stringify(file), null)).toEqual({
+        ok: false,
+        reason: 'invalid'
+      });
+    }
   });
 
   test('refuses a save of another version, or no save at all', () => {
@@ -251,7 +286,7 @@ describe('save', () => {
       }
       expect(played).not.toEqual(sim);
       const restored = restoreSave(saved, sim.tilemap);
-      expect(restored).toEqual({ ok: true, state: sim });
+      expect(restored).toEqual({ ok: true, setup: null, state: sim });
       if (!restored.ok) {
         return;
       }
@@ -282,7 +317,7 @@ describe('save', () => {
         }
         checked.add(kind);
         const restored = restoreSave(serialiseSave(state), map);
-        expect(restored).toEqual({ ok: true, state });
+        expect(restored).toEqual({ ok: true, setup: null, state });
         let played = state;
         let replayed = restored.ok ? restored.state : state;
         for (let i = 0; i < 300; i++) {
