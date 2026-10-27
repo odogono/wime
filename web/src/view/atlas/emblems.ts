@@ -22,7 +22,7 @@ export const RING = 'ring';
 
 // Emblems drawn for a Leader's name. Every other Character stands on the
 // plain banner and every other Unit on the plain shield, until the Unit
-// shields (#301) and Character devices (#302) are drawn.
+// shields (#301) and Character figures (#302) are drawn.
 const BY_NAME: Record<string, string> = {
   ARAGORN: 'aragorn',
   'Rohirrim scouts': 'rohan-cavalry'

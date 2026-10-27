@@ -29,7 +29,7 @@ The port's own drawing of the map, one ink-on-parchment map in the manner of Tol
 _Avoid_: Vector map, HD mode, Tolkien map
 
 **Emblem**:
-A Force's picture on the Atlas map when zoomed in: its Leader's heraldic device for a Character, or a shield of its Nation and Unit Type for a Unit.
+A Force's picture on the Atlas map when zoomed in: a silhouette of its Leader's figure on a banner for a Character, or a shield of its Nation and Unit Type for a Unit.
 _Avoid_: Figure, sprite, icon (a figure is the Classic map's sprite)
 
 **Compact marker**:

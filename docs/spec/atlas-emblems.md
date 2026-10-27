@@ -2,7 +2,7 @@
 
 The look of the Atlas map's Force pictures (ADR-0007): the Emblem, the
 Compact marker and the Ring mark. Every Emblem is drawn to this sheet,
-so that a Character's device and a Unit's shield read as one family
+so that a Character's banner and a Unit's shield read as one family
 beside the map's ink-on-parchment geography (docs/spec/atlas-map.md).
 Devices may be traced from generated images; every committed emblem is
 an SVG fitted by hand to this sheet.
@@ -12,6 +12,9 @@ an SVG fitted by hand to this sheet.
 | Character: Aragorn                                       | Unit: Rohan cavalry                                                  |
 | -------------------------------------------------------- | -------------------------------------------------------------------- |
 | ![Aragorn](../../web/src/view/atlas/emblems/aragorn.svg) | ![Rohan cavalry](../../web/src/view/atlas/emblems/rohan-cavalry.svg) |
+
+The Aragorn sample predates Characters' figures: it bears a heraldic
+device, and is redrawn as his figure with the other Characters (#302).
 
 ## Palette
 
@@ -34,7 +37,10 @@ not to the Emblem.
 
 The outline tells a Character from a Unit at every tier:
 
-- A **Character** stands on a **banner**: straight sides, a rounded
+- A **Character** stands on a **banner** bearing a silhouette of its
+  figure in the original, standing and facing left: a hobbit, a wizard,
+  a Nazgûl. Characters who share a figure in the original share it
+  here. The banner has straight sides, a rounded
   head, and a point at its foot. It is 28 units wide and 55 high in the
   64-unit drawing.
 - A **Unit** stands on a **heater shield**: a gently peaked top and a
@@ -109,10 +115,11 @@ Every Emblem is made the same way, so that they stay one family.
    ```
 
    The field is always blue: the renderer tints it per Side. Subject
-   lines for the samples:
-   - Character: "Aragorn's device, the White Tree of Gondor with exactly
-     seven stars in a row beneath a crown, on a round-topped banner.
-     Crown at top, stars beneath it, tree below the stars."
+   lines, for example:
+   - Character: "The silhouette of a hobbit, standing and facing left,
+     with a walking staff, on a round-topped banner. Draw it from this
+     figure:" followed by the original's figure for that Character, so
+     the silhouette keeps its pose and outline.
    - Unit: "A heater shield bearing a running horse (Rohan), with a
      small cavalry mark (a horse-head or lance) in the shield's chief."
 

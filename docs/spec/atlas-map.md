@@ -55,7 +55,7 @@ Forces are drawn by how far the map is zoomed, each tier with a little
 hysteresis so it does not flicker:
 
 - **Emblem:** the Force's own emblem (docs/spec/atlas-emblems.md, and
-  ADR-0007): a banner bearing its Leader's device for a Character, a
+  ADR-0007): a banner bearing the silhouette of its Leader's figure for a Character, a
   shield for a Unit, its field in the Force's side colour. It grows with
   the map from 24 to 64 CSS pixels tall; zoomed out past where it would
   be smaller than 24 pixels, the Force is drawn Compact. Active Forces
