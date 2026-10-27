@@ -220,6 +220,9 @@ export const gameMenuView = (menu: GameMenu): MenuView => {
           {
             label: `Glass shows Evil: ${menu.settings.glassShowsEvil ? 'On' : 'Off'}`
           },
+          {
+            label: `Map: ${menu.settings.map === 'atlas' ? 'Atlas' : 'Classic'}`
+          },
           ...(menu.debug ? [{ label: 'Debug views' }] : []),
           { label: 'Back' }
         ],
@@ -320,7 +323,7 @@ const choose = (
     }
     case 'settings': {
       const { settings } = menu;
-      if (menu.debug && menu.selected === 3) {
+      if (menu.debug && menu.selected === 4) {
         return { menu: { kind: 'debug', selected: 0, settings } };
       }
       const changed =
@@ -330,7 +333,15 @@ const choose = (
             ? { ...settings, size: nextSize(settings.size) }
             : menu.selected === 2
               ? { ...settings, glassShowsEvil: !settings.glassShowsEvil }
-              : null;
+              : menu.selected === 3
+                ? {
+                    ...settings,
+                    map:
+                      settings.map === 'atlas'
+                        ? ('classic' as const)
+                        : ('atlas' as const)
+                  }
+                : null;
       return changed
         ? {
             choice: { kind: 'set', settings: changed },

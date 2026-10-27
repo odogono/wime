@@ -43,7 +43,7 @@ save slots (docs/spec/saving.md), and shares the title menu's window
   resting on Go back, since the game in play is lost if not saved. A
   loaded game returns to its Level, as from the title menu
   (docs/spec/title-menu.md). A save of another version is refused with a message.
-- **Settings** lists Sound, Window size, Glass shows Evil and Back,
+- **Settings** lists Sound, Window size, Glass shows Evil, Map and Back,
   each showing what holds now. Choosing Sound switches the music and
   effects off or on, as Q does. Choosing Window size steps it from Full
   to 75% to 50% and back: the game fills that share of the browser
@@ -54,9 +54,10 @@ save slots (docs/spec/saving.md), and shares the title menu's window
   left edge as passers do, instead of the empty spot
   (`finding:ui-magnifying-glass-watches-the-first-good-leader-near-the-spot`).
   Nobody is watched, as at the empty spot, so time stands still,
-  and no new scene follows them. All three are
-  kept in the browser's storage, so they hold after a reload; sound
-  starts on, the window full and Glass shows Evil off.
+  and no new scene follows them. Map switches the map Levels between
+  Classic and the Atlas map at once (docs/spec/atlas-map.md). All four
+  are kept in the browser's storage, so they hold after a reload; sound
+  starts on, the window full, Glass shows Evil off and the map Classic.
 - **Debug views**, offered in Settings only in a dev build or with
   `?debug` in the URL, are the port's own overlays on the Campaign
   Level, each switched on and off by itself and kept with the settings.

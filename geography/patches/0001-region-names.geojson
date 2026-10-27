@@ -1,0 +1,126 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [300, 300] },
+      "properties": {
+        "id": "region-label:lindon",
+        "layer": "region-label",
+        "op": "add",
+        "name": "LINDON",
+        "rank": 0
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [920, 560] },
+      "properties": {
+        "id": "region-label:eriador",
+        "layer": "region-label",
+        "op": "add",
+        "name": "ERIADOR",
+        "rank": 0
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [640, 440] },
+      "properties": {
+        "id": "region-label:the-shire",
+        "layer": "region-label",
+        "op": "add",
+        "name": "THE SHIRE",
+        "rank": 1
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [1660, 470] },
+      "properties": {
+        "id": "region-label:mirkwood",
+        "layer": "region-label",
+        "op": "add",
+        "name": "MIRKWOOD",
+        "rank": 0
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [1900, 620] },
+      "properties": {
+        "id": "region-label:rhovanion",
+        "layer": "region-label",
+        "op": "add",
+        "name": "RHOVANION",
+        "rank": 0
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [940, 820] },
+      "properties": {
+        "id": "region-label:enedwaith",
+        "layer": "region-label",
+        "op": "add",
+        "name": "ENEDWAITH",
+        "rank": 0
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [1330, 880] },
+      "properties": {
+        "id": "region-label:rohan",
+        "layer": "region-label",
+        "op": "add",
+        "name": "ROHAN",
+        "rank": 0
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [1380, 1250] },
+      "properties": {
+        "id": "region-label:gondor",
+        "layer": "region-label",
+        "op": "add",
+        "name": "GONDOR",
+        "rank": 0
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [1960, 1200] },
+      "properties": {
+        "id": "region-label:mordor",
+        "layer": "region-label",
+        "op": "add",
+        "name": "MORDOR",
+        "rank": 0
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [2220, 760] },
+      "properties": {
+        "id": "region-label:rhun",
+        "layer": "region-label",
+        "op": "add",
+        "name": "RHÛN",
+        "rank": 0
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [1720, 1480] },
+      "properties": {
+        "id": "region-label:harad",
+        "layer": "region-label",
+        "op": "add",
+        "name": "HARAD",
+        "rank": 0
+      }
+    }
+  ]
+}

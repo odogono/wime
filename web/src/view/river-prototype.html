@@ -1,0 +1,856 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Painted river — compositing prototype</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: Georgia, serif;
+        color: #26372f;
+        background: #f4f2e9;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0 auto;
+        max-width: 1280px;
+        padding: 28px;
+      }
+      header {
+        max-width: 850px;
+        margin-bottom: 20px;
+      }
+      .eyebrow {
+        color: #657b68;
+        font:
+          12px system-ui,
+          sans-serif;
+        letter-spacing: 0.13em;
+        text-transform: uppercase;
+      }
+      h1 {
+        font-size: clamp(26px, 4vw, 40px);
+        font-weight: normal;
+        margin: 8px 0;
+      }
+      h2 {
+        font-size: 18px;
+        font-weight: normal;
+        margin: 0 0 12px;
+      }
+      p {
+        line-height: 1.6;
+        margin: 8px 0;
+      }
+      .muted {
+        color: #67756b;
+        font-size: 14px;
+      }
+      .stage {
+        position: relative;
+        background: #d9e4d2;
+        border-radius: 6px;
+        overflow: hidden;
+        box-shadow: 0 8px 28px #26372f18;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        aspect-ratio: 8 / 5;
+      }
+      .badge {
+        position: absolute;
+        top: 14px;
+        left: 16px;
+        color: #fff;
+        background: #142b218f;
+        padding: 6px 10px;
+        border-radius: 3px;
+        font:
+          12px system-ui,
+          sans-serif;
+        pointer-events: none;
+      }
+      .toolbar {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        align-items: center;
+        padding: 14px 0;
+      }
+      button,
+      select {
+        color: inherit;
+        background: #fffdf6;
+        border: 1px solid #bec8b8;
+        padding: 9px 13px;
+        border-radius: 4px;
+        font:
+          14px system-ui,
+          sans-serif;
+        cursor: pointer;
+      }
+      button:hover {
+        border-color: #59775f;
+      }
+      button[aria-pressed='true'],
+      button.active {
+        background: #365b44;
+        color: #fff;
+        border-color: #365b44;
+      }
+      button:focus-visible,
+      input:focus-visible,
+      select:focus-visible {
+        outline: 3px solid #bd952d;
+        outline-offset: 3px;
+      }
+      .cards {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 16px;
+        margin: 8px 0 18px;
+      }
+      section.card {
+        background: #fffdf6;
+        border: 1px solid #dbe0d1;
+        padding: 18px;
+        border-radius: 5px;
+      }
+      label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 10px 0;
+        font:
+          14px system-ui,
+          sans-serif;
+      }
+      input {
+        accent-color: #365b44;
+      }
+      input[type='range'] {
+        width: 100%;
+      }
+      .range {
+        display: block;
+      }
+      dl {
+        display: grid;
+        grid-template-columns: 1fr 1.1fr;
+        gap: 10px 8px;
+        font:
+          13px/1.4 system-ui,
+          sans-serif;
+        margin: 0;
+      }
+      dt {
+        color: #67756b;
+      }
+      dd {
+        margin: 0;
+      }
+      .tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 12px 0;
+      }
+      .steps {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      #walkthrough {
+        min-height: 140px;
+      }
+      #sheet {
+        width: 100%;
+        background: repeating-conic-gradient(#e0e4d7 0% 25%, #f5f4ed 0% 50%)
+          50% / 20px 20px;
+        border-radius: 4px;
+      }
+      details {
+        margin: 18px 0;
+      }
+      summary {
+        cursor: pointer;
+      }
+      .footer {
+        padding: 12px 0 24px;
+        border-top: 1px solid #d6dece;
+      }
+      @media (max-width: 760px) {
+        body {
+          padding: 16px;
+        }
+        .cards {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="eyebrow">War in Middle Earth · throwaway prototype</div>
+      <h1>One river. Many scenes.</h1>
+      <p>
+        Can separately painted scenery and a walking hobbit stay coherent when
+        the game recombines them? Try three arrangements, change the light, and
+        peel back the layers. Every scene below uses the same six pieces of
+        artwork.
+      </p>
+      <p class="muted">
+        This experiment has its own simple scene recipes. It does not change the
+        game or reproduce all of the original scenery rules.
+      </p>
+    </header>
+    <div class="stage">
+      <canvas
+        id="scene"
+        width="1280"
+        height="800"
+        aria-label="Painted river scene with independently composed layers and an animated hobbit"
+      ></canvas>
+      <span class="badge" id="badge">Preparing the painted layers…</span>
+    </div>
+    <div class="toolbar" aria-label="Scene arrangements">
+      <button data-arrangement="0" aria-pressed="true">Open riverbank</button>
+      <button data-arrangement="1" aria-pressed="false">Sheltered bank</button>
+      <button data-arrangement="2" aria-pressed="false">Rocky edge</button>
+      <button id="play">Pause walking</button>
+      <button id="step">Next walk frame</button>
+      <button id="reset">Reset</button>
+    </div>
+    <div class="cards">
+      <section class="card">
+        <h2>Layers</h2>
+        <div id="layers"></div>
+        <p class="muted">
+          The sky is a gradient. Clouds, hills, river, meadow and foreground are
+          separate images. The hobbit is an eight-frame sheet.
+        </p>
+      </section>
+      <section class="card">
+        <h2>Light and position</h2>
+        <div class="toolbar">
+          <button data-light="0">Day</button
+          ><button data-light="0.5">Dusk</button
+          ><button data-light="1">Night</button>
+        </div>
+        <label class="range" for="light"
+          >Daylight → night
+          <input id="light" type="range" min="0" max="1" step="0.01" value="0"
+        /></label>
+        <label class="range" for="pan"
+          >Look along the bank
+          <input id="pan" type="range" min="0" max="1" step="0.01" value="0.35"
+        /></label>
+        <label class="range" for="travel"
+          >Hobbit position
+          <input
+            id="travel"
+            type="range"
+            min="0"
+            max="1"
+            step="0.01"
+            value="0.42"
+        /></label>
+        <label for="direction"
+          >Walking
+          <select id="direction">
+            <option value="right">Right</option>
+            <option value="left">Left</option>
+          </select></label
+        >
+      </section>
+      <section class="card">
+        <h2>Current scene</h2>
+        <dl id="state" aria-live="off"></dl>
+        <p class="muted" id="status">Loading the embedded artwork…</p>
+      </section>
+    </div>
+    <section class="card" id="walkthrough">
+      <h2>Guided comparisons</h2>
+      <div class="tabs" role="tablist" aria-label="Guided comparisons">
+        <button
+          role="tab"
+          data-guide="layers"
+          aria-selected="true"
+          class="active"
+        >
+          Build a scene
+        </button>
+        <button role="tab" data-guide="reuse" aria-selected="false">
+          Reuse the artwork
+        </button>
+        <button role="tab" data-guide="motion" aria-selected="false">
+          Light and movement
+        </button>
+      </div>
+      <p id="guide-description"></p>
+      <div class="steps" id="guide-steps"></div>
+    </section>
+    <details>
+      <summary>Inspect the eight generated walk poses</summary>
+      <p class="muted">
+        The sheet is cropped as a 4×2 grid and aligned to a common foot
+        baseline. Step through it above to inspect changes in silhouette,
+        clothing and limb position.
+      </p>
+      <img
+        id="sheet"
+        alt="Eight painted hobbit walk-cycle poses on transparent background"
+      />
+    </details>
+    <p class="muted footer">
+      Prototype limits: one river family and one character, mirrored repeating
+      strips, approximate colour grading and a generated walk cycle. Repetition,
+      edges, ground contact and animation consistency are the things to judge.
+      No images are generated during play. This built HTML file works offline.
+    </p>
+    <script type="application/json" id="artwork">
+      __RIVER_ASSETS__
+    </script>
+    <script>
+      // Throwaway scene recipes; original scenery composition is documented in
+      // docs/spec/animation-level.md and finding:graphics-animation-level-scenes-by-tile.
+      // This deliberately does not claim original coordinates or behaviour.
+      const layerNames = [
+        'clouds',
+        'hills',
+        'river',
+        'ground',
+        'hobbit',
+        'foreground'
+      ];
+      const labels = {
+        clouds: 'Clouds',
+        hills: 'Distant hills',
+        river: 'River and far bank',
+        ground: 'Meadow',
+        hobbit: 'Walking hobbit',
+        foreground: 'Foreground rocks and plants'
+      };
+      const arrangements = [
+        {
+          name: 'Open riverbank',
+          hillY: 0.35,
+          hillH: 0.16,
+          riverY: 0.43,
+          riverH: 0.25,
+          groundY: 0.65,
+          footY: 0.83,
+          props: [
+            [-0.02, 0.98, 0.24],
+            [0.87, 1.02, 0.29]
+          ]
+        },
+        {
+          name: 'Sheltered bank',
+          hillY: 0.3,
+          hillH: 0.23,
+          riverY: 0.42,
+          riverH: 0.26,
+          groundY: 0.64,
+          footY: 0.82,
+          props: [
+            [-0.04, 0.97, 0.3],
+            [0.55, 1.02, 0.23],
+            [1.04, 0.99, 0.31]
+          ]
+        },
+        {
+          name: 'Rocky edge',
+          hillY: 0.37,
+          hillH: 0.13,
+          riverY: 0.43,
+          riverH: 0.29,
+          groundY: 0.69,
+          footY: 0.85,
+          props: [
+            [0.03, 1.02, 0.31],
+            [0.54, 0.95, 0.29],
+            [0.96, 1.03, 0.36]
+          ]
+        }
+      ];
+      // Plain in-memory state and reducer: no DOM or persistence here.
+      const initialState = () => ({
+        arrangement: 0,
+        light: 0,
+        pan: 0.35,
+        travel: 0.42,
+        frame: 0,
+        elapsed: 0,
+        playing: true,
+        direction: 'right',
+        visible: layerNames.slice()
+      });
+      const reduceScene = (state, action) => {
+        if (action.type === 'reset') return initialState();
+        if (action.type === 'tick')
+          return state.playing
+            ? {
+                ...state,
+                elapsed: state.elapsed + action.seconds,
+                frame: Math.floor((state.elapsed + action.seconds) * 8) % 8,
+                travel: (state.travel + action.seconds * 0.032) % 1
+              }
+            : state;
+        if (action.type === 'step') {
+          const frame = (state.frame + 1) % 8;
+          return { ...state, playing: false, frame, elapsed: frame / 8 };
+        }
+        if (action.type === 'toggle')
+          return {
+            ...state,
+            visible: state.visible.includes(action.layer)
+              ? state.visible.filter(name => name !== action.layer)
+              : [...state.visible, action.layer]
+          };
+        if (action.type === 'set') return { ...state, ...action.values };
+        return state;
+      };
+      const artwork = JSON.parse(
+        document.querySelector('#artwork').textContent
+      );
+      const canvas = document.querySelector('#scene');
+      const ctx = canvas.getContext('2d');
+      const world = document.createElement('canvas');
+      world.width = canvas.width;
+      world.height = canvas.height;
+      const paint = world.getContext('2d');
+      const W = canvas.width,
+        H = canvas.height;
+      let state = initialState();
+      let ready = false;
+      const images = {};
+      const dispatch = action => {
+        state = reduceScene(state, action);
+        updateControls();
+        draw();
+      };
+      const mix = (a, b, t) =>
+        a.map((value, i) => Math.round(value + (b[i] - value) * t));
+      const colour = (day, dusk, night, light) =>
+        'rgb(' +
+        (light < 0.5
+          ? mix(day, dusk, light * 2)
+          : mix(dusk, night, (light - 0.5) * 2)
+        ).join(',') +
+        ')';
+      const drawPiece = (key, x, y, width, height, mirror = false) => {
+        const a = artwork[key],
+          b = a.bounds;
+        paint.save();
+        paint.translate(x + (mirror ? width : 0), y);
+        if (mirror) paint.scale(-1, 1);
+        paint.drawImage(
+          images[key],
+          b.x,
+          b.y,
+          b.width,
+          b.height,
+          0,
+          0,
+          width,
+          height
+        );
+        paint.restore();
+      };
+      const band = (key, y, height, pan, factor, mirror) => {
+        const width = W * 1.14,
+          offset = (pan * factor * W) % width;
+        for (let i = -1; i < 3; i++)
+          drawPiece(
+            key,
+            i * width - offset,
+            y,
+            width,
+            height,
+            Boolean((i + mirror) & 1)
+          );
+      };
+      const groundPath = base => {
+        paint.beginPath();
+        paint.moveTo(0, base * H);
+        for (let x = 0; x <= W + 20; x += 20)
+          paint.lineTo(
+            x,
+            (base + Math.sin((x / W) * 8 + state.arrangement) * 0.006) * H
+          );
+        paint.lineTo(W, H);
+        paint.lineTo(0, H);
+        paint.closePath();
+      };
+      const draw = () => {
+        if (!ready) return;
+        const recipe = arrangements[state.arrangement],
+          on = name => state.visible.includes(name);
+        paint.clearRect(0, 0, W, H);
+        const sky = paint.createLinearGradient(0, 0, 0, H * 0.7);
+        sky.addColorStop(
+          0,
+          colour([70, 139, 206], [122, 111, 145], [10, 22, 46], state.light)
+        );
+        sky.addColorStop(
+          1,
+          colour([205, 229, 230], [248, 191, 132], [51, 71, 101], state.light)
+        );
+        paint.fillStyle = sky;
+        paint.fillRect(0, 0, W, H);
+        if (state.light > 0.65) {
+          paint.save();
+          paint.globalAlpha = (state.light - 0.65) / 0.35;
+          paint.fillStyle = '#e8ead0';
+          paint.beginPath();
+          paint.arc(W * 0.78, H * 0.15, 17, 0, Math.PI * 2);
+          paint.fill();
+          paint.restore();
+        }
+        paint.save();
+        paint.filter =
+          'brightness(' +
+          (1 - state.light * 0.58) +
+          ') saturate(' +
+          (1 - state.light * 0.36) +
+          ')';
+        if (on('clouds')) {
+          paint.globalAlpha = 1 - state.light * 0.6;
+          drawPiece(
+            'clouds',
+            W * (0.02 - state.pan * 0.04),
+            H * 0.035,
+            W * 0.49,
+            H * 0.19
+          );
+          drawPiece(
+            'clouds',
+            W * (0.65 - state.pan * 0.06),
+            H * 0.11,
+            W * 0.36,
+            H * 0.14,
+            true
+          );
+          paint.globalAlpha = 1;
+        }
+        if (on('hills'))
+          band(
+            'hills',
+            recipe.hillY * H,
+            recipe.hillH * H,
+            state.pan,
+            0.08,
+            state.arrangement
+          );
+        if (on('river'))
+          band(
+            'river',
+            recipe.riverY * H,
+            recipe.riverH * H,
+            state.pan,
+            0.18,
+            state.arrangement + 1
+          );
+        if (on('ground')) {
+          paint.save();
+          groundPath(recipe.groundY);
+          paint.clip();
+          band(
+            'ground',
+            recipe.groundY * H,
+            H * (1 - recipe.groundY),
+            state.pan,
+            0.25,
+            state.arrangement
+          );
+          paint.restore();
+          paint.save();
+          paint.strokeStyle = 'rgba(183,167,100,0.75)';
+          paint.lineWidth = 3;
+          paint.beginPath();
+          for (let x = 0; x <= W; x += 10) {
+            const y =
+              (recipe.groundY +
+                Math.sin((x / W) * 8 + state.arrangement) * 0.006) *
+              H;
+            if (x === 0) paint.moveTo(x, y);
+            else paint.lineTo(x, y);
+          }
+          paint.stroke();
+          paint.restore();
+        }
+        if (on('hobbit')) {
+          const sheet = artwork['hobbit-walk'],
+            f = sheet.frames[state.frame];
+          const scale = (H * 0.135) / sheet.figureHeight;
+          const progress =
+            state.direction === 'right' ? state.travel : 1 - state.travel;
+          const x = (progress * 1.16 - 0.08) * W,
+            y = recipe.footY * H;
+          paint.save();
+          paint.translate(x, y);
+          if (state.direction === 'left') paint.scale(-1, 1);
+          paint.drawImage(
+            images['hobbit-walk'],
+            f.x,
+            f.y,
+            f.width,
+            f.height,
+            -f.width * 0.6 * scale,
+            -f.footY * scale,
+            f.width * scale,
+            f.height * scale
+          );
+          paint.restore();
+        }
+        if (on('foreground'))
+          recipe.props.forEach((prop, i) => {
+            const a = artwork.foreground.bounds,
+              height = prop[2] * H,
+              width = (height * a.width) / a.height;
+            drawPiece(
+              'foreground',
+              (prop[0] - (state.pan - 0.35) * 0.14) * W - width * 0.5,
+              prop[1] * H - height,
+              width,
+              height,
+              Boolean((i + state.arrangement) & 1)
+            );
+          });
+        paint.restore();
+        ctx.clearRect(0, 0, W, H);
+        ctx.drawImage(world, 0, 0);
+        if (state.light > 0) {
+          ctx.save();
+          ctx.globalCompositeOperation = 'multiply';
+          ctx.globalAlpha = state.light * 0.28;
+          ctx.fillStyle = state.light < 0.6 ? '#d59c76' : '#778ebd';
+          ctx.fillRect(0, 0, W, H);
+          ctx.restore();
+        }
+        document.querySelector('#badge').textContent =
+          recipe.name +
+          ' · ' +
+          (state.light < 0.25 ? 'day' : state.light < 0.75 ? 'dusk' : 'night');
+      };
+      const updateControls = () => {
+        document
+          .querySelectorAll('[data-arrangement]')
+          .forEach(el =>
+            el.setAttribute(
+              'aria-pressed',
+              String(Number(el.dataset.arrangement) === state.arrangement)
+            )
+          );
+        document
+          .querySelectorAll('[data-light]')
+          .forEach(el =>
+            el.setAttribute(
+              'aria-pressed',
+              String(Number(el.dataset.light) === state.light)
+            )
+          );
+        document
+          .querySelectorAll('[data-layer]')
+          .forEach(
+            el => (el.checked = state.visible.includes(el.dataset.layer))
+          );
+        ['light', 'pan', 'travel', 'direction'].forEach(
+          key => (document.querySelector('#' + key).value = state[key])
+        );
+        document.querySelector('#play').textContent = state.playing
+          ? 'Pause walking'
+          : 'Resume walking';
+        const fields = [
+          ['Arrangement', arrangements[state.arrangement].name],
+          ['Lighting', Math.round(state.light * 100) + '% toward night'],
+          ['Look along bank', Math.round(state.pan * 100) + '%'],
+          ['Hobbit position', Math.round(state.travel * 100) + '%'],
+          ['Walk pose', state.frame + 1 + ' of 8'],
+          [
+            'Movement',
+            state.playing
+              ? 'Walking ' + state.direction
+              : 'Paused, facing ' + state.direction
+          ],
+          ['Visible layers', state.visible.length + ' of 6'],
+          ['Artwork library', '6 images, reused in every scene']
+        ];
+        document.querySelector('#state').replaceChildren(
+          ...fields.flatMap(pair => {
+            const dt = document.createElement('dt'),
+              dd = document.createElement('dd');
+            dt.textContent = pair[0];
+            dd.textContent = pair[1];
+            return [dt, dd];
+          })
+        );
+      };
+      const guides = {
+        layers: {
+          text: 'Start with the sky. Add each piece in drawing order and notice where transparency allows the layers to overlap.',
+          steps: [
+            ['Sky only', { visible: [], playing: false, light: 0 }],
+            ['Add clouds and hills', { visible: ['clouds', 'hills'] }],
+            [
+              'Add river and meadow',
+              { visible: ['clouds', 'hills', 'river', 'ground'] }
+            ],
+            [
+              'Add hobbit and foreground',
+              { visible: layerNames.slice(), travel: 0.52 }
+            ]
+          ]
+        },
+        reuse: {
+          text: 'These arrangements load no new artwork. The same strips shift, mirror and overlap; the rock clump is reused at different scales.',
+          steps: [
+            [
+              'Open riverbank',
+              {
+                arrangement: 0,
+                visible: layerNames.slice(),
+                light: 0,
+                playing: false,
+                travel: 0.52
+              }
+            ],
+            ['Sheltered bank', { arrangement: 1 }],
+            ['Rocky edge', { arrangement: 2 }],
+            ['Move along the bank', { pan: 0.95 }]
+          ]
+        },
+        motion: {
+          text: 'The background stays assembled while the figure changes frames. Try night, then hide the foreground to inspect ground contact and the occlusion near the central rocks.',
+          steps: [
+            [
+              'Daytime walk',
+              {
+                arrangement: 2,
+                light: 0,
+                playing: true,
+                visible: layerNames.slice(),
+                travel: 0.35
+              }
+            ],
+            ['Dusk', { light: 0.5 }],
+            ['Night', { light: 1 }],
+            [
+              'Inspect the walking figure',
+              {
+                playing: false,
+                travel: 0.52,
+                light: 0,
+                visible: layerNames.filter(name => name !== 'foreground')
+              }
+            ]
+          ]
+        }
+      };
+      const showGuide = name => {
+        dispatch({ type: 'reset' });
+        document.querySelectorAll('[data-guide]').forEach(el => {
+          const active = el.dataset.guide === name;
+          el.classList.toggle('active', active);
+          el.setAttribute('aria-selected', String(active));
+        });
+        const guide = guides[name];
+        document.querySelector('#guide-description').textContent = guide.text;
+        document.querySelector('#guide-steps').replaceChildren(
+          ...guide.steps.map((step, i) => {
+            const b = document.createElement('button');
+            b.textContent = i + 1 + '. ' + step[0];
+            b.onclick = () => {
+              dispatch({ type: 'set', values: step[1] });
+              b.classList.add('active');
+            };
+            return b;
+          })
+        );
+      };
+      layerNames.forEach(name => {
+        const label = document.createElement('label'),
+          input = document.createElement('input');
+        input.type = 'checkbox';
+        input.checked = true;
+        input.dataset.layer = name;
+        input.onchange = () => dispatch({ type: 'toggle', layer: name });
+        label.append(input, labels[name]);
+        document.querySelector('#layers').append(label);
+      });
+      document.querySelectorAll('[data-arrangement]').forEach(
+        el =>
+          (el.onclick = () =>
+            dispatch({
+              type: 'set',
+              values: { arrangement: Number(el.dataset.arrangement) }
+            }))
+      );
+      document.querySelectorAll('[data-light]').forEach(
+        el =>
+          (el.onclick = () =>
+            dispatch({
+              type: 'set',
+              values: { light: Number(el.dataset.light) }
+            }))
+      );
+      ['light', 'pan', 'travel'].forEach(
+        key =>
+          (document.querySelector('#' + key).oninput = event =>
+            dispatch({
+              type: 'set',
+              values: { [key]: Number(event.target.value) }
+            }))
+      );
+      document.querySelector('#direction').onchange = event =>
+        dispatch({ type: 'set', values: { direction: event.target.value } });
+      document.querySelector('#play').onclick = () =>
+        dispatch({ type: 'set', values: { playing: !state.playing } });
+      document.querySelector('#step').onclick = () =>
+        dispatch({ type: 'step' });
+      document.querySelector('#reset').onclick = () =>
+        dispatch({ type: 'reset' });
+      document
+        .querySelectorAll('[data-guide]')
+        .forEach(el => (el.onclick = () => showGuide(el.dataset.guide)));
+      document.querySelector('#sheet').src = artwork['hobbit-walk'].src;
+      const load = async () => {
+        await Promise.all(
+          Object.entries(artwork).map(async ([name, asset]) => {
+            const image = new Image();
+            image.src = asset.src;
+            await image.decode();
+            images[name] = image;
+          })
+        );
+        ready = true;
+        document.querySelector('#status').textContent =
+          'All six images are embedded. This file now works without a network connection.';
+        showGuide('layers');
+        let previous = performance.now(),
+          lastState = 0;
+        const frame = now => {
+          const seconds = Math.min(0.05, Math.max(0, (now - previous) / 1000));
+          previous = now;
+          state = reduceScene(state, { type: 'tick', seconds });
+          draw();
+          if (now - lastState > 100) {
+            updateControls();
+            lastState = now;
+          }
+          requestAnimationFrame(frame);
+        };
+        requestAnimationFrame(frame);
+      };
+      load().catch(error => {
+        document.querySelector('#status').textContent =
+          'Could not load embedded artwork: ' + error.message;
+      });
+    </script>
+  </body>
+</html>

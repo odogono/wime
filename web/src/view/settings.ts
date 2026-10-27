@@ -7,11 +7,16 @@ import { browserStorage, type SlotStorage } from './save-slots';
 
 // The player's settings (docs/spec/game-menu.md), the port's own: whether
 // sound plays, how much of the window the game fills, whether the
-// magnifying glass shows an Evil Force and which Debug views are on.
+// magnifying glass shows an Evil Force, how the map is drawn and which
+// Debug views are on.
 // Kept in
 // localStorage beside the saves, so they outlast a reload.
 
 export type WindowSize = 1 | 0.75 | 0.5;
+
+// How the map Levels are drawn: the original's tiles, or the Atlas map
+// (docs/spec/atlas-map.md).
+export type MapStyle = 'atlas' | 'classic';
 export const WINDOW_SIZES: readonly WindowSize[] = [1, 0.75, 0.5];
 
 export interface Settings {
@@ -19,6 +24,7 @@ export interface Settings {
   // The glass, with no Good Leader in reach, shows the first Evil
   // Force's figures where the original shows nobody.
   glassShowsEvil: boolean;
+  map: MapStyle;
   size: WindowSize;
   sound: boolean;
 }
@@ -26,6 +32,7 @@ export interface Settings {
 export const DEFAULT_SETTINGS: Settings = {
   debug: NO_DEBUG_VIEWS,
   glassShowsEvil: false,
+  map: 'classic',
   size: 1,
   sound: true
 };
@@ -46,7 +53,7 @@ export const loadSettings = (
     if (typeof raw !== 'object' || raw === null) {
       return DEFAULT_SETTINGS;
     }
-    const { debug, glassShowsEvil, size, sound } = raw as Partial<
+    const { debug, glassShowsEvil, map, size, sound } = raw as Partial<
       Record<keyof Settings, unknown>
     >;
     const stored = (
@@ -60,6 +67,7 @@ export const loadSettings = (
         typeof glassShowsEvil === 'boolean'
           ? glassShowsEvil
           : DEFAULT_SETTINGS.glassShowsEvil,
+      map: map === 'atlas' ? 'atlas' : 'classic',
       size: WINDOW_SIZES.find(s => s === size) ?? DEFAULT_SETTINGS.size,
       sound: typeof sound === 'boolean' ? sound : DEFAULT_SETTINGS.sound
     };

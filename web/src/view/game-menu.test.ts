@@ -113,6 +113,7 @@ describe('the in-game menu', () => {
         openSettingsMenu({
           debug: NO_DEBUG_VIEWS,
           glassShowsEvil: false,
+          map: 'classic',
           size: 0.75,
           sound: false
         })
@@ -121,6 +122,7 @@ describe('the in-game menu', () => {
       'Sound: Off',
       'Window size: 75%',
       'Glass shows Evil: Off',
+      'Map: Classic',
       'Back'
     ]);
   });
@@ -129,6 +131,7 @@ describe('the in-game menu', () => {
     const open = openSettingsMenu({
       debug: NO_DEBUG_VIEWS,
       glassShowsEvil: false,
+      map: 'classic',
       size: 1,
       sound: true
     });
@@ -138,6 +141,7 @@ describe('the in-game menu', () => {
       settings: {
         debug: NO_DEBUG_VIEWS,
         glassShowsEvil: false,
+        map: 'classic',
         size: 1,
         sound: false
       }
@@ -157,6 +161,7 @@ describe('the in-game menu', () => {
       settings: {
         debug: NO_DEBUG_VIEWS,
         glassShowsEvil: true,
+        map: 'classic',
         size: 1,
         sound: true
       }
@@ -166,10 +171,26 @@ describe('the in-game menu', () => {
     expect(keys(open, 'Escape').menu).toEqual(openGameMenu());
   });
 
+  test('Settings switches the map between Classic and Atlas', () => {
+    const open = openSettingsMenu({
+      debug: NO_DEBUG_VIEWS,
+      glassShowsEvil: false,
+      map: 'classic',
+      size: 1,
+      sound: true
+    });
+    const map = keys(open, 'ArrowDown', 'ArrowDown', 'ArrowDown', 'Enter');
+    expect(map.choice?.kind === 'set' ? map.choice.settings.map : null).toBe(
+      'atlas'
+    );
+    expect(labels(map.menu)[3]).toBe('Map: Atlas');
+  });
+
   test('Debug views are offered only where allowed, each a switch', () => {
     const plain = {
       debug: NO_DEBUG_VIEWS,
       glassShowsEvil: false,
+      map: 'classic',
       size: 1,
       sound: true
     } as const;
@@ -177,6 +198,7 @@ describe('the in-game menu', () => {
     const open = openSettingsMenu(plain, true);
     const debug = keys(
       open,
+      'ArrowDown',
       'ArrowDown',
       'ArrowDown',
       'ArrowDown',

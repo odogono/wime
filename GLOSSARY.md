@@ -5,15 +5,15 @@ A faithful browser reimplementation of the 1988 Melbourne House / Synergistic ga
 ## Levels
 
 **Level**:
-One of the three views onto the single game world. The player moves up and down between them at any time.
+One of the three views onto the single game world. The Full Map Level and the Campaign Level are the far and near bands of one continuously zoomable map; the Animation Level is a separate view. The player moves between them at any time.
 _Avoid_: Zoom, view mode, screen
 
 **Full Map Level**:
-The overview of the whole of Middle Earth, where Forces appear as dots: blue for Good, red for Evil, green for Neutral.
+The far zoom band of the map, showing the whole of Middle Earth, where Forces appear as dots: blue for Good, red for Evil, green for Neutral.
 _Avoid_: Overview map, world map, strategic map
 
 **Campaign Level**:
-A detailed, scrollable map of part of Middle Earth, where Characters appear as figures and Units as badges. Most orders are given here.
+The near zoom band of the map, showing part of Middle Earth in detail, where Characters appear as figures and Units as badges. Most orders are given here.
 _Avoid_: Tile map, local map
 
 **Animation Level**:
@@ -62,6 +62,10 @@ A Neutral Nation committing its Forces to the Good Side and the player's command
 _Avoid_: Activation, recruitment
 
 ## Map
+
+**Terrain Region**:
+An area of the map with a single kind of ground, such as forest, marsh or mountain. The kind of ground sets how fast Forces cross it, or whether they can cross it at all.
+_Avoid_: Tile, zone, area
 
 **Place**:
 A named point on the map, such as Hobbiton or Cirith Ungol. Every Place has a kind, such as a small town, a ruin or a fortress.

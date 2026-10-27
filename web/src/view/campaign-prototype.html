@@ -1,0 +1,1073 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Painted Campaign Level — reusable sprites prototype</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --ink: #e9e7dc;
+        --quiet: #aaa99c;
+        --panel: #202720;
+        --line: #414b3e;
+        --accent: #b2c690;
+        font:
+          15px/1.5 system-ui,
+          sans-serif;
+        background: #141b17;
+        color: var(--ink);
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        max-width: 1240px;
+        margin: 0 auto;
+        padding: 24px;
+      }
+      h1 {
+        font:
+          500 1.7rem/1.2 Georgia,
+          serif;
+        margin: 0 0 10px;
+      }
+      h2 {
+        font-size: 1rem;
+        font-weight: 500;
+        margin: 0 0 10px;
+      }
+      p {
+        margin: 0 0 14px;
+      }
+      .quiet {
+        color: var(--quiet);
+      }
+      .eyebrow {
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        color: var(--accent);
+        margin-bottom: 10px;
+      }
+      .panel {
+        padding: 18px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: var(--panel);
+      }
+      .row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 9px;
+      }
+      .toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 18px;
+        justify-content: space-between;
+        margin: 16px 0;
+      }
+      button,
+      select {
+        font: inherit;
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        background: #2a342b;
+        color: var(--ink);
+        padding: 7px 11px;
+      }
+      button {
+        cursor: pointer;
+      }
+      button[aria-pressed='true'],
+      button[aria-selected='true'] {
+        background: var(--accent);
+        color: #1b271a;
+        border-color: var(--accent);
+      }
+      button:focus-visible,
+      input:focus-visible,
+      select:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 3px;
+      }
+      label {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+      }
+      input[type='checkbox'] {
+        accent-color: var(--accent);
+      }
+      input[type='range'] {
+        width: 100%;
+        accent-color: var(--accent);
+      }
+      .map-wrap {
+        position: relative;
+        overflow: hidden;
+        border-radius: 9px;
+        background: #253522;
+      }
+      #map {
+        display: block;
+        width: 100%;
+        height: auto;
+        touch-action: none;
+        cursor: grab;
+      }
+      #map:active {
+        cursor: grabbing;
+      }
+      .map-note {
+        font-size: 0.85rem;
+        color: var(--quiet);
+        margin-top: 8px;
+      }
+      .columns {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+        margin-top: 16px;
+      }
+      .fields {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+      .field {
+        display: block;
+      }
+      .field span {
+        display: block;
+        margin-bottom: 3px;
+      }
+      .layers {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px 18px;
+        margin-bottom: 14px;
+      }
+      .state {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 5px 15px;
+        margin: 0;
+        font-size: 0.9rem;
+      }
+      .state dt {
+        color: var(--quiet);
+      }
+      .state dd {
+        margin: 0;
+      }
+      .guides {
+        margin-top: 16px;
+      }
+      .guide-text {
+        margin: 12px 0;
+        color: var(--quiet);
+      }
+      #status {
+        margin: 12px 0;
+        color: var(--accent);
+      }
+      .gallery {
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
+        gap: 9px;
+        margin-top: 14px;
+      }
+      .sprite {
+        background: #3c4938;
+        border-radius: 6px;
+        text-align: center;
+        padding: 8px;
+        font-size: 0.8rem;
+        color: var(--ink);
+      }
+      .sprite canvas {
+        width: 100%;
+        height: auto;
+        display: block;
+      }
+      .limits {
+        font-size: 0.9rem;
+        color: var(--quiet);
+        margin-top: 16px;
+      }
+      details {
+        margin-top: 16px;
+      }
+      summary {
+        cursor: pointer;
+      }
+      a {
+        color: var(--accent);
+      }
+      @media (max-width: 650px) {
+        body {
+          padding: 14px;
+        }
+        .columns {
+          grid-template-columns: 1fr;
+        }
+        .gallery {
+          grid-template-columns: repeat(3, 1fr);
+        }
+        .toolbar {
+          gap: 12px;
+        }
+        .state {
+          grid-template-columns: 100px 1fr;
+        }
+        button,
+        select {
+          min-height: 40px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="eyebrow">Throwaway graphics experiment</div>
+      <h1>A painted Campaign Level from reusable pieces</h1>
+      <p class="quiet">
+        Can a small sprite library reconstruct a real map section without
+        changing its geography? Explore Bree, Weathertop and Rivendell using the
+        original tile grid, fixed sprite placement and independently switchable
+        layers.
+      </p>
+    </header>
+    <div class="toolbar">
+      <div class="row" aria-label="Map section">
+        <button data-place="bree">Bree & Old Forest</button
+        ><button data-place="weathertop">Weathertop</button
+        ><button data-place="rivendell">Rivendell & ridges</button>
+      </div>
+      <label
+        >View
+        <select id="view">
+          <option value="painted">Painted sprites</option>
+          <option value="original">Original tiles</option>
+          <option value="footprints">Terrain recipes</option>
+        </select></label
+      >
+    </div>
+    <div class="map-wrap">
+      <canvas
+        id="map"
+        width="1280"
+        height="768"
+        role="img"
+        aria-label="Scrollable reconstruction of the original Campaign Level terrain; drag to pan or use the position controls below."
+      ></canvas>
+    </div>
+    <div class="map-note">
+      Drag to pan. Every view covers the same 20 × 12 original tiles. Painted
+      artwork is rendered at four times the original resolution.
+    </div>
+    <p id="status" role="status">Loading embedded artwork…</p>
+    <div class="columns">
+      <section class="panel">
+        <h2>Compose the map</h2>
+        <div class="layers">
+          <label
+            ><input type="checkbox" data-layer="ground" checked />Ground</label
+          ><label
+            ><input type="checkbox" data-layer="water" checked />Water &
+            banks</label
+          ><label
+            ><input type="checkbox" data-layer="roads" checked />Paths</label
+          ><label
+            ><input type="checkbox" data-layer="nature" checked />Trees &
+            ridges</label
+          ><label
+            ><input
+              type="checkbox"
+              data-layer="settlements"
+              checked
+            />Settlements</label
+          >
+        </div>
+        <div class="row">
+          <label><input id="grid" type="checkbox" />Original grid</label
+          ><label
+            ><input id="labels" type="checkbox" checked />Place names</label
+          ><label
+            ><input id="variation" type="checkbox" checked />Sprite
+            variation</label
+          >
+        </div>
+        <div class="fields" style="margin-top: 14px">
+          <label class="field"
+            ><span>West / east</span
+            ><input
+              id="pan-x"
+              type="range"
+              min="0"
+              max="384"
+              step="1"
+              value="320" /></label
+          ><label class="field"
+            ><span>North / south</span
+            ><input
+              id="pan-y"
+              type="range"
+              min="0"
+              max="320"
+              step="1"
+              value="96"
+          /></label>
+        </div>
+        <div class="row">
+          <button data-pan="-16,0" aria-label="Pan west">←</button
+          ><button data-pan="0,-16" aria-label="Pan north">↑</button
+          ><button data-pan="0,16" aria-label="Pan south">↓</button
+          ><button data-pan="16,0" aria-label="Pan east">→</button
+          ><button id="reset">Reset</button>
+        </div>
+      </section>
+      <section class="panel">
+        <h2>Current composition</h2>
+        <dl id="state" class="state" aria-live="polite"></dl>
+      </section>
+    </div>
+    <section class="panel guides">
+      <h2>Guided comparisons</h2>
+      <div class="row" role="tablist" aria-label="Walkthroughs">
+        <button role="tab" aria-selected="true" data-guide="layers">
+          Build the layers</button
+        ><button role="tab" aria-selected="false" data-guide="reuse">
+          Inspect reuse</button
+        ><button role="tab" aria-selected="false" data-guide="geography">
+          Check geography
+        </button>
+      </div>
+      <p id="guide-text" class="guide-text"></p>
+      <div id="steps" class="row"></div>
+    </section>
+    <details>
+      <summary>Inspect the 12 reusable scenery sprites</summary>
+      <div id="gallery" class="gallery"></div>
+    </details>
+    <p class="limits">
+      Prototype limits: image-derived terrain recipes, symbolic settlement
+      artwork, simplified path/bank treatment, and a bounded map section. No
+      game simulation, Force movement, Orders or production rendering is
+      connected. Named Places use original coordinates; their new illustrations
+      are generic symbols.
+    </p>
+    <script>
+      const campaignData = __CAMPAIGN_DATA__;
+    </script>
+    <script>
+      // Pure prototype logic. Stable world-coordinate hashes never consume sim RNG.
+      const campaignModel = (() => {
+        const defaults = () => ({
+          x: 320,
+          y: 96,
+          view: 'painted',
+          grid: false,
+          labels: true,
+          variation: true,
+          layers: ['ground', 'water', 'roads', 'nature', 'settlements'],
+          selected: null
+        });
+        const hash = (x, y, salt = 0) => {
+          let value =
+            Math.imul(x + 173, 374761393) ^
+            Math.imul(y + 619, 668265263) ^
+            Math.imul(salt + 1, 1274126177);
+          value = Math.imul(value ^ (value >>> 13), 1274126177);
+          return (value ^ (value >>> 16)) >>> 0;
+        };
+        const reduce = (state, action) => {
+          if (action.type === 'reset') return defaults();
+          if (action.type === 'pan')
+            return {
+              ...state,
+              x: Math.max(0, Math.min(384, action.x)),
+              y: Math.max(0, Math.min(320, action.y))
+            };
+          if (action.type === 'layer')
+            return {
+              ...state,
+              layers: action.on
+                ? [...new Set([...state.layers, action.name])]
+                : state.layers.filter(l => l !== action.name)
+            };
+          if (action.type === 'set') return { ...state, ...action.value };
+          return state;
+        };
+        const localWater = (tile, x, y) =>
+          tile.pixels[
+            Math.max(0, Math.min(15, Math.floor(y))) * 16 +
+              Math.max(0, Math.min(15, Math.floor(x)))
+          ][2];
+        const objects = (tiles, region, variation, treeFrames) => {
+          const result = [];
+          const roadAt = (x, y) => {
+            if (
+              x < 0 ||
+              y < 0 ||
+              x >= region.width * 16 ||
+              y >= region.height * 16
+            )
+              return false;
+            const tile =
+              tiles[Math.floor(y / 16) * region.width + Math.floor(x / 16)];
+            return tile.pixels[
+              (Math.floor(y) % 16) * 16 + (Math.floor(x) % 16)
+            ][3];
+          };
+          const crossesRoad = (x, y, width, height) => {
+            // Check the projected crown, including a narrow verge, across
+            // tile edges. Clearing only the trunk still hides the road.
+            for (
+              let py = Math.floor(y - height - 1);
+              py <= Math.ceil(y + 1);
+              py++
+            )
+              for (
+                let px = Math.floor(x - width / 2 - 1);
+                px <= Math.ceil(x + width / 2 + 1);
+                px++
+              )
+                if (roadAt(px, py)) return true;
+            return false;
+          };
+          for (const tile of tiles) {
+            const wx = tile.x + region.x,
+              wy = tile.y + region.y,
+              seed = hash(wx, wy);
+            if (tile.category === 'forest') {
+              // Small crowns need close, irregular spacing to form a canopy.
+              // Keep the source footprint, but scatter inside four-pixel cells.
+              for (let i = 0; i < 16; i++) {
+                const r = hash(wx, wy, i + 1),
+                  x = 2 + (i % 4) * 4,
+                  y = 2 + Math.floor(i / 4) * 4;
+                let coverage = 0;
+                let waterside = false;
+                for (let dy = -2; dy <= 2; dy++)
+                  for (let dx = -2; dx <= 2; dx++) {
+                    const px = Math.max(0, Math.min(15, x + dx)),
+                      py = Math.max(0, Math.min(15, y + dy)),
+                      pixel = tile.pixels[py * 16 + px];
+                    coverage += pixel[0];
+                    if (pixel[2]) waterside = true;
+                  }
+                if (coverage < 5 || waterside || r % 13 === 0) continue;
+                const jitterX = variation ? ((r % 101) / 100 - 0.5) * 3.2 : 0,
+                  jitterY = variation
+                    ? (((r >>> 8) % 101) / 100 - 0.5) * 3.2
+                    : 0,
+                  frame = variation ? r % 3 : 0,
+                  width = variation ? 6.5 + (r % 3) * 0.5 : 7,
+                  treeX = tile.x * 16 + x + jitterX,
+                  treeY = tile.y * 16 + y + jitterY,
+                  height =
+                    (width * treeFrames[frame].height) /
+                    treeFrames[frame].width;
+                if (crossesRoad(treeX, treeY, width, height)) continue;
+                result.push({
+                  sheet: 'nature',
+                  frame,
+                  x: treeX,
+                  y: treeY,
+                  width,
+                  type: 'tree'
+                });
+              }
+            } else if (
+              tile.category === 'mountain' ||
+              tile.category === 'hill'
+            ) {
+              if (!localWater(tile, 8, 10))
+                result.push({
+                  sheet: 'nature',
+                  frame:
+                    tile.category === 'hill'
+                      ? 5
+                      : variation
+                        ? 3 + (seed % 2)
+                        : 3,
+                  x: tile.x * 16 + 8 + (variation ? (seed % 5) * 0.5 - 1 : 0),
+                  y: tile.y * 16 + 12 + (variation ? (seed % 3) - 1 : 0),
+                  width: tile.category === 'hill' ? 24 : 32,
+                  type: tile.category
+                });
+            } else if (tile.category === 'place') {
+              let frame = /ruin/.test(tile.kind)
+                ? 3
+                : /castle|citadel/.test(tile.kind)
+                  ? 2
+                  : /large town/.test(tile.kind)
+                    ? 1
+                    : 0;
+              if (tile.symbol !== null) frame = tile.symbol;
+              if (
+                variation &&
+                tile.symbol === null &&
+                frame === 0 &&
+                seed % 3 === 0
+              )
+                frame = 5;
+              result.push({
+                sheet: 'settlements',
+                frame,
+                x: tile.x * 16 + 8,
+                y: tile.y * 16 + 12,
+                width: 25,
+                type: 'settlement'
+              });
+            }
+          }
+          return result.sort((a, b) => a.y - b.y || a.x - b.x);
+        };
+        return { defaults, hash, reduce, objects };
+      })();
+    </script>
+    <script>
+      const map = document.getElementById('map'),
+        ctx = map.getContext('2d', { willReadFrequently: true });
+      let state = campaignModel.defaults(),
+        art = {},
+        layers = {},
+        spriteList = [],
+        ready = false,
+        guide = 'layers';
+      const presets = {
+        bree: { x: 64, y: 112 },
+        weathertop: { x: 208, y: 96 },
+        rivendell: { x: 384, y: 80 }
+      };
+      const load = src =>
+        new Promise((resolve, reject) => {
+          const image = new Image();
+          image.onload = () =>
+            image
+              .decode()
+              .then(() => createImageBitmap(image))
+              .then(resolve, reject);
+          image.onerror = reject;
+          image.src = src;
+        });
+      const surface = (w, h) => {
+        const c = document.createElement('canvas');
+        c.width = w;
+        c.height = h;
+        return c;
+      };
+      const SC = 4;
+      function texture(image, pitch = 512) {
+        const c = surface(pitch * 2, pitch * 2),
+          cctx = c.getContext('2d');
+        for (let y = 0; y < 2; y++)
+          for (let x = 0; x < 2; x++) {
+            cctx.save();
+            cctx.translate(
+              (x + Number(x === 1)) * pitch,
+              (y + Number(y === 1)) * pitch
+            );
+            cctx.scale(x === 1 ? -1 : 1, y === 1 ? -1 : 1);
+            cctx.drawImage(image, 0, 0, pitch, pitch);
+            cctx.restore();
+          }
+        return c;
+      }
+      function buildLayers() {
+        const w = campaignData.width * SC,
+          h = campaignData.height * SC;
+        layers.ground = surface(w, h);
+        const g = layers.ground.getContext('2d');
+        // Keep the meadow quiet enough for small tree silhouettes to read.
+        // This is compositing; the generated texture itself stays unchanged.
+        g.fillStyle = '#98a477';
+        g.fillRect(0, 0, w, h);
+        g.globalAlpha = 0.3;
+        g.fillStyle = g.createPattern(texture(art.grass, 1024), 'repeat');
+        g.fillRect(0, 0, w, h);
+        g.globalAlpha = 1;
+        const mask = surface(w, h),
+          m = mask.getContext('2d');
+        m.imageSmoothingEnabled = true;
+        m.drawImage(art.waterMask, 0, 0, w, h);
+        layers.water = surface(w, h);
+        const water = layers.water.getContext('2d');
+        water.filter = 'blur(2px)';
+        water.drawImage(mask, 0, 0);
+        water.filter = 'none';
+        water.globalCompositeOperation = 'source-in';
+        water.fillStyle = '#68754d';
+        water.fillRect(0, 0, w, h);
+        const fill = surface(w, h),
+          f = fill.getContext('2d');
+        f.fillStyle = f.createPattern(texture(art.water, 384), 'repeat');
+        f.fillRect(0, 0, w, h);
+        f.globalCompositeOperation = 'destination-in';
+        f.drawImage(mask, 0, 0);
+        water.globalCompositeOperation = 'source-over';
+        water.drawImage(fill, 0, 0);
+        layers.roads = surface(w, h);
+        const r = layers.roads.getContext('2d');
+        r.drawImage(art.roads, 0, 0, w, h);
+        r.globalCompositeOperation = 'source-in';
+        r.fillStyle = '#d6bd8d';
+        r.fillRect(0, 0, w, h);
+        r.globalCompositeOperation = 'source-over';
+        spriteList = campaignModel.objects(
+          campaignData.tiles,
+          campaignData.region,
+          state.variation,
+          campaignData.art.nature.frames
+        );
+      }
+      function stamp(object) {
+        const frame = campaignData.art[object.sheet].frames[object.frame],
+          height = (object.width * frame.height) / frame.width;
+        ctx.drawImage(
+          art[object.sheet],
+          frame.x,
+          frame.y,
+          frame.width,
+          frame.height,
+          (object.x - state.x - object.width / 2) * SC,
+          (object.y - state.y - height) * SC,
+          object.width * SC,
+          height * SC
+        );
+      }
+      function draw() {
+        if (!ready) return;
+        ctx.reset();
+        ctx.clearRect(0, 0, map.width, map.height);
+        ctx.fillStyle = '#61734b';
+        ctx.fillRect(0, 0, map.width, map.height);
+        ctx.imageSmoothingEnabled = true;
+        if (state.view === 'original') {
+          ctx.imageSmoothingEnabled = false;
+          ctx.drawImage(
+            art.original,
+            state.x,
+            state.y,
+            320,
+            192,
+            0,
+            0,
+            1280,
+            768
+          );
+        } else if (state.view === 'footprints') {
+          const colours = {
+            grass: '#899459',
+            forest: '#345b34',
+            mountain: '#817c6c',
+            hill: '#baa16e',
+            place: '#b57d54'
+          };
+          for (const tile of campaignData.tiles) {
+            ctx.fillStyle = colours[tile.category];
+            ctx.fillRect(
+              (tile.x * 16 - state.x) * SC,
+              (tile.y * 16 - state.y) * SC,
+              16 * SC,
+              16 * SC
+            );
+          }
+          ctx.globalAlpha = 0.8;
+          ctx.drawImage(
+            layers.water,
+            state.x * SC,
+            state.y * SC,
+            1280,
+            768,
+            0,
+            0,
+            1280,
+            768
+          );
+          ctx.globalAlpha = 1;
+        } else {
+          for (const name of ['ground', 'roads', 'water'])
+            if (state.layers.includes(name))
+              ctx.drawImage(
+                layers[name],
+                state.x * SC,
+                state.y * SC,
+                1280,
+                768,
+                0,
+                0,
+                1280,
+                768
+              );
+          for (const object of spriteList) {
+            if (
+              object.x < state.x - 30 ||
+              object.x > state.x + 350 ||
+              object.y < state.y - 5 ||
+              object.y > state.y + 230
+            )
+              continue;
+            if (
+              state.layers.includes(
+                object.sheet === 'nature' ? 'nature' : 'settlements'
+              )
+            )
+              stamp(object);
+          }
+        }
+        if (state.grid) {
+          ctx.strokeStyle = 'rgba(255,255,229,.34)';
+          ctx.lineWidth = 1;
+          for (let x = -state.x % 16; x <= 320; x += 16) {
+            ctx.beginPath();
+            ctx.moveTo(x * SC, 0);
+            ctx.lineTo(x * SC, 768);
+            ctx.stroke();
+          }
+          for (let y = -state.y % 16; y <= 192; y += 16) {
+            ctx.beginPath();
+            ctx.moveTo(0, y * SC);
+            ctx.lineTo(1280, y * SC);
+            ctx.stroke();
+          }
+        }
+        if (state.labels) {
+          const occupied = [];
+          ctx.font = '500 16px system-ui';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'top';
+          for (const p of campaignData.places) {
+            const x = (p.x - state.x) * SC,
+              y = (p.y - state.y) * SC;
+            if (x < 18 || x > 1262 || y < 20 || y > 728) continue;
+            const label = p.name
+                .toLowerCase()
+                .replace(/(^|[ -])\w/g, c => c.toUpperCase()),
+              width = ctx.measureText(label).width + 14;
+            const left = Math.max(5, Math.min(1275 - width, x - width / 2));
+            let top = y + 7;
+            while (
+              occupied.some(
+                r =>
+                  left < r.x + r.width + 3 &&
+                  left + width + 3 > r.x &&
+                  top < r.y + 27 &&
+                  top + 27 > r.y
+              )
+            )
+              top += 27;
+            if (top > 740) continue;
+            occupied.push({ x: left, y: top, width });
+            ctx.fillStyle = 'rgba(22,31,21,.86)';
+            ctx.fillRect(left, top, width, 24);
+            ctx.fillStyle = '#f0ead2';
+            ctx.fillText(label, left + width / 2, top + 3);
+          }
+        }
+        if (state.selected) {
+          ctx.strokeStyle = '#f6e7a6';
+          ctx.lineWidth = 3;
+          ctx.strokeRect(
+            (state.selected.x * 16 - state.x) * SC,
+            (state.selected.y * 16 - state.y) * SC,
+            64,
+            64
+          );
+        }
+        updateState();
+      }
+      function updateState() {
+        const visible = spriteList.filter(
+          o =>
+            o.x >= state.x &&
+            o.x < state.x + 320 &&
+            o.y >= state.y &&
+            o.y < state.y + 192
+        );
+        const counts = {};
+        for (const object of visible)
+          counts[object.type] = (counts[object.type] || 0) + 1;
+        const selected = state.selected
+          ? campaignData.tiles[state.selected.y * 44 + state.selected.x]
+          : null;
+        const rows = [
+          [
+            'Map position',
+            `Column ${(40 + state.x / 16).toFixed(2)}, row ${(14 + state.y / 16).toFixed(2)}`
+          ],
+          ['View', state.view],
+          ['Layers', state.layers.length ? state.layers.join(', ') : 'none'],
+          [
+            'Variation',
+            state.variation
+              ? 'Fixed by map coordinates'
+              : 'Same sprite per terrain family'
+          ],
+          [
+            'Visible recipes',
+            Object.entries(counts)
+              .map(([k, v]) => `${v} ${k}`)
+              .join(' · ')
+          ],
+          ['Library', '3 trees · 3 ridges · 6 settlements · 2 textures'],
+          [
+            'Selected tile',
+            selected
+              ? `Original tile ${selected.id} → ${selected.category}${selected.kind ? ' (' + selected.kind + ')' : ''}`
+              : 'Click a tile to inspect its recipe'
+          ]
+        ];
+        const dl = document.getElementById('state');
+        dl.replaceChildren();
+        for (const [key, value] of rows) {
+          const dt = document.createElement('dt'),
+            dd = document.createElement('dd');
+          dt.textContent = key;
+          dd.textContent = value;
+          dl.append(dt, dd);
+        }
+        document.getElementById('pan-x').value = state.x;
+        document.getElementById('pan-y').value = state.y;
+        document.getElementById('view').value = state.view;
+        for (const name of ['grid', 'labels', 'variation'])
+          document.getElementById(name).checked = state[name];
+        for (const checkbox of document.querySelectorAll('[data-layer]'))
+          checkbox.checked = state.layers.includes(checkbox.dataset.layer);
+        for (const button of document.querySelectorAll('[data-place]'))
+          button.setAttribute(
+            'aria-pressed',
+            String(
+              state.x === presets[button.dataset.place].x &&
+                state.y === presets[button.dataset.place].y
+            )
+          );
+      }
+      function dispatch(action) {
+        const old = state.variation;
+        state = campaignModel.reduce(state, action);
+        if (old !== state.variation)
+          spriteList = campaignModel.objects(
+            campaignData.tiles,
+            campaignData.region,
+            state.variation,
+            campaignData.art.nature.frames
+          );
+        draw();
+      }
+      const walkthroughs = {
+        layers: {
+          text: 'Reveal the same real section one layer at a time. The ground continues beneath every transparent tree, ridge and settlement.',
+          steps: [
+            [
+              'Ground only',
+              { view: 'painted', labels: false, layers: ['ground'] }
+            ],
+            ['Add waterways', { layers: ['ground', 'water', 'roads'] }],
+            ['Add scenery', { layers: ['ground', 'water', 'roads', 'nature'] }],
+            [
+              'Add settlements',
+              {
+                layers: ['ground', 'water', 'roads', 'nature', 'settlements'],
+                labels: true
+              }
+            ]
+          ]
+        },
+        reuse: {
+          text: 'Compare repeated single shapes with a small fixed set of variations. Then pan away and return: every sprite stays tied to the same map coordinates.',
+          steps: [
+            ['Same pieces', { view: 'painted', variation: false }],
+            ['Three variants', { variation: true }],
+            ['Pan east', { x: 384, y: 80 }],
+            ['Return', { x: 320, y: 96 }]
+          ]
+        },
+        geography: {
+          text: 'Compare original tiles, the prototype terrain classifications, and the painted result at identical coordinates. Water masks come directly from the source pixels.',
+          steps: [
+            ['Original', { view: 'original', grid: true, labels: true }],
+            ['Terrain recipes', { view: 'footprints' }],
+            ['Painted', { view: 'painted' }],
+            ['Hide grid', { grid: false }]
+          ]
+        }
+      };
+      function showGuide(name) {
+        guide = name;
+        state = campaignModel.defaults();
+        spriteList = campaignModel.objects(
+          campaignData.tiles,
+          campaignData.region,
+          true,
+          campaignData.art.nature.frames
+        );
+        const item = walkthroughs[name];
+        document.getElementById('guide-text').textContent = item.text;
+        const steps = document.getElementById('steps');
+        steps.replaceChildren();
+        item.steps.forEach(([label, value]) => {
+          const button = document.createElement('button');
+          button.textContent = label;
+          button.onclick = () => dispatch({ type: 'set', value });
+          steps.append(button);
+        });
+        for (const button of document.querySelectorAll('[data-guide]'))
+          button.setAttribute(
+            'aria-selected',
+            String(button.dataset.guide === name)
+          );
+        draw();
+      }
+      document
+        .querySelectorAll('[data-place]')
+        .forEach(
+          button =>
+            (button.onclick = () =>
+              dispatch({ type: 'pan', ...presets[button.dataset.place] }))
+        );
+      document.querySelectorAll('[data-pan]').forEach(
+        button =>
+          (button.onclick = () => {
+            const [x, y] = button.dataset.pan.split(',').map(Number);
+            dispatch({ type: 'pan', x: state.x + x, y: state.y + y });
+          })
+      );
+      document.querySelectorAll('[data-layer]').forEach(
+        input =>
+          (input.onchange = () =>
+            dispatch({
+              type: 'layer',
+              name: input.dataset.layer,
+              on: input.checked
+            }))
+      );
+      for (const name of ['grid', 'labels', 'variation'])
+        document.getElementById(name).onchange = event =>
+          dispatch({ type: 'set', value: { [name]: event.target.checked } });
+      for (const axis of ['x', 'y'])
+        document.getElementById('pan-' + axis).oninput = event =>
+          dispatch({
+            type: 'pan',
+            x: state.x,
+            y: state.y,
+            [axis]: Number(event.target.value)
+          });
+      document.getElementById('view').onchange = event =>
+        dispatch({ type: 'set', value: { view: event.target.value } });
+      document.getElementById('reset').onclick = () =>
+        dispatch({ type: 'reset' });
+      document
+        .querySelectorAll('[data-guide]')
+        .forEach(
+          button => (button.onclick = () => showGuide(button.dataset.guide))
+        );
+      let drag = null;
+      map.onpointerdown = event => {
+        drag = {
+          x: event.clientX,
+          y: event.clientY,
+          cameraX: state.x,
+          cameraY: state.y,
+          moved: false
+        };
+        map.setPointerCapture(event.pointerId);
+      };
+      map.onpointermove = event => {
+        if (!drag) return;
+        const rect = map.getBoundingClientRect(),
+          dx = ((event.clientX - drag.x) * 320) / rect.width,
+          dy = ((event.clientY - drag.y) * 192) / rect.height;
+        if (Math.abs(dx) + Math.abs(dy) > 1) drag.moved = true;
+        dispatch({
+          type: 'pan',
+          x: Math.round(drag.cameraX - dx),
+          y: Math.round(drag.cameraY - dy)
+        });
+      };
+      map.onpointerup = event => {
+        if (drag && !drag.moved) {
+          const rect = map.getBoundingClientRect(),
+            x = Math.floor(
+              (state.x + ((event.clientX - rect.left) * 320) / rect.width) / 16
+            ),
+            y = Math.floor(
+              (state.y + ((event.clientY - rect.top) * 192) / rect.height) / 16
+            );
+          dispatch({ type: 'set', value: { selected: { x, y } } });
+        }
+        drag = null;
+      };
+      map.onpointercancel = () => {
+        drag = null;
+      };
+      async function start() {
+        const pairs = await Promise.all(
+          Object.entries(campaignData.art).map(async ([key, value]) => [
+            key,
+            await load(value.src)
+          ])
+        );
+        art = Object.fromEntries(pairs);
+        [art.original, art.waterMask, art.roads] = await Promise.all(
+          [campaignData.original, campaignData.water, campaignData.roads].map(
+            load
+          )
+        );
+        buildLayers();
+        ready = true;
+        showGuide('layers');
+        const names = [
+          'Oak',
+          'Birch',
+          'Beech',
+          'Twin ridge',
+          'Broad ridge',
+          'Foothill',
+          'Village',
+          'Walled town',
+          'Keep',
+          'Ruins',
+          'Elven hall',
+          'Farmstead'
+        ];
+        for (let i = 0; i < 12; i++) {
+          const sheet = i < 6 ? 'nature' : 'settlements',
+            frame = campaignData.art[sheet].frames[i % 6],
+            tile = document.createElement('div'),
+            c = surface(180, 150),
+            g = c.getContext('2d');
+          tile.className = 'sprite';
+          const scale = Math.min(160 / frame.width, 135 / frame.height),
+            w = frame.width * scale,
+            h = frame.height * scale;
+          g.drawImage(
+            art[sheet],
+            frame.x,
+            frame.y,
+            frame.width,
+            frame.height,
+            (180 - w) / 2,
+            140 - h,
+            w,
+            h
+          );
+          tile.append(c, document.createTextNode(names[i]));
+          document.getElementById('gallery').append(tile);
+        }
+        document.getElementById('status').textContent =
+          'Ready — four embedded images, original map data, no network or game simulation.';
+      }
+      start().catch(error => {
+        document.getElementById('status').textContent =
+          'Could not build prototype: ' + error.message;
+        console.error(error);
+      });
+    </script>
+  </body>
+</html>

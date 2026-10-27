@@ -22,6 +22,7 @@ describe('settings', () => {
     expect(loadSettings(memory())).toEqual({
       debug: NO_DEBUG_VIEWS,
       glassShowsEvil: false,
+      map: 'classic',
       size: 1,
       sound: true
     });
@@ -30,15 +31,31 @@ describe('settings', () => {
   test('are kept between visits', () => {
     const storage = memory();
     saveSettings(
-      { debug: NO_DEBUG_VIEWS, glassShowsEvil: true, size: 0.5, sound: false },
+      {
+        debug: NO_DEBUG_VIEWS,
+        glassShowsEvil: true,
+        map: 'classic',
+        size: 0.5,
+        sound: false
+      },
       storage
     );
     expect(loadSettings(storage)).toEqual({
       debug: NO_DEBUG_VIEWS,
       glassShowsEvil: true,
+      map: 'classic',
       size: 0.5,
       sound: false
     });
+  });
+
+  test('keep the map Atlas once chosen, and Classic otherwise', () => {
+    expect(
+      loadSettings(memory({ [SETTINGS_KEY]: '{"map":"atlas"}' })).map
+    ).toBe('atlas');
+    expect(
+      loadSettings(memory({ [SETTINGS_KEY]: '{"map":"sepia"}' })).map
+    ).toBe('classic');
   });
 
   test('keep the Debug views, and drop what is not one', () => {
@@ -64,6 +81,7 @@ describe('settings', () => {
     ).toEqual({
       debug: NO_DEBUG_VIEWS,
       glassShowsEvil: false,
+      map: 'classic',
       size: 1,
       sound: false
     });

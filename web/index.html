@@ -23,6 +23,17 @@
         image-rendering: pixelated;
         touch-action: none;
       }
+      /* The Atlas map fills the window under the game's canvas, whatever
+         its size; the game's canvas takes all input
+         (docs/spec/atlas-map.md). */
+      #atlas-map {
+        top: 0;
+        left: 0;
+        transform: none;
+        display: none;
+        image-rendering: auto;
+        pointer-events: none;
+      }
       /* Opens the in-game menu, as Escape does (docs/spec/game-menu.md). */
       #menu {
         position: fixed;
@@ -51,6 +62,7 @@
     </style>
   </head>
   <body>
+    <canvas id="atlas-map"></canvas>
     <canvas id="screen"></canvas>
     <pre id="status"></pre>
     <button id="menu" type="button" hidden>Menu</button>

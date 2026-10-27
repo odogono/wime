@@ -1,0 +1,325 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "id": "place:HOBBITON",
+        "op": "replace",
+        "layer": "place",
+        "pictogram": "town"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "id": "place:WOODHALL",
+        "op": "replace",
+        "layer": "place",
+        "pictogram": "town"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "id": "place:BOMBADIL'S HOUSE",
+        "op": "replace",
+        "layer": "place",
+        "pictogram": "town"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "id": "place:DALE",
+        "op": "replace",
+        "layer": "place",
+        "pictogram": "town"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "id": "place:EAST EMNET",
+        "op": "replace",
+        "layer": "place",
+        "pictogram": "town"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "id": "place:LOSSARNACH",
+        "op": "replace",
+        "layer": "place",
+        "pictogram": "town"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "id": "place:PINNATH GELIN",
+        "op": "replace",
+        "layer": "place",
+        "pictogram": "town"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "id": "place:DUNHARROW",
+        "op": "replace",
+        "layer": "place",
+        "pictogram": "castle"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "id": "place:CAIR ANDROS",
+        "op": "replace",
+        "layer": "place",
+        "pictogram": "castle"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "id": "place:RAMMAS FORTS",
+        "op": "replace",
+        "layer": "place",
+        "pictogram": "castle"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "id": "place:MINAS TIRITH",
+        "op": "replace",
+        "layer": "place",
+        "pictogram": "city"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "id": "place:DOL AMROTH",
+        "op": "replace",
+        "layer": "place",
+        "pictogram": "city"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "id": "place:OSGILIATH",
+        "op": "replace",
+        "layer": "place",
+        "pictogram": "ruin"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "id": "place:DEADMAN'S DIKE",
+        "op": "replace",
+        "layer": "place",
+        "pictogram": "ruin"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "id": "place:WEATHERTOP",
+        "op": "replace",
+        "layer": "place",
+        "pictogram": "ruin"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "id": "place:ISENGARD",
+        "op": "replace",
+        "layer": "place",
+        "pictogram": "tower"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "id": "place:BARAD-DUR",
+        "op": "replace",
+        "layer": "place",
+        "pictogram": "citadel"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "id": "place:DOL GULDUR",
+        "op": "replace",
+        "layer": "place",
+        "pictogram": "citadel"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "id": "place:MORANNON",
+        "op": "replace",
+        "layer": "place",
+        "pictogram": "gate"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "id": "place:HOLLIN GATE",
+        "op": "replace",
+        "layer": "place",
+        "pictogram": "gate"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "id": "place:RIVENDELL",
+        "op": "replace",
+        "layer": "place",
+        "pictogram": "elven"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "id": "place:LORIEN",
+        "op": "replace",
+        "layer": "place",
+        "pictogram": "elven"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "id": "place:THRANDUIL'S PALACE",
+        "op": "replace",
+        "layer": "place",
+        "pictogram": "elven"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "id": "place:GREY HAVENS",
+        "op": "replace",
+        "layer": "place",
+        "pictogram": "elven"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "id": "place:EREBOR",
+        "op": "replace",
+        "layer": "place",
+        "pictogram": "hold"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "id": "place:IRON HILLS",
+        "op": "replace",
+        "layer": "place",
+        "pictogram": "hold"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "id": "place:STONEBOWS BRIDGE",
+        "op": "replace",
+        "layer": "place",
+        "pictogram": "bridge"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "id": "place:THE LAST BRIDGE",
+        "op": "replace",
+        "layer": "place",
+        "pictogram": "bridge"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "id": "place:SARN FORD",
+        "op": "replace",
+        "layer": "place",
+        "pictogram": "ford"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "id": "place:FORD OF BRUINEN",
+        "op": "replace",
+        "layer": "place",
+        "pictogram": "ford"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "id": "place:ISEN FORD",
+        "op": "replace",
+        "layer": "place",
+        "pictogram": "ford"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "id": "place:MT. DOOM",
+        "op": "replace",
+        "layer": "place",
+        "pictogram": "volcano"
+      }
+    }
+  ]
+}

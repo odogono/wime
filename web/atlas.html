@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>War in Middle Earth — Atlas map prototype</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: #1c1917;
+      }
+      canvas {
+        display: block;
+        width: 100vw;
+        height: 100vh;
+        touch-action: none;
+        cursor: grab;
+      }
+      #hud {
+        position: fixed;
+        top: 8px;
+        left: 8px;
+        padding: 6px 10px;
+        border: 1px solid #3a2c1c;
+        background: rgb(240 228 196 / 0.92);
+        color: #3a2c1c;
+        font:
+          12px/1.5 Georgia,
+          serif;
+        pointer-events: none;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="atlas"></canvas>
+    <div id="hud">Loading…</div>
+    <script type="module" src="/src/view/atlas/main.ts"></script>
+  </body>
+</html>

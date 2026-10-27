@@ -1,0 +1,22 @@
+{
+  "grass": {
+    "url": "https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/b28f52f616ce0fc8291ebdcdfb54240b740ea37a/campaign-grass.png",
+    "sha256": "667bf64bfb18ac3b0b582cc548d080f1aeaefb13efb73e0c59e4628455f61bdc",
+    "transparent": false
+  },
+  "water": {
+    "url": "https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/93225a9e8b4a0c38531a5203a31bf420b4f734f3/campaign-water.png",
+    "sha256": "609469f5fda5d9b3ab96e774e403685f0463c28aef0cb4b20a14df5ad3c99c75",
+    "transparent": false
+  },
+  "nature": {
+    "url": "https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/fc8bf38142b9b67940139c03269a69c332d36394/campaign-nature.png",
+    "sha256": "c77c153407bbff79cc63b4c2e40e354a5e96321c1e4485b9f0f5a321390a8554",
+    "transparent": true
+  },
+  "settlements": {
+    "url": "https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/4b1695c3b61925038233bb845a2eb77c26555fa6/campaign-settlements.png",
+    "sha256": "b36aedac002cd536a006ccfa4df1b2fdf106e3cd90e433e0506d18be04b2a153",
+    "transparent": true
+  }
+}
