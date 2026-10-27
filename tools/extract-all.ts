@@ -14,7 +14,8 @@ export const STEPS = [
   ['extract-text', 'extracted_text/manifest.json'],
   ['extract-manual', 'extracted_text/manual.txt'],
   ['extract-graphics', 'extracted_graphics/manifest.json'],
-  ['export:web', 'web/public/assets/fonts/lord-10.json']
+  ['export:web', 'web/public/assets/fonts/lord-10.json'],
+  ['build-geography', 'web/public/assets/geography/bundle.bin']
 ] as const;
 
 export const main = (argv: string[] = process.argv.slice(2)): number => {

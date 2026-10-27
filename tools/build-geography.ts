@@ -1,0 +1,1164 @@
+#!/usr/bin/env bun
+// Trace the vector geography of the map from the exported Campaign Level
+// tiles, apply the committed patches and compile the bundle the Atlas
+// renderer loads (ADR-0006).
+//
+//   bun tools/build-geography.ts
+//
+// Reads web/public/assets/ (run `bun run export:web` first) and writes
+// web/public/assets/geography/: source.geojson, the traced and patched
+// geography, and bundle.bin, the compiled runtime form. Both are
+// regenerated on demand and never committed (ADR-0003); only the patches
+// in geography/patches/ are.
+import { existsSync, mkdirSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
+import earcut from 'earcut';
+import { PNG } from 'pngjs';
+
+export type Point = [number, number];
+export type Ring = Point[];
+
+// The kinds of ground a Terrain Region can have. The sim's passability
+// comes from the tile's terrain percentage; the kind only styles it.
+export const REGION_KINDS = [
+  'water',
+  'plain',
+  'forest',
+  'hill',
+  'mountain'
+] as const;
+export type RegionKind = (typeof REGION_KINDS)[number];
+
+export const SYMBOL_KINDS = ['tree', 'peak', 'hill'] as const;
+export type SymbolKind = (typeof SYMBOL_KINDS)[number];
+
+// Line styles in the bundle: the ink edge drawn along a region's border.
+export const LINE_STYLES = ['coast', 'forest', 'mountain', 'river'] as const;
+
+const TILE = 16;
+
+// ---------------------------------------------------------------------------
+// Tracing a label grid into regions whose shared borders are one arc each.
+
+export interface TracedRegion {
+  // The first cell of the region in row order, a stable identity for as
+  // long as the source grid does not change.
+  first: number;
+  // The label of the region's cells.
+  label: number;
+  // Outer rings and holes; outer rings are first in each polygon.
+  polygons: Ring[][];
+}
+
+type Arc = { left: number; points: Point[]; right: number };
+
+// Every border between two different labels, cut into arcs that run
+// between junctions (vertices where three or more labels meet, or where
+// a region touches itself diagonally). Each arc is shared by the two
+// regions either side of it, so smoothing an arc once smooths both
+// borders the same way, leaving no gaps or overlaps. Cells outside the
+// grid have component -1.
+// Undirected edge lookup so each edge is walked once.
+const edgeKey = (a: number, b: number): string =>
+  a < b ? `${a}:${b}` : `${b}:${a}`;
+
+export const traceArcs = (
+  components: Int32Array,
+  width: number,
+  height: number
+): Arc[] => {
+  const cell = (x: number, y: number): number =>
+    x < 0 || y < 0 || x >= width || y >= height
+      ? -1
+      : components[y * width + x]!;
+  const stride = width + 1;
+  const vertex = (x: number, y: number): number => y * stride + x;
+  // Directed boundary edges, keyed by start vertex, with the component on
+  // their left (walking with the region on the left, y down).
+  const out = new Map<number, { left: number; right: number; to: number }[]>();
+  const add = (
+    ax: number,
+    ay: number,
+    bx: number,
+    by: number,
+    left: number,
+    right: number
+  ): void => {
+    const a = vertex(ax, ay);
+    let list = out.get(a);
+    if (!list) {
+      list = [];
+      out.set(a, list);
+    }
+    list.push({ left, right, to: vertex(bx, by) });
+  };
+  // One undirected edge per border, oriented so `left` is on its left.
+  for (let y = 0; y <= height; y++) {
+    for (let x = 0; x < width; x++) {
+      const above = cell(x, y - 1);
+      const below = cell(x, y);
+      if (above !== below) {
+        // Walking +x with y down, the left hand points to -y (above).
+        add(x, y, x + 1, y, above, below);
+      }
+    }
+  }
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x <= width; x++) {
+      const before = cell(x - 1, y);
+      const after = cell(x, y);
+      if (before !== after) {
+        // Walking +y with y down, the left hand points to +x (after).
+        add(x, y, x, y + 1, after, before);
+      }
+    }
+  }
+  const isJunction = (v: number): boolean => {
+    const x = v % stride;
+    const y = Math.floor(v / stride);
+    const around = [
+      cell(x - 1, y - 1),
+      cell(x, y - 1),
+      cell(x - 1, y),
+      cell(x, y)
+    ];
+    const distinct = new Set(around).size;
+    if (distinct >= 3) {
+      return true;
+    }
+    // Two labels meeting diagonally: a checkerboard pinch.
+    return distinct === 2 && around[0] === around[3] && around[1] === around[2];
+  };
+  const edges = new Map<
+    string,
+    { a: number; b: number; left: number; right: number }
+  >();
+  for (const [a, list] of out) {
+    for (const e of list) {
+      edges.set(edgeKey(a, e.to), { a, b: e.to, left: e.left, right: e.right });
+    }
+  }
+  const incident = new Map<number, string[]>();
+  for (const [key, e] of edges) {
+    for (const v of [e.a, e.b]) {
+      let list = incident.get(v);
+      if (!list) {
+        list = [];
+        incident.set(v, list);
+      }
+      list.push(key);
+    }
+  }
+  const toPoint = (v: number): Point => [v % stride, Math.floor(v / stride)];
+  const used = new Set<string>();
+  const arcs: Arc[] = [];
+  const walk = (start: number, firstKey: string): void => {
+    const first = edges.get(firstKey)!;
+    // Orient the arc along the first edge's direction from `start`.
+    const forward = first.a === start;
+    const left = forward ? first.left : first.right;
+    const right = forward ? first.right : first.left;
+    const points: Point[] = [toPoint(start)];
+    let here = start;
+    let key = firstKey;
+    for (;;) {
+      used.add(key);
+      const e = edges.get(key)!;
+      here = e.a === here ? e.b : e.a;
+      points.push(toPoint(here));
+      if (here === start || isJunction(here)) {
+        break;
+      }
+      // A non-junction vertex has exactly two border edges with the same
+      // pair of labels.
+      const next = incident.get(here)!.find(k => !used.has(k));
+      if (!next) {
+        break;
+      }
+      key = next;
+    }
+    arcs.push({ left, points, right });
+  };
+  const junctions = [...incident.keys()]
+    .filter(isJunction)
+    .sort((a, b) => a - b);
+  for (const v of junctions) {
+    for (const key of incident.get(v)!) {
+      if (!used.has(key)) {
+        walk(v, key);
+      }
+    }
+  }
+  // What is left are closed loops with no junction; start each at its
+  // lowest vertex so the trace is the same on every run.
+  for (const key of [...edges.keys()].sort()) {
+    if (!used.has(key)) {
+      const e = edges.get(key)!;
+      walk(Math.min(e.a, e.b), key);
+    }
+  }
+  return arcs;
+};
+
+// Label each 4-connected run of equal labels as its own component.
+export const components = (
+  labels: Int32Array,
+  width: number,
+  height: number
+): { component: Int32Array; first: number[]; label: number[] } => {
+  const component = new Int32Array(labels.length).fill(-1);
+  const first: number[] = [];
+  const label: number[] = [];
+  const stack: number[] = [];
+  for (let start = 0; start < labels.length; start++) {
+    if (component[start] !== -1) {
+      continue;
+    }
+    const id = first.length;
+    first.push(start);
+    label.push(labels[start]!);
+    component[start] = id;
+    stack.push(start);
+    while (stack.length) {
+      const i = stack.pop()!;
+      const x = i % width;
+      const y = Math.floor(i / width);
+      for (const [nx, ny] of [
+        [x - 1, y],
+        [x + 1, y],
+        [x, y - 1],
+        [x, y + 1]
+      ] as const) {
+        if (nx < 0 || ny < 0 || nx >= width || ny >= height) {
+          continue;
+        }
+        const j = ny * width + nx;
+        if (component[j] === -1 && labels[j] === labels[i]) {
+          component[j] = id;
+          stack.push(j);
+        }
+      }
+    }
+  }
+  return { component, first, label };
+};
+
+export const signedArea = (ring: Ring): number => {
+  let area = 0;
+  for (let i = 0; i < ring.length; i++) {
+    const [ax, ay] = ring[i]!;
+    const [bx, by] = ring[(i + 1) % ring.length]!;
+    area += ax * by - bx * ay;
+  }
+  return area / 2;
+};
+
+export const pointInRing = ([x, y]: Point, ring: Ring): boolean => {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, yi] = ring[i]!;
+    const [xj, yj] = ring[j]!;
+    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) {
+      inside = !inside;
+    }
+  }
+  return inside;
+};
+
+// Chain the arcs that border each component into closed rings and group
+// them into polygons. `shape` turns an arc's grid points into the drawn
+// line, with its end points kept so neighbouring arcs still meet.
+export const assembleRegions = (
+  arcs: Arc[],
+  firsts: number[],
+  labels: number[],
+  shape: (points: Point[], edge: boolean) => Point[]
+): TracedRegion[] => {
+  // Arcs along the map's edge stay straight, so smoothing never cuts the
+  // map's corners off.
+  const shaped = arcs.map(arc => ({
+    ...arc,
+    points: shape(arc.points, arc.left < 0 || arc.right < 0)
+  }));
+  const byComponent = new Map<number, Point[][]>();
+  const push = (component: number, points: Point[]): void => {
+    if (component < 0) {
+      return;
+    }
+    let list = byComponent.get(component);
+    if (!list) {
+      list = [];
+      byComponent.set(component, list);
+    }
+    list.push(points);
+  };
+  for (const arc of shaped) {
+    push(arc.left, arc.points);
+    push(arc.right, [...arc.points].reverse());
+  }
+  const key = ([x, y]: Point): string => `${x},${y}`;
+  const regions: TracedRegion[] = [];
+  for (const [component, pieces] of [...byComponent].sort(
+    (a, b) => a[0] - b[0]
+  )) {
+    const starts = new Map<string, number[]>();
+    pieces.forEach((piece, i) => {
+      const k = key(piece[0]!);
+      starts.set(k, [...(starts.get(k) ?? []), i]);
+    });
+    const used = new Set<number>();
+    const rings: Ring[] = [];
+    for (let i = 0; i < pieces.length; i++) {
+      if (used.has(i)) {
+        continue;
+      }
+      const ring: Point[] = [];
+      let at = i;
+      for (;;) {
+        used.add(at);
+        const piece = pieces[at]!;
+        ring.push(...piece.slice(0, -1));
+        const end = piece.at(-1)!;
+        const options = (starts.get(key(end)) ?? []).filter(j => !used.has(j));
+        if (!options.length) {
+          break;
+        }
+        // At a pinch, take the sharpest left turn so the region stays on
+        // the left and its rings stay simple.
+        const prev = piece.at(-2)!;
+        const heading = Math.atan2(end[1] - prev[1], end[0] - prev[0]);
+        const turn = (j: number): number => {
+          const next = pieces[j]![1]!;
+          const angle = Math.atan2(next[1] - end[1], next[0] - end[0]);
+          let delta = angle - heading;
+          while (delta <= -Math.PI) {
+            delta += 2 * Math.PI;
+          }
+          while (delta > Math.PI) {
+            delta -= 2 * Math.PI;
+          }
+          // Left is negative with y down; prefer the most negative turn.
+          return delta;
+        };
+        at = options.sort((a, b) => turn(a) - turn(b))[0]!;
+      }
+      if (ring.length >= 3) {
+        rings.push(ring);
+      }
+    }
+    // With the region on the left and y down, outer rings have negative
+    // signed area and holes positive.
+    const outers = rings.filter(r => signedArea(r) < 0);
+    const holes = rings.filter(r => signedArea(r) >= 0);
+    const polygons: Ring[][] = outers.map(r => [r]);
+    for (const hole of holes) {
+      const owner =
+        polygons.find(p => pointInRing(hole[0]!, p[0]!)) ?? polygons[0];
+      owner?.push(hole);
+    }
+    regions.push({
+      first: firsts[component]!,
+      label: labels[component]!,
+      polygons
+    });
+  }
+  return regions;
+};
+
+// ---------------------------------------------------------------------------
+// Shaping lines.
+
+const segmentDistance = (p: Point, a: Point, b: Point): number => {
+  const dx = b[0] - a[0];
+  const dy = b[1] - a[1];
+  const t = Math.max(
+    0,
+    Math.min(
+      1,
+      ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / (dx * dx + dy * dy || 1)
+    )
+  );
+  return Math.hypot(p[0] - a[0] - t * dx, p[1] - a[1] - t * dy);
+};
+
+// Douglas–Peucker with both end points kept.
+export const simplify = (points: Point[], epsilon: number): Point[] => {
+  if (points.length < 3) {
+    return points;
+  }
+  let far = 0;
+  let index = 0;
+  for (let i = 1; i < points.length - 1; i++) {
+    const d = segmentDistance(points[i]!, points[0]!, points.at(-1)!);
+    if (d > far) {
+      far = d;
+      index = i;
+    }
+  }
+  if (far <= epsilon) {
+    return [points[0]!, points.at(-1)!];
+  }
+  return [
+    ...simplify(points.slice(0, index + 1), epsilon).slice(0, -1),
+    ...simplify(points.slice(index), epsilon)
+  ];
+};
+
+// Chaikin corner cutting with both end points kept.
+export const smooth = (points: Point[], rounds: number): Point[] => {
+  let line = points;
+  for (let r = 0; r < rounds && line.length > 2; r++) {
+    const next: Point[] = [line[0]!];
+    for (let i = 0; i < line.length - 1; i++) {
+      const [ax, ay] = line[i]!;
+      const [bx, by] = line[i + 1]!;
+      if (i > 0) {
+        next.push([ax * 0.75 + bx * 0.25, ay * 0.75 + by * 0.25]);
+      }
+      if (i < line.length - 2) {
+        next.push([ax * 0.25 + bx * 0.75, ay * 0.25 + by * 0.75]);
+      }
+    }
+    next.push(line.at(-1)!);
+    line = next;
+  }
+  return line;
+};
+
+// A closed arc (start equals end) is simplified from a midpoint too, so
+// the loop does not keep a needless corner at its start.
+const shapeWith =
+  (scale: number, epsilon: number, rounds: number) =>
+  (points: Point[], edge: boolean): Point[] => {
+    const scaled = points.map(([x, y]): Point => [x * scale, y * scale]);
+    if (edge) {
+      return simplify(scaled, 0);
+    }
+    const closed =
+      scaled.length > 3 &&
+      scaled[0]![0] === scaled.at(-1)![0] &&
+      scaled[0]![1] === scaled.at(-1)![1];
+    if (!closed) {
+      return smooth(simplify(scaled, epsilon), rounds);
+    }
+    const mid = Math.floor(scaled.length / 2);
+    const a = smooth(simplify(scaled.slice(0, mid + 1), epsilon), rounds);
+    const b = smooth(simplify(scaled.slice(mid), epsilon), rounds);
+    return [...a, ...b.slice(1)];
+  };
+
+// ---------------------------------------------------------------------------
+// The source geography.
+
+export interface GeographyFeature {
+  geometry:
+    | { coordinates: Ring[][]; type: 'MultiPolygon' }
+    | { coordinates: Point; type: 'Point' };
+  properties: Record<string, unknown> & { id: string; layer: string };
+  type: 'Feature';
+}
+
+export interface Geography {
+  // Map pixels, y down, not RFC 7946 longitude and latitude (ADR-0006).
+  bounds: [number, number, number, number];
+  features: GeographyFeature[];
+  type: 'FeatureCollection';
+}
+
+interface Tilemap {
+  height: number;
+  indices: number[];
+  width: number;
+}
+
+interface SourceData {
+  atlas: PNG;
+  places: { name: string; position: { x: number; y: number } }[];
+  strongholds: Set<string>;
+  terrainByTile: number[];
+  tilemap: Tilemap;
+}
+
+const rgb = (png: PNG, x: number, y: number): number => {
+  const i = (y * png.width + x) * 4;
+  return (png.data[i]! << 16) | (png.data[i + 1]! << 8) | png.data[i + 2]!;
+};
+
+const WATER_COLOURS = new Set([0x55_88_ff, 0x88_bb_ff]);
+const FOREST_COLOURS = new Set([0x22_44_11, 0x33_66_11]);
+const ROCK_COLOURS = new Set([0x88_88_88, 0x77_55_55]);
+const HILL_COLOURS = new Set([0xee_aa_88]);
+
+// The kind of ground a tile shows. Terrain 5 is the sea and lakes
+// (finding:movement-terrain-percent-scales-pace); the rest is read from
+// the tile's colours.
+export const tileKinds = (
+  atlas: PNG,
+  terrainByTile: number[]
+): RegionKind[] => {
+  const kinds: RegionKind[] = [];
+  const columns = atlas.width / TILE;
+  for (let id = 0; id < terrainByTile.length; id++) {
+    let forest = 0;
+    let rock = 0;
+    let hill = 0;
+    const ox = (id % columns) * TILE;
+    const oy = Math.floor(id / columns) * TILE;
+    for (let y = 0; y < TILE; y++) {
+      for (let x = 0; x < TILE; x++) {
+        const c = rgb(atlas, ox + x, oy + y);
+        forest += Number(FOREST_COLOURS.has(c));
+        rock += Number(ROCK_COLOURS.has(c));
+        hill += Number(HILL_COLOURS.has(c));
+      }
+    }
+    const terrain = terrainByTile[id] ?? 100;
+    kinds.push(
+      terrain <= 5
+        ? 'water'
+        : rock >= 100 || terrain <= 15
+          ? 'mountain'
+          : forest >= 70
+            ? 'forest'
+            : hill >= 60
+              ? 'hill'
+              : 'plain'
+    );
+  }
+  return kinds;
+};
+
+const mapSize = (tilemap: Tilemap): [number, number] => [
+  tilemap.width * TILE,
+  tilemap.height * TILE
+];
+
+// The Terrain Regions: tiles grouped by kind of ground and terrain
+// percentage, so each region has one passability.
+export const traceTerrainRegions = (
+  source: SourceData,
+  kinds: RegionKind[]
+): GeographyFeature[] => {
+  const { terrainByTile, tilemap } = source;
+  const { height, width } = tilemap;
+  const labels = new Int32Array(width * height);
+  for (let i = 0; i < labels.length; i++) {
+    const tile = tilemap.indices[i]!;
+    labels[i] =
+      REGION_KINDS.indexOf(kinds[tile]!) * 1000 + (terrainByTile[tile] ?? 100);
+  }
+  const c = components(labels, width, height);
+  const arcs = traceArcs(c.component, width, height);
+  const regions = assembleRegions(
+    arcs,
+    c.first,
+    c.label,
+    shapeWith(TILE, 11, 3)
+  );
+  return regions.map(region => {
+    const kind = REGION_KINDS[Math.floor(region.label / 1000)]!;
+    const x = region.first % width;
+    const y = Math.floor(region.first / width);
+    return {
+      geometry: { coordinates: region.polygons, type: 'MultiPolygon' },
+      properties: {
+        id: `region:${x},${y}`,
+        kind,
+        layer: 'terrain-region',
+        terrain: region.label % 1000
+      },
+      type: 'Feature'
+    };
+  });
+};
+
+// Rivers and lakes drawn inside land tiles, traced from their water
+// pixels at a two-pixel step.
+export const traceRivers = (
+  source: SourceData,
+  kinds: RegionKind[]
+): GeographyFeature[] => {
+  const STEP = 2;
+  const { atlas, tilemap } = source;
+  const [mapW, mapH] = mapSize(tilemap);
+  const width = mapW / STEP;
+  const height = mapH / STEP;
+  const columns = atlas.width / TILE;
+  const labels = new Int32Array(width * height);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const px = x * STEP;
+      const py = y * STEP;
+      const tile =
+        tilemap.indices[
+          Math.floor(py / TILE) * tilemap.width + Math.floor(px / TILE)
+        ]!;
+      if (kinds[tile] === 'water') {
+        continue;
+      }
+      let wet = 0;
+      for (let dy = 0; dy < STEP; dy++) {
+        for (let dx = 0; dx < STEP; dx++) {
+          const ax = (tile % columns) * TILE + ((px + dx) % TILE);
+          const ay = Math.floor(tile / columns) * TILE + ((py + dy) % TILE);
+          wet += Number(WATER_COLOURS.has(rgb(atlas, ax, ay)));
+        }
+      }
+      labels[y * width + x] = Number(wet >= 2);
+    }
+  }
+  const c = components(labels, width, height);
+  const arcs = traceArcs(c.component, width, height);
+  const regions = assembleRegions(
+    arcs,
+    c.first,
+    c.label,
+    shapeWith(STEP, 1.2, 2)
+  );
+  return regions
+    .filter(r => r.label === 1)
+    .map(r => ({
+      ...r,
+      polygons: r.polygons.filter(p => Math.abs(signedArea(p[0]!)) >= 12)
+    }))
+    .filter(r => r.polygons.length)
+    .map(region => {
+      const x = (region.first % width) * STEP;
+      const y = Math.floor(region.first / width) * STEP;
+      return {
+        geometry: { coordinates: region.polygons, type: 'MultiPolygon' },
+        properties: { id: `river:${x},${y}`, layer: 'river' },
+        type: 'Feature'
+      };
+    });
+};
+
+// A deterministic hash for scattering symbols.
+const hash = (x: number, y: number, salt = 0): number => {
+  let r =
+    Math.imul(x + 173, 374_761_393) ^
+    Math.imul(y + 619, 668_265_263) ^
+    Math.imul(salt + 1, 1_274_126_177);
+  r = Math.imul(r ^ (r >>> 13), 1_274_126_177);
+  return (r ^ (r >>> 16)) >>> 0;
+};
+
+// Trees, peaks and hill marks scattered over the regions of their kind,
+// each with a rank so the renderer can thin them as the map zooms out.
+export const scatterSymbols = (
+  source: SourceData,
+  kinds: RegionKind[],
+  rivers: GeographyFeature[]
+): GeographyFeature[] => {
+  const { tilemap } = source;
+  const [mapW, mapH] = mapSize(tilemap);
+  const kindAt = (x: number, y: number): RegionKind | null =>
+    x < 0 || y < 0 || x >= mapW || y >= mapH
+      ? null
+      : kinds[
+          tilemap.indices[
+            Math.floor(y / TILE) * tilemap.width + Math.floor(x / TILE)
+          ]!
+        ]!;
+  const riverRings = rivers.flatMap(r =>
+    (r.geometry.coordinates as Ring[][]).map(p => p[0]!)
+  );
+  const nearRiver = (x: number, y: number): boolean =>
+    riverRings.some(
+      ring =>
+        pointInRing([x, y], ring) ||
+        pointInRing([x + 3, y], ring) ||
+        pointInRing([x - 3, y], ring) ||
+        pointInRing([x, y + 3], ring)
+    );
+  // Rivers are a few thousand rings; bucket them by tile to keep this fast.
+  const wetTiles = new Set<number>();
+  for (const ring of riverRings) {
+    for (const [x, y] of ring) {
+      wetTiles.add(Math.floor(y / TILE) * tilemap.width + Math.floor(x / TILE));
+    }
+  }
+  const spacing: Record<SymbolKind, number> = { hill: 22, peak: 13, tree: 9 };
+  const kindFor: Partial<Record<RegionKind, SymbolKind>> = {
+    forest: 'tree',
+    hill: 'hill',
+    mountain: 'peak'
+  };
+  const features: GeographyFeature[] = [];
+  for (const symbol of SYMBOL_KINDS) {
+    const step = spacing[symbol];
+    for (let gy = 0; gy * step < mapH; gy++) {
+      for (let gx = 0; gx * step < mapW; gx++) {
+        const r = hash(gx, gy, symbol.length);
+        const x = (gx + 0.5) * step + ((r % 101) / 100 - 0.5) * step * 0.7;
+        const y =
+          (gy + 0.5) * step + (((r >>> 8) % 101) / 100 - 0.5) * step * 0.7;
+        const kind = kindAt(x, y);
+        if (!kind || kindFor[kind] !== symbol) {
+          continue;
+        }
+        // Keep symbols a little inside their region.
+        if (
+          [
+            [-5, 0],
+            [5, 0],
+            [0, -5],
+            [0, 5]
+          ].some(([dx, dy]) => kindAt(x + dx!, y + dy!) !== kind)
+        ) {
+          continue;
+        }
+        const tile =
+          Math.floor(y / TILE) * tilemap.width + Math.floor(x / TILE);
+        if (wetTiles.has(tile) && nearRiver(x, y)) {
+          continue;
+        }
+        // Rank 0 shows at every zoom; higher ranks only closer in.
+        const rank = (r >>> 16) % 4 === 0 ? 0 : (r >>> 16) % 4 === 1 ? 1 : 2;
+        features.push({
+          geometry: { coordinates: [x, y], type: 'Point' },
+          properties: {
+            id: `symbol:${symbol}:${gx},${gy}`,
+            kind: symbol,
+            layer: 'symbol',
+            rank,
+            variant: (r >>> 24) % 3
+          },
+          type: 'Feature'
+        });
+      }
+    }
+  }
+  return features;
+};
+
+export const placeLabels = (source: SourceData): GeographyFeature[] =>
+  source.places.map(place => ({
+    geometry: {
+      coordinates: [place.position.x + TILE / 2, place.position.y + TILE / 2],
+      type: 'Point'
+    },
+    properties: {
+      id: `place:${place.name}`,
+      layer: 'place',
+      name: place.name,
+      rank: source.strongholds.has(place.name) ? 0 : 1
+    },
+    type: 'Feature'
+  }));
+
+// ---------------------------------------------------------------------------
+// Patches: committed GeoJSON that replaces, adds or deletes whole features
+// by id (ADR-0006).
+
+export interface Patch {
+  features: (GeographyFeature & {
+    properties: { op?: 'add' | 'delete' | 'replace' };
+  })[];
+}
+
+export const applyPatches = (
+  geography: Geography,
+  patches: Patch[]
+): Geography => {
+  const byId = new Map(geography.features.map(f => [f.properties.id, f]));
+  for (const patch of patches) {
+    for (const feature of patch.features) {
+      const { op = 'replace', ...properties } = feature.properties;
+      const { id } = properties;
+      if (op === 'delete') {
+        if (!byId.delete(id)) {
+          throw new Error(`patch deletes unknown ${id}`);
+        }
+      } else if (op === 'replace') {
+        const old = byId.get(id);
+        if (!old) {
+          throw new Error(`patch replaces unknown ${id}`);
+        }
+        byId.set(id, {
+          ...feature,
+          properties: { ...old.properties, ...properties }
+        });
+      } else {
+        if (byId.has(id)) {
+          throw new Error(`patch adds existing ${id}`);
+        }
+        byId.set(id, { ...feature, properties });
+      }
+    }
+  }
+  return { ...geography, features: [...byId.values()] };
+};
+
+// ---------------------------------------------------------------------------
+// Validation.
+
+export interface Validation {
+  // Terrain Regions' total area against the map's.
+  areaError: number;
+  // Of tile centres, how many fall in exactly one region, and how many of
+  // those have the tile's own terrain percentage.
+  covered: number;
+  matching: number;
+  overlapping: number;
+  samples: number;
+}
+
+export const validate = (
+  geography: Geography,
+  tilemap: Tilemap,
+  terrainByTile: number[]
+): Validation => {
+  const regions = geography.features
+    .filter(f => f.properties.layer === 'terrain-region')
+    .map(f => {
+      const polygons = f.geometry.coordinates as Ring[][];
+      const xs = polygons.flatMap(p => p[0]!.map(q => q[0]));
+      const ys = polygons.flatMap(p => p[0]!.map(q => q[1]));
+      return {
+        box: [
+          Math.min(...xs),
+          Math.min(...ys),
+          Math.max(...xs),
+          Math.max(...ys)
+        ],
+        polygons,
+        terrain: f.properties.terrain as number
+      };
+    });
+  let area = 0;
+  for (const r of regions) {
+    for (const [outer, ...holes] of r.polygons) {
+      area +=
+        Math.abs(signedArea(outer!)) -
+        holes.reduce((s, h) => s + Math.abs(signedArea(h)), 0);
+    }
+  }
+  const [w, h] = mapSize(tilemap);
+  let covered = 0;
+  let matching = 0;
+  let overlapping = 0;
+  for (let ty = 0; ty < tilemap.height; ty++) {
+    for (let tx = 0; tx < tilemap.width; tx++) {
+      const p: Point = [tx * TILE + TILE / 2, ty * TILE + TILE / 2];
+      const hits = regions.filter(
+        r =>
+          p[0] >= r.box[0]! &&
+          p[0] <= r.box[2]! &&
+          p[1] >= r.box[1]! &&
+          p[1] <= r.box[3]! &&
+          r.polygons.some(
+            ([outer, ...holes]) =>
+              pointInRing(p, outer!) &&
+              !holes.some(hole => pointInRing(p, hole))
+          )
+      );
+      if (hits.length === 1) {
+        covered++;
+        const expected =
+          terrainByTile[tilemap.indices[ty * tilemap.width + tx]!] ?? 100;
+        matching += Number(hits[0]!.terrain === expected);
+      } else if (hits.length > 1) {
+        overlapping++;
+      }
+    }
+  }
+  return {
+    areaError: Math.abs(area - w * h) / (w * h),
+    covered,
+    matching,
+    overlapping,
+    samples: tilemap.width * tilemap.height
+  };
+};
+
+// ---------------------------------------------------------------------------
+// The compiled bundle: a JSON header and Float32 sections.
+//
+//   u32 header length, header JSON (UTF-8, padded to 4 bytes), sections
+//
+// fill:    x, y, kind              per triangle vertex
+// lines:   x, y, nx, ny, style     per vertex of each segment's quad, the
+//                                  normal scaled by the line's half width
+//                                  in screen pixels in the shader
+// symbols: x, y, kind, variant, rank  per instance
+
+export interface BundleHeader {
+  bounds: [number, number, number, number];
+  lineStyles: readonly string[];
+  places: { name: string; rank: number; x: number; y: number }[];
+  regionKinds: readonly string[];
+  regions: { id: string; kind: string; terrain: number }[];
+  sections: Record<
+    'fill' | 'lines' | 'symbols',
+    { count: number; offset: number; stride: number }
+  >;
+  symbolKinds: readonly string[];
+  version: 1;
+}
+
+const triangulate = (polygon: Ring[], out: number[], kind: number): void => {
+  const flat: number[] = [];
+  const holes: number[] = [];
+  for (const [i, ring] of polygon.entries()) {
+    if (i > 0) {
+      holes.push(flat.length / 2);
+    }
+    for (const [x, y] of ring) {
+      flat.push(x, y);
+    }
+  }
+  for (const i of earcut(flat, holes)) {
+    out.push(flat[i * 2]!, flat[i * 2 + 1]!, kind);
+  }
+};
+
+// Each segment of a ring as a quad. `styleOf` may pick each segment's
+// style, or -1 to leave it out.
+const strokeRing = (
+  ring: Ring,
+  out: number[],
+  fixed: number,
+  styleOf?: (a: Point, b: Point) => number
+): void => {
+  for (let i = 0; i < ring.length; i++) {
+    const a = ring[i]!;
+    const b = ring[(i + 1) % ring.length]!;
+    const style = styleOf ? styleOf(a, b) : fixed;
+    if (style < 0) {
+      continue;
+    }
+    const dx = b[0] - a[0];
+    const dy = b[1] - a[1];
+    const len = Math.hypot(dx, dy);
+    if (!len) {
+      continue;
+    }
+    const nx = -dy / len;
+    const ny = dx / len;
+    const quad: [Point, number][] = [
+      [a, 1],
+      [a, -1],
+      [b, 1],
+      [b, 1],
+      [a, -1],
+      [b, -1]
+    ];
+    for (const [p, side] of quad) {
+      out.push(p[0], p[1], nx * side, ny * side, style);
+    }
+  }
+};
+
+const segmentKey = (a: Point, b: Point): string =>
+  a[0] < b[0] || (a[0] === b[0] && a[1] < b[1]) ? `${a}|${b}` : `${b}|${a}`;
+
+const layerOrder = (layer: string): number =>
+  ['terrain-region', 'river', 'symbol', 'place'].indexOf(layer);
+
+export const compileBundle = (geography: Geography): Uint8Array => {
+  const fill: number[] = [];
+  const lines: number[] = [];
+  const symbols: number[] = [];
+  const header: BundleHeader = {
+    bounds: geography.bounds,
+    lineStyles: LINE_STYLES,
+    places: [],
+    regionKinds: [...REGION_KINDS, 'river'],
+    regions: [],
+    sections: {} as BundleHeader['sections'],
+    symbolKinds: SYMBOL_KINDS,
+    version: 1
+  };
+  // Ink is drawn only where the kind of ground changes, not between
+  // regions that differ only in passability. Shared borders are the same
+  // segments in both regions, so each segment is matched with its twin.
+  const STYLE_BY_KIND: Partial<Record<string, number>> = {
+    forest: LINE_STYLES.indexOf('forest'),
+    mountain: LINE_STYLES.indexOf('mountain'),
+    water: LINE_STYLES.indexOf('coast')
+  };
+  // Where two kinds meet, the stronger line wins.
+  const PRIORITY = ['water', 'mountain', 'forest', 'hill', 'plain'];
+  const sideKinds = new Map<string, string[]>();
+  for (const f of geography.features) {
+    if (f.properties.layer !== 'terrain-region') {
+      continue;
+    }
+    for (const polygon of f.geometry.coordinates as Ring[][]) {
+      for (const ring of polygon) {
+        ring.forEach((a, i) => {
+          const k = segmentKey(a, ring[(i + 1) % ring.length]!);
+          sideKinds.set(k, [
+            ...(sideKinds.get(k) ?? []),
+            f.properties.kind as string
+          ]);
+        });
+      }
+    }
+  }
+  const sorted = [...geography.features].sort(
+    (a, b) => layerOrder(a.properties.layer) - layerOrder(b.properties.layer)
+  );
+  const drawn = new Set<string>();
+  for (const f of sorted) {
+    const { layer } = f.properties;
+    if (layer === 'terrain-region' || layer === 'river') {
+      const kind = layer === 'river' ? 'river' : (f.properties.kind as string);
+      const kindIndex = header.regionKinds.indexOf(kind);
+      if (layer === 'terrain-region') {
+        header.regions.push({
+          id: f.properties.id,
+          kind,
+          terrain: f.properties.terrain as number
+        });
+      }
+      for (const polygon of f.geometry.coordinates as Ring[][]) {
+        triangulate(polygon, fill, kindIndex);
+        for (const ring of polygon) {
+          if (layer === 'river') {
+            strokeRing(ring, lines, LINE_STYLES.indexOf('river'));
+            continue;
+          }
+          strokeRing(ring, lines, -1, (a, b) => {
+            const k = segmentKey(a, b);
+            const kinds = sideKinds.get(k) ?? [];
+            // The map's edge, a border within one kind, or one already inked.
+            if (kinds.length < 2 || kinds[0] === kinds[1] || drawn.has(k)) {
+              return -1;
+            }
+            drawn.add(k);
+            const strongest = [...kinds].sort(
+              (x, y) => PRIORITY.indexOf(x) - PRIORITY.indexOf(y)
+            )[0]!;
+            return STYLE_BY_KIND[strongest] ?? LINE_STYLES.indexOf('forest');
+          });
+        }
+      }
+    } else if (layer === 'symbol') {
+      const [x, y] = f.geometry.coordinates as Point;
+      symbols.push(
+        x,
+        y,
+        SYMBOL_KINDS.indexOf(f.properties.kind as SymbolKind),
+        f.properties.variant as number,
+        f.properties.rank as number
+      );
+    } else if (layer === 'place') {
+      const [x, y] = f.geometry.coordinates as Point;
+      header.places.push({
+        name: f.properties.name as string,
+        rank: f.properties.rank as number,
+        x,
+        y
+      });
+    }
+  }
+  const sections = {
+    fill: [fill, 3],
+    lines: [lines, 5],
+    symbols: [symbols, 5]
+  } as const;
+  let offset = 0;
+  for (const [name, [data, stride]] of Object.entries(sections)) {
+    header.sections[name as keyof typeof sections] = {
+      count: data.length / stride,
+      offset,
+      stride
+    };
+    offset += data.length * 4;
+  }
+  const json = new TextEncoder().encode(JSON.stringify(header));
+  const headerBytes = Math.ceil(json.length / 4) * 4;
+  const bytes = new Uint8Array(4 + headerBytes + offset);
+  new DataView(bytes.buffer).setUint32(0, headerBytes, true);
+  bytes.set(json, 4);
+  bytes.fill(0x20, 4 + json.length, 4 + headerBytes);
+  const floats = new Float32Array(bytes.buffer, 4 + headerBytes);
+  let at = 0;
+  for (const [data] of Object.values(sections)) {
+    floats.set(data, at);
+    at += data.length;
+  }
+  return bytes;
+};
+
+// ---------------------------------------------------------------------------
+
+const root = join(import.meta.dir, '..');
+
+const loadSource = async (assets: string): Promise<SourceData> => {
+  const start = await Bun.file(join(assets, 'starting-state.json')).json();
+  return {
+    atlas: PNG.sync.read(
+      Buffer.from(await Bun.file(join(assets, 'campaign/tiles.png')).bytes())
+    ),
+    places: start.places,
+    // The five major Good Places (GLOSSARY.md, Stronghold).
+    strongholds: new Set(
+      (start.places as { name: string }[])
+        .map(p => p.name)
+        .filter(n => /hornburg|edoras|minas tirith|lorien|thranduil/i.test(n))
+    ),
+    terrainByTile: start.terrain_by_tile,
+    tilemap: await Bun.file(join(assets, 'campaign/tilemap.json')).json()
+  };
+};
+
+const loadPatches = async (dir: string): Promise<Patch[]> =>
+  existsSync(dir)
+    ? Promise.all(
+        readdirSync(dir)
+          .filter(name => name.endsWith('.geojson'))
+          .sort()
+          .map(name => Bun.file(join(dir, name)).json() as Promise<Patch>)
+      )
+    : [];
+
+export const main = async (): Promise<number> => {
+  const assets = join(root, 'web/public/assets');
+  if (!existsSync(join(assets, 'campaign/tilemap.json'))) {
+    console.error('build-geography: run `bun run export:web` first');
+    return 1;
+  }
+  const source = await loadSource(assets);
+  const kinds = tileKinds(source.atlas, source.terrainByTile);
+  const rivers = traceRivers(source, kinds);
+  const [w, h] = mapSize(source.tilemap);
+  const traced: Geography = {
+    bounds: [0, 0, w, h],
+    features: [
+      ...traceTerrainRegions(source, kinds),
+      ...rivers,
+      ...scatterSymbols(source, kinds, rivers),
+      ...placeLabels(source)
+    ],
+    type: 'FeatureCollection'
+  };
+  const geography = applyPatches(
+    traced,
+    await loadPatches(join(root, 'geography/patches'))
+  );
+  const check = validate(geography, source.tilemap, source.terrainByTile);
+  const out = join(assets, 'geography');
+  mkdirSync(out, { recursive: true });
+  await Bun.write(join(out, 'source.geojson'), JSON.stringify(geography));
+  const bundle = compileBundle(geography);
+  await Bun.write(join(out, 'bundle.bin'), bundle);
+  const pct = (n: number): string =>
+    `${((n / check.samples) * 100).toFixed(1)}%`;
+  console.log(
+    `build-geography: ${geography.features.length} features, ${(bundle.length / 1024).toFixed(0)} KiB bundle; ` +
+      `tile centres covered ${pct(check.covered)}, matching terrain ${pct(check.matching)}, ` +
+      `overlapping ${check.overlapping}; area error ${(check.areaError * 100).toFixed(3)}%`
+  );
+  if (check.overlapping > 0 || check.areaError > 0.001) {
+    console.error('build-geography: Terrain Regions overlap or leave gaps');
+    return 1;
+  }
+  return 0;
+};
+
+if (import.meta.main) {
+  process.exit(await main());
+}
