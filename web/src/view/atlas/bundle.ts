@@ -1,55 +1,67 @@
 // Reads the compiled geography bundle that tools/build-geography.ts
-// writes (ADR-0006): a u32 header length, the JSON header, then Float32
-// sections.
+// writes (ADR-0006): a u32 header length, the JSON header, then binary
+// sections whose layouts that tool documents.
 
 export interface Section {
+  bytes: Uint8Array;
   count: number;
-  data: Float32Array;
-  stride: number;
 }
 
-export interface GeographyBundle {
+// A line point's style that ends a run of line (tools/build-geography.ts).
+export const NO_SEGMENT = 255;
+
+type SectionName = 'fillIndices' | 'fillVertices' | 'linePoints' | 'symbols';
+
+export interface GeographyBundle extends Record<SectionName, Section> {
   bounds: [number, number, number, number];
-  fill: Section;
-  lines: Section;
+  fillChunks: { firstIndex: number; firstVertex: number }[];
+  // Map coordinates are stored multiplied by this.
+  fixedPoint: number;
   lineStyles: string[];
   places: { name: string; rank: number; x: number; y: number }[];
   regionKinds: string[];
   regionLabels: { name: string; rank: number; x: number; y: number }[];
   symbolKinds: string[];
-  symbols: Section;
 }
 
-type SectionName = 'fill' | 'lines' | 'symbols';
+const BYTES: Record<SectionName, number> = {
+  fillIndices: 2,
+  fillVertices: 6,
+  linePoints: 12,
+  symbols: 8
+};
 
 export const parseBundle = (buffer: ArrayBuffer): GeographyBundle => {
   const headerBytes = new DataView(buffer).getUint32(0, true);
   const header = JSON.parse(
     new TextDecoder().decode(new Uint8Array(buffer, 4, headerBytes))
   ) as Omit<GeographyBundle, SectionName> & {
-    sections: Record<
-      SectionName,
-      { count: number; offset: number; stride: number }
-    >;
+    sections: Record<SectionName, { count: number; offset: number }>;
     version: number;
   };
-  if (header.version !== 1) {
+  if (header.version !== 2) {
     throw new Error(
-      `geography bundle version ${header.version} is not supported`
+      `geography bundle version ${header.version} is not supported; run \`bun run build-geography\``
     );
   }
   const section = (name: SectionName): Section => {
-    const { count, offset, stride } = header.sections[name];
+    const { count, offset } = header.sections[name];
     return {
-      count,
-      data: new Float32Array(buffer, 4 + headerBytes + offset, count * stride),
-      stride
+      bytes: new Uint8Array(
+        buffer,
+        4 + headerBytes + offset,
+        count * BYTES[name]
+      ),
+      count
     };
   };
   return {
     bounds: header.bounds,
-    fill: section('fill'),
-    lines: section('lines'),
+    fillChunks: header.fillChunks,
+    fillIndices: section('fillIndices'),
+    fillVertices: section('fillVertices'),
+    fixedPoint: header.fixedPoint,
+    linePoints: section('linePoints'),
     lineStyles: header.lineStyles,
     places: header.places,
     regionKinds: header.regionKinds,
@@ -63,7 +75,7 @@ export const loadBundle = async (url: string): Promise<GeographyBundle> => {
   const response = await fetch(url);
   if (!response.ok) {
     throw new Error(
-      `${url}: ${response.status}; run \`bun tools/build-geography.ts\``
+      `${url}: ${response.status}; run \`bun run build-geography\``
     );
   }
   return parseBundle(await response.arrayBuffer());

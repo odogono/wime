@@ -2,7 +2,7 @@
 // Terrain Region fills, their ink edges and the rivers, the scattered
 // terrain symbols, and then a screen-space layer of Force sprites,
 // markers and lettering built fresh each frame.
-import type { GeographyBundle } from './bundle';
+import { NO_SEGMENT, type GeographyBundle } from './bundle';
 import type { SdfFont } from './sdf-font';
 
 export interface View {
@@ -97,6 +97,7 @@ const compile = (
 
 const MAP_TRANSFORM = `
 uniform vec4 u_view; // scale x, scale y, offset x, offset y: map pixels to clip space
+uniform float u_fixed; // the bundle stores map pixels times this
 vec2 toClip(vec2 p) { return p * u_view.xy + u_view.zw; }
 `;
 
@@ -109,9 +110,9 @@ out vec2 v_map;
 flat out int v_kind;
 void main() {
   v_colour = u_colours[int(a_kind)];
-  v_map = a_pos;
+  v_map = a_pos / u_fixed;
   v_kind = int(a_kind);
-  gl_Position = vec4(toClip(a_pos), 0.0, 1.0);
+  gl_Position = vec4(toClip(v_map), 0.0, 1.0);
 }`;
 
 const FILL_FS = `
@@ -135,11 +136,14 @@ void main() {
   colour = vec4(c, 1.0);
 }`;
 
+// One segment per instance, from a point to the next, widened here.
 const LINE_VS = `${MAP_TRANSFORM}
-layout(location = 0) in vec2 a_pos;
-layout(location = 1) in vec2 a_normal;
+layout(location = 0) in vec2 a_from;
+layout(location = 1) in float a_along;
 layout(location = 2) in float a_style;
-layout(location = 3) in float a_along;
+layout(location = 3) in vec2 a_to;
+layout(location = 4) in float a_alongTo;
+layout(location = 5) in vec2 a_corner; // 0 or 1 along the segment, then side
 uniform float u_widths[5]; // half widths in device pixels
 uniform vec4 u_colours[5];
 uniform vec2 u_pixel; // one device pixel in clip space
@@ -148,10 +152,19 @@ out float v_along;
 flat out int v_style;
 void main() {
   int s = int(a_style);
+  // ${NO_SEGMENT} ends a run of line: nothing joins it to the next point.
+  if (s >= ${NO_SEGMENT}) {
+    gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+    return;
+  }
+  vec2 from = a_from / u_fixed;
+  vec2 to = a_to / u_fixed;
+  vec2 dir = normalize(to - from);
+  vec2 normal = vec2(-dir.y, dir.x) * a_corner.y;
   v_colour = u_colours[s];
-  v_along = a_along;
+  v_along = mix(a_along, a_alongTo, a_corner.x);
   v_style = s;
-  vec2 clip = toClip(a_pos) + vec2(a_normal.x, -a_normal.y) * u_widths[s] * u_pixel;
+  vec2 clip = toClip(mix(from, to, a_corner.x)) + vec2(normal.x, -normal.y) * u_widths[s] * u_pixel;
   gl_Position = vec4(clip, 0.0, 1.0);
 }`;
 
@@ -188,7 +201,7 @@ void main() {
   v_kind = k;
   v_variant = a_variant;
   v_size = size;
-  gl_Position = vec4(toClip(a_pos) + a_corner * 0.5 * size * u_pixel * vec2(1.0, -1.0), 0.0, 1.0);
+  gl_Position = vec4(toClip(a_pos / u_fixed) + a_corner * 0.5 * size * u_pixel * vec2(1.0, -1.0), 0.0, 1.0);
 }`;
 
 // Ink drawn procedurally in each symbol's square, from -1 to 1 with y down.
@@ -305,9 +318,11 @@ export class AtlasRenderer {
   private readonly gl: WebGL2RenderingContext;
   private readonly fill: {
     count: number;
+    firstIndex: number;
     program: WebGLProgram;
     vao: WebGLVertexArrayObject;
-  };
+  }[];
+  private readonly fixedPoint: number;
   private readonly lines: {
     count: number;
     program: WebGLProgram;
@@ -351,13 +366,27 @@ export class AtlasRenderer {
       return v;
     };
     const upload = (
-      data: Float32Array,
-      usage: GLenum = gl.STATIC_DRAW
+      data: ArrayBufferView,
+      target: GLenum = gl.ARRAY_BUFFER
     ): WebGLBuffer => {
       const b = gl.createBuffer();
-      gl.bindBuffer(gl.ARRAY_BUFFER, b);
-      gl.bufferData(gl.ARRAY_BUFFER, data, usage);
+      gl.bindBuffer(target, b);
+      gl.bufferData(target, data, gl.STATIC_DRAW);
       return b;
+    };
+    // Point an attribute into the bound buffer: `type` is a GL type, its
+    // values read as floats without normalising.
+    const pointer = (
+      location: number,
+      size: number,
+      type: GLenum,
+      stride: number,
+      offset: number,
+      divisor = 0
+    ): void => {
+      gl.enableVertexAttribArray(location);
+      gl.vertexAttribPointer(location, size, type, false, stride, offset);
+      gl.vertexAttribDivisor(location, divisor);
     };
     const attribs = (
       layout: [number, number][],
@@ -366,48 +395,46 @@ export class AtlasRenderer {
     ): void => {
       let offset = 0;
       layout.forEach(([location, size]) => {
-        gl.enableVertexAttribArray(location);
-        gl.vertexAttribPointer(
-          location,
-          size,
-          gl.FLOAT,
-          false,
-          stride * 4,
-          offset * 4
-        );
-        gl.vertexAttribDivisor(location, divisor);
+        pointer(location, size, gl.FLOAT, stride * 4, offset * 4, divisor);
         offset += size;
       });
     };
+    this.fixedPoint = bundle.fixedPoint;
 
-    this.fill = {
-      count: bundle.fill.count,
-      program: compile(gl, FILL_VS, FILL_FS),
+    // Fill: one vertex array per chunk, each reading its own run of the
+    // shared vertex buffer, so 16-bit indices reach every vertex.
+    const fillVertices = upload(bundle.fillVertices.bytes);
+    const fillIndices = upload(
+      bundle.fillIndices.bytes,
+      gl.ELEMENT_ARRAY_BUFFER
+    );
+    const fillProgram = compile(gl, FILL_VS, FILL_FS);
+    this.fill = bundle.fillChunks.map((chunk, i) => ({
+      count:
+        (bundle.fillChunks[i + 1]?.firstIndex ?? bundle.fillIndices.count) -
+        chunk.firstIndex,
+      firstIndex: chunk.firstIndex,
+      program: fillProgram,
       vao: vao(() => {
-        upload(bundle.fill.data);
-        attribs(
-          [
-            [0, 2],
-            [1, 1]
-          ],
-          3
-        );
+        gl.bindBuffer(gl.ARRAY_BUFFER, fillVertices);
+        pointer(0, 2, gl.UNSIGNED_SHORT, 6, chunk.firstVertex * 6);
+        pointer(1, 1, gl.UNSIGNED_SHORT, 6, chunk.firstVertex * 6 + 4);
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, fillIndices);
       })
-    };
+    }));
     this.lines = {
-      count: bundle.lines.count,
+      count: Math.max(0, bundle.linePoints.count - 1),
       program: compile(gl, LINE_VS, LINE_FS),
       vao: vao(() => {
-        upload(bundle.lines.data);
-        attribs(
-          [
-            [0, 2],
-            [1, 2],
-            [2, 1],
-            [3, 1]
-          ],
-          6
-        );
+        upload(new Float32Array([0, 1, 0, -1, 1, 1, 1, 1, 0, -1, 1, -1]));
+        pointer(5, 2, gl.FLOAT, 8, 0);
+        // Each instance reads a point and the one after it.
+        upload(bundle.linePoints.bytes);
+        pointer(0, 2, gl.UNSIGNED_SHORT, 12, 0, 1);
+        pointer(1, 1, gl.FLOAT, 12, 4, 1);
+        pointer(2, 1, gl.UNSIGNED_BYTE, 12, 8, 1);
+        pointer(3, 2, gl.UNSIGNED_SHORT, 12, 12, 1);
+        pointer(4, 1, gl.FLOAT, 12, 16, 1);
       })
     };
     this.symbols = {
@@ -415,18 +442,12 @@ export class AtlasRenderer {
       program: compile(gl, SYMBOL_VS, SYMBOL_FS),
       vao: vao(() => {
         upload(new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]));
-        attribs([[0, 2]], 2);
-        upload(bundle.symbols.data);
-        attribs(
-          [
-            [1, 2],
-            [2, 1],
-            [3, 1],
-            [4, 1]
-          ],
-          5,
-          1
-        );
+        pointer(0, 2, gl.FLOAT, 8, 0);
+        upload(bundle.symbols.bytes);
+        pointer(1, 2, gl.UNSIGNED_SHORT, 8, 0, 1);
+        pointer(2, 1, gl.UNSIGNED_BYTE, 8, 4, 1);
+        pointer(3, 1, gl.UNSIGNED_BYTE, 8, 5, 1);
+        pointer(4, 1, gl.UNSIGNED_BYTE, 8, 6, 1);
       })
     };
     const screenBuffer = gl.createBuffer();
@@ -518,10 +539,11 @@ export class AtlasRenderer {
     ): ((name: string) => WebGLUniformLocation | null) => {
       gl.useProgram(program);
       gl.uniform4f(gl.getUniformLocation(program, 'u_view'), ...viewUniform);
+      gl.uniform1f(gl.getUniformLocation(program, 'u_fixed'), this.fixedPoint);
       return name => gl.getUniformLocation(program, name);
     };
 
-    let u = set(this.fill.program);
+    let u = set(this.fill[0]!.program);
     gl.uniform3fv(
       u('u_colours'),
       ['water', 'plain', 'forest', 'hill', 'mountain', 'river'].flatMap(k =>
@@ -529,8 +551,15 @@ export class AtlasRenderer {
       )
     );
     gl.uniform1f(u('u_zoom'), view.zoom);
-    gl.bindVertexArray(this.fill.vao);
-    gl.drawArrays(gl.TRIANGLES, 0, this.fill.count);
+    for (const chunk of this.fill) {
+      gl.bindVertexArray(chunk.vao);
+      gl.drawElements(
+        gl.TRIANGLES,
+        chunk.count,
+        gl.UNSIGNED_SHORT,
+        chunk.firstIndex * 2
+      );
+    }
 
     u = set(this.lines.program);
     gl.uniform1fv(
@@ -552,7 +581,7 @@ export class AtlasRenderer {
     gl.uniform2f(u('u_dash'), DASH[0]!, DASH[1]!);
     gl.uniform2f(u('u_pixel'), ...pixel);
     gl.bindVertexArray(this.lines.vao);
-    gl.drawArrays(gl.TRIANGLES, 0, this.lines.count);
+    gl.drawArraysInstanced(gl.TRIANGLES, 0, 6, this.lines.count);
 
     u = set(this.symbols.program);
     gl.uniform1fv(

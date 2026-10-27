@@ -754,7 +754,7 @@ export const traceGround = (source: SourceData): Ground => {
     arcs,
     c.first,
     c.label,
-    shapeWith(STEP, 1, 2)
+    shapeWith(STEP, 1, 1)
   );
   const features: GeographyFeature[] = regions.map(region => {
     const x = (region.first % width) * STEP;
@@ -1216,34 +1216,51 @@ export const validate = (
 };
 
 // ---------------------------------------------------------------------------
-// The compiled bundle: a JSON header and Float32 sections.
+// The compiled bundle: a JSON header, then binary sections, each aligned
+// to 4 bytes. Map coordinates are unsigned 16-bit fixed point, in eighths
+// of a map pixel, which covers the 2560 by 1584 map with room to spare.
 //
 //   u32 header length, header JSON (UTF-8, padded to 4 bytes), sections
 //
-// fill:    x, y, kind              per triangle vertex
-// lines:   x, y, nx, ny, style, along  per vertex of each segment's quad,
-//                                  the normal scaled by the line's half
-//                                  width in screen pixels in the shader,
-//                                  and the distance along the line, for
-//                                  dashes
-// symbols: x, y, kind, variant, rank  per instance
+// fillVertices: u16 x, u16 y, u16 kind                    6 bytes each
+// fillIndices:  u16 per triangle corner, counted from the first vertex of
+//               its chunk, so each chunk of up to 65,536 vertices is drawn
+//               on its own (header.fillChunks)
+// linePoints:   u16 x, u16 y, f32 along, u8 style, 3 pad  12 bytes each.
+//               Each point starts a segment to the next point, drawn in
+//               its style; NO_SEGMENT ends a run of line. `along` is the
+//               distance along the line, for dashes.
+// symbols:      u16 x, u16 y, u8 kind, u8 variant, u8 rank, pad  8 bytes
+
+export const FIXED_POINT = 8;
+export const NO_SEGMENT = 255;
+
+type SectionName = 'fillIndices' | 'fillVertices' | 'linePoints' | 'symbols';
 
 export interface BundleHeader {
   bounds: [number, number, number, number];
+  // Where each chunk of fill starts, in indices and vertices.
+  fillChunks: { firstIndex: number; firstVertex: number }[];
+  fixedPoint: number;
   lineStyles: readonly string[];
   places: { name: string; rank: number; x: number; y: number }[];
   regionKinds: readonly string[];
   regionLabels: { name: string; rank: number; x: number; y: number }[];
-  regions: { id: string; kind: string; terrain: number }[];
-  sections: Record<
-    'fill' | 'lines' | 'symbols',
-    { count: number; offset: number; stride: number }
-  >;
+  sections: Record<SectionName, { count: number; offset: number }>;
   symbolKinds: readonly string[];
-  version: 1;
+  version: 2;
 }
 
-const triangulate = (polygon: Ring[], out: number[], kind: number): void => {
+interface Fill {
+  chunks: { firstIndex: number; firstVertex: number }[];
+  indices: number[];
+  // x, y, kind per vertex.
+  vertices: number[];
+}
+
+const CHUNK_VERTICES = 65_536;
+
+const triangulate = (polygon: Ring[], out: Fill, kind: number): void => {
   const flat: number[] = [];
   const holes: number[] = [];
   for (const [i, ring] of polygon.entries()) {
@@ -1254,49 +1271,63 @@ const triangulate = (polygon: Ring[], out: number[], kind: number): void => {
       flat.push(x, y);
     }
   }
+  const count = flat.length / 2;
+  if (count > CHUNK_VERTICES) {
+    throw new Error(`a polygon of ${count} points is too big for one chunk`);
+  }
+  const vertices = out.vertices.length / 3;
+  let chunk = out.chunks.at(-1);
+  if (!chunk || vertices - chunk.firstVertex + count > CHUNK_VERTICES) {
+    chunk = { firstIndex: out.indices.length, firstVertex: vertices };
+    out.chunks.push(chunk);
+  }
+  const base = vertices - chunk.firstVertex;
+  for (let i = 0; i < flat.length; i += 2) {
+    out.vertices.push(flat[i]!, flat[i + 1]!, kind);
+  }
   for (const i of earcut(flat, holes)) {
-    out.push(flat[i * 2]!, flat[i * 2 + 1]!, kind);
+    out.indices.push(base + i);
   }
 };
 
-// Each segment of a line as a quad, with the distance along the line at
-// each end for dashes. `styleOf` may pick each segment's style, or -1 to
-// leave it out.
+// x, y, along, style per point.
+type LinePoints = number[];
+
+// A line as runs of points, each segment in the style `styleOf` gives it,
+// or left out where it gives -1. A run ends where the style changes.
 const stroke = (
   points: Point[],
   closed: boolean,
-  out: number[],
+  out: LinePoints,
   fixed: number,
   styleOf?: (a: Point, b: Point) => number
 ): void => {
   let along = 0;
+  let open = -1;
+  const end = (at: Point, distance: number): void => {
+    if (open >= 0) {
+      out.push(at[0], at[1], distance, NO_SEGMENT);
+      open = -1;
+    }
+  };
   const segments = closed ? points.length : points.length - 1;
   for (let i = 0; i < segments; i++) {
     const a = points[i]!;
     const b = points[(i + 1) % points.length]!;
-    const dx = b[0] - a[0];
-    const dy = b[1] - a[1];
-    const len = Math.hypot(dx, dy);
-    const style = styleOf ? styleOf(a, b) : fixed;
-    if (style < 0 || !len) {
-      along += len;
-      continue;
+    const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    const style = len ? (styleOf ? styleOf(a, b) : fixed) : open;
+    if (style !== open) {
+      end(a, along);
+      if (style >= 0) {
+        open = style;
+      }
     }
-    const nx = -dy / len;
-    const ny = dx / len;
-    const quad: [Point, number, number][] = [
-      [a, 1, along],
-      [a, -1, along],
-      [b, 1, along + len],
-      [b, 1, along + len],
-      [a, -1, along],
-      [b, -1, along + len]
-    ];
-    for (const [p, side, distance] of quad) {
-      out.push(p[0], p[1], nx * side, ny * side, style, distance);
+    if (open >= 0 && len) {
+      out.push(a[0], a[1], along, open);
     }
     along += len;
   }
+  end(points[closed ? 0 : points.length - 1]!, along);
 };
 
 const segmentKey = (a: Point, b: Point): string =>
@@ -1313,22 +1344,23 @@ const layerOrder = (layer: string): number =>
   ].indexOf(layer);
 
 export const compileBundle = (geography: Geography): Uint8Array => {
-  const fill: number[] = [];
-  const lines: number[] = [];
+  const fill: Fill = { chunks: [], indices: [], vertices: [] };
+  const lines: LinePoints = [];
   const symbols: number[] = [];
   const header: BundleHeader = {
     bounds: geography.bounds,
+    fillChunks: fill.chunks,
+    fixedPoint: FIXED_POINT,
     lineStyles: LINE_STYLES,
     places: [],
     regionKinds: GROUND_KINDS,
     regionLabels: [],
-    regions: [],
     sections: {} as BundleHeader['sections'],
     symbolKinds: SYMBOL_KINDS,
-    version: 1
+    version: 2
   };
-  // The map is drawn from the ground; the Terrain Regions only go in the
-  // header, for the sim's later use. Ink is drawn only where the kind of
+  // The map is drawn from the ground; the Terrain Regions stay in the
+  // source GeoJSON until the sim reads them (ADR-0006). Ink is drawn only where the kind of
   // ground changes. Shared borders are the same segments either side, so
   // each segment is matched with its twin.
   const STYLE_BY_KIND: Partial<Record<string, number>> = {
@@ -1363,13 +1395,7 @@ export const compileBundle = (geography: Geography): Uint8Array => {
   const drawn = new Set<string>();
   for (const f of sorted) {
     const { layer } = f.properties;
-    if (layer === 'terrain-region') {
-      header.regions.push({
-        id: f.properties.id,
-        kind: f.properties.kind as string,
-        terrain: f.properties.terrain as number
-      });
-    } else if (layer === 'ground') {
+    if (layer === 'ground') {
       const kindIndex = header.regionKinds.indexOf(f.properties.kind as string);
       for (const polygon of f.geometry.coordinates as Ring[][]) {
         triangulate(polygon, fill, kindIndex);
@@ -1423,31 +1449,57 @@ export const compileBundle = (geography: Geography): Uint8Array => {
       });
     }
   }
-  const sections = {
-    fill: [fill, 3],
-    lines: [lines, 6],
-    symbols: [symbols, 5]
-  } as const;
+  const fixed = (v: number): number =>
+    Math.max(0, Math.min(65_535, Math.round(v * FIXED_POINT)));
+  const sizes: Record<SectionName, [count: number, bytes: number]> = {
+    fillIndices: [fill.indices.length, 2],
+    fillVertices: [fill.vertices.length / 3, 6],
+    linePoints: [lines.length / 4, 12],
+    symbols: [symbols.length / 5, 8]
+  };
   let offset = 0;
-  for (const [name, [data, stride]] of Object.entries(sections)) {
-    header.sections[name as keyof typeof sections] = {
-      count: data.length / stride,
-      offset,
-      stride
-    };
-    offset += data.length * 4;
+  for (const name of Object.keys(sizes) as SectionName[]) {
+    const [count, bytes] = sizes[name];
+    header.sections[name] = { count, offset };
+    offset += Math.ceil((count * bytes) / 4) * 4;
   }
   const json = new TextEncoder().encode(JSON.stringify(header));
   const headerBytes = Math.ceil(json.length / 4) * 4;
   const bytes = new Uint8Array(4 + headerBytes + offset);
-  new DataView(bytes.buffer).setUint32(0, headerBytes, true);
+  const view = new DataView(bytes.buffer);
+  view.setUint32(0, headerBytes, true);
   bytes.set(json, 4);
   bytes.fill(0x20, 4 + json.length, 4 + headerBytes);
-  const floats = new Float32Array(bytes.buffer, 4 + headerBytes);
-  let at = 0;
-  for (const [data] of Object.values(sections)) {
-    floats.set(data, at);
-    at += data.length;
+  const start = (name: SectionName): number =>
+    4 + headerBytes + header.sections[name].offset;
+  let at = start('fillVertices');
+  for (let i = 0; i < fill.vertices.length; i += 3) {
+    view.setUint16(at, fixed(fill.vertices[i]!), true);
+    view.setUint16(at + 2, fixed(fill.vertices[i + 1]!), true);
+    view.setUint16(at + 4, fill.vertices[i + 2]!, true);
+    at += 6;
+  }
+  at = start('fillIndices');
+  for (const index of fill.indices) {
+    view.setUint16(at, index, true);
+    at += 2;
+  }
+  at = start('linePoints');
+  for (let i = 0; i < lines.length; i += 4) {
+    view.setUint16(at, fixed(lines[i]!), true);
+    view.setUint16(at + 2, fixed(lines[i + 1]!), true);
+    view.setFloat32(at + 4, lines[i + 2]!, true);
+    view.setUint8(at + 8, lines[i + 3]!);
+    at += 12;
+  }
+  at = start('symbols');
+  for (let i = 0; i < symbols.length; i += 5) {
+    view.setUint16(at, fixed(symbols[i]!), true);
+    view.setUint16(at + 2, fixed(symbols[i + 1]!), true);
+    view.setUint8(at + 4, symbols[i + 2]!);
+    view.setUint8(at + 5, symbols[i + 3]!);
+    view.setUint8(at + 6, symbols[i + 4]!);
+    at += 8;
   }
   return bytes;
 };
