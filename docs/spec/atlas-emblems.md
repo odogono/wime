@@ -13,9 +13,6 @@ an SVG fitted by hand to this sheet.
 | -------------------------------------------------------- | -------------------------------------------------------------------- |
 | ![Aragorn](../../web/src/view/atlas/emblems/aragorn.svg) | ![Rohan cavalry](../../web/src/view/atlas/emblems/rohan-cavalry.svg) |
 
-The Aragorn sample predates Characters' figures: it bears a heraldic
-device, and is redrawn as his figure with the other Characters (#302).
-
 ## Palette
 
 Three tones per Emblem, and no others:
