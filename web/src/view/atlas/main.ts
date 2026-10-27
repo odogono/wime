@@ -201,6 +201,10 @@ interface Drawn {
 let drawn: Drawn[] = [];
 
 const AREA = bundle.pictograms.indexOf('area');
+// Bridges and fords are drawn across their rivers, not as pictures.
+const CROSSINGS = new Set(
+  ['bridge', 'ford'].map(name => bundle.pictograms.indexOf(name))
+);
 // A Place's picture grows with the map, between a least and greatest size
 // in CSS pixels; Strongholds are drawn larger.
 const pictogramSize = (rank: number): number =>
@@ -441,7 +445,12 @@ const frame = (): void => {
   );
   // Each pictured Place's ink picture.
   const places = bundle.places
-    .filter(p => p.pictogram !== AREA && camera.zoom >= rankZoom(p.rank, range))
+    .filter(
+      p =>
+        p.pictogram !== AREA &&
+        !CROSSINGS.has(p.pictogram) &&
+        camera.zoom >= rankZoom(p.rank, range)
+    )
     .flatMap((p): Quad[] => {
       const cell = pictograms.cells.get(bundle.pictograms[p.pictogram]!);
       if (!cell) {

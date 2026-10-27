@@ -29,7 +29,14 @@ export const REGION_KINDS = [
 ] as const;
 export type RegionKind = (typeof REGION_KINDS)[number];
 
-export const SYMBOL_KINDS = ['tree', 'peak', 'hill', 'marsh'] as const;
+export const SYMBOL_KINDS = [
+  'tree',
+  'peak',
+  'hill',
+  'marsh',
+  'bridge',
+  'ford'
+] as const;
 export type SymbolKind = (typeof SYMBOL_KINDS)[number];
 
 // Line styles in the bundle: the ink edge drawn along a region's border.
@@ -1016,6 +1023,190 @@ export const traceRoads = (source: SourceData): Roads => {
   return { clearing: dilate(dots, 4), features };
 };
 
+// ---------------------------------------------------------------------------
+// Crossings: where a road crosses a river or water, a bridge, or a ford
+// where the crossing is a named ford (finding:map-sarn-ford-stepping-stones,
+// finding:map-fords-of-isen-only-isen-crossing). Each is its own feature,
+// with the angle the road crosses at, for the map and for the sim's later
+// use (ADR-0006).
+
+// The longest run of water a road may cross and still be a crossing,
+// rather than running along a shore.
+const MAX_CROSSING = 40;
+// Crossings closer than this are one.
+const CROSSING_MERGE = 14;
+// How near a ford Place a crossing must be to be that ford.
+const FORD_REACH = 32;
+
+// Whether a road end, heading out of `from` to `at`, points towards `to`.
+const facing = (end: { at: Point; from: Point }, to: Point): boolean =>
+  (end.at[0] - end.from[0]) * (to[0] - end.at[0]) +
+    (end.at[1] - end.from[1]) * (to[1] - end.at[1]) >
+  0;
+
+const isCrossing = (f: { properties: { id: string } }): boolean =>
+  f.properties.id.startsWith('crossing:');
+
+export const traceCrossings = (
+  source: SourceData,
+  ground: Ground,
+  roads: GeographyFeature[],
+  places: GeographyFeature[]
+): GeographyFeature[] => {
+  const [mapW, mapH] = mapSize(source.tilemap);
+  const water = new Set([
+    GROUND_KINDS.indexOf('water'),
+    GROUND_KINDS.indexOf('river')
+  ]);
+  const wetAt = (x: number, y: number): boolean =>
+    x >= 0 &&
+    y >= 0 &&
+    x < mapW &&
+    y < mapH &&
+    water.has(
+      ground.kinds[
+        Math.floor(y / ground.step) * ground.width + Math.floor(x / ground.step)
+      ]!
+    );
+  // Each crossing's centre, its road's heading folded into 0 to π, and
+  // the width of water it spans.
+  const found: { angle: number; span: number; x: number; y: number }[] = [];
+  for (const road of roads) {
+    const line = road.geometry.coordinates as Point[];
+    let run: Point[] = [];
+    // Walk the road a pixel at a time, noting each run over water.
+    for (let i = 0; i < line.length - 1; i++) {
+      const [ax, ay] = line[i]!;
+      const [bx, by] = line[i + 1]!;
+      const steps = Math.max(1, Math.ceil(Math.hypot(bx - ax, by - ay)));
+      for (let k = 0; k < steps; k++) {
+        const t = k / steps;
+        const p: Point = [ax + (bx - ax) * t, ay + (by - ay) * t];
+        if (wetAt(p[0], p[1])) {
+          run.push(p);
+          continue;
+        }
+        if (run.length && run.length <= MAX_CROSSING) {
+          const [sx, sy] = run[0]!;
+          const [ex, ey] = run.at(-1)!;
+          found.push({
+            angle: (Math.atan2(by - ay, bx - ax) + Math.PI) % Math.PI,
+            span: Math.hypot(ex - sx, ey - sy),
+            x: (sx + ex) / 2,
+            y: (sy + ey) / 2
+          });
+        }
+        run = [];
+      }
+    }
+  }
+  // The original stops its road dots at the bank, so most roads end on
+  // either side of the water: pair road ends that face each other across
+  // it, with only water between.
+  const ends = roads.flatMap(road => {
+    const line = road.geometry.coordinates as Point[];
+    return line.length < 2
+      ? []
+      : [
+          { at: line[0]!, from: line[1]! },
+          { at: line.at(-1)!, from: line.at(-2)! }
+        ];
+  });
+  for (const [i, a] of ends.entries()) {
+    for (const b of ends.slice(i + 1)) {
+      const [ax, ay] = a.at;
+      const [bx, by] = b.at;
+      const gap = Math.hypot(bx - ax, by - ay);
+      if (gap < 3 || gap > MAX_CROSSING) {
+        continue;
+      }
+      // Both ends must point at each other, and the gap must be water.
+      if (!facing(a, b.at) || !facing(b, a.at)) {
+        continue;
+      }
+      let wet = 0;
+      const steps = Math.ceil(gap);
+      for (let k = 1; k < steps; k++) {
+        wet += Number(
+          wetAt(ax + ((bx - ax) * k) / steps, ay + ((by - ay) * k) / steps)
+        );
+      }
+      if (wet < steps * 0.4) {
+        continue;
+      }
+      found.push({
+        angle: (Math.atan2(by - ay, bx - ax) + Math.PI) % Math.PI,
+        span: gap,
+        x: (ax + bx) / 2,
+        y: (ay + by) / 2
+      });
+    }
+  }
+  const crossings: typeof found = [];
+  for (const c of found) {
+    if (
+      !crossings.some(o => Math.hypot(o.x - c.x, o.y - c.y) < CROSSING_MERGE)
+    ) {
+      crossings.push(c);
+    }
+  }
+  const named = places.filter(p =>
+    ['bridge', 'ford'].includes(p.properties.pictogram as string)
+  );
+  // A named crossing the roads miss sits on the water nearest its Place.
+  for (const place of named) {
+    const [px, py] = place.geometry.coordinates as Point;
+    if (crossings.some(c => Math.hypot(c.x - px, c.y - py) < FORD_REACH)) {
+      continue;
+    }
+    let best: Point | null = null;
+    for (let r = 0; r <= 16 && !best; r++) {
+      for (let a = 0; a < 16 && !best; a++) {
+        const q: Point = [
+          px + Math.cos((a / 16) * 2 * Math.PI) * r,
+          py + Math.sin((a / 16) * 2 * Math.PI) * r
+        ];
+        if (wetAt(q[0], q[1])) {
+          best = q;
+        }
+      }
+    }
+    if (best) {
+      crossings.push({ angle: 0, span: 10, x: best[0], y: best[1] });
+    }
+  }
+  // Each named ford is the crossing nearest its Place; the rest are
+  // bridges.
+  const fordOf = new Map<(typeof crossings)[number], GeographyFeature>();
+  for (const place of named.filter(p => p.properties.pictogram === 'ford')) {
+    const [px, py] = place.geometry.coordinates as Point;
+    const nearest = crossings
+      .map(c => ({ c, d: Math.hypot(c.x - px, c.y - py) }))
+      .filter(({ d }) => d < FORD_REACH)
+      .sort((m, n) => m.d - n.d)[0];
+    if (nearest) {
+      fordOf.set(nearest.c, place);
+    }
+  }
+  return crossings.map(c => {
+    const ford = fordOf.get(c);
+    const x = Math.round(c.x);
+    const y = Math.round(c.y);
+    return {
+      geometry: { coordinates: [c.x, c.y], type: 'Point' },
+      properties: {
+        angle: c.angle,
+        id: `crossing:${x},${y}`,
+        kind: ford ? 'ford' : 'bridge',
+        layer: 'crossing',
+        span: Math.round(c.span),
+        ...(ford ? { place: ford.properties.name } : {})
+      },
+      type: 'Feature'
+    };
+  });
+};
+
 // A deterministic hash for scattering symbols.
 const hash = (x: number, y: number, salt = 0): number => {
   let r =
@@ -1044,7 +1235,8 @@ export const scatterSymbols = (
               Math.floor(x / ground.step)
           ]!
         ]!;
-  const spacing: Record<SymbolKind, number> = {
+  // Scattered symbols and how far apart; crossings are placed elsewhere.
+  const spacing: Partial<Record<SymbolKind, number>> = {
     hill: 12,
     marsh: 7,
     peak: 13,
@@ -1059,6 +1251,9 @@ export const scatterSymbols = (
   const features: GeographyFeature[] = [];
   for (const symbol of SYMBOL_KINDS) {
     const step = spacing[symbol];
+    if (!step) {
+      continue;
+    }
     for (let gy = 0; gy * step < mapH; gy++) {
       for (let gx = 0; gx * step < mapW; gx++) {
         const r = hash(gx, gy, symbol.length);
@@ -1290,7 +1485,8 @@ export const validate = (
 //               Each point starts a segment to the next point, drawn in
 //               its style; NO_SEGMENT ends a run of line. `along` is the
 //               distance along the line, for dashes.
-// symbols:      u16 x, u16 y, u8 kind, u8 variant, u8 rank, pad  8 bytes
+// symbols:      u16 x, u16 y, u8 kind, u8 variant, u8 rank, u8 angle
+//               (0 to 255 over half a turn)  8 bytes
 
 export const FIXED_POINT = 8;
 export const NO_SEGMENT = 255;
@@ -1406,6 +1602,7 @@ const layerOrder = (layer: string): number =>
     'ground',
     'road',
     'symbol',
+    'crossing',
     'place',
     'region-label'
   ].indexOf(layer);
@@ -1505,7 +1702,19 @@ export const compileBundle = (geography: Geography): Uint8Array => {
         y,
         SYMBOL_KINDS.indexOf(f.properties.kind as SymbolKind),
         f.properties.variant as number,
-        f.properties.rank as number
+        f.properties.rank as number,
+        0
+      );
+    } else if (layer === 'crossing') {
+      const [x, y] = f.geometry.coordinates as Point;
+      symbols.push(
+        x,
+        y,
+        SYMBOL_KINDS.indexOf(f.properties.kind as SymbolKind),
+        // A crossing's variant is the width of water it spans.
+        Math.min(255, f.properties.span as number),
+        0,
+        Math.round(((f.properties.angle as number) / Math.PI) * 255) % 256
       );
     } else if (layer === 'place') {
       const [x, y] = f.geometry.coordinates as Point;
@@ -1524,7 +1733,7 @@ export const compileBundle = (geography: Geography): Uint8Array => {
     fillIndices: [fill.indices.length, 2],
     fillVertices: [fill.vertices.length / 3, 6],
     linePoints: [lines.length / 4, 12],
-    symbols: [symbols.length / 5, 8]
+    symbols: [symbols.length / 6, 8]
   };
   let offset = 0;
   for (const name of Object.keys(sizes) as SectionName[]) {
@@ -1562,12 +1771,13 @@ export const compileBundle = (geography: Geography): Uint8Array => {
     at += 12;
   }
   at = start('symbols');
-  for (let i = 0; i < symbols.length; i += 5) {
+  for (let i = 0; i < symbols.length; i += 6) {
     view.setUint16(at, fixed(symbols[i]!), true);
     view.setUint16(at + 2, fixed(symbols[i + 1]!), true);
     view.setUint8(at + 4, symbols[i + 2]!);
     view.setUint8(at + 5, symbols[i + 3]!);
     view.setUint8(at + 6, symbols[i + 4]!);
+    view.setUint8(at + 7, symbols[i + 5]!);
     at += 8;
   }
   return bytes;
@@ -1627,9 +1837,27 @@ export const main = async (): Promise<number> => {
     ],
     type: 'FeatureCollection'
   };
-  const geography = applyPatches(
+  // Crossings are traced from the patched Places and roads, so patches to
+  // crossings apply after them.
+  const patches = await loadPatches(join(root, 'geography/patches'));
+  const patched = applyPatches(
     traced,
-    await loadPatches(join(root, 'geography/patches'))
+    patches.map(p => ({ features: p.features.filter(f => !isCrossing(f)) }))
+  );
+  const geography = applyPatches(
+    {
+      ...patched,
+      features: [
+        ...patched.features,
+        ...traceCrossings(
+          source,
+          ground,
+          patched.features.filter(f => f.properties.layer === 'road'),
+          patched.features.filter(f => f.properties.layer === 'place')
+        )
+      ]
+    },
+    patches.map(p => ({ features: p.features.filter(isCrossing) }))
   );
   const check = validate(geography, source.tilemap, source.terrainByTile);
   const out = join(assets, 'geography');

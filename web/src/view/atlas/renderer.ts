@@ -74,7 +74,8 @@ const LINE_STYLE: Record<string, { colour: string; width: number }> = {
 // Roads are dashed, in CSS pixels on and off.
 const DASH = [5, 3];
 // Each symbol's size in map pixels.
-const SYMBOL_SIZE = [10, 15, 13, 11];
+// Tree, peak, hill, marsh, bridge, ford.
+const SYMBOL_SIZE = [10, 15, 13, 11, 16, 16];
 
 const compile = (
   gl: WebGL2RenderingContext,
@@ -196,7 +197,9 @@ layout(location = 1) in vec2 a_pos;
 layout(location = 2) in float a_kind;
 layout(location = 3) in float a_variant;
 layout(location = 4) in float a_rank;
-uniform float u_sizes[4]; // device pixels
+layout(location = 5) in float a_angle; // 0 to 255 over half a turn
+uniform float u_sizes[6]; // device pixels
+uniform float u_mapScale; // device pixels per map pixel
 uniform float u_maxRank;
 uniform vec2 u_pixel;
 out vec2 v_local;
@@ -206,11 +209,16 @@ flat out float v_size;
 void main() {
   int k = int(a_kind);
   float size = a_rank > u_maxRank ? 0.0 : u_sizes[k] * (0.85 + a_variant * 0.12);
+  // A crossing spans its water: its variant is that width in map pixels.
+  if (k >= 4) size = max(u_sizes[k], (a_variant + 8.0) * u_mapScale);
   v_local = a_corner;
   v_kind = k;
   v_variant = a_variant;
   v_size = size;
-  gl_Position = vec4(toClip(a_pos / u_fixed) + a_corner * 0.5 * size * u_pixel * vec2(1.0, -1.0), 0.0, 1.0);
+  // Crossings lie along their road; x in the symbol runs with it.
+  float angle = a_angle / 255.0 * 3.14159265;
+  vec2 corner = mat2(cos(angle), sin(angle), -sin(angle), cos(angle)) * a_corner;
+  gl_Position = vec4(toClip(a_pos / u_fixed) + corner * 0.5 * size * u_pixel * vec2(1.0, -1.0), 0.0, 1.0);
 }`;
 
 // Ink drawn procedurally in each symbol's square, from -1 to 1 with y down.
@@ -274,6 +282,25 @@ void main() {
     float shade = stroke(fract(q.x * 4.0 + q.y * 1.5) - 0.5, 0.1, 0.08) * step(0.12, q.x) * body;
     c = vec4(u_paper, body * 0.9);
     c = mix(c, vec4(u_ink, 1.0), max(stroke(mound, w, aa) * upper, shade * 0.6));
+  } else if (v_kind == 4) {
+    // A bridge: a paper deck over the water between two parapets that
+    // splay at either end.
+    float splay = smoothstep(0.55, 0.95, abs(p.x)) * 0.2;
+    float half_ = 0.32 + splay;
+    float deck = max(abs(p.y) - half_, abs(p.x) - 0.95);
+    float parapets = max(abs(abs(p.y) - half_) - w * 0.7, abs(p.x) - 0.95);
+    c = vec4(u_paper, fill(deck, aa));
+    c = mix(c, vec4(u_ink, 1.0), fill(parapets, aa));
+  } else if (v_kind == 5) {
+    // A ford: a staggered line of small stepping stones along the road,
+    // paper outlined in ink.
+    float stones = 1e3;
+    for (int i = -2; i <= 2; i++) {
+      vec2 c = vec2(float(i) * 0.36, (mod(float(i), 2.0) - 0.5) * 0.14);
+      stones = min(stones, length((p - c) * vec2(1.0, 1.35)) - 0.11);
+    }
+    c = vec4(u_paper, fill(stones, aa));
+    c = mix(c, vec4(u_ink, 1.0), stroke(stones, w * 0.5, aa));
   } else {
     // A marsh tuft: a short ground line with reeds rising from it.
     float ground = max(abs(p.y - 0.55) - w * 0.6, abs(p.x) - 0.75);
@@ -492,6 +519,7 @@ export class AtlasRenderer {
         pointer(2, 1, gl.UNSIGNED_BYTE, 8, 4, 1);
         pointer(3, 1, gl.UNSIGNED_BYTE, 8, 5, 1);
         pointer(4, 1, gl.UNSIGNED_BYTE, 8, 6, 1);
+        pointer(5, 1, gl.UNSIGNED_BYTE, 8, 7, 1);
       })
     };
     const screenBuffer = gl.createBuffer();
@@ -659,6 +687,7 @@ export class AtlasRenderer {
       )
     );
     gl.uniform1f(u('u_maxRank'), maxRank);
+    gl.uniform1f(u('u_mapScale'), view.zoom * view.devicePixelRatio);
     gl.uniform2f(u('u_pixel'), ...pixel);
     gl.uniform3f(u('u_ink'), ...hex(INK));
     gl.uniform3f(u('u_paper'), ...hex('#efe4c8'));

@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 
 import {
+  GROUND_KINDS,
   applyPatches,
   assembleRegions,
   components,
@@ -9,6 +10,7 @@ import {
   smooth,
   thin,
   traceArcs,
+  traceCrossings,
   type Geography,
   type Ring
 } from './build-geography';
@@ -127,5 +129,70 @@ describe('thin and followSkeleton', () => {
     const ys = new Set(lines[0]!.map(([, y]) => y));
     expect(ys.size).toBe(1);
     expect(lines[0]!.length).toBeGreaterThanOrEqual(6);
+  });
+});
+
+describe('traceCrossings', () => {
+  // A 64 by 32 pixel map, plain but for a river running down x 30 to 36.
+  const step = 2;
+  const width = 32;
+  const kinds = new Uint8Array(width * 16).fill(GROUND_KINDS.indexOf('plain'));
+  for (let y = 0; y < 16; y++) {
+    for (let x = 15; x < 18; x++) {
+      kinds[y * width + x] = GROUND_KINDS.indexOf('river');
+    }
+  }
+  const source = { tilemap: { height: 2, indices: [], width: 4 } } as never;
+  const ground = { features: [], kinds, step, width };
+  const road = (id: string, coordinates: [number, number][]) => ({
+    geometry: { coordinates, type: 'LineString' as const },
+    properties: { id, layer: 'road' },
+    type: 'Feature' as const
+  });
+  const ford = {
+    geometry: {
+      coordinates: [33, 16] as [number, number],
+      type: 'Point' as const
+    },
+    properties: { id: 'place:F', layer: 'place', name: 'F', pictogram: 'ford' },
+    type: 'Feature' as const
+  };
+
+  test('pairs road ends facing each other across the water', () => {
+    const crossings = traceCrossings(
+      source,
+      ground,
+      [
+        road('a', [
+          [2, 16],
+          [28, 16]
+        ]),
+        road('b', [
+          [38, 16],
+          [62, 16]
+        ])
+      ],
+      []
+    );
+    expect(crossings).toHaveLength(1);
+    expect(crossings[0]!.properties.kind).toBe('bridge');
+    expect(crossings[0]!.geometry.coordinates).toEqual([33, 16]);
+  });
+
+  test('makes the crossing nearest a ford Place that ford', () => {
+    const crossings = traceCrossings(
+      source,
+      ground,
+      [
+        road('a', [
+          [2, 16],
+          [62, 16]
+        ])
+      ],
+      [ford]
+    );
+    expect(crossings.map(c => [c.properties.kind, c.properties.place])).toEqual(
+      [['ford', 'F']]
+    );
   });
 });
