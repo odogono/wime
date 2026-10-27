@@ -2,6 +2,7 @@
 // which emblem each Force is drawn with, and the distance field atlas
 // `bun run build-emblems` compiles them into.
 import type { Force } from '../../sim/index';
+import { NATIONS, UNIT_TYPES, unitShield } from './unit-shields';
 
 export interface EmblemAtlas {
   // The cell's size in texels, and how much of it is margin either side
@@ -92,10 +93,53 @@ const CHARACTERS: Record<string, string> = {
   TREEBEARD: 'treebeard'
 };
 
-// Units' shields by name, until they are composed from Nation and Unit
-// Type (#301).
-const UNITS: Record<string, string> = {
-  'Rohirrim scouts': 'rohan-cavalry'
+// One picture of an Emblem: an atlas cell drawn into a square at (x, y),
+// `size` across, as fractions of the Emblem's box.
+export interface EmblemLayer {
+  name: string;
+  size: number;
+  x: number;
+  y: number;
+}
+
+const whole = (name: string): EmblemLayer => ({ name, size: 1, x: 0, y: 0 });
+
+// Where a Unit's device and mark lie on each shield, in units of the
+// 64-unit box: the device below the chief, the mark within it.
+const SHIELD_LAYOUT = {
+  heraldic: {
+    device: { size: 30, x: 17, y: 21 },
+    mark: { size: 20, x: 22, y: 4.5 },
+    outline: 'shield'
+  },
+  round: {
+    device: { size: 32, x: 16, y: 22 },
+    mark: { size: 18, x: 23, y: 6 },
+    outline: 'round-shield'
+  }
+} as const;
+
+const at = (
+  name: string,
+  { size, x, y }: { size: number; x: number; y: number }
+): EmblemLayer => ({ name, size: size / 64, x: x / 64, y: y / 64 });
+
+// What an Emblem is drawn from, outline first: the Compact marker draws
+// the outline alone.
+export const emblemLayers = (force: Force): EmblemLayer[] => {
+  if (!force.leader.isUnit) {
+    return [whole(CHARACTERS[force.leader.name] ?? 'banner')];
+  }
+  const shield = unitShield(force.leader);
+  if (!shield) {
+    return [whole('round-shield')];
+  }
+  const layout = SHIELD_LAYOUT[shield.elite ? 'heraldic' : 'round'];
+  return [
+    whole(layout.outline),
+    at(`device-${shield.nation}`, layout.device),
+    ...(shield.type ? [at(`mark-${shield.type}`, layout.mark)] : [])
+  ];
 };
 
 // Every emblem a Force can be drawn with.
@@ -103,16 +147,13 @@ export const EMBLEMS: readonly string[] = [
   ...new Set([
     'banner',
     'shield',
+    'round-shield',
     RING,
     ...Object.values(CHARACTERS),
-    ...Object.values(UNITS)
+    ...NATIONS.map(n => `device-${n}`),
+    ...UNIT_TYPES.map(t => `mark-${t}`)
   ])
 ];
-
-export const emblemFor = (force: Force): string =>
-  force.leader.isUnit
-    ? (UNITS[force.leader.name] ?? 'shield')
-    : (CHARACTERS[force.leader.name] ?? 'banner');
 
 export const loadEmblemAtlas = async (base: string): Promise<EmblemAtlas> => {
   const [atlas, data] = await Promise.all([

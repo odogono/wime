@@ -5,7 +5,7 @@
 // the prototype page, moves its camera and hands it the Forces to draw.
 import type { Force } from '../../sim/index';
 import { loadBundle, type GeographyBundle } from './bundle';
-import { RING, emblemFor, loadEmblemAtlas } from './emblems';
+import { RING, emblemLayers, loadEmblemAtlas } from './emblems';
 import {
   SPRITE_SIZE,
   bandAt,
@@ -336,15 +336,18 @@ export const createAtlasMap = async (
             y: y - size * 0.15
           });
         }
-        emblemQuads.push({
-          colour: rgba(sideColour(force)),
-          h: size,
-          mode: QuadMode.emblem,
-          w: size,
-          x,
-          y,
-          ...emblemRect(emblemFor(force))
-        });
+        // A Unit's shield is laid with its device and mark.
+        for (const layer of emblemLayers(force)) {
+          emblemQuads.push({
+            colour: rgba(sideColour(force)),
+            h: size * layer.size,
+            mode: QuadMode.emblem,
+            w: size * layer.size,
+            x: x + size * layer.x,
+            y: y + size * layer.y,
+            ...emblemRect(layer.name)
+          });
+        }
         if (bearer) {
           emblemQuads.push(ringMark(x, y, size));
         }
@@ -376,7 +379,7 @@ export const createAtlasMap = async (
           w: size * dpr,
           x,
           y,
-          ...emblemRect(emblemFor(force))
+          ...emblemRect(emblemLayers(force)[0]!.name)
         });
         if (bearer) {
           markers.push(ringMark(x, y, size * dpr));

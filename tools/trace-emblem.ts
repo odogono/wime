@@ -2,7 +2,7 @@
 // Trace a generated reference image into an Atlas Emblem
 // (docs/spec/atlas-emblems.md, "Making an Emblem").
 //
-//   bun tools/trace-emblem.ts REFERENCE.png --shape banner|shield
+//   bun tools/trace-emblem.ts REFERENCE.png --shape banner|shield|charge
 //     [--crop WxH+X+Y] [--mark PNG] [--mark-crop WxH+X+Y] [--out FILE]
 //
 // REFERENCE is a device in parchment on a coloured field, on a parchment
@@ -20,7 +20,7 @@ import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { optimize } from 'svgo';
 
-export type Shape = 'banner' | 'shield';
+export type Shape = 'banner' | 'charge' | 'shield';
 
 type Box = { height: number; width: number; x: number; y: number };
 
@@ -39,6 +39,13 @@ const SHAPES: Record<
   banner: {
     device: { height: 46, width: 26, x: 19, y: 9 },
     outline: 'M15 15 Q32 1 49 15 L49 51 L32 61 L15 51 Z',
+    rules: ''
+  },
+  // A Nation's device or a Unit Type's mark alone, filling the box: the
+  // map lays it on the Unit's shield (docs/spec/atlas-emblems.md).
+  charge: {
+    device: { height: 64, width: 64, x: 0, y: 0 },
+    outline: '',
     rules: ''
   },
   shield: {
@@ -88,7 +95,7 @@ export const composeEmblem = (
   }
   return [
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="256" height="256">',
-    `<path d="${outline}" fill="${FIELD}" ${RIM}/>`,
+    outline ? `<path d="${outline}" fill="${FIELD}" ${RIM}/>` : '',
     rules,
     mark && markBox ? fitTrace(mark, markBox) : '',
     fitTrace(device, deviceBox),
@@ -155,9 +162,12 @@ export const main = (argv: string[] = process.argv.slice(2)): number => {
   });
   const reference = positionals[0];
   const shape = values.shape;
-  if (!reference || (shape !== 'banner' && shape !== 'shield')) {
+  if (
+    !reference ||
+    (shape !== 'banner' && shape !== 'charge' && shape !== 'shield')
+  ) {
     console.error(
-      'usage: bun tools/trace-emblem.ts REFERENCE.png --shape banner|shield [--crop WxH+X+Y] [--mark PNG] [--mark-crop WxH+X+Y] [--out FILE]'
+      'usage: bun tools/trace-emblem.ts REFERENCE.png --shape banner|shield|charge [--crop WxH+X+Y] [--mark PNG] [--mark-crop WxH+X+Y] [--out FILE]'
     );
     return 2;
   }

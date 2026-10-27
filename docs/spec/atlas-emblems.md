@@ -9,9 +9,9 @@ an SVG fitted by hand to this sheet.
 
 ## Samples
 
-| Character: Aragorn                                       | Unit: Rohan cavalry                                                  |
-| -------------------------------------------------------- | -------------------------------------------------------------------- |
-| ![Aragorn](../../web/src/view/atlas/emblems/aragorn.svg) | ![Rohan cavalry](../../web/src/view/atlas/emblems/rohan-cavalry.svg) |
+| Character: Aragorn                                       | Unit: Rohan cavalry                               |
+| -------------------------------------------------------- | ------------------------------------------------- |
+| ![Aragorn](../../web/src/view/atlas/emblems/aragorn.svg) | ![Rohan cavalry](atlas-emblems/rohan-cavalry.svg) |
 
 ## Palette
 
@@ -122,22 +122,27 @@ Every Emblem is made the same way, so that they stay one family.
      with a walking staff, on a round-topped banner. Draw it from this
      figure:" followed by the Character's Figure in the original,
      enlarged, so the silhouette keeps its pose and outline.
-   - Unit: "A heater shield bearing a running horse (Rohan), with a
-     small cavalry mark (a horse-head or lance) in the shield's chief."
 
-2. Trace it with `bun run trace-emblem`, giving the shape and, for
-   a Unit, the crops that part the chief's mark from the Nation's
-   device, in the reference's pixels. The samples were made with:
+   A Unit's shield is not drawn whole: the map lays its Nation's device
+   and its Unit Type's mark on the round or heraldic shield. Each is
+   generated alone, as "A single heraldic charge, drawn as a bold flat
+   silhouette in parchment #f0e4c4 on a plain flat blue #2f58a8 square
+   background that fills the whole image edge to edge", then the
+   charge: "a running horse, facing left" (a device), or "a straight
+   sword, lying horizontal, point to the left" (a mark).
+
+2. Trace it with `bun run trace-emblem`, giving the shape:
 
    ```sh
    bun run trace-emblem aragorn.png --shape banner --out aragorn.svg
-   bun run trace-emblem rohan.png --shape shield \
-     --crop 1254x620+0+360 --mark-crop 1254x230+0+120 \
-     --out rohan-cavalry.svg
+   bun run trace-emblem rohan.png --shape charge --out device-rohan.svg
+   bun run trace-emblem sword.png --shape charge --out mark-infantry.svg
    ```
 
-3. Save it in `web/src/view/atlas/emblems/`, name the Forces it is
-   drawn for in `web/src/view/atlas/emblems.ts`, and run
+3. Save it in `web/src/view/atlas/emblems/`, as `device-<nation>.svg`
+   or `mark-<unit type>.svg` for a charge. Name a Character's Forces in
+   `web/src/view/atlas/emblems.ts`; a Unit's Nation and Unit Type come
+   from `web/src/view/atlas/unit-shields.ts`. Then run
    `bun run build-emblems` to compile the atlas the map draws from.
 4. Look at the result on the map at 24 and 64 pixels. Regenerate rather than
    retouch a device that does not read; edit the SVG by hand only for
