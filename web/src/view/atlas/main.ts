@@ -31,6 +31,10 @@ import { buildSdfFont, measure, type SdfFont } from './sdf-font';
 const canvas = document.querySelector<HTMLCanvasElement>('#atlas')!;
 const hud = document.querySelector<HTMLElement>('#hud')!;
 
+const clamp01 = (v: number): number => Math.min(1, Math.max(0, v));
+// Region names are lettered in a lighter, browner ink.
+const REGION_INK = '#6e5232';
+
 const rgba = (hex: string, alpha = 1): [number, number, number, number] => {
   const n = Number.parseInt(hex.slice(1), 16);
   return [(n >> 16) / 255, ((n >> 8) & 0xff) / 255, (n & 0xff) / 255, alpha];
@@ -51,7 +55,7 @@ const [assets, bundle] = await Promise.all([
   loadBundle('/assets/geography/bundle.bin')
 ]);
 const font: SdfFont = buildSdfFont(
-  " ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'-.,()&"
+  " ABCDEFGHIJKLMNOPQRSTUVWXYZÛabcdefghijklmnopqrstuvwxyz0123456789'-.,()&"
 );
 const renderer = new AtlasRenderer(
   canvas,
@@ -102,6 +106,16 @@ const rivendell = bundle.places.find(p =>
 camera.x = rivendell?.x ?? mapSize.width / 2;
 camera.y = rivendell?.y ?? mapSize.height / 2;
 camera.zoom = range.campaign;
+// `?at=x,y,zoom` opens on a map point, zoom a multiple of the Campaign
+// Level's scale.
+const at = new URLSearchParams(location.search)
+  .get('at')
+  ?.split(',')
+  .map(Number);
+if (at?.length === 3 && at.every(Number.isFinite)) {
+  [camera.x, camera.y] = [at[0]!, at[1]!];
+  camera.zoom = range.campaign * at[2]!;
+}
 clampCamera();
 
 const toScreen = (x: number, y: number): [number, number] => [
@@ -132,7 +146,8 @@ const textQuads = (
   px: number,
   colour: string,
   halo: string | null,
-  tracking: number
+  tracking: number,
+  opacity = 1
 ): Quad[] => {
   const dpr = devicePixelRatio;
   const scale = px / font.size;
@@ -154,14 +169,14 @@ const textQuads = (
       if (halo) {
         quads.push({
           ...box,
-          colour: rgba(halo, 0.9),
+          colour: rgba(halo, 0.9 * opacity),
           edge: 0.3,
           mode: QuadMode.glyph
         });
       }
       quads.push({
         ...box,
-        colour: rgba(colour),
+        colour: rgba(colour, opacity),
         edge: 0.5,
         mode: QuadMode.glyph
       });
@@ -327,6 +342,30 @@ const frame = (): void => {
     }
   }
 
+  // Region names, large and widely spaced as on Tolkien's maps, fade out
+  // as the map zooms in to the Campaign Level's scale; the smaller
+  // regions, such as the Shire, only show from the Campaign Level band.
+  const regionLabels = bundle.regionLabels
+    .map(r => {
+      const fadeIn =
+        r.rank === 0 ? 1 : clamp01((camera.zoom / range.boundary - 0.8) / 0.4);
+      const opacity = Math.min(
+        fadeIn,
+        clamp01((range.campaign * 0.6 - camera.zoom) / (range.campaign * 0.25))
+      );
+      const px = r.rank === 0 ? 20 : 15;
+      const tracking = r.rank === 0 ? 7 : 4;
+      const width = measure(font, r.name, px, tracking);
+      const [sx, sy] = toScreen(r.x, r.y);
+      return {
+        box: { height: px, width, x: sx - width / 2, y: sy - px / 2 },
+        opacity,
+        px,
+        text: r.name,
+        tracking
+      };
+    })
+    .filter(l => l.opacity > 0.02);
   // Place names, the most important first, never overlapping.
   const labels = bundle.places
     .filter(p => camera.zoom >= rankZoom(p.rank, range))
@@ -339,6 +378,7 @@ const frame = (): void => {
       const [sx, sy] = toScreen(p.x, p.y);
       return {
         box: { height: px, width, x: sx - width / 2, y: sy + 9 },
+        opacity: 1,
         px,
         text,
         tracking
@@ -351,15 +391,18 @@ const frame = (): void => {
         l.box.y < innerHeight &&
         l.box.y + l.box.height > 0
     );
-  const lettering = placeLabels(labels).flatMap(l =>
+  const lettering = placeLabels([...regionLabels, ...labels]).flatMap(l =>
     textQuads(
       l.text,
       l.box.x,
       l.box.y + l.px * 0.8,
       l.px,
-      INK,
+      l.px >= 15 && regionLabels.some(r => r.text === l.text)
+        ? REGION_INK
+        : INK,
       PAPER,
-      l.tracking
+      l.tracking,
+      l.opacity
     )
   );
   // Each Place's own mark: a small inked ring.
@@ -397,7 +440,9 @@ const frame = (): void => {
     },
     quads,
     maxRank,
-    lineScale
+    lineScale,
+    // Roads show from just below the Campaign Level band.
+    clamp01((camera.zoom / range.boundary - 0.6) / 0.4)
   );
 
   const bandName = band === 'campaign' ? 'Campaign Level' : 'Full Map Level';

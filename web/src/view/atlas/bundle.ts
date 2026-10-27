@@ -15,6 +15,7 @@ export interface GeographyBundle {
   lineStyles: string[];
   places: { name: string; rank: number; x: number; y: number }[];
   regionKinds: string[];
+  regionLabels: { name: string; rank: number; x: number; y: number }[];
   symbolKinds: string[];
   symbols: Section;
 }
@@ -52,6 +53,7 @@ export const parseBundle = (buffer: ArrayBuffer): GeographyBundle => {
     lineStyles: header.lineStyles,
     places: header.places,
     regionKinds: header.regionKinds,
+    regionLabels: header.regionLabels,
     symbolKinds: header.symbolKinds,
     symbols: section('symbols')
   };

@@ -4,8 +4,10 @@ import {
   applyPatches,
   assembleRegions,
   components,
+  followSkeleton,
   signedArea,
   smooth,
+  thin,
   traceArcs,
   type Geography,
   type Ring
@@ -106,5 +108,24 @@ describe('applyPatches', () => {
         }
       ])
     ).toThrow('unknown z');
+  });
+});
+
+describe('thin and followSkeleton', () => {
+  test('thin a thick bar to one line and follow it end to end', () => {
+    const width = 12;
+    const height = 5;
+    const mask = new Uint8Array(width * height);
+    for (let y = 1; y <= 3; y++) {
+      for (let x = 1; x <= 10; x++) {
+        mask[y * width + x] = 1;
+      }
+    }
+    thin(mask, width, height);
+    const lines = followSkeleton(mask, width, height);
+    expect(lines).toHaveLength(1);
+    const ys = new Set(lines[0]!.map(([, y]) => y));
+    expect(ys.size).toBe(1);
+    expect(lines[0]!.length).toBeGreaterThanOrEqual(6);
   });
 });

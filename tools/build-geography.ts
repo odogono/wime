@@ -33,7 +33,13 @@ export const SYMBOL_KINDS = ['tree', 'peak', 'hill'] as const;
 export type SymbolKind = (typeof SYMBOL_KINDS)[number];
 
 // Line styles in the bundle: the ink edge drawn along a region's border.
-export const LINE_STYLES = ['coast', 'forest', 'mountain', 'river'] as const;
+export const LINE_STYLES = [
+  'coast',
+  'forest',
+  'mountain',
+  'river',
+  'road'
+] as const;
 
 const TILE = 16;
 
@@ -453,7 +459,8 @@ const shapeWith =
 export interface GeographyFeature {
   geometry:
     | { coordinates: Ring[][]; type: 'MultiPolygon' }
-    | { coordinates: Point; type: 'Point' };
+    | { coordinates: Point; type: 'Point' }
+    | { coordinates: Point[]; type: 'LineString' };
   properties: Record<string, unknown> & { id: string; layer: string };
   type: 'Feature';
 }
@@ -488,6 +495,30 @@ const WATER_COLOURS = new Set([0x55_88_ff, 0x88_bb_ff]);
 const FOREST_COLOURS = new Set([0x22_44_11, 0x33_66_11]);
 const ROCK_COLOURS = new Set([0x88_88_88, 0x77_55_55]);
 const HILL_COLOURS = new Set([0xee_aa_88]);
+// Mountains are drawn with grey rock; hills with sandy earth and brown
+// shadow. The sandy colour alone, in a dotted line, is a road.
+const GREY_COLOURS = new Set([0x88_88_88]);
+const DOWNS_COLOURS = new Set([0xee_aa_88, 0x77_55_55]);
+const ROAD_COLOUR = 0xee_aa_88;
+
+// The colour of a map pixel, read through the tilemap.
+const pixelReader = (
+  source: SourceData
+): ((x: number, y: number) => number) => {
+  const { atlas, tilemap } = source;
+  const columns = atlas.width / TILE;
+  return (x, y) => {
+    const tile =
+      tilemap.indices[
+        Math.floor(y / TILE) * tilemap.width + Math.floor(x / TILE)
+      ]!;
+    return rgb(
+      atlas,
+      (tile % columns) * TILE + (x % TILE),
+      Math.floor(tile / columns) * TILE + (y % TILE)
+    );
+  };
+};
 
 // The kind of ground a tile shows. Terrain 5 is the sea and lakes
 // (finding:movement-terrain-percent-scales-pace); the rest is read from
@@ -592,9 +623,9 @@ export interface Ground {
 // How much of a window around each cell must show a kind's colours for
 // the cell to be that kind, checked in this order.
 const DENSITY: [GroundKind, Set<number>, number][] = [
-  ['mountain', ROCK_COLOURS, 0.3],
+  ['mountain', GREY_COLOURS, 0.15],
   ['forest', FOREST_COLOURS, 0.28],
-  ['hill', HILL_COLOURS, 0.22]
+  ['hill', DOWNS_COLOURS, 0.35]
 ];
 const WINDOW = 7;
 // Specks smaller than this many cells join the ground around them.
@@ -604,20 +635,8 @@ const MIN_LAKE_CELLS = 4000;
 
 export const traceGround = (source: SourceData): Ground => {
   const STEP = 2;
-  const { atlas, tilemap } = source;
-  const [mapW, mapH] = mapSize(tilemap);
-  const columns = atlas.width / TILE;
-  const colourAt = (x: number, y: number): number => {
-    const tile =
-      tilemap.indices[
-        Math.floor(y / TILE) * tilemap.width + Math.floor(x / TILE)
-      ]!;
-    return rgb(
-      atlas,
-      (tile % columns) * TILE + (x % TILE),
-      Math.floor(tile / columns) * TILE + (y % TILE)
-    );
-  };
+  const [mapW, mapH] = mapSize(source.tilemap);
+  const colourAt = pixelReader(source);
   // Summed-area tables of each colour class, for window densities.
   const stride = mapW + 1;
   const tables = DENSITY.map(() => new Int32Array(stride * (mapH + 1)));
@@ -753,6 +772,229 @@ export const traceGround = (source: SourceData): Ground => {
   return { features, kinds: Uint8Array.from(labels), step: STEP, width };
 };
 
+// ---------------------------------------------------------------------------
+// Roads: the original draws them as dotted lines of sandy pixels. The dots
+// are picked out where the sandy colour stands alone (not in the hills'
+// earth), joined, thinned to a one-pixel centre line and followed into
+// polylines.
+
+// Zhang–Suen thinning, in place, of a 0/1 mask.
+export const thin = (mask: Uint8Array, width: number, height: number): void => {
+  let candidates: number[] = [];
+  for (let i = 0; i < mask.length; i++) {
+    if (mask[i]) {
+      candidates.push(i);
+    }
+  }
+  const at = (x: number, y: number): number =>
+    x < 0 || y < 0 || x >= width || y >= height ? 0 : mask[y * width + x]!;
+  for (let changed = true; changed;) {
+    changed = false;
+    for (const pass of [0, 1]) {
+      const remove: number[] = [];
+      for (const i of candidates) {
+        if (!mask[i]) {
+          continue;
+        }
+        const x = i % width;
+        const y = Math.floor(i / width);
+        // Neighbours clockwise from north.
+        const n = [
+          at(x, y - 1),
+          at(x + 1, y - 1),
+          at(x + 1, y),
+          at(x + 1, y + 1),
+          at(x, y + 1),
+          at(x - 1, y + 1),
+          at(x - 1, y),
+          at(x - 1, y - 1)
+        ];
+        const b = n.reduce((sum, v) => sum + v, 0);
+        if (b < 2 || b > 6) {
+          continue;
+        }
+        let a = 0;
+        for (let k = 0; k < 8; k++) {
+          a += Number(n[k] === 0 && n[(k + 1) % 8] === 1);
+        }
+        if (a !== 1) {
+          continue;
+        }
+        const [p2, , p4, , p6, , p8] = n;
+        if (
+          pass === 0
+            ? p2! * p4! * p6! === 0 && p4! * p6! * p8! === 0
+            : p2! * p4! * p8! === 0 && p2! * p6! * p8! === 0
+        ) {
+          remove.push(i);
+        }
+      }
+      for (const i of remove) {
+        mask[i] = 0;
+      }
+      changed ||= remove.length > 0;
+    }
+    candidates = candidates.filter(i => mask[i]);
+  }
+};
+
+// Follow a one-pixel skeleton into polylines that run between ends and
+// junctions.
+export const followSkeleton = (
+  mask: Uint8Array,
+  width: number,
+  height: number
+): Point[][] => {
+  const neighbours = (i: number): number[] => {
+    const x = i % width;
+    const y = Math.floor(i / width);
+    const out: number[] = [];
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        const nx = x + dx;
+        const ny = y + dy;
+        if (
+          (dx || dy) &&
+          nx >= 0 &&
+          ny >= 0 &&
+          nx < width &&
+          ny < height &&
+          mask[ny * width + nx]
+        ) {
+          out.push(ny * width + nx);
+        }
+      }
+    }
+    return out;
+  };
+  const pixels: number[] = [];
+  for (let i = 0; i < mask.length; i++) {
+    if (mask[i]) {
+      pixels.push(i);
+    }
+  }
+  const degree = new Map(pixels.map(i => [i, neighbours(i).length]));
+  const isNode = (i: number): boolean => degree.get(i) !== 2;
+  const walked = new Set<string>();
+  const lines: Point[][] = [];
+  const walk = (start: number, next: number): void => {
+    const line = [start];
+    let prev = start;
+    let here = next;
+    walked.add(edgeKey(prev, here));
+    for (;;) {
+      line.push(here);
+      if (isNode(here) || here === start) {
+        break;
+      }
+      const onward = neighbours(here).find(
+        n => n !== prev && !walked.has(edgeKey(here, n))
+      );
+      if (onward === undefined) {
+        break;
+      }
+      walked.add(edgeKey(here, onward));
+      prev = here;
+      here = onward;
+    }
+    lines.push(line.map(i => [i % width, Math.floor(i / width)]));
+  };
+  for (const i of pixels) {
+    if (isNode(i)) {
+      for (const n of neighbours(i)) {
+        if (!walked.has(edgeKey(i, n))) {
+          walk(i, n);
+        }
+      }
+    }
+  }
+  // Closed loops with no end or junction.
+  for (const i of pixels) {
+    const n = neighbours(i).find(m => !walked.has(edgeKey(i, m)));
+    if (n !== undefined) {
+      walk(i, n);
+    }
+  }
+  return lines;
+};
+
+const lineLength = (line: Point[]): number =>
+  line.reduce(
+    (sum, p, i) =>
+      i ? sum + Math.hypot(p[0] - line[i - 1]![0], p[1] - line[i - 1]![1]) : 0,
+    0
+  );
+
+export interface Roads {
+  // Map pixels within a few pixels of a road, kept clear of trees.
+  clearing: Uint8Array;
+  features: GeographyFeature[];
+}
+
+export const traceRoads = (source: SourceData): Roads => {
+  const [mapW, mapH] = mapSize(source.tilemap);
+  const colourAt = pixelReader(source);
+  const sandy = new Uint8Array(mapW * mapH);
+  const earth = new Uint8Array(mapW * mapH);
+  for (let y = 0; y < mapH; y++) {
+    for (let x = 0; x < mapW; x++) {
+      const c = colourAt(x, y);
+      sandy[y * mapW + x] = Number(c === ROAD_COLOUR);
+      earth[y * mapW + x] = Number(DOWNS_COLOURS.has(c) || GREY_COLOURS.has(c));
+    }
+  }
+  // A road dot is sandy with little earth around it: the hills' sandy
+  // pixels sit among their brown shadow.
+  const R = 3;
+  const dots: number[] = [];
+  for (let y = R; y < mapH - R; y++) {
+    for (let x = R; x < mapW - R; x++) {
+      if (!sandy[y * mapW + x]) {
+        continue;
+      }
+      let around = 0;
+      for (let dy = -R; dy <= R; dy++) {
+        for (let dx = -R; dx <= R; dx++) {
+          around += earth[(y + dy) * mapW + x + dx]!;
+        }
+      }
+      if (around <= 4) {
+        dots.push(y * mapW + x);
+      }
+    }
+  }
+  // Join the dots, then thin the joined line to its centre.
+  const dilate = (from: number[], radius: number): Uint8Array => {
+    const out = new Uint8Array(mapW * mapH);
+    for (const i of from) {
+      const x = i % mapW;
+      const y = Math.floor(i / mapW);
+      for (let dy = -radius; dy <= radius; dy++) {
+        for (let dx = -radius; dx <= radius; dx++) {
+          const nx = x + dx;
+          const ny = y + dy;
+          if (nx >= 0 && ny >= 0 && nx < mapW && ny < mapH) {
+            out[ny * mapW + nx] = 1;
+          }
+        }
+      }
+    }
+    return out;
+  };
+  const joined = dilate(dots, 2);
+  thin(joined, mapW, mapH);
+  const lines = followSkeleton(joined, mapW, mapH)
+    // Short spurs and stray specks are thinning noise, not roads.
+    .filter(line => lineLength(line) >= 10)
+    .map(line => smooth(simplify(line, 1.2), 2));
+  const features: GeographyFeature[] = lines.map(line => ({
+    geometry: { coordinates: line, type: 'LineString' },
+    properties: { id: `road:${line[0]![0]},${line[0]![1]}`, layer: 'road' },
+    type: 'Feature'
+  }));
+  return { clearing: dilate(dots, 4), features };
+};
+
 // A deterministic hash for scattering symbols.
 const hash = (x: number, y: number, salt = 0): number => {
   let r =
@@ -767,7 +1009,9 @@ const hash = (x: number, y: number, salt = 0): number => {
 // each with a rank so the renderer can thin them as the map zooms out.
 export const scatterSymbols = (
   source: SourceData,
-  ground: Ground
+  ground: Ground,
+  // Map pixels kept clear of trees, around the roads.
+  clearing: Uint8Array
 ): GeographyFeature[] => {
   const [mapW, mapH] = mapSize(source.tilemap);
   const kindAt = (x: number, y: number): GroundKind | null =>
@@ -807,6 +1051,9 @@ export const scatterSymbols = (
             [0, 5]
           ].some(([dx, dy]) => kindAt(x + dx!, y + dy!) !== kind)
         ) {
+          continue;
+        }
+        if (clearing[Math.floor(y) * mapW + Math.floor(x)]) {
           continue;
         }
         // Rank 0 shows at every zoom; higher ranks only closer in.
@@ -974,9 +1221,11 @@ export const validate = (
 //   u32 header length, header JSON (UTF-8, padded to 4 bytes), sections
 //
 // fill:    x, y, kind              per triangle vertex
-// lines:   x, y, nx, ny, style     per vertex of each segment's quad, the
-//                                  normal scaled by the line's half width
-//                                  in screen pixels in the shader
+// lines:   x, y, nx, ny, style, along  per vertex of each segment's quad,
+//                                  the normal scaled by the line's half
+//                                  width in screen pixels in the shader,
+//                                  and the distance along the line, for
+//                                  dashes
 // symbols: x, y, kind, variant, rank  per instance
 
 export interface BundleHeader {
@@ -984,6 +1233,7 @@ export interface BundleHeader {
   lineStyles: readonly string[];
   places: { name: string; rank: number; x: number; y: number }[];
   regionKinds: readonly string[];
+  regionLabels: { name: string; rank: number; x: number; y: number }[];
   regions: { id: string; kind: string; terrain: number }[];
   sections: Record<
     'fill' | 'lines' | 'symbols',
@@ -1009,40 +1259,43 @@ const triangulate = (polygon: Ring[], out: number[], kind: number): void => {
   }
 };
 
-// Each segment of a ring as a quad. `styleOf` may pick each segment's
-// style, or -1 to leave it out.
-const strokeRing = (
-  ring: Ring,
+// Each segment of a line as a quad, with the distance along the line at
+// each end for dashes. `styleOf` may pick each segment's style, or -1 to
+// leave it out.
+const stroke = (
+  points: Point[],
+  closed: boolean,
   out: number[],
   fixed: number,
   styleOf?: (a: Point, b: Point) => number
 ): void => {
-  for (let i = 0; i < ring.length; i++) {
-    const a = ring[i]!;
-    const b = ring[(i + 1) % ring.length]!;
-    const style = styleOf ? styleOf(a, b) : fixed;
-    if (style < 0) {
-      continue;
-    }
+  let along = 0;
+  const segments = closed ? points.length : points.length - 1;
+  for (let i = 0; i < segments; i++) {
+    const a = points[i]!;
+    const b = points[(i + 1) % points.length]!;
     const dx = b[0] - a[0];
     const dy = b[1] - a[1];
     const len = Math.hypot(dx, dy);
-    if (!len) {
+    const style = styleOf ? styleOf(a, b) : fixed;
+    if (style < 0 || !len) {
+      along += len;
       continue;
     }
     const nx = -dy / len;
     const ny = dx / len;
-    const quad: [Point, number][] = [
-      [a, 1],
-      [a, -1],
-      [b, 1],
-      [b, 1],
-      [a, -1],
-      [b, -1]
+    const quad: [Point, number, number][] = [
+      [a, 1, along],
+      [a, -1, along],
+      [b, 1, along + len],
+      [b, 1, along + len],
+      [a, -1, along],
+      [b, -1, along + len]
     ];
-    for (const [p, side] of quad) {
-      out.push(p[0], p[1], nx * side, ny * side, style);
+    for (const [p, side, distance] of quad) {
+      out.push(p[0], p[1], nx * side, ny * side, style, distance);
     }
+    along += len;
   }
 };
 
@@ -1050,7 +1303,14 @@ const segmentKey = (a: Point, b: Point): string =>
   a[0] < b[0] || (a[0] === b[0] && a[1] < b[1]) ? `${a}|${b}` : `${b}|${a}`;
 
 const layerOrder = (layer: string): number =>
-  ['terrain-region', 'ground', 'symbol', 'place'].indexOf(layer);
+  [
+    'terrain-region',
+    'ground',
+    'road',
+    'symbol',
+    'place',
+    'region-label'
+  ].indexOf(layer);
 
 export const compileBundle = (geography: Geography): Uint8Array => {
   const fill: number[] = [];
@@ -1061,6 +1321,7 @@ export const compileBundle = (geography: Geography): Uint8Array => {
     lineStyles: LINE_STYLES,
     places: [],
     regionKinds: GROUND_KINDS,
+    regionLabels: [],
     regions: [],
     sections: {} as BundleHeader['sections'],
     symbolKinds: SYMBOL_KINDS,
@@ -1113,7 +1374,7 @@ export const compileBundle = (geography: Geography): Uint8Array => {
       for (const polygon of f.geometry.coordinates as Ring[][]) {
         triangulate(polygon, fill, kindIndex);
         for (const ring of polygon) {
-          strokeRing(ring, lines, -1, (a, b) => {
+          stroke(ring, true, lines, -1, (a, b) => {
             const k = segmentKey(a, b);
             const kinds = sideKinds.get(k) ?? [];
             // The map's edge, a border within one kind, or one already inked.
@@ -1128,6 +1389,21 @@ export const compileBundle = (geography: Geography): Uint8Array => {
           });
         }
       }
+    } else if (layer === 'road') {
+      stroke(
+        f.geometry.coordinates as Point[],
+        false,
+        lines,
+        LINE_STYLES.indexOf('road')
+      );
+    } else if (layer === 'region-label') {
+      const [x, y] = f.geometry.coordinates as Point;
+      header.regionLabels.push({
+        name: f.properties.name as string,
+        rank: f.properties.rank as number,
+        x,
+        y
+      });
     } else if (layer === 'symbol') {
       const [x, y] = f.geometry.coordinates as Point;
       symbols.push(
@@ -1149,7 +1425,7 @@ export const compileBundle = (geography: Geography): Uint8Array => {
   }
   const sections = {
     fill: [fill, 3],
-    lines: [lines, 5],
+    lines: [lines, 6],
     symbols: [symbols, 5]
   } as const;
   let offset = 0;
@@ -1217,13 +1493,15 @@ export const main = async (): Promise<number> => {
   const source = await loadSource(assets);
   const kinds = tileKinds(source.atlas, source.terrainByTile);
   const ground = traceGround(source);
+  const roads = traceRoads(source);
   const [w, h] = mapSize(source.tilemap);
   const traced: Geography = {
     bounds: [0, 0, w, h],
     features: [
       ...traceTerrainRegions(source, kinds),
       ...ground.features,
-      ...scatterSymbols(source, ground),
+      ...roads.features,
+      ...scatterSymbols(source, ground, roads.clearing),
       ...placeLabels(source)
     ],
     type: 'FeatureCollection'

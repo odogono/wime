@@ -59,8 +59,11 @@ const LINE_STYLE: Record<string, { colour: string; width: number }> = {
   coast: { colour: '#2f3d44', width: 1.5 },
   forest: { colour: '#4a4a22', width: 0.9 },
   mountain: { colour: '#5a4632', width: 0.8 },
-  river: { colour: '#3c5a66', width: 0.9 }
+  river: { colour: '#3c5a66', width: 0.9 },
+  road: { colour: '#7a4c2c', width: 1.3 }
 };
+// Roads are dashed, in CSS pixels on and off.
+const DASH = [5, 3];
 // Each symbol's size in map pixels.
 const SYMBOL_SIZE = [10, 15, 18];
 
@@ -136,21 +139,34 @@ const LINE_VS = `${MAP_TRANSFORM}
 layout(location = 0) in vec2 a_pos;
 layout(location = 1) in vec2 a_normal;
 layout(location = 2) in float a_style;
-uniform float u_widths[4]; // half widths in device pixels
-uniform vec3 u_colours[4];
+layout(location = 3) in float a_along;
+uniform float u_widths[5]; // half widths in device pixels
+uniform vec4 u_colours[5];
 uniform vec2 u_pixel; // one device pixel in clip space
-out vec3 v_colour;
+out vec4 v_colour;
+out float v_along;
+flat out int v_style;
 void main() {
   int s = int(a_style);
   v_colour = u_colours[s];
+  v_along = a_along;
+  v_style = s;
   vec2 clip = toClip(a_pos) + vec2(a_normal.x, -a_normal.y) * u_widths[s] * u_pixel;
   gl_Position = vec4(clip, 0.0, 1.0);
 }`;
 
 const LINE_FS = `
-in vec3 v_colour;
+in vec4 v_colour;
+in float v_along;
+flat in int v_style;
+uniform float u_zoom;
+uniform vec2 u_dash; // CSS pixels on and off
 out vec4 colour;
-void main() { colour = vec4(v_colour, 0.85); }`;
+void main() {
+  // Roads are dashed at a fixed size on screen.
+  if (v_style == 4 && mod(v_along * u_zoom, u_dash.x + u_dash.y) > u_dash.x) discard;
+  colour = v_colour;
+}`;
 
 const SYMBOL_VS = `${MAP_TRANSFORM}
 layout(location = 0) in vec2 a_corner;
@@ -387,9 +403,10 @@ export class AtlasRenderer {
           [
             [0, 2],
             [1, 2],
-            [2, 1]
+            [2, 1],
+            [3, 1]
           ],
-          5
+          6
         );
       })
     };
@@ -476,8 +493,14 @@ export class AtlasRenderer {
 
   // Draw the map, then the screen-space quads over it. `maxRank` is the
   // least detailed rank of symbol still drawn; `lineScale` thins the ink
-  // as the map zooms out.
-  draw(view: View, quads: Quad[], maxRank: number, lineScale: number): void {
+  // as the map zooms out, and `roadOpacity` fades the roads out with it.
+  draw(
+    view: View,
+    quads: Quad[],
+    maxRank: number,
+    lineScale: number,
+    roadOpacity: number
+  ): void {
     const { gl } = this;
     gl.viewport(0, 0, view.width, view.height);
     gl.clearColor(0.11, 0.1, 0.09, 1);
@@ -518,10 +541,15 @@ export class AtlasRenderer {
           view.devicePixelRatio
       )
     );
-    gl.uniform3fv(
+    gl.uniform4fv(
       u('u_colours'),
-      this.lineStyles.flatMap(s => hex(LINE_STYLE[s]!.colour))
+      this.lineStyles.flatMap(s => [
+        ...hex(LINE_STYLE[s]!.colour),
+        s === 'road' ? 0.9 * roadOpacity : 0.85
+      ])
     );
+    gl.uniform1f(u('u_zoom'), view.zoom);
+    gl.uniform2f(u('u_dash'), DASH[0]!, DASH[1]!);
     gl.uniform2f(u('u_pixel'), ...pixel);
     gl.bindVertexArray(this.lines.vao);
     gl.drawArrays(gl.TRIANGLES, 0, this.lines.count);
