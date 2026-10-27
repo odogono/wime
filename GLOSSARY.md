@@ -155,6 +155,18 @@ _Avoid_: Scenario, test case
 A playable game: the starting forces, Places and map, and the rules that run them. The game the original shipped with is one Scenario.
 _Avoid_: Mod, campaign, Level
 
+**Setup**:
+Where a Scenario's game starts: the objects lying on the map, the Encounter figures' areas and first days, and the Nazgûl's starting positions.
+_Avoid_: Start, layout, map seed
+
+**Classic Setup**:
+The Setup the original shipped with, the same in every game.
+_Avoid_: Default setup, original layout
+
+**Shuffled Setup**:
+A Setup drawn from a Setup seed, within limits the Scenario sets. The rules are unchanged.
+_Avoid_: Random map, randomised game
+
 **Scenario Script**:
 The code that gives a Scenario its rules.
 _Avoid_: Script, mod
