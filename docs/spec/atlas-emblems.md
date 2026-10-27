@@ -37,20 +37,25 @@ not to the Emblem.
 
 The outline tells a Character from a Unit at every tier:
 
-- A **Character** stands on a **banner** bearing a silhouette of its
-  figure in the original, standing and facing left: a hobbit, a wizard,
-  a Nazgûl. Characters who share a figure in the original share it
-  here. The banner has straight sides, a rounded
+- A **Character** stands on a **banner** bearing a silhouette of the
+  Character, standing and facing left, drawn from its Figure in the
+  original where it has one. Named Characters each have their own,
+  except that the lesser Nazgûl, Rohan's lesser lords and Gondor's fief
+  lords share one per group; unnamed Characters ("a hobbit", "a troll")
+  share one per kind; and a Character in disguise is drawn as they
+  appear. The banner has straight sides, a rounded
   head, and a point at its foot. It is 28 units wide and 55 high in the
   64-unit drawing.
-- A **Unit** stands on a **heater shield**: a gently peaked top and a
-  pointed foot, 40 units wide and 56 high. A level ink line parts off its
-  **chief**, the top fifth, which holds the Unit Type's mark; the
-  Nation's device fills the rest.
+- A **Unit** stands on a **round shield**, 48 units across, or, for
+  elite troops, a **heater shield**: a gently peaked top and a pointed
+  foot, 40 units wide and 56 high. A Unit is elite where its Badge in
+  the original is the heraldic shield (`finding:graphics-unit-nation-only-in-campaign-icon`).
+  On either, a level ink line parts off the **chief**, the top fifth,
+  which holds the Unit Type's mark; the Nation's device fills the rest.
 
 Banners carry no pole, crossbar, cords or ragged edges, and shields no
-bosses or rivets. All Characters share one banner and all Units one
-shield, whatever their Side.
+bosses or rivets. All Characters share one banner, and Units the two
+shields, whatever their Side.
 
 ## Line weight
 
@@ -118,8 +123,8 @@ Every Emblem is made the same way, so that they stay one family.
    lines, for example:
    - Character: "The silhouette of a hobbit, standing and facing left,
      with a walking staff, on a round-topped banner. Draw it from this
-     figure:" followed by the original's figure for that Character, so
-     the silhouette keeps its pose and outline.
+     figure:" followed by the Character's Figure in the original,
+     enlarged, so the silhouette keeps its pose and outline.
    - Unit: "A heater shield bearing a running horse (Rohan), with a
      small cavalry mark (a horse-head or lance) in the shield's chief."
 
