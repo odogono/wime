@@ -29,7 +29,7 @@ export const REGION_KINDS = [
 ] as const;
 export type RegionKind = (typeof REGION_KINDS)[number];
 
-export const SYMBOL_KINDS = ['tree', 'peak', 'hill'] as const;
+export const SYMBOL_KINDS = ['tree', 'peak', 'hill', 'marsh'] as const;
 export type SymbolKind = (typeof SYMBOL_KINDS)[number];
 
 // Line styles in the bundle: the ink edge drawn along a region's border.
@@ -492,6 +492,11 @@ const rgb = (png: PNG, x: number, y: number): number => {
 };
 
 const WATER_COLOURS = new Set([0x55_88_ff, 0x88_bb_ff]);
+// Marshes are a speckle of the light water colour with no deep water.
+const SHALLOW_COLOURS = new Set([0x88_bb_ff]);
+const DEEP_COLOURS = new Set([0x55_88_ff]);
+const MARSH_DENSITY = 0.18;
+const MARSH_MAX_DEEP = 0.08;
 const FOREST_COLOURS = new Set([0x22_44_11, 0x33_66_11]);
 const ROCK_COLOURS = new Set([0x88_88_88, 0x77_55_55]);
 const HILL_COLOURS = new Set([0xee_aa_88]);
@@ -605,7 +610,7 @@ export const traceTerrainRegions = (
 
 // The kinds of ground the map is drawn with: the Terrain Region kinds,
 // and rivers, water too narrow to be sea or lake.
-export const GROUND_KINDS = [...REGION_KINDS, 'river'] as const;
+export const GROUND_KINDS = [...REGION_KINDS, 'river', 'marsh'] as const;
 export type GroundKind = (typeof GROUND_KINDS)[number];
 
 // The drawn ground, traced from the tiles' pixels rather than whole tiles,
@@ -639,13 +644,20 @@ export const traceGround = (source: SourceData): Ground => {
   const colourAt = pixelReader(source);
   // Summed-area tables of each colour class, for window densities.
   const stride = mapW + 1;
-  const tables = DENSITY.map(() => new Int32Array(stride * (mapH + 1)));
+  const classes = [
+    ...DENSITY.map(([, colours]) => colours),
+    SHALLOW_COLOURS,
+    DEEP_COLOURS
+  ];
+  const shallow = DENSITY.length;
+  const deep = DENSITY.length + 1;
+  const tables = classes.map(() => new Int32Array(stride * (mapH + 1)));
   const water = new Uint8Array(mapW * mapH);
   for (let y = 0; y < mapH; y++) {
     for (let x = 0; x < mapW; x++) {
       const c = colourAt(x, y);
       water[y * mapW + x] = Number(WATER_COLOURS.has(c));
-      DENSITY.forEach(([, colours], i) => {
+      classes.forEach((colours, i) => {
         const t = tables[i]!;
         t[(y + 1) * stride + x + 1] =
           Number(colours.has(c)) +
@@ -684,7 +696,12 @@ export const traceGround = (source: SourceData): Ground => {
         }
       }
       let label = plain;
-      if (wetPixels >= 2) {
+      if (
+        density(shallow, px + 1, py + 1) >= MARSH_DENSITY &&
+        density(deep, px + 1, py + 1) < MARSH_MAX_DEEP
+      ) {
+        label = GROUND_KINDS.indexOf('marsh');
+      } else if (wetPixels >= 2) {
         label = wet;
       } else {
         const found = DENSITY.findIndex(
@@ -1023,10 +1040,16 @@ export const scatterSymbols = (
               Math.floor(x / ground.step)
           ]!
         ]!;
-  const spacing: Record<SymbolKind, number> = { hill: 22, peak: 13, tree: 9 };
+  const spacing: Record<SymbolKind, number> = {
+    hill: 12,
+    marsh: 7,
+    peak: 13,
+    tree: 9
+  };
   const kindFor: Partial<Record<GroundKind, SymbolKind>> = {
     forest: 'tree',
     hill: 'hill',
+    marsh: 'marsh',
     mountain: 'peak'
   };
   const features: GeographyFeature[] = [];

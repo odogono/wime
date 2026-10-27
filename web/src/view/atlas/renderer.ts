@@ -46,7 +46,8 @@ const hex = (value: string): [number, number, number] => {
 // Parchment fills, after the Tolkien maps' paper and washes.
 const REGION_COLOURS: Record<string, string> = {
   forest: '#dcdcb2',
-  hill: '#ecdcb2',
+  hill: '#ead8aa',
+  marsh: '#dfe3c6',
   mountain: '#e4d6bb',
   plain: '#f0e4c4',
   river: '#a9c2c4',
@@ -65,7 +66,7 @@ const LINE_STYLE: Record<string, { colour: string; width: number }> = {
 // Roads are dashed, in CSS pixels on and off.
 const DASH = [5, 3];
 // Each symbol's size in map pixels.
-const SYMBOL_SIZE = [10, 15, 18];
+const SYMBOL_SIZE = [10, 15, 13, 11];
 
 const compile = (
   gl: WebGL2RenderingContext,
@@ -104,7 +105,7 @@ vec2 toClip(vec2 p) { return p * u_view.xy + u_view.zw; }
 const FILL_VS = `${MAP_TRANSFORM}
 layout(location = 0) in vec2 a_pos;
 layout(location = 1) in float a_kind;
-uniform vec3 u_colours[6];
+uniform vec3 u_colours[7];
 out vec3 v_colour;
 out vec2 v_map;
 flat out int v_kind;
@@ -187,7 +188,7 @@ layout(location = 1) in vec2 a_pos;
 layout(location = 2) in float a_kind;
 layout(location = 3) in float a_variant;
 layout(location = 4) in float a_rank;
-uniform float u_sizes[3]; // device pixels
+uniform float u_sizes[4]; // device pixels
 uniform float u_maxRank;
 uniform vec2 u_pixel;
 out vec2 v_local;
@@ -213,6 +214,7 @@ flat in float v_size;
 uniform vec3 u_ink;
 uniform vec3 u_paper;
 uniform vec3 u_leaf;
+uniform vec3 u_marsh;
 out vec4 colour;
 float stroke(float d, float w, float aa) { return 1.0 - smoothstep(w - aa, w + aa, abs(d)); }
 float fill(float d, float aa) { return 1.0 - smoothstep(-aa, aa, d); }
@@ -251,12 +253,31 @@ void main() {
     float hatch = stroke(fract((p.x - p.y * 0.6) * 3.2) - 0.5, 0.12, 0.08) * step(lean, p.x) * body;
     c = vec4(u_paper, body);
     c = mix(c, vec4(u_ink, 1.0), max(stroke(t, w, aa) * step(p.y, 0.74), hatch * 0.8));
+  } else if (v_kind == 2) {
+    // A hill: a rounded mound, inked over its crest, its eastern flank
+    // shaded with short strokes, as on Tolkien's maps.
+    float lean = (v_variant - 1.0) * 0.1;
+    vec2 q = vec2(p.x - lean, p.y);
+    // An ellipse sitting on the baseline, its distance roughly in the
+    // symbol's own units.
+    float mound = (length(vec2(q.x / 0.95, (q.y - 0.55) / 1.1)) - 1.0) * 0.95;
+    float upper = step(q.y, 0.55);
+    float body = fill(mound, aa) * upper;
+    float shade = stroke(fract(q.x * 4.0 + q.y * 1.5) - 0.5, 0.1, 0.08) * step(0.12, q.x) * body;
+    c = vec4(u_paper, body * 0.9);
+    c = mix(c, vec4(u_ink, 1.0), max(stroke(mound, w, aa) * upper, shade * 0.6));
   } else {
-    // A hill: a low arc with a tick of shading.
-    float arc = length(p - vec2(0.0, 0.7)) - 0.8;
-    float upper = step(p.y, 0.6);
-    float shade = stroke(p.x - 0.35 - (p.y - 0.2) * 0.3, 0.05, aa) * step(0.0, -arc) * step(0.15, p.y) * upper;
-    c = vec4(u_ink, max(stroke(arc, w, aa) * upper, shade * 0.7));
+    // A marsh tuft: a short ground line with reeds rising from it.
+    float ground = max(abs(p.y - 0.55) - w * 0.6, abs(p.x) - 0.75);
+    float reeds = 1e3;
+    for (int i = -1; i <= 1; i++) {
+      float x = float(i) * 0.32 + (v_variant - 1.0) * 0.06;
+      float height = 0.55 - abs(float(i)) * 0.25;
+      float tilt = float(i) * 0.18;
+      float r = max(abs(p.x - x - (0.55 - p.y) * tilt) - w * 0.5, abs(p.y - (0.55 - height / 2.0)) - height / 2.0);
+      reeds = min(reeds, r);
+    }
+    c = vec4(u_marsh, max(fill(ground, aa), fill(reeds, aa)));
   }
   if (c.a < 0.01) discard;
   colour = c;
@@ -546,9 +567,15 @@ export class AtlasRenderer {
     let u = set(this.fill[0]!.program);
     gl.uniform3fv(
       u('u_colours'),
-      ['water', 'plain', 'forest', 'hill', 'mountain', 'river'].flatMap(k =>
-        hex(REGION_COLOURS[k]!)
-      )
+      [
+        'water',
+        'plain',
+        'forest',
+        'hill',
+        'mountain',
+        'river',
+        'marsh'
+      ].flatMap(k => hex(REGION_COLOURS[k]!))
     );
     gl.uniform1f(u('u_zoom'), view.zoom);
     for (const chunk of this.fill) {
@@ -596,6 +623,7 @@ export class AtlasRenderer {
     gl.uniform3f(u('u_ink'), ...hex(INK));
     gl.uniform3f(u('u_paper'), ...hex('#efe4c8'));
     gl.uniform3f(u('u_leaf'), ...hex('#b9bf86'));
+    gl.uniform3f(u('u_marsh'), ...hex('#3c5a52'));
     gl.bindVertexArray(this.symbols.vao);
     gl.drawArraysInstanced(gl.TRIANGLES, 0, 6, this.symbols.count);
 
