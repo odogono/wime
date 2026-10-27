@@ -6,4 +6,4 @@ ADR-0006 drew the Atlas map's nearest Force tier with the original's pixel sprit
 
 - Keep the pixel sprites (ADR-0006): faithful, but at odds with the Atlas look.
 - Repaint the sprites as higher-resolution bitmaps: still fixed-size, and a lot of art for each scale.
-- Use generated art as it comes: inconsistent and hard to edit. Generated images may serve as references, but every committed emblem is a hand-finished SVG.
+- Use generated art as it comes: inconsistent and hard to edit. Generated images may be traced into an emblem's device, but each emblem is fitted by hand to the style sheet (docs/spec/atlas-emblems.md) and committed as SVG.
