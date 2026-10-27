@@ -13,7 +13,7 @@ The far zoom band of the map, showing the whole of Middle Earth, where Forces ap
 _Avoid_: Overview map, world map, strategic map
 
 **Campaign Level**:
-The near zoom band of the map, showing part of Middle Earth in detail, where Characters appear as figures and Units as badges. Most orders are given here.
+The near zoom band of the map, showing part of Middle Earth in detail, where each Force appears as its Leader's Figure or Badge. Most orders are given here.
 _Avoid_: Tile map, local map
 
 **Animation Level**:
@@ -24,17 +24,24 @@ _Avoid_: Scene, close-up
 The map drawn as the original draws it, from its tiles and its full-map picture, with its own sprites and dots for Forces. The default.
 _Avoid_: Retro mode, pixel map
 
+**Figure**:
+One of the original's Campaign Level icons that draws a person or creature, such as the hobbit or the Nazgûl.
+_Avoid_: Sprite, portrait
+
+**Badge**:
+One of the original's Campaign Level icons that draws a shield or device, such as Rohan's horse or a Unit's shield.
+_Avoid_: Crest, logo
+
 **Atlas map**:
 The port's own drawing of the map, one ink-on-parchment map in the manner of Tolkien's, with Forces drawn in their own style. It changes how the world is shown, never the rules.
 _Avoid_: Vector map, HD mode, Tolkien map
 
 **Emblem**:
-A Force's picture on the Atlas map when zoomed in: a silhouette of its Leader's figure on a banner for a Character, or a shield of its Nation and Unit Type for a Unit.
-_Avoid_: Figure, sprite, icon (a figure is the Classic map's sprite)
+A Force's picture on the Atlas map when zoomed in: a silhouette of its Leader on a banner for a Character, or a shield of its Nation and Unit Type for a Unit.
+_Avoid_: Figure, Badge, sprite, icon (those are the original's pictures)
 
 **Compact marker**:
 A Force's picture on the Atlas map at middle zoom: its Emblem's simplified outline in its Side colour.
-_Avoid_: Badge
 
 **Dot**:
 A Force's picture when zoomed far out: a small dot in its Side colour.
