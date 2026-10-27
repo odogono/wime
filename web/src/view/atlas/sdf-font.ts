@@ -18,7 +18,7 @@ export interface SdfFont {
   texture: { data: Uint8Array; height: number; width: number };
 }
 
-const INF = 1e20;
+export const INF = 1e20;
 
 // One dimension of the Felzenszwalb–Huttenlocher distance transform.
 const edt1d = (
@@ -53,7 +53,11 @@ const edt1d = (
 };
 
 // Squared distance to the nearest set cell, for every cell.
-const edt = (grid: Float64Array, width: number, height: number): void => {
+export const edt = (
+  grid: Float64Array,
+  width: number,
+  height: number
+): void => {
   const n = Math.max(width, height);
   const f = new Float64Array(n);
   const d = new Float64Array(n);

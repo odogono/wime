@@ -25,6 +25,7 @@ import {
   type Tier,
   type ZoomRange
 } from './lod';
+import { buildPictogramAtlas } from './pictograms';
 import { AtlasRenderer, INK, PAPER, QuadMode, type Quad } from './renderer';
 import { buildSdfFont, measure, type SdfFont } from './sdf-font';
 
@@ -57,11 +58,13 @@ const [assets, bundle] = await Promise.all([
 const font: SdfFont = buildSdfFont(
   " ABCDEFGHIJKLMNOPQRSTUVWXYZÛabcdefghijklmnopqrstuvwxyz0123456789'-.,()&"
 );
+const pictograms = buildPictogramAtlas(bundle.pictograms);
 const renderer = new AtlasRenderer(
   canvas,
   bundle,
   font,
-  assets.forceIcons as TexImageSource & { height: number; width: number }
+  assets.forceIcons as TexImageSource & { height: number; width: number },
+  pictograms
 );
 let sim: SimState = createSim(0x14_18, assets.startingState, assets.tilemap);
 let running = false;
@@ -201,7 +204,7 @@ const AREA = bundle.pictograms.indexOf('area');
 // A Place's picture grows with the map, between a least and greatest size
 // in CSS pixels; Strongholds are drawn larger.
 const pictogramSize = (rank: number): number =>
-  Math.min(40, Math.max(14, 16 * camera.zoom)) * (rank === 0 ? 1.25 : 1);
+  Math.min(48, Math.max(18, 20 * camera.zoom)) * (rank === 0 ? 1.25 : 1);
 // The pictured Place a Force stands on, if any: Places are a tile apart
 // at least, so within half a tile is on it.
 const pictureUnder = (
@@ -439,18 +442,31 @@ const frame = (): void => {
   // Each pictured Place's ink picture.
   const places = bundle.places
     .filter(p => p.pictogram !== AREA && camera.zoom >= rankZoom(p.rank, range))
-    .map((p): Quad => {
+    .flatMap((p): Quad[] => {
+      const cell = pictograms.cells.get(bundle.pictograms[p.pictogram]!);
+      if (!cell) {
+        return [];
+      }
       const [sx, sy] = toScreen(p.x, p.y);
+      // The picture's 64-unit box is `size` across; its cell has a margin
+      // for the distance field either side.
       const size = pictogramSize(p.rank);
-      return {
-        colour: [1, 1, 1, 1],
-        edge: p.pictogram,
-        h: size * dpr,
-        mode: QuadMode.pictogram,
-        w: size * dpr,
-        x: (sx - size / 2) * dpr,
-        y: (sy - size / 2) * dpr
-      };
+      const quad =
+        (size * pictograms.cell) / (pictograms.cell - pictograms.margin * 2);
+      return [
+        {
+          colour: [1, 1, 1, 1],
+          h: quad * dpr,
+          mode: QuadMode.pictogram,
+          u0: cell.u,
+          u1: cell.u + pictograms.cell,
+          v0: cell.v,
+          v1: cell.v + pictograms.cell,
+          w: quad * dpr,
+          x: (sx - quad / 2) * dpr,
+          y: (sy - quad / 2) * dpr
+        }
+      ];
     });
 
   quads.push(...places, ...lettering, ...markers, ...figures, ...counters);
