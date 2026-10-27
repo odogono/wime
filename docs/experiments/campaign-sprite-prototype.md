@@ -4,7 +4,7 @@
 
 Can a small painted sprite library reconstruct an actual Campaign Level section, preserve its geographic relationships, and remain stable while scrolling?
 
-Yes for this bounded experiment: four generated PNGs supply two textures and twelve reusable scenery symbols. A real 44×32 tile region produces 769 fixed scenery placements, viewed through the original 20×12 tile window. Panning away and back restores identical canvas pixels in Chromium. This establishes reusable composition, not production-ready artwork or complete terrain coverage. User evaluation of this prototype is pending.
+Yes for this bounded experiment: four generated PNGs supply two textures and twelve reusable scenery symbols. A real 44×32 tile region produces 1,615 fixed scenery placements, viewed through the original 20×12 tile window. Panning away and back restores identical canvas pixels in Chromium. This establishes reusable composition, not production-ready artwork or complete terrain coverage. User evaluation of this prototype is pending.
 
 The user accepted the earlier Animation Level river prototype and deferred game integration. This follow-up explores the Campaign Level separately; it makes no production renderer, simulation, save, asset-loader or public interface changes.
 
@@ -17,7 +17,7 @@ bun run prototype:campaign
 
 Open `build/graphics-remaster/campaign-prototype.html`. The first command exports the original game data; the second verifies cached art or downloads the four SHA-256-pinned PNGs, then embeds all artwork and map data in a single offline HTML file. No server, account or API credential is needed to open the built file.
 
-Alternatively, [save the standalone HTML](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/38cc7932f17fd132b514642d5de71156e627fdfa/campaign-prototype.html) as `campaign-prototype.html`, then open it locally. GitHub serves the raw HTML as text, so save it before opening. All artwork, full-resolution captures, prompts and the demo are in the [same secret gist](https://gist.github.com/odogono/f6b575409714ee9a0036152250a11587), revision `10b425a31831cb8f64d875dcf69cf91e43fefa9f`. Anyone with its URL can view it.
+Alternatively, [save the standalone HTML](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/7e9b2d4400b1e7b08378dbb1fb08e4618e146cd9/campaign-prototype.html) as `campaign-prototype.html`, then open it locally. GitHub serves the raw HTML as text, so save it before opening. All artwork, full-resolution captures, prompts and the demo are in the [same secret gist](https://gist.github.com/odogono/f6b575409714ee9a0036152250a11587), revision `9bceacfd53081bc7cd5697e9e11fabd3d0b8d3a1`. Anyone with its URL can view it.
 
 The prototype source is captured on branch `experiment/graphics-remaster` in [PR #182](https://github.com/odogono/wime/pull/182). It is intentionally outside the production build.
 
@@ -28,7 +28,7 @@ The prototype source is captured on branch `experiment/graphics-remaster` in [PR
 - Viewport: 320×192 logical pixels (20×12 tiles), painted into a 1280×768 canvas. Source and painted views use identical camera coordinates. These are terrain-compositor captures, not emulator screenshots or captures of the game's complete UI.
 - Water: the original atlas's two blue colours define a region-wide mask. A repeating painted water texture is clipped to it, with interpolated edges and a soft bank. There is no generated full-map river painting.
 - Paths: peach source pixels on grass/forest tiles receive a simple path colour. This heuristic is provisional; peach pixels on hills and buildings are excluded.
-- Scenery: per-tile colour coverage selects experimental grass, forest, hill, mountain or Place recipes. Forest subregions choose up to four tree anchors; hills and mountains use overlapping ridge symbols. The source grid controls geography, while sprite crowns and ridges can extend beyond their cells.
+- Scenery: per-tile colour coverage selects experimental grass, forest, hill, mountain or Place recipes. Forested tiles offer up to sixteen candidate tree anchors, with jitter in both axes, source-colour coverage, occasional gaps and water clearance; hills and mountains use overlapping ridge symbols. The source grid controls geography, while sprite crowns and ridges can extend beyond their cells.
 - Settlements: generic Place-kind tiles select shared symbols. Six named landmarks lacking generic kinds receive explicit prototype symbols: Hobbiton, Woodhall, Bombadil's House, Deadman's Dike, Weathertop and Rivendell. These are artistic choices, not reconstructed original rules; Rivendell's generic elven hall is not a faithful architectural reconstruction.
 - A coordinate hash selects variants and modest placement jitter. It never consumes simulation randomness and never changes when the camera moves. All scenery is sorted by its ground-contact position before drawing.
 
@@ -57,7 +57,7 @@ All four were generated separately with built-in `image_gen.imagegen`. The earli
 
 **Painted composition**
 
-![Reusable painted terrain around Bree](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/9acf2bbf40c7d4cf7c138cd4adacdba117576024/campaign-bree-painted.png)
+![Reusable painted terrain around Bree](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/230b8a226222cb1c3ebb7280d979f7729ee8f83d/campaign-bree-painted.png)
 
 ### Rivendell and the Misty Mountains
 
@@ -67,13 +67,29 @@ All four were generated separately with built-in `image_gen.imagegen`. The earli
 
 **Painted composition**
 
-![Reusable painted terrain around Rivendell](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/c883f9147548193a1d7eb13d494365fb15b84255/campaign-rivendell-painted.png)
+![Reusable painted terrain around Rivendell](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/7761bd386abf8f4ceedb75dc84db7c89a7843bfb/campaign-rivendell-painted.png)
 
-[Weathertop original](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/5b343a2b9e0c5141ef417f58b6575501951359fc/campaign-weathertop-original.png) · [Weathertop painted](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/2e67e4d1a5a44821e888c478a8d7263d3d6f2d22/campaign-weathertop-painted.png) · [Terrain classifications](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/d2ca9da921d615b871f55d6bb6cf838673ba32ae/campaign-footprints.png) · [Grid overlay](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/9edbc99c45aa08c5ac864589957aa41d9f8fb2d7/campaign-grid.png) · [Desktop controls](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/b38b803eb783a5e9c6560f37399e4c328bc0b644/campaign-prototype-desktop.png) · [Narrow-screen controls](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/e18032e3593dbb324340fd5ddd6e64a7724f5bf1/campaign-prototype-mobile.png)
+[Weathertop original](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/5b343a2b9e0c5141ef417f58b6575501951359fc/campaign-weathertop-original.png) · [Weathertop painted](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/a7936c03803ef7df6c60931cc322554413c33f4f/campaign-weathertop-painted.png) · [Terrain classifications](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/d2ca9da921d615b871f55d6bb6cf838673ba32ae/campaign-footprints.png) · [Grid overlay](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/cd46e04d58d84d5a26e72ccbd3bcbb2691be850d/campaign-grid.png) · [Desktop controls](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/f2a9bcf5409a0c6d74aabd0d2664dce3474b7d88/campaign-prototype-desktop.png) · [Narrow-screen controls](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/afde1517ae4d5ccfa575409de2504ee7c03d031f/campaign-prototype-mobile.png)
 
 All canvas captures are 1280×768 and come from the working compositor, not separate generated whole-screen illustrations. Place labels are optional prototype overlays derived from the source names; they are not text embedded in the generated artwork.
 
-## Tree readability revision — 2026-10-27
+## Forest density revision — 2026-10-27
+
+The user rejected the sparse, evenly separated small trees because they did not read as a forest. Crown widths remain 6.5–7.5 logical pixels, but forest tiles now offer sixteen closely spaced candidate positions rather than four. Fixed coordinate hashes vary both axes and omit occasional candidates; source-colour coverage and water checks trim the edge. Overlapping small crowns form a continuous canopy with irregular gaps instead of isolated rows.
+
+Across the bounded region, tree placements increased from 386 to 1,232 (about 3.2 times as many). Total scenery placements are now 1,615. Other scenery, crown sizes, artwork, quiet grass treatment, water masks and named-Place positions are unchanged. All tree anchors remain on source forest tiles and off source water pixels, although crown edges can overhang naturally.
+
+**Previous sparse small trees**
+
+![Previous sparse forest arrangement](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/c883f9147548193a1d7eb13d494365fb15b84255/campaign-rivendell-painted.png)
+
+**Overlapping small-tree canopy**
+
+![Dense irregular forest arrangement](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/7761bd386abf8f4ceedb75dc84db7c89a7843bfb/campaign-rivendell-painted.png)
+
+[Forest revision verification](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/338223c6b0975e4d12e591c8c56d0fcfa6b7775e/campaign-forest-revision-verification.json) records density, unchanged non-tree scenery, source footprint and water checks, deterministic panning, layer restoration, offline loading and narrow-screen layout. The standalone download and main captures above include this revision. User evaluation is pending; this is still a visual prototype.
+
+## Earlier tree readability revision — 2026-10-27
 
 The user observed that trees blended into the grass and were too large. Tree crown widths are now 6.5–7.5 logical pixels, down from 10–12 (about one third narrower). The meadow texture is drawn at 30% opacity over a muted green base (#98a477), reducing competing detail while retaining the painted surface. This is a compositor adjustment: the four generated PNGs, prompts, all 769 placements, variants, water coverage and other scenery sizes are unchanged.
 
@@ -85,7 +101,7 @@ The user observed that trees blended into the grass and were too large. Tree cro
 
 ![Revised tree scale and ground contrast around Rivendell](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/c883f9147548193a1d7eb13d494365fb15b84255/campaign-rivendell-painted.png)
 
-The smaller silhouettes separate more clearly from the ground. The same anchors now look more regularly spaced, so natural forest clustering remains a separate refinement; this revision does not establish final forest density. [Revision verification](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/7107dbd7c7f0ac45b26bcebc1de658325d80a069/campaign-tree-revision-verification.json) confirms smaller crowns, identical placement data, stable panning, layer restoration, offline loading and narrow-screen layout. The main captures and standalone download above include the revision.
+The smaller silhouettes separate more clearly from the ground. The same anchors now look more regularly spaced, so natural forest clustering remains a separate refinement; this revision does not establish final forest density. [Revision verification](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/7107dbd7c7f0ac45b26bcebc1de658325d80a069/campaign-tree-revision-verification.json) confirms smaller crowns, identical placement data, stable panning, layer restoration, offline loading and narrow-screen layout. The user subsequently rejected this sparse spacing; the forest density revision above supersedes it.
 
 ## Controls and observations
 

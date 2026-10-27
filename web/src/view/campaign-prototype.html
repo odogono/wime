@@ -414,21 +414,32 @@
               wy = tile.y + region.y,
               seed = hash(wx, wy);
             if (tile.category === 'forest') {
-              for (let i = 0; i < 4; i++) {
-                const x = 4 + (i % 2) * 8,
-                  y = 4 + Math.floor(i / 2) * 8;
-                let coverage = 0;
-                for (let dy = -3; dy <= 3; dy++)
-                  for (let dx = -3; dx <= 3; dx++)
-                    coverage += tile.pixels[(y + dy) * 16 + x + dx][0];
-                if (coverage < 4 || localWater(tile, x, y)) continue;
+              // Small crowns need close, irregular spacing to form a canopy.
+              // Keep the source footprint, but scatter inside four-pixel cells.
+              for (let i = 0; i < 16; i++) {
                 const r = hash(wx, wy, i + 1),
-                  jitter = variation ? ((r % 5) - 2) * 0.45 : 0;
+                  x = 2 + (i % 4) * 4,
+                  y = 2 + Math.floor(i / 4) * 4;
+                let coverage = 0;
+                let waterside = false;
+                for (let dy = -2; dy <= 2; dy++)
+                  for (let dx = -2; dx <= 2; dx++) {
+                    const px = Math.max(0, Math.min(15, x + dx)),
+                      py = Math.max(0, Math.min(15, y + dy)),
+                      pixel = tile.pixels[py * 16 + px];
+                    coverage += pixel[0];
+                    if (pixel[2]) waterside = true;
+                  }
+                if (coverage < 5 || waterside || r % 13 === 0) continue;
+                const jitterX = variation ? ((r % 101) / 100 - 0.5) * 3.2 : 0,
+                  jitterY = variation
+                    ? (((r >>> 8) % 101) / 100 - 0.5) * 3.2
+                    : 0;
                 result.push({
                   sheet: 'nature',
                   frame: variation ? r % 3 : 0,
-                  x: tile.x * 16 + x + jitter,
-                  y: tile.y * 16 + y,
+                  x: tile.x * 16 + x + jitterX,
+                  y: tile.y * 16 + y + jitterY,
                   width: variation ? 6.5 + (r % 3) * 0.5 : 7,
                   type: 'tree'
                 });
