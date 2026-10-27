@@ -17,7 +17,7 @@ bun run prototype:campaign
 
 Open `build/graphics-remaster/campaign-prototype.html`. The first command exports the original game data; the second verifies cached art or downloads the four SHA-256-pinned PNGs, then embeds all artwork and map data in a single offline HTML file. No server, account or API credential is needed to open the built file.
 
-Alternatively, [save the standalone HTML](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/6fbb5a53617a3977468c2d9bb8c7b2a9dfe884e4/campaign-prototype.html) as `campaign-prototype.html`, then open it locally. GitHub serves the raw HTML as text, so save it before opening. All artwork, full-resolution captures, prompts and the demo are in the [same secret gist](https://gist.github.com/odogono/f6b575409714ee9a0036152250a11587), revision `df11cecc09aafbf5fcc5b9675e664f67c6042fa0`. Anyone with its URL can view it.
+Alternatively, [save the standalone HTML](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/38cc7932f17fd132b514642d5de71156e627fdfa/campaign-prototype.html) as `campaign-prototype.html`, then open it locally. GitHub serves the raw HTML as text, so save it before opening. All artwork, full-resolution captures, prompts and the demo are in the [same secret gist](https://gist.github.com/odogono/f6b575409714ee9a0036152250a11587), revision `10b425a31831cb8f64d875dcf69cf91e43fefa9f`. Anyone with its URL can view it.
 
 The prototype source is captured on branch `experiment/graphics-remaster` in [PR #182](https://github.com/odogono/wime/pull/182). It is intentionally outside the production build.
 
@@ -57,7 +57,7 @@ All four were generated separately with built-in `image_gen.imagegen`. The earli
 
 **Painted composition**
 
-![Reusable painted terrain around Bree](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/4657848d264f1cd44e57ef0bf88df528b4185413/campaign-bree-painted.png)
+![Reusable painted terrain around Bree](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/9acf2bbf40c7d4cf7c138cd4adacdba117576024/campaign-bree-painted.png)
 
 ### Rivendell and the Misty Mountains
 
@@ -67,11 +67,25 @@ All four were generated separately with built-in `image_gen.imagegen`. The earli
 
 **Painted composition**
 
-![Reusable painted terrain around Rivendell](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/f4f8e66fce863279d655004e38ddf88aa7285d22/campaign-rivendell-painted.png)
+![Reusable painted terrain around Rivendell](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/c883f9147548193a1d7eb13d494365fb15b84255/campaign-rivendell-painted.png)
 
-[Weathertop original](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/5b343a2b9e0c5141ef417f58b6575501951359fc/campaign-weathertop-original.png) · [Weathertop painted](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/fd9c8e8eb137a31ebe209bb591413f7904e710b4/campaign-weathertop-painted.png) · [Terrain classifications](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/d2ca9da921d615b871f55d6bb6cf838673ba32ae/campaign-footprints.png) · [Grid overlay](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/efaf8e6acdd382fb2d8d9ebe85028595ae3d6eaa/campaign-grid.png) · [Desktop controls](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/a45dc32eabbadcd38259274b2677b8e0a5f213e3/campaign-prototype-desktop.png) · [Narrow-screen controls](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/d968edfd8a5de2d11d1e6efbeb2d0ed3f981d83a/campaign-prototype-mobile.png)
+[Weathertop original](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/5b343a2b9e0c5141ef417f58b6575501951359fc/campaign-weathertop-original.png) · [Weathertop painted](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/2e67e4d1a5a44821e888c478a8d7263d3d6f2d22/campaign-weathertop-painted.png) · [Terrain classifications](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/d2ca9da921d615b871f55d6bb6cf838673ba32ae/campaign-footprints.png) · [Grid overlay](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/9edbc99c45aa08c5ac864589957aa41d9f8fb2d7/campaign-grid.png) · [Desktop controls](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/b38b803eb783a5e9c6560f37399e4c328bc0b644/campaign-prototype-desktop.png) · [Narrow-screen controls](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/e18032e3593dbb324340fd5ddd6e64a7724f5bf1/campaign-prototype-mobile.png)
 
 All canvas captures are 1280×768 and come from the working compositor, not separate generated whole-screen illustrations. Place labels are optional prototype overlays derived from the source names; they are not text embedded in the generated artwork.
+
+## Tree readability revision — 2026-10-27
+
+The user observed that trees blended into the grass and were too large. Tree crown widths are now 6.5–7.5 logical pixels, down from 10–12 (about one third narrower). The meadow texture is drawn at 30% opacity over a muted green base (#98a477), reducing competing detail while retaining the painted surface. This is a compositor adjustment: the four generated PNGs, prompts, all 769 placements, variants, water coverage and other scenery sizes are unchanged.
+
+**Earlier tree scale and grass contrast**
+
+![Earlier large tree symbols around Rivendell](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/f4f8e66fce863279d655004e38ddf88aa7285d22/campaign-rivendell-painted.png)
+
+**Smaller tree symbols over quieter grass**
+
+![Revised tree scale and ground contrast around Rivendell](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/c883f9147548193a1d7eb13d494365fb15b84255/campaign-rivendell-painted.png)
+
+The smaller silhouettes separate more clearly from the ground. The same anchors now look more regularly spaced, so natural forest clustering remains a separate refinement; this revision does not establish final forest density. [Revision verification](https://gist.githubusercontent.com/odogono/f6b575409714ee9a0036152250a11587/raw/7107dbd7c7f0ac45b26bcebc1de658325d80a069/campaign-tree-revision-verification.json) confirms smaller crowns, identical placement data, stable panning, layer restoration, offline loading and narrow-screen layout. The main captures and standalone download above include the revision.
 
 ## Controls and observations
 

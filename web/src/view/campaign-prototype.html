@@ -429,7 +429,7 @@
                   frame: variation ? r % 3 : 0,
                   x: tile.x * 16 + x + jitter,
                   y: tile.y * 16 + y,
-                  width: variation ? 10 + (r % 3) : 11,
+                  width: variation ? 6.5 + (r % 3) * 0.5 : 7,
                   type: 'tree'
                 });
               }
@@ -535,8 +535,14 @@
           h = campaignData.height * SC;
         layers.ground = surface(w, h);
         const g = layers.ground.getContext('2d');
+        // Keep the meadow quiet enough for small tree silhouettes to read.
+        // This is compositing; the generated texture itself stays unchanged.
+        g.fillStyle = '#98a477';
+        g.fillRect(0, 0, w, h);
+        g.globalAlpha = 0.3;
         g.fillStyle = g.createPattern(texture(art.grass, 1024), 'repeat');
         g.fillRect(0, 0, w, h);
+        g.globalAlpha = 1;
         const mask = surface(w, h),
           m = mask.getContext('2d');
         m.imageSmoothingEnabled = true;
