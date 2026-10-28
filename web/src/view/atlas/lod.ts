@@ -166,6 +166,15 @@ export const rankZoom = (rank: number, range: ZoomRange): number =>
       ? range.boundary
       : Math.max(range.boundary, range.campaign / 2);
 
+// The least zoom at which a Place of each rank is named: a Stronghold
+// with its picture, lesser Places only once the map is zoomed in past the
+// Campaign Level's scale, so that scale shows them by picture alone.
+export const LESSER_NAME_FACTOR = 1.5;
+export const nameZoom = (rank: number, range: ZoomRange): number =>
+  rank <= 0
+    ? rankZoom(rank, range)
+    : Math.max(rankZoom(rank, range), range.campaign * LESSER_NAME_FACTOR);
+
 // How strongly roads are inked: full from just below the Campaign Level
 // band, easing down to a floor that keeps them legible across the Full
 // Map Level without crowding the rivers.

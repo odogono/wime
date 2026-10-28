@@ -97,6 +97,9 @@ The map's geography is traced from the original's tiles by
 - each Place as an ink picture of its kind, with its name, and the
   regions' names in wide lettering.
 
-Finer detail, lesser Places and roads give way as the map zooms out;
-names never overlap each other, a Force or a Place's picture, and where two Places' pictures
-would overlap, the greater one is drawn.
+Finer detail, lesser Places and roads give way as the map zooms out.
+A Stronghold is named wherever its picture shows; lesser Places are
+named only zoomed in closer than the Campaign Level, which shows them by
+picture alone. Names never overlap each other or a Place's picture, and
+Forces are drawn over them. Where two Places' pictures would overlap,
+the greater one is drawn.
