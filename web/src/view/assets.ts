@@ -1,3 +1,8 @@
+import {
+  loadTerrainRegions,
+  terrainGridFrom,
+  type TerrainGrid
+} from '../sim/terrain';
 import type { AnimationTables } from './animation-scene';
 import { BASE_URL } from './base-url';
 import type { Font, FontMetrics } from './font';
@@ -75,6 +80,8 @@ export interface CampaignAssets {
   // loads and checks it (loadStartingState in src/sim), so a bad asset
   // fails there with the sim's own error.
   startingState: unknown;
+  // The terrain the sim reads, from the vector Terrain Regions.
+  terrain: TerrainGrid;
   // The CSTR text resources, by "<resource file>#<id>", such as
   // "BScene.res#50".
   texts: Map<string, string>;
@@ -303,7 +310,8 @@ export const loadCampaignAssets = async (
     texts,
     palette,
     frame,
-    font
+    font,
+    terrainRegions
   ] = await Promise.all([
     loadImage(base + atlasAsset.path),
     fetchJson<Tilemap>(base + tilemapAsset.path),
@@ -313,7 +321,9 @@ export const loadCampaignAssets = async (
     fetchJson<TextResources>(base + textAsset.path),
     fetchJson<{ hex: string[] }>(base + paletteAsset.path),
     loadImage(base + frameAsset.path),
-    loadFont(manifest, base)
+    loadFont(manifest, base),
+    // build-geography writes it after the manifest, so it is not listed.
+    fetchJson<unknown>(`${base}geography/terrain-regions.json`)
   ]);
 
   const icons: CampaignIcon[] = [];
@@ -333,6 +343,7 @@ export const loadCampaignAssets = async (
     icons,
     palette: palette.hex,
     startingState,
+    terrain: terrainGridFrom(loadTerrainRegions(terrainRegions)),
     texts: textsByKey(texts),
     tilemap,
     tiles,

@@ -187,7 +187,29 @@ test('Campaign Level loads all five column icons with clear backgrounds and opaq
     {}, // starting state
     { resources: [] },
     { hex: Array.from({ length: 16 }, () => '#000000') },
-    FIXED_FONT
+    FIXED_FONT,
+    // terrain regions: one tile
+    {
+      height: 1,
+      off_map: 5,
+      regions: [
+        {
+          polygons: [
+            [
+              [
+                [0, 0],
+                [16, 0],
+                [16, 16],
+                [0, 16],
+                [0, 0]
+              ]
+            ]
+          ],
+          terrain: 100
+        }
+      ],
+      width: 1
+    }
   ]) {
     fetchMock.mockResolvedValueOnce(Response.json(json));
   }

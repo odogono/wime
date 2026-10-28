@@ -1,11 +1,19 @@
+import { join } from 'node:path';
 import { describe, expect, test } from 'bun:test';
 
+import { terrainAt } from '../web/src/sim/movement';
+import { loadTerrainRegions, terrainGridFrom } from '../web/src/sim/terrain';
 import type { Geography, Ring } from './build-geography';
 import {
+  ASSETS,
   compareTerrain,
+  gridTerrainAt,
   hasAssets,
-  loadEquivalence
+  loadEquivalence,
+  loadTileGrid
 } from './terrain-equivalence';
+
+const TILE = 16;
 
 const square = (x0: number, y0: number, x1: number, y1: number): Ring[][] => [
   [
@@ -93,5 +101,30 @@ test.skipIf(!hasAssets())(
     expect(result.mismatches.slice(0, 20)).toEqual([]);
     expect([result.uncovered, result.overlapping]).toEqual([0, 0]);
     expect(result.agreement).toBe(1);
+  }
+);
+
+// The gate for the sim reading the regions (#297, ADR-0006): the grid
+// the sim builds from terrain-regions.json answers as the tile grid does
+// at every tile and beyond the map's edge.
+test.skipIf(!hasAssets())(
+  'the sim reads the tile grid terrain from the Terrain Regions',
+  async () => {
+    const grid = await loadTileGrid();
+    const terrain = terrainGridFrom(
+      loadTerrainRegions(
+        await Bun.file(join(ASSETS, 'geography/terrain-regions.json')).json()
+      )
+    );
+    const { height, width } = grid.tilemap;
+    const differing: string[] = [];
+    for (let y = -TILE / 2; y < height * TILE + TILE; y += TILE) {
+      for (let x = -TILE / 2; x < width * TILE + TILE; x += TILE) {
+        if (terrainAt({ terrain }, { x, y }) !== gridTerrainAt(grid, x, y)) {
+          differing.push(`${x},${y}`);
+        }
+      }
+    }
+    expect(differing.slice(0, 20)).toEqual([]);
   }
 );

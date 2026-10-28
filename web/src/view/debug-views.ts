@@ -192,7 +192,7 @@ export const terrainTiles = (
   x: number;
   y: number;
 }[] => {
-  if (!sim.tilemap) {
+  if (!sim.terrain) {
     return [];
   }
   const topLeft = view.toWorld({ x: 0, y: 0 });
@@ -200,12 +200,12 @@ export const terrainTiles = (
   const tiles = [];
   for (
     let ty = Math.max(0, Math.floor(topLeft.y / TILE_SIZE));
-    ty <= Math.min(sim.tilemap.height - 1, bottomRight.y / TILE_SIZE);
+    ty <= Math.min(sim.terrain.height - 1, bottomRight.y / TILE_SIZE);
     ty++
   ) {
     for (
       let tx = Math.max(0, Math.floor(topLeft.x / TILE_SIZE));
-      tx <= Math.min(sim.tilemap.width - 1, bottomRight.x / TILE_SIZE);
+      tx <= Math.min(sim.terrain.width - 1, bottomRight.x / TILE_SIZE);
       tx++
     ) {
       const world = { x: tx * TILE_SIZE, y: ty * TILE_SIZE };
@@ -229,7 +229,7 @@ export const drawTerrainView = (
   sim: SimState,
   view: DebugProjection
 ): void => {
-  if (!sim.tilemap) {
+  if (!sim.terrain) {
     return;
   }
   ctx.save();
@@ -242,11 +242,11 @@ export const drawTerrainView = (
   const firstX = Math.max(0, Math.floor(topLeft.x / TILE_SIZE));
   const firstY = Math.max(0, Math.floor(topLeft.y / TILE_SIZE));
   const lastX = Math.min(
-    sim.tilemap.width - 1,
+    sim.terrain.width - 1,
     Math.floor(bottomRight.x / TILE_SIZE)
   );
   const lastY = Math.min(
-    sim.tilemap.height - 1,
+    sim.terrain.height - 1,
     Math.floor(bottomRight.y / TILE_SIZE)
   );
   for (let ty = firstY; ty <= lastY; ty++) {

@@ -11,3 +11,5 @@ The original bitmap renderer stays as the Classic mode, and the Map setting choo
 This is staged against ADR-0002. At first the geography is presentation only, and the sim still reads the tile grid. Later the sim's terrain queries may be answered from the vector geography instead, but only once sampled answers agree with the tile grid away from region edges and every movement and reference-scenario test still passes. Any deliberate change to movement beyond that needs its own ADR, backed by Findings.
 
 Its clause on drawing the original's pixel sprites on the Atlas map is superseded by ADR-0007.
+
+Update, 2026-10-28 (#297): the sim now reads terrain from the Terrain Regions. The gate was full agreement, not agreement away from region edges: since the regions follow the tile grid exactly, any disagreement is a bug, and the equivalence test (#296) finds none. The switch changes no movement, so it needed no ADR of its own. At load the sim takes each tile's terrain from the region holding its centre, so a lookup costs what it did. The regions are static data and are never saved, so the saved state lost the tile terrain table and SAVE_VERSION moved to 9.

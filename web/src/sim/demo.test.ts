@@ -12,10 +12,11 @@ import {
   type DemoPlan,
   type DemoScript
 } from './demo';
+import { loadTerrainRegions, terrainGridFrom } from './terrain';
 
 const PUBLIC = new URL('../../public/', import.meta.url).pathname;
 const STARTING_STATE = `${PUBLIC}assets/starting-state.json`;
-const TILEMAP = `${PUBLIC}assets/campaign/tilemap.json`;
+const TERRAIN = `${PUBLIC}assets/geography/terrain-regions.json`;
 const PLANS: DemoPlan[] = ['fellowship', 'muster', 'defensive'];
 
 const readJson = (path: string): unknown =>
@@ -24,10 +25,10 @@ const readJson = (path: string): unknown =>
 // Called only inside the skipped block, so CI never reads the assets.
 const assets = (): DemoAssets => ({
   startingState: readJson(STARTING_STATE),
-  tilemap: readJson(TILEMAP) as DemoAssets['tilemap']
+  terrain: terrainGridFrom(loadTerrainRegions(readJson(TERRAIN)))
 });
 
-describe.skipIf(!existsSync(STARTING_STATE) || !existsSync(TILEMAP))(
+describe.skipIf(!existsSync(STARTING_STATE) || !existsSync(TERRAIN))(
   'the step-wise Demo driver',
   () => {
     for (const plan of PLANS) {

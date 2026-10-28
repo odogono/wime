@@ -9,7 +9,7 @@ import { councilDue, holdCouncil, type CouncilMessage } from './council';
 import type { Passing } from './encounters';
 import type { Ending } from './endings';
 import { startMeeting, type Meeting } from './meetings';
-import { sweepMovement, type Tilemap } from './movement';
+import { sweepMovement } from './movement';
 import { ringAtBaradDur, ringAtMountDoom } from './ring';
 import { createRng, type RngState } from './rng';
 import {
@@ -21,6 +21,7 @@ import {
   type PlaceKind,
   type RosterEntry
 } from './starting-state';
+import type { TerrainGrid } from './terrain';
 import { wakeEntry } from './wake';
 import {
   INITIAL_WAR_EVENTS,
@@ -77,10 +78,10 @@ export interface SimState {
   // The roster entry the next tick's sweep starts from: 0, or the
   // entry after the one whose step started a fight.
   sweepFrom: number;
-  terrainByTile: number[];
-  // The Campaign Level tile grid movement steers over, or null for a
-  // clock-only game with no map loaded.
-  tilemap: Tilemap | null;
+  // The terrain of each map tile, from the Terrain Regions, or null for
+  // a clock-only game with no map loaded. Never saved: the view
+  // reattaches it from the loaded assets.
+  terrain: TerrainGrid | null;
   warEvents: WarEvents;
   // The roster entry the Animation Level watches, or null while the
   // Campaign Level is on show. The Encounter search depends on it
@@ -95,7 +96,7 @@ export interface SimState {
 export const createSim = (
   seed: number,
   startingState?: unknown,
-  tilemap?: Tilemap | null
+  terrain?: TerrainGrid | null
 ): SimState => {
   if (startingState === undefined) {
     return {
@@ -119,8 +120,7 @@ export const createSim = (
         straight: [...DEFAULT_SPEEDS.straight]
       },
       sweepFrom: 0,
-      terrainByTile: [],
-      tilemap: tilemap ?? null,
+      terrain: terrain ?? null,
       warEvents: { ...INITIAL_WAR_EVENTS, days: [...INITIAL_WAR_EVENTS.days] },
       watching: null
     };
@@ -147,8 +147,7 @@ export const createSim = (
     routes: start.routes,
     speeds: start.speeds,
     sweepFrom: 0,
-    terrainByTile: start.terrainByTile,
-    tilemap: tilemap ?? null,
+    terrain: terrain ?? null,
     warEvents: start.warEvents,
     watching: null
   };
@@ -306,7 +305,7 @@ export const deserializeSim = (text: string): SimState => {
     throw new Error('Not a serialised SimState');
   }
   // States serialised before movement landed have no route, speed,
-  // terrain or tilemap fields; fill them with the empty defaults.
+  // or terrain fields; fill them with the empty defaults.
   const legacy = parsed as Partial<SimState>;
   return {
     ...parsed,
@@ -328,8 +327,7 @@ export const deserializeSim = (text: string): SimState => {
       straight: [...DEFAULT_SPEEDS.straight]
     },
     sweepFrom: legacy.sweepFrom ?? 0,
-    terrainByTile: legacy.terrainByTile ?? [],
-    tilemap: legacy.tilemap ?? null,
+    terrain: legacy.terrain ?? null,
     warEvents: legacy.warEvents ?? {
       ...INITIAL_WAR_EVENTS,
       days: [...INITIAL_WAR_EVENTS.days]

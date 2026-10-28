@@ -2,8 +2,8 @@
 // The equivalence harness for Terrain Regions (#296, stage 2 of
 // ADR-0006): samples map points and compares the terrain percentage of
 // the Terrain Region under each, from the compiled source geography,
-// with `terrainAt` on the tile grid, which the sim reads today. It
-// changes no game behaviour.
+// with the original's tile grid. The sim reads the regions (#297), so
+// full agreement is what keeps its movement the original's.
 //
 //   bun run terrain-equivalence
 //
@@ -16,7 +16,6 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { PNG } from 'pngjs';
 
-import { terrainAt, type Tilemap } from '../web/src/sim/movement';
 import {
   pointInRing,
   type Geography,
@@ -25,6 +24,33 @@ import {
 } from './build-geography';
 
 const TILE = 16;
+
+// The original's tile grid: tile numbers in row order.
+export interface Tilemap {
+  height: number;
+  indices: number[];
+  width: number;
+}
+
+export interface TileGrid {
+  terrainByTile: number[];
+  tilemap: Tilemap;
+}
+
+// The terrain the original reads under a map point: its tile's rating,
+// with tile 0 beyond the map's edge.
+export const gridTerrainAt = (
+  { terrainByTile, tilemap }: TileGrid,
+  x: number,
+  y: number
+): number => {
+  const tx = Math.floor(x / TILE);
+  const ty = Math.floor(y / TILE);
+  const onMap = tx >= 0 && ty >= 0 && tx < tilemap.width && ty < tilemap.height;
+  return (
+    terrainByTile[onMap ? tilemap.indices[ty * tilemap.width + tx]! : 0] ?? 100
+  );
+};
 
 // Map pixels between samples. Sampling off the pixel grid's tile borders
 // keeps each sample inside one tile.
@@ -122,7 +148,7 @@ const regionsByTile = (regions: Region[], tilemap: Tilemap): Region[][] => {
 
 export const compareTerrain = (
   geography: Geography,
-  world: { terrainByTile: number[]; tilemap: Tilemap },
+  world: TileGrid,
   step = SAMPLE_STEP
 ): Equivalence => {
   const { tilemap } = world;
@@ -141,7 +167,7 @@ export const compareTerrain = (
         samples.push({
           region,
           state:
-            region.terrain === terrainAt(world, { x, y })
+            region.terrain === gridTerrainAt(world, x, y)
               ? 'agree'
               : 'disagree',
           tile
@@ -177,7 +203,7 @@ const groupMismatches = (
   samples: Sample[],
   columns: number,
   step: number,
-  world: { terrainByTile: number[]; tilemap: Tilemap }
+  world: TileGrid
 ): Mismatch[] => {
   const seen = new Uint8Array(samples.length);
   const mismatches: Mismatch[] = [];
@@ -185,7 +211,7 @@ const groupMismatches = (
   const gridTerrain = (i: number) => {
     const x = (i % columns) * step + step / 2;
     const y = Math.floor(i / columns) * step + step / 2;
-    return terrainAt(world, { x, y });
+    return gridTerrainAt(world, x, y);
   };
   for (let start = 0; start < samples.length; start++) {
     const first = samples[start]!;
@@ -265,19 +291,21 @@ export const ASSETS = join(import.meta.dir, '../web/public/assets');
 
 export const hasAssets = (): boolean =>
   existsSync(join(ASSETS, 'geography/source.geojson')) &&
+  existsSync(join(ASSETS, 'geography/terrain-regions.json')) &&
   existsSync(join(ASSETS, 'campaign/tilemap.json')) &&
   existsSync(join(ASSETS, 'starting-state.json'));
 
-export const loadEquivalence = async (): Promise<Equivalence> => {
-  const start = await Bun.file(join(ASSETS, 'starting-state.json')).json();
-  return compareTerrain(
+export const loadTileGrid = async (): Promise<TileGrid> => ({
+  terrainByTile: (await Bun.file(join(ASSETS, 'starting-state.json')).json())
+    .terrain_by_tile,
+  tilemap: await Bun.file(join(ASSETS, 'campaign/tilemap.json')).json()
+});
+
+export const loadEquivalence = async (): Promise<Equivalence> =>
+  compareTerrain(
     await Bun.file(join(ASSETS, 'geography/source.geojson')).json(),
-    {
-      terrainByTile: start.terrain_by_tile,
-      tilemap: await Bun.file(join(ASSETS, 'campaign/tilemap.json')).json()
-    }
+    await loadTileGrid()
   );
-};
 
 export const main = async (): Promise<number> => {
   if (!hasAssets()) {

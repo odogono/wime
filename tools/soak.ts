@@ -23,6 +23,7 @@ import {
   createRng,
   createSim,
   giveOrder,
+  loadTerrainRegions,
   nextRandom,
   resolveFight,
   restoreSave,
@@ -30,18 +31,19 @@ import {
   takeAnnouncement,
   takePassing,
   takesOrder,
+  terrainGridFrom,
   tickSim,
   type Command,
   type MeetingAnswer,
   type Player,
   type RngState,
   type SimState,
-  type Tilemap
+  type TerrainGrid
 } from '../web/src/sim';
 
 export interface SoakAssets {
   startingState: unknown;
-  tilemap: Tilemap;
+  terrain: TerrainGrid;
 }
 
 export type SoakOutcome =
@@ -66,15 +68,19 @@ const ASSETS_DIR = new URL('../web/public/assets/', import.meta.url).pathname;
 
 export const assetsExist = (): boolean =>
   existsSync(join(ASSETS_DIR, 'starting-state.json')) &&
-  existsSync(join(ASSETS_DIR, 'campaign/tilemap.json'));
+  existsSync(join(ASSETS_DIR, 'geography/terrain-regions.json'));
 
 export const loadSoakAssets = (): SoakAssets => ({
   startingState: JSON.parse(
     readFileSync(join(ASSETS_DIR, 'starting-state.json'), 'utf8')
   ),
-  tilemap: JSON.parse(
-    readFileSync(join(ASSETS_DIR, 'campaign/tilemap.json'), 'utf8')
-  ) as Tilemap
+  terrain: terrainGridFrom(
+    loadTerrainRegions(
+      JSON.parse(
+        readFileSync(join(ASSETS_DIR, 'geography/terrain-regions.json'), 'utf8')
+      )
+    )
+  )
 });
 
 // The stand-in player's own RNG, kept apart from the sim's so that it
@@ -151,10 +157,10 @@ const settle = (state: SimState, rng: { state: RngState }): SimState => {
 // Save and restore, as the save slots do, and report any difference.
 const saveRoundTrip = (
   state: SimState,
-  tilemap: Tilemap
+  terrain: TerrainGrid
 ): { message: string | null; state: SimState } => {
   const data = serialiseSave(state);
-  const restored = restoreSave(data, tilemap);
+  const restored = restoreSave(data, terrain);
   if (!restored.ok) {
     return { message: `restore refused: ${restored.reason}`, state };
   }
@@ -211,7 +217,7 @@ export const soakRun = (
     ticks
   });
   try {
-    state = createSim(seed, assets.startingState, assets.tilemap);
+    state = createSim(seed, assets.startingState, assets.terrain);
     const lastDay = state.clock.day + dayCap;
     let day = state.clock.day;
     let stalled = 0;
@@ -225,7 +231,7 @@ export const soakRun = (
       }
       if (state.clock.day !== day) {
         day = state.clock.day;
-        const trip = saveRoundTrip(state, assets.tilemap);
+        const trip = saveRoundTrip(state, assets.terrain);
         if (trip.message) {
           return result({ kind: 'save-divergence', message: trip.message });
         }

@@ -11,7 +11,7 @@ import { LAST_GOOD_ENTRY, resolveFight } from './combat';
 import { closeCouncil } from './council';
 import { type Ending } from './endings';
 import { answerMeeting, type Meeting, type MeetingAnswer } from './meetings';
-import { giveOrder, takesOrder, type Tilemap } from './movement';
+import { giveOrder, takesOrder } from './movement';
 import { putDownObject, takeObject } from './objects';
 import { topLeader, type Point } from './starting-state';
 import {
@@ -21,6 +21,7 @@ import {
   tickSim,
   type SimState
 } from './state';
+import type { TerrainGrid } from './terrain';
 import { applyObject } from './use';
 import { INITIAL_WAR_EVENTS } from './war-events';
 
@@ -70,7 +71,7 @@ export interface DemoScript {
 
 export interface DemoAssets {
   startingState: unknown;
-  tilemap: Tilemap;
+  terrain: TerrainGrid;
 }
 
 // What plays the campaign: answers meetings, and once per quarter-hour,
@@ -114,7 +115,7 @@ export const startCampaign = (
   seed: number,
   assets: DemoAssets
 ): CampaignRun => {
-  const state = createSim(seed, assets.startingState, assets.tilemap);
+  const state = createSim(seed, assets.startingState, assets.terrain);
   return {
     decided: null,
     failedActs: 0,

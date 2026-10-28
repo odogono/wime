@@ -1,10 +1,12 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, test } from 'bun:test';
 
+import { answerMeeting } from './meetings';
 import { canOrder } from './movement';
 import { restoreSave, serialiseSave } from './save';
 import { forcesOnMap } from './starting-state';
 import { createSim, tickSim, type SimState } from './state';
+import { loadTerrainRegions, terrainGridFrom } from './terrain';
 import { setWarEvent } from './war-events';
 
 // Waking and mobilising on a synthetic roster (docs/spec/war-events.md,
@@ -81,6 +83,19 @@ const world = (
 // Route rows by number, every other row empty.
 const dense = (rows: Record<number, number[]>): number[][] =>
   Array.from({ length: 86 }, (_, row) => rows[row] ?? []);
+
+// Play until the clock has moved n quarter-hours, answering any meeting
+// as the view's default does.
+const playQuarterHours = (state: SimState, n: number): SimState => {
+  let next = state;
+  const until = state.clock.quarterHour + n;
+  while (next.clock.quarterHour < until) {
+    next = next.meeting
+      ? answerMeeting(next, 'continue-on').world
+      : tickSim(next);
+  }
+  return next;
+};
 
 const ticks = (state: SimState, n: number): SimState => {
   let next = state;
@@ -429,8 +444,18 @@ const startingStatePath = new URL(
   '../../public/assets/starting-state.json',
   import.meta.url
 );
+const terrainPath = new URL(
+  '../../public/assets/geography/terrain-regions.json',
+  import.meta.url
+);
 const start = (): SimState =>
-  createSim(1, JSON.parse(readFileSync(startingStatePath, 'utf8')));
+  createSim(
+    1,
+    JSON.parse(readFileSync(startingStatePath, 'utf8')),
+    terrainGridFrom(
+      loadTerrainRegions(JSON.parse(readFileSync(terrainPath, 'utf8')))
+    )
+  );
 
 // Which entries' triggers were consumed between two states.
 const woken = (before: SimState, after: SimState): number[] =>
@@ -441,37 +466,43 @@ const woken = (before: SimState, after: SimState): number[] =>
     )
     .map(entry => entry.index);
 
-describe.skipIf(!existsSync(startingStatePath))('the reference musters', () => {
-  test('Théoden and Denethor mobilised: Rohan and Gondor at 8 a.m.', () => {
-    const before = start();
-    const set = {
-      ...before,
-      clock: { day: 10, quarterHour: 31 },
-      roster: before.roster.map(entry =>
-        entry.index === 26 || entry.index === 32
-          ? { ...entry, allegiance: 99 }
-          : entry
-      )
-    };
-    const after = ticks(set, 2);
-    expect(after.warEvents.mask).toBe(0x2d);
-    expect(woken(set, after)).toEqual([
-      28, 30, 32, 35, 42, 45, 47, 49, 51, 54, 69, 70, 71, 72, 73, 74, 75, 76, 77
-    ]);
-    expect(after.roster[42]).toMatchObject({
-      allegiance: 99,
-      destination: { x: 1360, y: 1312 }
+describe.skipIf(!existsSync(startingStatePath) || !existsSync(terrainPath))(
+  'the reference musters',
+  () => {
+    test('Théoden and Denethor mobilised: Rohan and Gondor at 8 a.m.', () => {
+      const before = start();
+      const set = {
+        ...before,
+        clock: { day: 10, quarterHour: 31 },
+        roster: before.roster.map(entry =>
+          entry.index === 26 || entry.index === 32
+            ? { ...entry, allegiance: 99 }
+            : entry
+        )
+      };
+      // On the real map the newly woken Forces meet as they muster;
+      // answering lets the 8 a.m. sweep run on to the last of them.
+      const after = playQuarterHours(set, 2);
+      expect(after.warEvents.mask).toBe(0x2d);
+      expect(woken(set, after)).toEqual([
+        28, 30, 32, 35, 42, 45, 47, 49, 51, 54, 69, 70, 71, 72, 73, 74, 75, 76,
+        77
+      ]);
+      expect(after.roster[42]).toMatchObject({
+        allegiance: 99,
+        destination: { x: 1360, y: 1312 }
+      });
+      expect(after.routes[16]).toEqual([57, 45]);
+      expect(after.roster[36]!.triggerByte).toBe(0x22);
     });
-    expect(after.routes[16]).toEqual([57, 45]);
-    expect(after.roster[36]!.triggerByte).toBe(0x22);
-  });
 
-  test('day 169: the 0-day Evil armies and Sauron', () => {
-    const before = { ...start(), clock: { day: 169, quarterHour: 31 } };
-    const after = ticks(before, 2);
-    expect(woken(before, after)).toEqual([97, 106, 108, 129, 150]);
-    for (const index of [97, 106, 108, 129, 150]) {
-      expect(after.roster[index]).toMatchObject({ allegiance: 0, state: 1 });
-    }
-  });
-});
+    test('day 169: the 0-day Evil armies and Sauron', () => {
+      const before = { ...start(), clock: { day: 169, quarterHour: 31 } };
+      const after = ticks(before, 2);
+      expect(woken(before, after)).toEqual([97, 106, 108, 129, 150]);
+      for (const index of [97, 106, 108, 129, 150]) {
+        expect(after.roster[index]).toMatchObject({ allegiance: 0, state: 1 });
+      }
+    });
+  }
+);

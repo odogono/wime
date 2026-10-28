@@ -13,6 +13,7 @@ import {
   watchEntry,
   type SimState
 } from './state';
+import { terrainGridOf } from './terrain';
 
 // Meeting Encounters on synthetic rosters (docs/spec/encounters.md).
 // Entries sit at their real roster indices, Encounter figures from
@@ -118,9 +119,9 @@ const world = (
       roster,
       routes: []
     },
-    { height: 4, indices: Array.from({ length: 16 }, () => 1), width: 4 }
+    terrainGridOf(4, 4, () => terrain)
   );
-  return { ...sim, terrainByTile: [0, terrain] };
+  return sim;
 };
 
 // The first roll out of n the world's RNG will give.
@@ -535,7 +536,7 @@ describe('saving with Encounters', () => {
       )
     );
     expect(met.meeting).toEqual({ a: 7, b: 153, kind: 'talk' });
-    const restored = restoreSave(serialiseSave(met), met.tilemap);
+    const restored = restoreSave(serialiseSave(met), met.terrain);
     expect(restored).toEqual({ ok: true, setup: null, state: met });
     if (!restored.ok) {
       return;

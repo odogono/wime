@@ -12,7 +12,7 @@ import {
 import { RIVENDELL, closeCouncil, type CouncilMessage } from './council';
 import { isEncounter, type Passing } from './encounters';
 import { answerMeeting, type Meeting } from './meetings';
-import { giveOrder, type Tilemap } from './movement';
+import { giveOrder } from './movement';
 import { SAVE_VERSION, restoreSave, serialiseSave } from './save';
 import type {
   ObjectPlacement,
@@ -22,6 +22,12 @@ import type {
   RosterEntry
 } from './starting-state';
 import { createSim, tickSim, type SimState } from './state';
+import {
+  loadTerrainRegions,
+  terrainGridFrom,
+  terrainGridOf,
+  type TerrainGrid
+} from './terrain';
 import type { WarEventAnnouncement, WarEvents } from './war-events';
 
 // Every field of the saved state, nested types included. Adding a field
@@ -127,8 +133,7 @@ const SHAPE = {
     routes: true,
     speeds: true,
     sweepFrom: true,
-    terrainByTile: true,
-    tilemap: true,
+    terrain: true,
     warEvents: true,
     watching: true
   } satisfies Fields<SimState>,
@@ -151,10 +156,11 @@ const PINNED_SHAPES: Record<number, string> = {
   5: 'announcement(day,event) clock(day,quarterHour) combatEvent(blow,killed,row,wounded) combatRow(entries,follower,option,side,startStrength,strength) fight(events,evil,good,position,round,rows,winner) meeting(a,b,kind) place(announcesAttacks,gridByte,gridReference,index,name,position,tile,tileKind) placeKind(index,name,tile) point(x,y) roster(allegiance,destination,encounter,facing,fighting,figure,fraction,health,icon,index,isUnit,leader,maxHealth,maxStamina,name,objects,position,route,speed,stamina,startingStrength,state,strength,ticked,trigger,triggerByte,unknown) state(announcements,clock,ending,fight,meeting,placeKinds,places,ringBearer,rng,roster,routes,speeds,sweepFrom,terrainByTile,tilemap,warEvents) warEvents(days,mask)',
   6: 'announcement(day,event) clock(day,quarterHour) combatEvent(blow,killed,row,wounded) combatRow(entries,follower,option,side,startStrength,strength) fight(events,evil,good,position,round,rows,winner) meeting(a,b,kind) passing(a,b) place(announcesAttacks,gridByte,gridReference,index,name,position,tile,tileKind) placeKind(index,name,tile) point(x,y) roster(allegiance,destination,encounter,facing,fighting,figure,fraction,health,icon,index,isUnit,leader,maxHealth,maxStamina,name,objects,position,route,speed,stamina,startingStrength,state,strength,ticked,trigger,triggerByte,unknown) state(announcements,clock,ending,fight,meeting,passings,placeKinds,places,ringBearer,rng,roster,routes,speeds,sweepFrom,terrainByTile,tilemap,warEvents,watching) warEvents(days,mask)',
   7: 'announcement(day,event) clock(day,quarterHour) combatEvent(blow,killed,row,wounded) combatRow(entries,follower,option,side,startStrength,strength) council(ringBearer) fight(events,evil,good,position,round,rows,winner) meeting(a,b,kind) passing(a,b) place(announcesAttacks,gridByte,gridReference,index,name,position,tile,tileKind) placeKind(index,name,tile) point(x,y) roster(allegiance,destination,encounter,facing,fighting,figure,fraction,health,icon,index,isUnit,leader,maxHealth,maxStamina,name,objects,position,route,speed,stamina,startingStrength,state,strength,ticked,trigger,triggerByte,unknown) state(announcements,clock,council,councilPending,ending,fight,meeting,passings,placeKinds,places,ringBearer,rng,roster,routes,speeds,sweepFrom,terrainByTile,tilemap,warEvents,watching) warEvents(days,mask)',
-  8: 'announcement(day,event) clock(day,quarterHour) combatEvent(blow,killed,row,wounded) combatRow(entries,follower,option,side,startStrength,strength) council(ringBearer) fight(events,evil,good,position,round,rows,winner) meeting(a,b,kind) objectPlacement(object,position) passing(a,b) place(announcesAttacks,gridByte,gridReference,index,name,position,tile,tileKind) placeKind(index,name,tile) point(x,y) roster(allegiance,destination,encounter,facing,fighting,figure,fraction,health,icon,index,isUnit,leader,maxHealth,maxStamina,name,objects,position,route,speed,stamina,startingStrength,state,strength,ticked,trigger,triggerByte,unknown) state(announcements,clock,council,councilPending,ending,fight,meeting,objectPlacements,passings,placeKinds,places,ringBearer,rng,roster,routes,speeds,sweepFrom,terrainByTile,tilemap,warEvents,watching) warEvents(days,mask)'
+  8: 'announcement(day,event) clock(day,quarterHour) combatEvent(blow,killed,row,wounded) combatRow(entries,follower,option,side,startStrength,strength) council(ringBearer) fight(events,evil,good,position,round,rows,winner) meeting(a,b,kind) objectPlacement(object,position) passing(a,b) place(announcesAttacks,gridByte,gridReference,index,name,position,tile,tileKind) placeKind(index,name,tile) point(x,y) roster(allegiance,destination,encounter,facing,fighting,figure,fraction,health,icon,index,isUnit,leader,maxHealth,maxStamina,name,objects,position,route,speed,stamina,startingStrength,state,strength,ticked,trigger,triggerByte,unknown) state(announcements,clock,council,councilPending,ending,fight,meeting,objectPlacements,passings,placeKinds,places,ringBearer,rng,roster,routes,speeds,sweepFrom,terrainByTile,tilemap,warEvents,watching) warEvents(days,mask)',
+  9: 'announcement(day,event) clock(day,quarterHour) combatEvent(blow,killed,row,wounded) combatRow(entries,follower,option,side,startStrength,strength) council(ringBearer) fight(events,evil,good,position,round,rows,winner) meeting(a,b,kind) objectPlacement(object,position) passing(a,b) place(announcesAttacks,gridByte,gridReference,index,name,position,tile,tileKind) placeKind(index,name,tile) point(x,y) roster(allegiance,destination,encounter,facing,fighting,figure,fraction,health,icon,index,isUnit,leader,maxHealth,maxStamina,name,objects,position,route,speed,stamina,startingStrength,state,strength,ticked,trigger,triggerByte,unknown) state(announcements,clock,council,councilPending,ending,fight,meeting,objectPlacements,passings,placeKinds,places,ringBearer,rng,roster,routes,speeds,sweepFrom,terrain,warEvents,watching) warEvents(days,mask)'
 };
 
-const tilemap = { height: 1, indices: [0], width: 1 };
+const terrain = terrainGridOf(1, 1, () => 100);
 
 // Encounters can stop this journey for a talk. Model the view's
 // default answer so the continuation actually advances time.
@@ -176,11 +182,11 @@ describe('save', () => {
     expect(shapeOf(SHAPE)).toBe(PINNED_SHAPES[SAVE_VERSION]!);
   });
 
-  test('round-trips the state and leaves the tilemap out', () => {
-    const state = createSim(7, undefined, tilemap);
+  test('round-trips the state and leaves the terrain out', () => {
+    const state = createSim(7, undefined, terrain);
     const data = serialiseSave(state);
-    expect(data).not.toContain('"tilemap"');
-    expect(restoreSave(data, tilemap)).toEqual({
+    expect(data).not.toContain('"terrain"');
+    expect(restoreSave(data, terrain)).toEqual({
       ok: true,
       setup: null,
       state
@@ -188,10 +194,10 @@ describe('save', () => {
   });
 
   test('keeps a Shuffled Setup beside the state; none means Classic', () => {
-    const state = createSim(7, undefined, tilemap);
+    const state = createSim(7, undefined, terrain);
     const data = serialiseSave(state, { seed: 1234 });
     expect(JSON.parse(data)).toMatchObject({ setup: { seed: 1234 } });
-    expect(restoreSave(data, tilemap)).toEqual({
+    expect(restoreSave(data, terrain)).toEqual({
       ok: true,
       setup: { seed: 1234 },
       state
@@ -244,17 +250,15 @@ describe('save', () => {
     expect(restoreSave('{"state":{', null)).toEqual(invalid);
   });
 
-  // 0.9.0 wrote version 8: its saves load while that is still the
-  // version, and are refused whole, never loaded in part, once it isn't.
-  test('a 0.9.0 save loads, or is refused as another version', () => {
+  // 0.9.0 and 1.0.0 wrote version 8, which version 9 refuses whole,
+  // never loaded in part.
+  test('a 1.0.0 save is refused as another version', () => {
     const file = JSON.parse(serialiseSave(createSim(7))) as {
       version: number;
     };
     file.version = 8;
     const restored = restoreSave(JSON.stringify(file), null);
-    expect(restored.ok || restored.reason).toBe(
-      SAVE_VERSION === 8 ? true : 'other-version'
-    );
+    expect(restored).toEqual({ ok: false, reason: 'other-version' });
   });
 
   // The exported starting state is gitignored and absent in CI.
@@ -262,17 +266,21 @@ describe('save', () => {
     '../../public/assets/starting-state.json',
     import.meta.url
   );
-  const tilemapPath = new URL(
-    '../../public/assets/campaign/tilemap.json',
+  const terrainPath = new URL(
+    '../../public/assets/geography/terrain-regions.json',
     import.meta.url
   );
-  test.skipIf(!existsSync(startingStatePath) || !existsSync(tilemapPath))(
+  const loadTerrain = (): TerrainGrid =>
+    terrainGridFrom(
+      loadTerrainRegions(JSON.parse(readFileSync(terrainPath, 'utf8')))
+    );
+  test.skipIf(!existsSync(startingStatePath) || !existsSync(terrainPath))(
     'save, play on, restore: the game continues identically',
     () => {
       let sim = createSim(
         0x14_18,
         JSON.parse(readFileSync(startingStatePath, 'utf8')),
-        JSON.parse(readFileSync(tilemapPath, 'utf8'))
+        loadTerrain()
       );
       const frodo = sim.roster.find(entry => entry.name === 'FRODO')!;
       sim = giveOrder(sim, frodo.index, { x: 1500, y: 450 });
@@ -285,7 +293,7 @@ describe('save', () => {
         played = playTick(played);
       }
       expect(played).not.toEqual(sim);
-      const restored = restoreSave(saved, sim.tilemap);
+      const restored = restoreSave(saved, sim.terrain);
       expect(restored).toEqual({ ok: true, setup: null, state: sim });
       if (!restored.ok) {
         return;
@@ -303,13 +311,13 @@ describe('save', () => {
   // to the same state and plays on exactly as the unsaved game does.
   // Seed 12 meets a following Character and seed 3 an Encounter's talk;
   // both later fight and queue a passing.
-  test.skipIf(!existsSync(startingStatePath) || !existsSync(tilemapPath))(
+  test.skipIf(!existsSync(startingStatePath) || !existsSync(terrainPath))(
     'saved mid-meeting, mid-encounter, mid-fight or with a passing queued, the game continues identically',
     () => {
       const startingState: unknown = JSON.parse(
         readFileSync(startingStatePath, 'utf8')
       );
-      const map = JSON.parse(readFileSync(tilemapPath, 'utf8')) as Tilemap;
+      const map = loadTerrain();
       const checked = new Set<string>();
       const check = (kind: string, state: SimState) => {
         if (checked.has(kind)) {

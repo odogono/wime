@@ -142,8 +142,8 @@ export interface SaveSlots {
   // Drops the autosave, as for a game that has ended.
   clearAutosave: () => SlotResult<void>;
   list: () => SlotResult<SlotSummary[]>;
-  load: (id: number, tilemap: SimState['tilemap']) => SlotResult<LoadedGame>;
-  loadAutosave: (tilemap: SimState['tilemap']) => SlotResult<LoadedGame>;
+  load: (id: number, terrain: SimState['terrain']) => SlotResult<LoadedGame>;
+  loadAutosave: (terrain: SimState['terrain']) => SlotResult<LoadedGame>;
   remove: (id: number) => SlotResult<void>;
   rename: (id: number, name: string) => SlotResult<SlotSummary>;
   // Into a new slot.
@@ -286,7 +286,7 @@ export const createSaveSlots = (
 
   const loadFrom = (
     key: string,
-    tilemap: SimState['tilemap']
+    terrain: SimState['terrain']
   ): SlotResult<LoadedGame> => {
     let data: string | null;
     try {
@@ -297,7 +297,7 @@ export const createSaveSlots = (
     if (data === null) {
       return { ok: false, reason: 'missing' };
     }
-    const result = restoreSave(data, tilemap);
+    const result = restoreSave(data, terrain);
     return result.ok
       ? { ok: true, value: { setup: result.setup, state: result.state } }
       : { ok: false, reason: result.reason };
@@ -365,18 +365,18 @@ export const createSaveSlots = (
         : index;
     },
 
-    load: (id, tilemap) => {
+    load: (id, terrain) => {
       const found = find(id);
-      return found.ok ? loadFrom(slotKey(id), tilemap) : found;
+      return found.ok ? loadFrom(slotKey(id), terrain) : found;
     },
 
-    loadAutosave: tilemap => {
+    loadAutosave: terrain => {
       const index = readIndex();
       if (!index.ok) {
         return index;
       }
       return index.value.autosave
-        ? loadFrom(AUTOSAVE_KEY, tilemap)
+        ? loadFrom(AUTOSAVE_KEY, terrain)
         : { ok: false, reason: 'missing' };
     },
 
