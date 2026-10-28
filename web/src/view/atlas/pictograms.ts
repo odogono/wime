@@ -77,7 +77,8 @@ const peak = (
   ];
 };
 
-// Eight peaks, from tall spires to low foothills: PEAKS in size order.
+// Peaks, from tall spires to low foothills. The renderer picks a shape by
+// its index in PEAKS, so new shapes go at the end.
 export const PEAK_ART: Record<string, Part[]> = {
   'peak-low': peak(
     [
@@ -238,6 +239,71 @@ export const PEAK_ART: Record<string, Part[]> = {
     ],
     4,
     true
+  ),
+  // Foothills: low, varied humps, so the scatter between a range's spine
+  // and its edges does not repeat one shape.
+  'foothill-east': peak(
+    [
+      [4, 56],
+      [18, 50],
+      [30, 43],
+      [40, 36],
+      [46, 38],
+      [52, 47],
+      [58, 56]
+    ],
+    2
+  ),
+  'foothill-knoll': peak(
+    [
+      [10, 56],
+      [18, 46],
+      [26, 40],
+      [32, 38],
+      [38, 41],
+      [46, 48],
+      [54, 56]
+    ],
+    2
+  ),
+  'foothill-ridge': peak(
+    [
+      [2, 56],
+      [10, 49],
+      [18, 45],
+      [26, 43],
+      [34, 44],
+      [40, 41],
+      [48, 46],
+      [56, 51],
+      [62, 56]
+    ],
+    3
+  ),
+  'foothill-twin': peak(
+    [
+      [4, 56],
+      [12, 47],
+      [19, 42],
+      [25, 45],
+      [33, 37],
+      [41, 43],
+      [50, 50],
+      [60, 56]
+    ],
+    2
+  ),
+  'foothill-west': peak(
+    [
+      [6, 56],
+      [12, 46],
+      [18, 38],
+      [24, 36],
+      [34, 42],
+      [46, 50],
+      [60, 56]
+    ],
+    3
   )
 };
 export const PEAKS = Object.keys(PEAK_ART);
