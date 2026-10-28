@@ -145,6 +145,8 @@ import {
   drawTerrainView,
   pixelLettering,
   projectionOf,
+  terrainTiles,
+  type DebugProjection,
   type DebugViews
 } from './debug-views';
 import {
@@ -858,9 +860,17 @@ const run = (
         atlasRect.top
     };
   };
+  // The Debug views' projection over the Atlas map, in its CSS pixels,
+  // down to the date line.
+  const atlasDebugProjection = (map: AtlasMap): DebugProjection =>
+    projectionOf(map.toScreen, map.toMap, {
+      height: nativeToAtlas({ x: 0, y: DATE_LINE_Y }).y,
+      width: map.canvas.clientWidth || innerWidth
+    });
   // The Debug views over the Atlas map, on a canvas of their own at the
   // window's resolution, between the map and the game's screen so the
-  // date line and windows still cover them; cleared when unused.
+  // date line and windows still cover them; cleared when unused. The
+  // terrain is not among them: the map fills it in under its Forces.
   const drawAtlasDebug = (
     map: AtlasMap | null,
     debug: DebugViews,
@@ -887,14 +897,8 @@ const run = (
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, atlasDebugCanvas.width, atlasDebugCanvas.height);
     ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
-    const view = projectionOf(map.toScreen, map.toMap, {
-      height: nativeToAtlas({ x: 0, y: DATE_LINE_Y }).y,
-      width
-    });
+    const view = atlasDebugProjection(map);
     const lettering = canvasLettering(ctx);
-    if (debug.terrain) {
-      drawTerrainView(ctx, sim, view);
-    }
     if (debug.encounters) {
       drawEncountersView(ctx, sim, view, lettering);
     }
@@ -3226,7 +3230,16 @@ const run = (
     if (onAtlas) {
       screen.buffer.clearRect(0, 0, NATIVE_WIDTH, NATIVE_HEIGHT);
       drawCampaignIcons(screen.buffer, assets.icons);
-      onAtlas.draw(forces, atlasDrawOptions(now), elapsedMs);
+      onAtlas.draw(
+        forces,
+        {
+          ...atlasDrawOptions(now),
+          underlay: debug.terrain
+            ? terrainTiles(sim, atlasDebugProjection(onAtlas))
+            : []
+        },
+        elapsedMs
+      );
     } else {
       drawCampaignLevel(screen.buffer, assets, camera, forces, flashOn, () => {
         if (debug.terrain) {

@@ -48,6 +48,17 @@ export interface DrawOptions {
   ringBearer?: number | null;
   // Forces ringed as selected.
   selected?: ReadonlySet<number>;
+  // Rectangles in map pixels, filled under the Places and Forces: the
+  // Debug views' terrain.
+  underlay?: readonly Underlay[];
+}
+
+export interface Underlay {
+  colour: [number, number, number, number];
+  h: number;
+  w: number;
+  x: number;
+  y: number;
 }
 
 export interface AtlasMap {
@@ -619,6 +630,17 @@ export const createAtlasMap = async (
       1.6,
       Math.max(0.55, camera.zoom / r.campaign + 0.4)
     );
+    const underlay = (options.underlay ?? []).map((u): Quad => {
+      const at = toScreen(u);
+      return {
+        colour: u.colour,
+        h: u.h * camera.zoom * dpr,
+        mode: QuadMode.fill,
+        w: u.w * camera.zoom * dpr,
+        x: at.x * dpr,
+        y: at.y * dpr
+      };
+    });
     const topLeft = toMap({ x: 0, y: 0 });
     renderer.draw(
       {
@@ -629,7 +651,14 @@ export const createAtlasMap = async (
         y: topLeft.y,
         zoom: camera.zoom
       },
-      [...places, ...lettering, ...markers, ...emblemQuads, ...counters],
+      [
+        ...underlay,
+        ...places,
+        ...lettering,
+        ...markers,
+        ...emblemQuads,
+        ...counters
+      ],
       maxRank,
       lineScale,
       roadOpacity(camera.zoom, r)

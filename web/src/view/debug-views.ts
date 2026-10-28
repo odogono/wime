@@ -164,6 +164,66 @@ export const terrainColour = (percent: number, alpha = 0.45): string =>
 export const sideColour = (allegiance: number): string =>
   allegiance === 0 ? '#ff4040' : allegiance === 1 ? '#e0e040' : '#40c0ff';
 
+// The same colour as red, green, blue and alpha from 0 to 1, for the
+// Atlas map's renderer.
+export const terrainRgba = (
+  percent: number,
+  alpha = 0.45
+): [number, number, number, number] => {
+  // CSS's hsl(), at 90% saturation and 50% lightness.
+  const hue = Math.round((Math.min(100, percent) / 100) * 120);
+  const channel = (n: number): number => {
+    const k = (n + hue / 30) % 12;
+    return 0.5 - 0.45 * Math.max(-1, Math.min(k - 3, 9 - k, 1));
+  };
+  return [channel(0), channel(8), channel(4), alpha];
+};
+
+// The terrain over the Atlas map, as tiles in map pixels to fill under
+// its Places and Forces: each tile in view in its colour, impassable
+// ones darkened.
+export const terrainTiles = (
+  sim: SimState,
+  view: DebugProjection
+): {
+  colour: [number, number, number, number];
+  h: number;
+  w: number;
+  x: number;
+  y: number;
+}[] => {
+  if (!sim.tilemap) {
+    return [];
+  }
+  const topLeft = view.toWorld({ x: 0, y: 0 });
+  const bottomRight = view.toWorld({ x: view.width, y: view.height });
+  const tiles = [];
+  for (
+    let ty = Math.max(0, Math.floor(topLeft.y / TILE_SIZE));
+    ty <= Math.min(sim.tilemap.height - 1, bottomRight.y / TILE_SIZE);
+    ty++
+  ) {
+    for (
+      let tx = Math.max(0, Math.floor(topLeft.x / TILE_SIZE));
+      tx <= Math.min(sim.tilemap.width - 1, bottomRight.x / TILE_SIZE);
+      tx++
+    ) {
+      const world = { x: tx * TILE_SIZE, y: ty * TILE_SIZE };
+      const percent = terrainAt(sim, world);
+      tiles.push({
+        colour:
+          percent > 0
+            ? terrainRgba(percent)
+            : ([0, 0, 0, 0.55] as [number, number, number, number]),
+        h: TILE_SIZE,
+        w: TILE_SIZE,
+        ...world
+      });
+    }
+  }
+  return tiles;
+};
+
 export const drawTerrainView = (
   ctx: CanvasRenderingContext2D,
   sim: SimState,

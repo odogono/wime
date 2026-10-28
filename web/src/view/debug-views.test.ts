@@ -6,11 +6,15 @@ import {
   forceLabel,
   projectionOf,
   sideColour,
-  terrainColour
+  terrainColour,
+  terrainRgba
 } from './debug-views';
 
 const entry = (index: number, name: string, strength: number) =>
   ({ index, name, strength }) as RosterEntry;
+
+const near = (rgba: number[], expected: number[]) =>
+  rgba.forEach((v, i) => expect(v).toBeCloseTo(expected[i]!, 5));
 
 describe('the Debug views', () => {
   test('place the Classic view one native pixel to a world pixel', () => {
@@ -34,6 +38,11 @@ describe('the Debug views', () => {
     expect(terrainColour(1, 1)).toBe('hsla(1, 90%, 50%, 1)');
     expect(terrainColour(50, 1)).toBe('hsla(60, 90%, 50%, 1)');
     expect(terrainColour(100, 1)).toBe('hsla(120, 90%, 50%, 1)');
+  });
+
+  test('give the Atlas map the terrain colours as numbers', () => {
+    near(terrainRgba(50, 1), [0.95, 0.95, 0.05, 1]);
+    near(terrainRgba(100, 0.45), [0.05, 0.95, 0.05, 0.45]);
   });
 
   test('colour a Force by its Side', () => {
