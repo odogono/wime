@@ -221,6 +221,7 @@ import {
   pressMeetingUi,
   stepMeetingUi
 } from './meeting-window';
+import { MENU_DIM } from './menu-window';
 import {
   NO_MESSAGES,
   closeMessage,
@@ -354,6 +355,8 @@ const centre = (button: Box): Camera => ({
 });
 // A press that moves no further than this is a click, not a drag.
 const CLICK_TOLERANCE_PX = 3;
+// The session flag that a reload should resume the game in play.
+const RESUME_KEY = 'wime.resume-on-reload';
 
 // The Level on show; the game opens on the Animation Level
 // (finding:ui-game-starts-on-animation-level).
@@ -397,6 +400,8 @@ const run = (
   // (docs/spec/game-menu.md).
   let menuMs = 0;
   let menuOpenedAt = 0;
+  // The menu's backdrop no longer matches the map Settings chose.
+  let backdropStale = false;
   const viewNow = (): number => performance.now() - menuMs;
   let level: Level = 'animation';
   // The roster entry the Animation Level watches, and its scene.
@@ -540,6 +545,7 @@ const run = (
   // The player's settings, from the in-game menu's Settings.
   let settings = loadSettings();
   const applySettings = (next: Settings): void => {
+    const mapChanged = next.map !== settings.map;
     settings = next;
     saveSettings(next);
     if (audio && audio.enabled !== next.sound) {
@@ -550,6 +556,9 @@ const run = (
     canvas.style.height = `${next.size * 100}vh`;
     fit = screen.resize();
     applyMapSetting(next);
+    if (mapChanged && gameMenu) {
+      backdropStale = true;
+    }
   };
   // Q, as Sound in the settings, and remembered with them.
   const toggleSound = (): void => {
@@ -2565,6 +2574,16 @@ const run = (
     if (!onTitle() && !demo && view.settled) {
       autosaveNow(view);
     }
+    // A reload of a game in play goes straight back to its autosave.
+    try {
+      if (!onTitle() && !demo && !ending) {
+        sessionStorage.setItem(RESUME_KEY, '1');
+      } else {
+        sessionStorage.removeItem(RESUME_KEY);
+      }
+    } catch {
+      // Without session storage a reload opens on the boot sequence.
+    }
   };
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') {
@@ -2625,6 +2644,43 @@ const run = (
     sim = result.value.state;
     setup = result.value.setup;
     startGame(false);
+  };
+  // A page reloaded over a game in play skips the boot sequence and
+  // the title menu: the game resumes from its autosave, paused under
+  // the in-game menu once its first frame is drawn.
+  const resumeOnReload = (): void => {
+    let pending = false;
+    try {
+      pending = sessionStorage.getItem(RESUME_KEY) === '1';
+    } catch {
+      return;
+    }
+    if (!pending) {
+      return;
+    }
+    const result = saveSlots.loadAutosave(assets.terrain);
+    if (!result.ok) {
+      return;
+    }
+    boot = null;
+    sim = result.value.state;
+    setup = result.value.setup;
+    startGame(false);
+    // Over the Atlas map, the menu waits for the map to be made, so
+    // that its backdrop is not the Classic frame drawn meanwhile.
+    const openWhenDrawn = (): void => {
+      requestAnimationFrame(() => {
+        if (
+          settings.map === 'atlas' &&
+          (atlasLoading || (!atlas && !atlasFailed))
+        ) {
+          openWhenDrawn();
+          return;
+        }
+        openInGameMenu();
+      });
+    };
+    openWhenDrawn();
   };
   // Under `bun run dev` only, `window.wime` drives the view from the
   // console or the preview (docs/agents/port-preview.md).
@@ -2993,6 +3049,34 @@ const run = (
       }
     }
     if (gameMenu) {
+      // A map changed in Settings redraws the Campaign Level behind the
+      // menu, once the Atlas map, if wanted, is made.
+      if (
+        backdropStale &&
+        (settings.map === 'classic' || atlas || atlasFailed)
+      ) {
+        backdropStale = false;
+        if (level === 'campaign') {
+          const forces = forcesOnMap(sim.roster);
+          if (atlasOn() && atlas) {
+            screen.buffer.clearRect(0, 0, NATIVE_WIDTH, NATIVE_HEIGHT);
+            drawCampaignIcons(screen.buffer, assets.icons);
+            atlas.draw(forces, atlasDrawOptions(now), 0);
+          } else {
+            drawCampaignLevel(
+              screen.buffer,
+              assets,
+              camera,
+              forces,
+              Math.floor(now / FLASH_INTERVAL_MS) % 2 === 0,
+              () => {}
+            );
+          }
+          drawOverlay(forces);
+          backdropCtx.clearRect(0, 0, NATIVE_WIDTH, NATIVE_HEIGHT);
+          backdropCtx.drawImage(screen.buffer.canvas, 0, 0);
+        }
+      }
       // Over the Atlas map the menu's backdrop is the overlay alone; the
       // map stays as it was.
       if (atlasOn()) {
@@ -3000,7 +3084,7 @@ const run = (
       }
       screen.buffer.drawImage(backdrop, 0, 0);
       drawGameMenu(screen.buffer, title.window, title.menuColours, gameMenu);
-      screen.present('lores', atlasOn());
+      screen.present('lores', atlasOn(), MENU_DIM);
       requestAnimationFrame(frame);
       return;
     }
@@ -3343,6 +3427,7 @@ const run = (
     requestAnimationFrame(frame);
   };
   requestAnimationFrame(frame);
+  resumeOnReload();
 };
 
 drawMessage(['Loading Campaign Level...']);
