@@ -1,0 +1,60 @@
+name: Pages
+
+# Publish the port to GitHub Pages, rebuilt from each push to main. It serves
+# at https://opendoorgonorth.com/wime/.
+#
+# The game's assets are extracted from the original archive, which is never
+# committed (AGENTS.md). It's a release asset in the private
+# odogono/wime-artifacts repo, read with WIME_ARTIFACTS_TOKEN: a fine-grained
+# token with read access to that repo's contents.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# A newer push supersedes a queued deploy, but never cancels a running one.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.3
+      - run: sudo apt-get update && sudo apt-get install -y lhasa
+      - run: bun install --frozen-lockfile
+      - name: Download the original archive
+        env:
+          GH_TOKEN: ${{ secrets.WIME_ARTIFACTS_TOKEN }}
+        run: >-
+          gh release download archive --repo odogono/wime-artifacts
+          --pattern WarInMiddleEarth_v1.0_0968.lha --dir artifacts/amiga
+      - run: bun run export:web
+      - run: bun run build-geography
+      - run: bun run build-emblems
+      - run: bun run build
+        working-directory: web
+        env:
+          WIME_BASE: /wime/
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
