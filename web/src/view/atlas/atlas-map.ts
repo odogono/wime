@@ -4,6 +4,7 @@
 // Forces at their level-of-detail tiers. Whoever owns it, the game or
 // the prototype page, moves its camera and hands it the Forces to draw.
 import type { Force } from '../../sim/index';
+import { BASE_URL } from '../base-url';
 import { loadBundle, type GeographyBundle } from './bundle';
 import { RING, emblemLayers, loadEmblemAtlas } from './emblems';
 import {
@@ -112,7 +113,7 @@ const sideColour = (force: Force): string =>
 
 export const createAtlasMap = async (
   canvas: HTMLCanvasElement,
-  base = '/assets/'
+  base = `${BASE_URL}assets/`
 ): Promise<AtlasMap> => {
   const bundle = await loadBundle(`${base}geography/bundle.bin`);
   const font: SdfFont = buildSdfFont(

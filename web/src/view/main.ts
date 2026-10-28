@@ -88,6 +88,7 @@ import {
 } from './atlas/atlas-map';
 import { loadGameAudio, type GameAudio } from './audio';
 import { autosaveDue, autosavePoint, type AutosaveView } from './autosave';
+import { BASE_URL } from './base-url';
 import {
   BOOT_PICTURES,
   bootSequence,
@@ -2646,7 +2647,7 @@ const run = (
         // Start a Demo by its plan's name: fellowship, muster or
         // defensive.
         demo: async (plan: string) => {
-          const response = await fetch(`/demos/${plan}.json`);
+          const response = await fetch(`${BASE_URL}demos/${plan}.json`);
           if (!response.ok) {
             throw new Error(`no Demo ${plan}`);
           }
@@ -2917,7 +2918,7 @@ const run = (
     const inputs = titleInputs;
     try {
       const plan = pickDemoPlan(lastPlan, choose);
-      const response = await fetch(`/demos/${plan}.json`);
+      const response = await fetch(`${BASE_URL}demos/${plan}.json`);
       if (!response.ok) {
         return;
       }

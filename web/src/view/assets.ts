@@ -1,4 +1,5 @@
 import type { AnimationTables } from './animation-scene';
+import { BASE_URL } from './base-url';
 import type { Font, FontMetrics } from './font';
 import type { MenuColours } from './menu-window';
 import { topazAltFont } from './topaz-alt';
@@ -258,7 +259,7 @@ export const blackToTransparent = (
 };
 
 export const loadCampaignAssets = async (
-  base = '/assets/'
+  base = `${BASE_URL}assets/`
 ): Promise<CampaignAssets> => {
   const manifest = await fetchJson<Manifest>(`${base}manifest.json`);
   const atlasAsset = requireAsset(
@@ -343,7 +344,7 @@ export const loadCampaignAssets = async (
 // names and paths come from the manifest, including shared provenance
 // and the explicitly provisional palette (issue #29).
 export const loadFullMapAssets = async (
-  base = '/assets/'
+  base = `${BASE_URL}assets/`
 ): Promise<FullMapAssets> => {
   const manifest = await fetchJson<Manifest>(`${base}manifest.json`);
   const mapAsset = requireAsset(
@@ -451,7 +452,7 @@ interface FiguresJson {
 // are every AScene.res and BScene.res bitmap; figures, icons and tables
 // are under animation/.
 export const loadAnimationAssets = async (
-  base = '/assets/'
+  base = `${BASE_URL}assets/`
 ): Promise<AnimationAssets> => {
   const manifest = await fetchJson<Manifest>(`${base}manifest.json`);
   const animationPath = (name: string): string =>
@@ -548,7 +549,7 @@ export interface TitleAssets {
 
 // The boot sequence's art (docs/spec/boot-sequence.md).
 export const loadTitleAssets = async (
-  base = '/assets/'
+  base = `${BASE_URL}assets/`
 ): Promise<TitleAssets> => {
   const manifest = await fetchJson<Manifest>(`${base}manifest.json`);
   const ids = [70, 71, 72, 73];

@@ -4,6 +4,7 @@
 // loads the files, keeps the sound setting and talks to the worklet.
 import type { Disk, WorkletMessage } from '../audio/worklet';
 import workletUrl from '../audio/worklet.ts?worker&url';
+import { BASE_URL } from './base-url';
 import {
   EFFECT_FILES,
   EFFECT_INSTRUMENTS,
@@ -50,7 +51,7 @@ const decodeBase64 = (text: string): Uint8Array =>
 
 export const loadGameAudio = async (
   random: (n: number) => number,
-  base = '/assets/'
+  base = `${BASE_URL}assets/`
 ): Promise<GameAudio> => {
   const response = await fetch(`${base}audio/sound.json`);
   if (!response.ok) {

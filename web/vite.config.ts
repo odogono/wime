@@ -26,7 +26,9 @@ const snapEndpoint = (): Plugin => ({
   name: 'wime-snap'
 });
 
+// GitHub Pages serves the build from /wime/ (.github/workflows/pages.yml).
 export default defineConfig({
+  base: process.env.WIME_BASE ?? '/',
   build: {
     rollupOptions: {
       // The game, the soundboard for trying its sounds, and the Atlas map
