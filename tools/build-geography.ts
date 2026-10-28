@@ -1818,6 +1818,129 @@ export const validate = (
 };
 
 // ---------------------------------------------------------------------------
+// The relief: a faint shaded wash under the ink, lit from the north west,
+// so ranges and hills read with some height (ADR-0006). Height is made up
+// from how far each cell lies inside its mountains or hills, highest
+// along a range's spine; plains, marsh and water stay flat. It is
+// presentation only: the sim never reads it.
+
+// Map pixels per relief cell.
+export const RELIEF_STEP = 4;
+// The stored shade with no light or shadow.
+export const RELIEF_FLAT = 128;
+
+export interface Relief {
+  height: number;
+  // One byte per cell, RELIEF_FLAT for none, brighter facing the light.
+  shade: Uint8Array;
+  step: number;
+  width: number;
+}
+
+// Each kind's height at its deepest, and how deep that is, in map pixels.
+const RELIEF_HEIGHT: Partial<
+  Record<GroundKind, [peak: number, depth: number]>
+> = {
+  hill: [5, 14],
+  mountain: [22, 36]
+};
+
+export const bakeRelief = (ground: Ground): Relief => {
+  const { step, width } = ground;
+  const height = ground.kinds.length / width;
+  const elevation = new Float32Array(ground.kinds.length);
+  for (const [kind, [peak, depth]] of Object.entries(RELIEF_HEIGHT)) {
+    const index = GROUND_KINDS.indexOf(kind as GroundKind);
+    const mask = ground.kinds.map(k => Number(k === index));
+    const inside = insideDistance(mask, width, height, step);
+    for (let i = 0; i < inside.length; i++) {
+      if (mask[i]) {
+        // Rising quickly from the foot, rounding off towards the spine.
+        elevation[i] = peak * Math.sqrt(Math.min(1, inside[i]! / depth));
+      }
+    }
+  }
+  // Down to relief cells, then softened so slopes run smoothly.
+  const factor = RELIEF_STEP / step;
+  const w = Math.ceil(width / factor);
+  const h = Math.ceil(height / factor);
+  let grid: Float32Array = new Float32Array(w * h);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      let sum = 0;
+      let n = 0;
+      for (let dy = 0; dy < factor; dy++) {
+        for (let dx = 0; dx < factor; dx++) {
+          const gx = x * factor + dx;
+          const gy = y * factor + dy;
+          if (gx < width && gy < height) {
+            sum += elevation[gy * width + gx]!;
+            n++;
+          }
+        }
+      }
+      grid[y * w + x] = sum / n;
+    }
+  }
+  for (let pass = 0; pass < 2; pass++) {
+    grid = boxBlur(grid, w, h, 2);
+  }
+  const at = (x: number, y: number): number =>
+    grid[
+      Math.min(h - 1, Math.max(0, y)) * w + Math.min(w - 1, Math.max(0, x))
+    ]!;
+  const shade = new Uint8Array(w * h);
+  const water = GROUND_KINDS.indexOf('water');
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      // Slopes facing the light, from up and left, brighten; those
+      // facing away darken, and height darkens a little on its own.
+      const dx = (at(x + 1, y) - at(x - 1, y)) / (2 * RELIEF_STEP);
+      const dy = (at(x, y + 1) - at(x, y - 1)) / (2 * RELIEF_STEP);
+      const lit = (dx + dy) * 90 - at(x, y) * 1.2;
+      const gx = Math.min(width - 1, x * factor + 1);
+      const gy = Math.min(height - 1, y * factor + 1);
+      shade[y * w + x] =
+        ground.kinds[gy * width + gx] === water
+          ? RELIEF_FLAT
+          : Math.max(0, Math.min(255, Math.round(RELIEF_FLAT + lit)));
+    }
+  }
+  return { height: h, shade, step: RELIEF_STEP, width: w };
+};
+
+// A box blur of the given radius, across and then down.
+const boxBlur = (
+  grid: Float32Array,
+  width: number,
+  height: number,
+  radius: number
+): Float32Array => {
+  const across = new Float32Array(grid.length);
+  const out = new Float32Array(grid.length);
+  const n = radius * 2 + 1;
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      let sum = 0;
+      for (let d = -radius; d <= radius; d++) {
+        sum += grid[y * width + Math.min(width - 1, Math.max(0, x + d))]!;
+      }
+      across[y * width + x] = sum / n;
+    }
+  }
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      let sum = 0;
+      for (let d = -radius; d <= radius; d++) {
+        sum += across[Math.min(height - 1, Math.max(0, y + d)) * width + x]!;
+      }
+      out[y * width + x] = sum / n;
+    }
+  }
+  return out;
+};
+
+// ---------------------------------------------------------------------------
 // The compiled bundle: a JSON header, then binary sections, each aligned
 // to 4 bytes. Map coordinates are unsigned 16-bit fixed point, in eighths
 // of a map pixel, which covers the 2560 by 1584 map with room to spare.
@@ -1835,11 +1958,14 @@ export const validate = (
 //               distance along the line, for dashes.
 // symbols:      u16 x, u16 y, u8 kind, u8 variant, u8 rank, u8 angle
 //               (0 to 255 over half a turn)  8 bytes
+// relief:       u8 shade per cell, row by row, header.relief's width by
+//               height cells of its step in map pixels    1 byte each
 
 export const FIXED_POINT = 8;
 export const NO_SEGMENT = 255;
 
-type SectionName = 'fillIndices' | 'fillVertices' | 'linePoints' | 'symbols';
+type SectionName =
+  'fillIndices' | 'fillVertices' | 'linePoints' | 'relief' | 'symbols';
 
 export interface BundleHeader {
   bounds: [number, number, number, number];
@@ -1857,9 +1983,10 @@ export interface BundleHeader {
   }[];
   regionKinds: readonly string[];
   regionLabels: { name: string; rank: number; x: number; y: number }[];
+  relief: { height: number; step: number; width: number };
   sections: Record<SectionName, { count: number; offset: number }>;
   symbolKinds: readonly string[];
-  version: 2;
+  version: 3;
 }
 
 interface Fill {
@@ -1962,7 +2089,10 @@ const layerOrder = (layer: string): number =>
     'region-label'
   ].indexOf(layer);
 
-export const compileBundle = (geography: Geography): Uint8Array => {
+export const compileBundle = (
+  geography: Geography,
+  relief: Relief
+): Uint8Array => {
   const fill: Fill = { chunks: [], indices: [], vertices: [] };
   const lines: LinePoints = [];
   const symbols: number[] = [];
@@ -1975,9 +2105,10 @@ export const compileBundle = (geography: Geography): Uint8Array => {
     places: [],
     regionKinds: GROUND_KINDS,
     regionLabels: [],
+    relief: { height: relief.height, step: relief.step, width: relief.width },
     sections: {} as BundleHeader['sections'],
     symbolKinds: SYMBOL_KINDS,
-    version: 2
+    version: 3
   };
   // The map is drawn from the ground; the Terrain Regions stay in the
   // source GeoJSON until the sim reads them (ADR-0006). Ink is drawn only where the kind of
@@ -2105,6 +2236,7 @@ export const compileBundle = (geography: Geography): Uint8Array => {
     fillIndices: [fill.indices.length, 2],
     fillVertices: [fill.vertices.length / 3, 6],
     linePoints: [lines.length / 5, 12],
+    relief: [relief.shade.length, 1],
     symbols: [symbols.length / 6, 8]
   };
   let offset = 0;
@@ -2153,6 +2285,7 @@ export const compileBundle = (geography: Geography): Uint8Array => {
     view.setUint8(at + 7, symbols[i + 5]!);
     at += 8;
   }
+  bytes.set(relief.shade, start('relief'));
   return bytes;
 };
 
@@ -2257,7 +2390,7 @@ export const main = async (): Promise<number> => {
   const out = join(assets, 'geography');
   mkdirSync(out, { recursive: true });
   await Bun.write(join(out, 'source.geojson'), JSON.stringify(geography));
-  const bundle = compileBundle(geography);
+  const bundle = compileBundle(geography, bakeRelief(ground));
   await Bun.write(join(out, 'bundle.bin'), bundle);
   const pct = (n: number): string =>
     `${((n / check.samples) * 100).toFixed(1)}%`;

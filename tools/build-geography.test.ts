@@ -2,8 +2,10 @@ import { describe, expect, test } from 'bun:test';
 
 import {
   GROUND_KINDS,
+  RELIEF_FLAT,
   applyPatches,
   assembleRegions,
+  bakeRelief,
   components,
   followSkeleton,
   insideDistance,
@@ -257,5 +259,29 @@ describe('joinPieces', () => {
       ]
     ]);
     expect(lines).toHaveLength(3);
+  });
+});
+
+describe('bakeRelief', () => {
+  test('shades a range lit from the north west and leaves plains flat', () => {
+    // A 40 by 40 mountain block in a plain of 100 by 100 cells, 2 map
+    // pixels a cell.
+    const size = 100;
+    const kinds = new Uint8Array(size * size).fill(
+      GROUND_KINDS.indexOf('plain')
+    );
+    for (let y = 30; y < 70; y++) {
+      for (let x = 30; x < 70; x++) {
+        kinds[y * size + x] = GROUND_KINDS.indexOf('mountain');
+      }
+    }
+    const relief = bakeRelief({ features: [], kinds, step: 2, width: size });
+    expect([relief.width, relief.height, relief.step]).toEqual([50, 50, 4]);
+    const at = (x: number, y: number): number =>
+      relief.shade[y * relief.width + x]!;
+    expect(at(2, 2)).toBe(RELIEF_FLAT);
+    // The north west flank faces the light, the south east away from it.
+    expect(at(17, 17)).toBeGreaterThan(RELIEF_FLAT);
+    expect(at(32, 32)).toBeLessThan(RELIEF_FLAT);
   });
 });

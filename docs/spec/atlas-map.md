@@ -89,6 +89,10 @@ The map's geography is traced from the original's tiles by
   fords where roads cross water;
 - mountain ranges as peaks along each range's spine, darker in the
   ranges about Mordor;
+- a faint wash of relief under the ink, lit from the north west, so
+  ranges and hills read with some height while plains, marsh and water
+  stay clean parchment. The height is made up for the picture; the
+  original has none, and the game's rules never read it;
 - each Place as an ink picture of its kind, with its name, and the
   regions' names in wide lettering.
 
