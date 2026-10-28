@@ -40,8 +40,10 @@ same world is shown and pointed at.
 
 ## Moving about
 
-- The wheel zooms about the pointer, on either Level. Dragging the map
-  pans it, on either Level. The map does not scroll at the window's
+- The wheel zooms about the pointer, on either Level, and a two-finger
+  pinch zooms about the fingers' midpoint; either crosses the band
+  boundary to change Level. A pinch is never a click or a drag. Dragging
+  the map pans it, on either Level. The map does not scroll at the window's
   edges.
 - U, or the map icon, goes up: the map glides out to the Full Map Level.
 - The Full Map Level's magnifying glass goes down: the map glides in to

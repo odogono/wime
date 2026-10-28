@@ -1972,8 +1972,30 @@ const run = (
   const trackClient = (event: PointerEvent | WheelEvent): void => {
     client = { x: event.clientX, y: event.clientY };
   };
-  // On the Atlas map the wheel zooms about the pointer, and zooming
-  // across the bands changes Level (docs/spec/atlas-map.md).
+  // On the Atlas map the wheel and a pinch zoom about the pointer, and
+  // zooming across the bands changes Level (docs/spec/atlas-map.md).
+  const zoomAtlas = (factor: number, at: Camera): void => {
+    if (!atlas) {
+      return;
+    }
+    const before = { ...atlas.camera };
+    atlas.zoomAt(factor, at);
+    const range = atlas.range();
+    if (level === 'campaign' && atlas.camera.zoom < range.boundary * 0.92) {
+      // A box with buttons keeps the Campaign Level, and its zoom.
+      if (!goUp(false)) {
+        atlas.camera.zoom = before.zoom;
+        atlas.centreOn(before);
+      }
+    } else if (
+      level === 'full-map' &&
+      atlas.camera.zoom > range.boundary * 1.08 &&
+      !archive &&
+      !mirror
+    ) {
+      enterCampaign();
+    }
+  };
   canvas.addEventListener(
     'wheel',
     event => {
@@ -1983,27 +2005,37 @@ const run = (
       event.preventDefault();
       trackClient(event);
       const delta = event.deltaMode === 1 ? event.deltaY * 16 : event.deltaY;
-      const before = { ...atlas.camera };
-      atlas.zoomAt(Math.exp(-delta * 0.0015), client);
-      const range = atlas.range();
-      if (level === 'campaign' && atlas.camera.zoom < range.boundary * 0.92) {
-        // A box with buttons keeps the Campaign Level, and its zoom.
-        if (!goUp(false)) {
-          atlas.camera.zoom = before.zoom;
-          atlas.centreOn(before);
-        }
-      } else if (
-        level === 'full-map' &&
-        atlas.camera.zoom > range.boundary * 1.08 &&
-        !archive &&
-        !mirror
-      ) {
-        enterCampaign();
-      }
+      zoomAtlas(Math.exp(-delta * 0.0015), client);
     },
     { passive: false }
   );
+  // The pointers down on the canvas. A second one on the Atlas map starts
+  // a pinch, which lasts until every finger is up: it zooms about the
+  // pointers' midpoint and is never a click or a drag-pan.
+  const touches = new Map<number, Camera>();
+  let pinching = false;
+  const endPinch = (event: PointerEvent): boolean => {
+    touches.delete(event.pointerId);
+    if (!pinching) {
+      return false;
+    }
+    pinching = touches.size > 0;
+    canvas.style.cursor = order.kind === 'idle' ? 'grab' : 'crosshair';
+    return true;
+  };
   canvas.addEventListener('pointerdown', event => {
+    touches.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    if (pinching) {
+      return;
+    }
+    if (touches.size === 2 && atlasOn() && atlas && !gameMenu) {
+      pinching = true;
+      mapTaps.cancel();
+      drag = null;
+      dragClient = null;
+      canvas.setPointerCapture(event.pointerId);
+      return;
+    }
     trackClient(event);
     // Any click leaves an idle Demo for the title menu.
     if (demoKind === 'idle') {
@@ -2015,6 +2047,33 @@ const run = (
     mapTaps.begin(event, context ?? null);
   });
   canvas.addEventListener('pointermove', event => {
+    const previous = touches.get(event.pointerId);
+    if (pinching) {
+      if (previous && touches.size === 2 && atlas) {
+        const [a, b] = [...touches.values()];
+        const next = [...touches.entries()].map(([id, at]) =>
+          id === event.pointerId ? { x: event.clientX, y: event.clientY } : at
+        );
+        const before = Math.hypot(a!.x - b!.x, a!.y - b!.y);
+        const after = Math.hypot(
+          next[0]!.x - next[1]!.x,
+          next[0]!.y - next[1]!.y
+        );
+        if (before > 0) {
+          zoomAtlas(after / before, {
+            x: (next[0]!.x + next[1]!.x) / 2,
+            y: (next[0]!.y + next[1]!.y) / 2
+          });
+        }
+      }
+      if (previous) {
+        touches.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      }
+      return;
+    }
+    if (previous) {
+      touches.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    }
     trackClient(event);
     mapTaps.move(event);
     if (gameMenu) {
@@ -2111,6 +2170,9 @@ const run = (
     canvas.style.cursor = order.kind === 'idle' ? 'grab' : 'crosshair';
   };
   canvas.addEventListener('pointerup', event => {
+    if (endPinch(event)) {
+      return;
+    }
     const blocked =
       onTitle() ||
       gameMenu ||
@@ -2137,7 +2199,8 @@ const run = (
       }
     }
   });
-  canvas.addEventListener('pointercancel', () => {
+  canvas.addEventListener('pointercancel', event => {
+    endPinch(event);
     mapTaps.cancel();
     drag = null;
     canvas.style.cursor = order.kind === 'idle' ? 'grab' : 'crosshair';
