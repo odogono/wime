@@ -10,7 +10,8 @@ export interface Section {
 // A line point's style that ends a run of line (tools/build-geography.ts).
 export const NO_SEGMENT = 255;
 
-type SectionName = 'fillIndices' | 'fillVertices' | 'linePoints' | 'symbols';
+type SectionName =
+  'fillIndices' | 'fillVertices' | 'linePoints' | 'relief' | 'symbols';
 
 export interface GeographyBundle extends Record<SectionName, Section> {
   bounds: [number, number, number, number];
@@ -29,6 +30,9 @@ export interface GeographyBundle extends Record<SectionName, Section> {
   }[];
   regionKinds: string[];
   regionLabels: { name: string; rank: number; x: number; y: number }[];
+  // The relief section's grid: width by height cells, each step map
+  // pixels square.
+  reliefGrid: { height: number; step: number; width: number };
   symbolKinds: string[];
 }
 
@@ -36,6 +40,7 @@ const BYTES: Record<SectionName, number> = {
   fillIndices: 2,
   fillVertices: 6,
   linePoints: 12,
+  relief: 1,
   symbols: 8
 };
 
@@ -43,11 +48,12 @@ export const parseBundle = (buffer: ArrayBuffer): GeographyBundle => {
   const headerBytes = new DataView(buffer).getUint32(0, true);
   const header = JSON.parse(
     new TextDecoder().decode(new Uint8Array(buffer, 4, headerBytes))
-  ) as Omit<GeographyBundle, SectionName> & {
+  ) as Omit<GeographyBundle, SectionName | 'reliefGrid'> & {
+    relief: GeographyBundle['reliefGrid'];
     sections: Record<SectionName, { count: number; offset: number }>;
     version: number;
   };
-  if (header.version !== 2) {
+  if (header.version !== 3) {
     throw new Error(
       `geography bundle version ${header.version} is not supported; run \`bun run build-geography\``
     );
@@ -75,6 +81,8 @@ export const parseBundle = (buffer: ArrayBuffer): GeographyBundle => {
     places: header.places,
     regionKinds: header.regionKinds,
     regionLabels: header.regionLabels,
+    relief: section('relief'),
+    reliefGrid: header.relief,
     symbolKinds: header.symbolKinds,
     symbols: section('symbols')
   };

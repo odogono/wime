@@ -1,5 +1,5 @@
 // The Atlas map's WebGL2 renderer (ADR-0006). It draws, in order: the
-// Terrain Region fills, their ink edges and the rivers, the scattered
+// Terrain Region fills under the relief's wash, their ink edges and the rivers, the scattered
 // terrain symbols, and then a screen-space layer of Force emblems,
 // markers and lettering built fresh each frame.
 import { NO_SEGMENT, type GeographyBundle } from './bundle';
@@ -140,12 +140,18 @@ in vec3 v_colour;
 in vec2 v_map;
 flat in int v_kind;
 uniform float u_zoom;
+uniform sampler2D u_relief;
+uniform vec2 u_reliefSize; // the relief grid's extent in map pixels
 out vec4 colour;
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 void main() {
   // A faint paper grain, fixed to the map.
   float grain = hash(floor(v_map * 2.0)) * 0.035 - 0.0175;
   vec3 c = v_colour + grain;
+  // The relief's faint wash: slopes facing the light paler, the rest
+  // shaded, flat ground untouched.
+  float relief = (texture(u_relief, v_map / u_reliefSize).r * 255.0 - 128.0) / 127.0;
+  c *= 1.0 + relief * 0.3;
   // Open water carries the fine horizontal lines of an engraved sea.
   if (v_kind == 0) {
     float period = 5.0;
@@ -490,6 +496,7 @@ export class AtlasRenderer {
   private readonly peakMargin: number;
   private readonly fontSize: [number, number];
   private readonly lineStyles: string[];
+  private readonly reliefSize: [number, number];
 
   constructor(
     canvas: HTMLCanvasElement,
@@ -679,6 +686,24 @@ export class AtlasRenderer {
         ),
       gl.LINEAR
     );
+    const relief = bundle.reliefGrid;
+    texture(
+      3,
+      () =>
+        gl.texImage2D(
+          gl.TEXTURE_2D,
+          0,
+          gl.R8,
+          relief.width,
+          relief.height,
+          0,
+          gl.RED,
+          gl.UNSIGNED_BYTE,
+          bundle.relief.bytes
+        ),
+      gl.LINEAR
+    );
+    this.reliefSize = [relief.width * relief.step, relief.height * relief.step];
     this.pictogramSize = [pictograms.texture.width, pictograms.texture.height];
     this.peakCells = PEAKS.flatMap(name => {
       const cell = pictograms.cells.get(name);
@@ -735,6 +760,8 @@ export class AtlasRenderer {
       ].flatMap(k => hex(REGION_COLOURS[k]!))
     );
     gl.uniform1f(u('u_zoom'), view.zoom);
+    gl.uniform1i(u('u_relief'), 3);
+    gl.uniform2f(u('u_reliefSize'), ...this.reliefSize);
     for (const chunk of this.fill) {
       gl.bindVertexArray(chunk.vao);
       gl.drawElements(
