@@ -166,6 +166,15 @@ export const rankZoom = (rank: number, range: ZoomRange): number =>
       ? range.boundary
       : Math.max(range.boundary, range.campaign / 2);
 
+// How strongly roads are inked: full from just below the Campaign Level
+// band, easing down to a floor that keeps them legible across the Full
+// Map Level without crowding the rivers.
+export const ROAD_FAR_OPACITY = 0.6;
+export const roadOpacity = (zoom: number, range: ZoomRange): number =>
+  ROAD_FAR_OPACITY +
+  (1 - ROAD_FAR_OPACITY) *
+    Math.min(1, Math.max(0, (zoom / range.boundary - 0.6) / 0.4));
+
 export interface Box {
   height: number;
   width: number;

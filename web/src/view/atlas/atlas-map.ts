@@ -13,6 +13,7 @@ import {
   emblemSize,
   placeLabels,
   rankZoom,
+  roadOpacity,
   tierFor,
   zoomRange,
   type Band,
@@ -631,8 +632,7 @@ export const createAtlasMap = async (
       [...places, ...lettering, ...markers, ...emblemQuads, ...counters],
       maxRank,
       lineScale,
-      // Roads show from just below the Campaign Level band.
-      clamp01((camera.zoom / r.boundary - 0.6) / 0.4)
+      roadOpacity(camera.zoom, r)
     );
   };
 

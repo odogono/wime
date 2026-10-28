@@ -77,6 +77,10 @@ const LINE_STYLE: Record<string, { colour: string; width: number }> = {
   river: { colour: '#3c5a66', width: 0.9 },
   road: { colour: '#7a4c2c', width: 1.3 }
 };
+// The least half width of each style's ink in CSS pixels as it thins;
+// roads keep more so their dashes still read zoomed out.
+const MIN_HALF_WIDTH = (style: string): number =>
+  style === 'road' ? 0.6 : 0.35;
 // Roads are dashed, in CSS pixels on and off.
 const DASH = [5, 3];
 // Each symbol's size in map pixels.
@@ -668,7 +672,7 @@ export class AtlasRenderer {
 
   // Draw the map, then the screen-space quads over it. `maxRank` is the
   // least detailed rank of symbol still drawn; `lineScale` thins the ink
-  // as the map zooms out, and `roadOpacity` fades the roads out with it.
+  // as the map zooms out, and `roadOpacity` fades the roads with it.
   draw(
     view: View,
     quads: Quad[],
@@ -726,7 +730,7 @@ export class AtlasRenderer {
       u('u_widths'),
       this.lineStyles.map(
         s =>
-          Math.max(0.35, (LINE_STYLE[s]!.width * lineScale) / 2) *
+          Math.max(MIN_HALF_WIDTH(s), (LINE_STYLE[s]!.width * lineScale) / 2) *
           view.devicePixelRatio
       )
     );
