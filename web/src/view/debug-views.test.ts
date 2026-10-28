@@ -23,7 +23,8 @@ describe('the Debug views', () => {
   test("read a zoomed projection's scale off its mapping", () => {
     const view = projectionOf(
       ({ x, y }) => ({ x: (x - 100) * 3, y: (y - 40) * 3 }),
-      ({ x, y }) => ({ x: x / 3 + 100, y: y / 3 + 40 })
+      ({ x, y }) => ({ x: x / 3 + 100, y: y / 3 + 40 }),
+      { height: 600, width: 960 }
     );
     expect(view.scale).toBe(3);
     expect(view.toScreen({ x: 110, y: 50 })).toEqual({ x: 30, y: 30 });

@@ -26,7 +26,8 @@
       /* The Atlas map fills the window under the game's canvas, whatever
          its size; the game's canvas takes all input
          (docs/spec/atlas-map.md). */
-      #atlas-map {
+      #atlas-map,
+      #atlas-debug {
         top: 0;
         left: 0;
         transform: none;
@@ -63,6 +64,7 @@
   </head>
   <body>
     <canvas id="atlas-map"></canvas>
+    <canvas id="atlas-debug"></canvas>
     <canvas id="screen"></canvas>
     <pre id="status"></pre>
     <button id="menu" type="button" hidden>Menu</button>

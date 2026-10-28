@@ -17,9 +17,10 @@ import { drawText, measureText, type Font } from './font';
 // settings offer them only in a dev build or with ?debug in the URL.
 // Drawn in native pixels: the terrain into the screen buffer under the
 // figures, the rest over the figures but under the message windows.
-// Their lettering is the game's own font, recoloured. Each is drawn
-// through a DebugProjection, so the same views sit over the Classic
-// view or, scaled, over the Atlas map.
+// Each is drawn through a DebugProjection and a DebugLettering: over
+// the Classic view in native pixels and the game's own font, recoloured;
+// over the Atlas map on a canvas of its own, at the window's resolution,
+// in a small system font.
 
 export interface DebugViews {
   encounters: boolean;
@@ -64,32 +65,94 @@ export const debugAllowed = (): boolean =>
 // The map view's height in native pixels; the date line is below it.
 const MAP_HEIGHT = 192;
 
-// How the map's world pixels land on the native screen: `toScreen` and
-// its inverse `toWorld`, and `scale`, native pixels per world pixel.
+// How the map's world pixels land on the canvas drawn into: `toScreen`
+// and its inverse `toWorld`; `scale`, canvas pixels per world pixel; and
+// the map view's `width` and `height` in canvas pixels.
 export interface DebugProjection {
+  height: number;
   scale: number;
   toScreen(world: Point): Point;
   toWorld(screen: Point): Point;
+  width: number;
 }
 
 // The Classic view's projection: one native pixel per world pixel,
-// offset by its camera.
+// offset by its camera, over the 320 by 192 map view.
 export const classicProjection = (camera: Point): DebugProjection => ({
+  height: MAP_HEIGHT,
   scale: 1,
   toScreen: ({ x, y }) => ({ x: x - camera.x, y: y - camera.y }),
-  toWorld: ({ x, y }) => ({ x: x + camera.x, y: y + camera.y })
+  toWorld: ({ x, y }) => ({ x: x + camera.x, y: y + camera.y }),
+  width: 320
 });
 
-// A projection from its world-to-screen mapping and inverse, the scale
-// read off the mapping.
+// A projection from its world-to-screen mapping and inverse over a map
+// view of the given size, the scale read off the mapping.
 export const projectionOf = (
   toScreen: (world: Point) => Point,
-  toWorld: (screen: Point) => Point
+  toWorld: (screen: Point) => Point,
+  size: { height: number; width: number }
 ): DebugProjection => ({
+  ...size,
   scale: toScreen({ x: 1, y: 0 }).x - toScreen({ x: 0, y: 0 }).x,
   toScreen,
   toWorld
 });
+
+// How the Debug views letter: a line's height and width, and drawing
+// text, outlined in black to read on any terrain, its top left at (x, y).
+export interface DebugLettering {
+  draw(
+    ctx: CanvasRenderingContext2D,
+    text: string,
+    x: number,
+    y: number,
+    colour: string
+  ): void;
+  height: number;
+  measure(text: string): number;
+}
+
+// The game's font, for the Classic view.
+export const pixelLettering = (font: Font): DebugLettering => ({
+  draw: (ctx, text, x, y, colour) =>
+    drawOutlined(ctx, font, text, x, y, colour),
+  height: font.metrics.height,
+  measure: text => measureText(font.metrics, text)
+});
+
+// A small system font, for the Atlas map's canvas.
+export const canvasLettering = (
+  ctx: CanvasRenderingContext2D,
+  size = 11
+): DebugLettering => {
+  const font = `bold ${size}px ui-monospace, Menlo, monospace`;
+  const height = Math.round(size * 1.25);
+  return {
+    draw: (target, text, x, y, colour) => {
+      target.save();
+      target.font = font;
+      target.textBaseline = 'top';
+      target.lineJoin = 'round';
+      target.lineWidth = 3;
+      target.strokeStyle = '#000';
+      target.fillStyle = colour;
+      text.split('\n').forEach((line, row) => {
+        target.strokeText(line, x, y + row * height);
+        target.fillText(line, x, y + row * height);
+      });
+      target.restore();
+    },
+    height,
+    measure: text => {
+      ctx.save();
+      ctx.font = font;
+      const width = ctx.measureText(text).width;
+      ctx.restore();
+      return width;
+    }
+  };
+};
 
 // A terrain percentage as a colour: red at 1%, through yellow, to
 // green at 100%. 0% is impassable and hatched instead.
@@ -111,10 +174,10 @@ export const drawTerrainView = (
   }
   ctx.save();
   ctx.beginPath();
-  ctx.rect(0, 0, ctx.canvas.width, MAP_HEIGHT);
+  ctx.rect(0, 0, view.width, view.height);
   ctx.clip();
   const topLeft = view.toWorld({ x: 0, y: 0 });
-  const bottomRight = view.toWorld({ x: ctx.canvas.width, y: MAP_HEIGHT });
+  const bottomRight = view.toWorld({ x: view.width, y: view.height });
   const size = TILE_SIZE * view.scale;
   const firstX = Math.max(0, Math.floor(topLeft.x / TILE_SIZE));
   const firstY = Math.max(0, Math.floor(topLeft.y / TILE_SIZE));
@@ -159,20 +222,22 @@ export const drawTerrainView = (
 };
 
 // The terrain legend, drawn over the frame at the bottom of the map,
-// clear of the icon column.
+// clear of the icon column, sized to its lettering.
 export const drawTerrainLegend = (
   ctx: CanvasRenderingContext2D,
-  font: Font
+  view: DebugProjection,
+  lettering: DebugLettering
 ): void => {
   const steps = [0, 25, 50, 75, 100];
-  const step = 20;
-  const { height } = font.metrics;
-  const x = 160 - (steps.length * step) / 2;
-  const y = MAP_HEIGHT - height - 8;
+  const { height } = lettering;
+  const step = height * 2;
+  const bar = Math.max(3, Math.round(height / 4));
+  const x = view.width / 2 - (steps.length * step) / 2;
+  const y = view.height - height - 8;
   steps.forEach((percent, i) => {
     ctx.fillStyle = percent === 0 ? '#333' : terrainColour(percent, 1);
-    ctx.fillRect(x + i * step, y, step - 2, 3);
-    drawOutlined(ctx, font, `${percent}`, x + i * step, y + 4, '#fff');
+    ctx.fillRect(x + i * step, y, step - 2, bar);
+    lettering.draw(ctx, `${percent}`, x + i * step, y + bar + 1, '#fff');
   });
 };
 
@@ -285,7 +350,7 @@ export const drawEncountersView = (
   ctx: CanvasRenderingContext2D,
   sim: SimState,
   view: DebugProjection,
-  font: Font
+  lettering: DebugLettering
 ): void => {
   ctx.save();
   ctx.lineWidth = 0.5;
@@ -300,9 +365,8 @@ export const drawEncountersView = (
     const height = (area.bottom - area.top + TILE_SIZE) * view.scale;
     ctx.strokeStyle = live ? '#ff80ff' : '#909090';
     ctx.strokeRect(x, y, width, height);
-    drawOutlined(
+    lettering.draw(
       ctx,
-      font,
       figure.name,
       Math.round(x + 2),
       Math.round(y + 1),
@@ -322,20 +386,20 @@ export const drawLabelsView = (
   ctx: CanvasRenderingContext2D,
   forces: Force[],
   view: DebugProjection,
-  font: Font
+  lettering: DebugLettering
 ): void => {
-  const { height } = font.metrics;
+  const { height } = lettering;
   ctx.save();
   for (const force of forces) {
     const text = forceLabel(force);
-    const width = measureText(font.metrics, text);
+    const width = lettering.measure(text);
     const top = view.toScreen({
       x: force.position.x + TILE_SIZE / 2,
       y: force.position.y
     });
     const x = Math.round(top.x - width / 2);
     const y = Math.round(top.y) - height - 1;
-    drawOutlined(ctx, font, text, x, y, sideColour(force.leader.allegiance));
+    lettering.draw(ctx, text, x, y, sideColour(force.leader.allegiance));
   }
   ctx.restore();
 };
@@ -356,9 +420,9 @@ export const drawPointerView = (
   sim: SimState,
   view: DebugProjection,
   pointer: Point | null,
-  font: Font
+  lettering: DebugLettering
 ): void => {
-  if (!pointer || pointer.y < 0 || pointer.y >= MAP_HEIGHT) {
+  if (!pointer || pointer.y < 0 || pointer.y >= view.height) {
     return;
   }
   const world = view.toWorld(pointer);
@@ -366,8 +430,8 @@ export const drawPointerView = (
     x: Math.floor(world.x),
     y: Math.floor(world.y)
   });
-  const { height } = font.metrics;
+  const { height } = lettering;
   // At the bottom left, clear of the Menu button and the windows.
-  const top = MAP_HEIGHT - lines.length * height - 6;
-  drawOutlined(ctx, font, lines.join('\n'), 4, top + 2, '#fff');
+  const top = view.height - lines.length * height - 6;
+  lettering.draw(ctx, lines.join('\n'), 4, top + 2, '#fff');
 };
