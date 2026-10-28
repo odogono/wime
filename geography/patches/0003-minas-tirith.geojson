@@ -3,28 +3,80 @@
   "features": [
     {
       "type": "Feature",
-      "geometry": { "type": "Point", "coordinates": [1640, 1160] },
-      "properties": { "id": "place:OSGILIATH", "op": "replace" }
+      "geometry": {
+        "type": "Point",
+        "coordinates": [1616, 1194]
+      },
+      "properties": {
+        "id": "place:MINAS TIRITH",
+        "op": "replace"
+      }
     },
     {
       "type": "Feature",
-      "geometry": { "type": "Point", "coordinates": [1624, 1175] },
-      "properties": { "id": "place:RAMMAS FORTS", "op": "replace" }
+      "geometry": {
+        "type": "Point",
+        "coordinates": [1628, 1174]
+      },
+      "properties": {
+        "id": "place:RAMMAS FORTS",
+        "op": "replace"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [1604, 1214]
+      },
+      "properties": {
+        "id": "place:LOSSARNACH",
+        "op": "replace"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [1642, 1192]
+      },
+      "properties": {
+        "id": "place:OSGILIATH",
+        "op": "replace"
+      }
     },
     {
       "type": "Feature",
       "geometry": null,
-      "properties": { "id": "symbol:peak:1615,1189", "op": "delete" }
+      "properties": {
+        "id": "symbol:peak:1605,1187",
+        "op": "delete"
+      }
     },
     {
       "type": "Feature",
       "geometry": null,
-      "properties": { "id": "symbol:peak:1621,1195", "op": "delete" }
+      "properties": {
+        "id": "symbol:peak:1615,1189",
+        "op": "delete"
+      }
     },
     {
       "type": "Feature",
       "geometry": null,
-      "properties": { "id": "crossing:1638,1190", "op": "replace", "span": 3 }
+      "properties": {
+        "id": "symbol:peak:1621,1195",
+        "op": "delete"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "id": "crossing:1638,1190",
+        "op": "replace",
+        "span": 3
+      }
     }
   ]
 }

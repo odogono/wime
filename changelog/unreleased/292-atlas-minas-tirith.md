@@ -5,6 +5,6 @@ section: fixed
 ---
 
 **Osgiliath and the Rammas Forts show beside Minas Tirith on the Atlas
-map**, drawn on the Anduin and on the Pelennor rather than hidden under
-the city's picture, with Osgiliath's bridge drawn and no peaks over the
-city (#292).
+map**: the city stands back from the Anduin, Osgiliath on the river
+where the road crosses it, and the forts on the Pelennor, rather than
+hidden under the city's picture (#292).
