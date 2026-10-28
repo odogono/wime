@@ -105,14 +105,14 @@ export interface EmblemLayer {
 const whole = (name: string): EmblemLayer => ({ name, size: 1, x: 0, y: 0 });
 
 // Where a Unit's device and mark lie on each shield, in units of the
-// 64-unit box: as in the original's Badges, the device up and to the
-// left, and the weapon across the lower right, past the rim. The cavalry's
-// horse's head stands upright in the lower right.
+// 64-unit box: the device filling the shield, and over it, as on the
+// original's Badges, the weapon across the lower right, past the rim. The
+// cavalry's horse's head stands upright in the lower right.
 const MARK = { size: 42, x: 21, y: 21 };
 const HORSE = { size: 30, x: 33, y: 31 };
 const SHIELD_LAYOUT = {
-  heraldic: { device: { size: 28, x: 13, y: 11 }, outline: 'shield' },
-  round: { device: { size: 28, x: 12, y: 13 }, outline: 'round-shield' }
+  heraldic: { device: { size: 36, x: 14, y: 13 }, outline: 'shield' },
+  round: { device: { size: 36, x: 14, y: 15 }, outline: 'round-shield' }
 } as const;
 
 const at = (

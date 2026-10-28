@@ -48,8 +48,8 @@ The outline tells a Character from a Unit at every tier:
   foot, 40 units wide and 56 high. A Unit is elite where its Badge in
   the original is the heraldic shield (`finding:graphics-unit-nation-only-in-campaign-icon`).
   As on the original's Badges (`finding:graphics-unit-badge-weapons`),
-  the Nation's device sits up and to the left on the shield, and the
-  Unit Type's mark crosses its lower right: a weapon laid point up and
+  the Nation's device fills the shield, centred, and the Unit Type's
+  mark crosses it at the lower right, overlapping the device: a weapon laid point up and
   to the right, overhanging the rim, or the cavalry's horse's head
   standing in the corner. A mark is rimmed in ink, so it reads over the
   device, the field and the map alike.
