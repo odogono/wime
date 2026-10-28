@@ -48,8 +48,13 @@ export interface Screen {
   // Copy a buffer to the visible canvas, integer-scaled and centred.
   // Both fill the same frame, so a hi-res pixel is half as wide. Over
   // the Atlas map the canvas is cleared to transparent, not black, so
-  // the map shows through wherever the buffer is clear.
-  present(resolution?: Resolution, transparent?: boolean): void;
+  // the map shows through wherever the buffer is clear; a `margin`
+  // colour fills the canvas around the frame, as a menu's dim does.
+  present(
+    resolution?: Resolution,
+    transparent?: boolean,
+    margin?: string
+  ): void;
   // Resize the visible canvas to the window, in device pixels.
   resize(): Fit;
 }
@@ -84,12 +89,23 @@ export const createScreen = (canvas: HTMLCanvasElement): Screen => {
 
   const present = (
     resolution: Resolution = 'lores',
-    transparent = false
+    transparent = false,
+    margin?: string
   ): void => {
     // Resizing a canvas resets its context state, so set this every time.
     visible.imageSmoothingEnabled = false;
     if (transparent) {
       visible.clearRect(0, 0, canvas.width, canvas.height);
+      if (margin) {
+        // Around the frame only: the buffer carries its own dim.
+        const width = NATIVE_WIDTH * fit.scale;
+        const height = NATIVE_HEIGHT * fit.scale;
+        visible.fillStyle = margin;
+        visible.fillRect(0, 0, canvas.width, fit.y);
+        visible.fillRect(0, fit.y + height, canvas.width, canvas.height);
+        visible.fillRect(0, fit.y, fit.x, height);
+        visible.fillRect(fit.x + width, fit.y, canvas.width, height);
+      }
     } else {
       visible.fillStyle = '#000';
       visible.fillRect(0, 0, canvas.width, canvas.height);

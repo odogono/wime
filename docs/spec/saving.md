@@ -67,3 +67,9 @@ The port also saves the game by itself to a reserved autosave slot
 - The title menu resumes from the autosave or a named slot
   (docs/spec/title-menu.md), and the in-game menu saves to and loads
   from the slots during play (docs/spec/game-menu.md).
+- A page reloaded while a game was in play skips the boot sequence and
+  the title menu: the game resumes from the autosave, paused under the
+  in-game menu. A session flag, `wime.resume-on-reload` in
+  `sessionStorage`, is set when the page is hidden in play and cleared
+  when it is hidden on the title, in a Demo or after the ending. If the
+  autosave cannot be loaded, the page opens on the boot sequence.
