@@ -1,0 +1,30 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [1640, 1160] },
+      "properties": { "id": "place:OSGILIATH", "op": "replace" }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [1624, 1175] },
+      "properties": { "id": "place:RAMMAS FORTS", "op": "replace" }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": { "id": "symbol:peak:1615,1189", "op": "delete" }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": { "id": "symbol:peak:1621,1195", "op": "delete" }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": { "id": "crossing:1638,1190", "op": "replace", "span": 3 }
+    }
+  ]
+}
