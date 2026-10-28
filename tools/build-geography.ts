@@ -1297,7 +1297,11 @@ export const scatterSymbols = (
             kind: symbol,
             layer: 'symbol',
             rank,
-            variant: (r >>> 24) % 3
+            // A hill's variant also picks its shape, one of three.
+            variant:
+              ((r >>> 24) % 3) +
+              (symbol === 'hill' ? 3 * (hash(gx, gy, 9) % 3) : 0),
+            ...(symbol === 'hill' && { jitter: hash(gx, gy, 5) & 0xff })
           },
           type: 'Feature'
         });
@@ -1519,6 +1523,10 @@ const peakSize = (inside: number): number =>
 
 // A peak in an evil range adds this to its variant, for darker shapes.
 export const DARK_PEAK = 16;
+// A foothill's variant is this plus its size class times FOOTHILL_SHAPES
+// plus its shape.
+export const FOOTHILL = 32;
+const FOOTHILL_SHAPES = 7;
 // How near an evil Place a range must come to be evil.
 const EVIL_REACH = 40;
 
@@ -1576,6 +1584,8 @@ export const placePeaks = (
     )
     .filter(line => lineLength(line) >= 12);
   const peaks: {
+    foothill?: number;
+    jitter?: number;
     lean: number;
     rank: number;
     size: number;
@@ -1620,6 +1630,10 @@ export const placePeaks = (
         continue;
       }
       peaks.push({
+        // Foothills pick among several shapes, with a slight tilt and
+        // scale, so the scatter shows no repeating pattern.
+        foothill: (r >>> 16) % FOOTHILL_SHAPES,
+        jitter: (r >>> 24) & 0xff,
         lean: (r >>> 16) % 3,
         rank: 2,
         size: depth < 10 ? 0 : 1,
@@ -1635,10 +1649,14 @@ export const placePeaks = (
       geometry: { coordinates: [p.x, p.y], type: 'Point' },
       properties: {
         id: `symbol:peak:${Math.round(p.x)},${Math.round(p.y)}`,
+        jitter: p.jitter ?? 0,
         kind: 'peak',
         layer: 'symbol',
         rank: p.rank,
-        variant: p.size * 3 + p.lean + (darkAt([p.x, p.y]) ? DARK_PEAK : 0)
+        variant:
+          p.foothill !== undefined && !darkAt([p.x, p.y])
+            ? FOOTHILL + p.size * FOOTHILL_SHAPES + p.foothill
+            : p.size * 3 + p.lean + (darkAt([p.x, p.y]) ? DARK_PEAK : 0)
       },
       type: 'Feature'
     }));
@@ -2075,7 +2093,8 @@ export const compileBundle = (geography: Geography): Uint8Array => {
         SYMBOL_KINDS.indexOf(f.properties.kind as SymbolKind),
         f.properties.variant as number,
         f.properties.rank as number,
-        0
+        // A peak's or hill's tilt (low four bits) and scale (high four).
+        (f.properties.jitter as number | undefined) ?? 0
       );
     } else if (layer === 'crossing') {
       const [x, y] = f.geometry.coordinates as Point;

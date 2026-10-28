@@ -211,7 +211,9 @@ layout(location = 1) in vec2 a_pos;
 layout(location = 2) in float a_kind;
 layout(location = 3) in float a_variant;
 layout(location = 4) in float a_rank;
-layout(location = 5) in float a_angle; // 0 to 255 over half a turn
+// A crossing's angle, 0 to 255 over half a turn; a peak's or hill's
+// jitter, its tilt in the low four bits and its scale in the high four.
+layout(location = 5) in float a_angle;
 uniform float u_sizes[6]; // device pixels
 uniform float u_mapScale; // device pixels per map pixel
 uniform float u_peakPad; // an atlas cell's size over its drawing's
@@ -223,18 +225,25 @@ flat out float v_variant;
 flat out float v_size;
 void main() {
   int k = int(a_kind);
-  float size = a_rank > u_maxRank ? 0.0 : u_sizes[k] * (0.85 + a_variant * 0.12);
+  float size = a_rank > u_maxRank ? 0.0 : u_sizes[k] * (0.85 + mod(a_variant, 3.0) * 0.12);
   // A crossing spans its water: its variant is that width in map pixels.
   if (k >= 4) size = max(u_sizes[k], (a_variant + 8.0) * u_mapScale);
-  // A peak's variant is its size class times 3 plus its lean.
-  // Its quad covers the atlas cell, margin and all.
-  if (k == 1 && a_rank <= u_maxRank) size = u_sizes[k] * (0.9 + floor(mod(a_variant, 16.0) / 3.0) * 0.3) * u_peakPad;
+  // A peak's variant is its size class times 3 plus its lean, or a
+  // foothill's size class times 7 plus its shape (from 32). Its quad
+  // covers the atlas cell, margin and all.
+  float sizeClass = a_variant >= 32.0 ? floor((a_variant - 32.0) / 7.0) : floor(mod(a_variant, 16.0) / 3.0);
+  if (k == 1 && a_rank <= u_maxRank) size = u_sizes[k] * (0.9 + sizeClass * 0.3) * u_peakPad;
   v_local = a_corner;
   v_kind = k;
   v_variant = a_variant;
   v_size = size;
   // Crossings lie along their road; x in the symbol runs with it.
   float angle = a_angle / 255.0 * 3.14159265;
+  if (k == 1 || k == 2) {
+    // Up to about 6 degrees either way, and 12% larger or smaller.
+    angle = (mod(a_angle, 16.0) / 15.0 - 0.5) * 0.2;
+    size *= 0.88 + floor(a_angle / 16.0) / 15.0 * 0.24;
+  }
   vec2 corner = mat2(cos(angle), sin(angle), -sin(angle), cos(angle)) * a_corner;
   gl_Position = vec4(toClip(a_pos / u_fixed) + corner * 0.5 * size * u_pixel * vec2(1.0, -1.0), 0.0, 1.0);
 }`;
@@ -251,7 +260,7 @@ uniform vec3 u_leaf;
 uniform vec3 u_marsh;
 uniform sampler2D u_pictograms;
 uniform vec2 u_pictogramSize;
-uniform vec2 u_peakCells[11]; // each peak shape's cell origin, in texels
+uniform vec2 u_peakCells[16]; // each peak shape's cell origin, in texels
 uniform float u_peakCell; // a cell's size, in texels
 out vec4 colour;
 float stroke(float d, float w, float aa) { return 1.0 - smoothstep(w - aa, w + aa, abs(d)); }
@@ -284,11 +293,14 @@ void main() {
     c = mix(c, vec4(u_ink, 1.0), ink);
   } else if (v_kind == 1) {
     // A peak, drawn from the pictogram atlas: red is ink, green paper.
-    bool dark = v_variant >= 16.0;
+    bool dark = v_variant >= 16.0 && v_variant < 32.0;
     float variant = dark ? v_variant - 16.0 : v_variant;
     int size = int(variant / 3.0);
     int lean = int(mod(variant, 3.0));
-    int shape = dark ? (size <= 1 ? 10 : 8 + lean % 2)
+    // Foothills: the two low peaks, then the foothill shapes.
+    int foothill = int(mod(v_variant - 32.0, 7.0));
+    int shape = v_variant >= 32.0 ? (foothill < 2 ? foothill : 9 + foothill)
+      : dark ? (size <= 1 ? 10 : 8 + lean % 2)
       : size == 0 ? 6 + lean % 2
       : size == 1 ? (lean == 0 ? 3 : 6 + lean % 2)
       : size == 2 ? 3 + lean
@@ -302,12 +314,20 @@ void main() {
     c = vec4(mix(u_paper, u_ink, ink), max(ink, body));
   } else if (v_kind == 2) {
     // A hill: a rounded mound, inked over its crest, its eastern flank
-    // shaded with short strokes, as on Tolkien's maps.
-    float lean = (v_variant - 1.0) * 0.1;
+    // shaded with short strokes, as on Tolkien's maps. Its variant is its
+    // shape times 3 plus its lean; the shapes are a dome, a broad low
+    // mound and a pair of humps.
+    float lean = (mod(v_variant, 3.0) - 1.0) * 0.1;
+    int form = int(v_variant / 3.0);
     vec2 q = vec2(p.x - lean, p.y);
-    // An ellipse sitting on the baseline, its distance roughly in the
+    // Ellipses sitting on the baseline, their distance roughly in the
     // symbol's own units.
-    float mound = (length(vec2(q.x / 0.95, (q.y - 0.55) / 1.1)) - 1.0) * 0.95;
+    float mound = form == 1
+      ? (length(vec2(q.x / 1.0, (q.y - 0.55) / 0.8)) - 1.0) * 0.85
+      : form == 2
+      ? min((length(vec2((q.x + 0.32) / 0.62, (q.y - 0.55) / 1.0)) - 1.0) * 0.7,
+            (length(vec2((q.x - 0.4) / 0.55, (q.y - 0.55) / 0.72)) - 1.0) * 0.6)
+      : (length(vec2(q.x / 0.95, (q.y - 0.55) / 1.1)) - 1.0) * 0.95;
     float upper = step(q.y, 0.55);
     float body = fill(mound, aa) * upper;
     float shade = stroke(fract(q.x * 4.0 + q.y * 1.5) - 0.5, 0.1, 0.08) * step(0.12, q.x) * body;
