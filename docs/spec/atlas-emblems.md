@@ -51,7 +51,7 @@ The outline tells a Character from a Unit at every tier:
   the Nation's device fills the shield, centred, and the Unit Type's
   mark crosses it at the lower right, overlapping the device: a weapon laid point up and
   to the right, overhanging the rim, or the cavalry's horse's head
-  standing in the corner. A mark is rimmed in ink, so it reads over the
+  or the elves' bow, level in the corner. A mark is rimmed in ink, so it reads over the
   device, the field and the map alike.
 
 Banners carry no pole, crossbar, cords or ragged edges, and shields no
@@ -143,6 +143,7 @@ Every Emblem is made the same way, so that they stay one family.
    bun run trace-emblem rohan.png --shape charge --out device-rohan.svg
    bun run trace-emblem sword.png --shape mark --out mark-infantry.svg
    bun run trace-emblem horse-head.png --shape mark --upright --out mark-cavalry.svg
+   bun run trace-emblem bow.png --shape mark --upright --out mark-elves.svg
    ```
 
 3. Save it in `web/src/view/atlas/emblems/`, as `device-<nation>.svg`

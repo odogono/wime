@@ -107,9 +107,9 @@ const whole = (name: string): EmblemLayer => ({ name, size: 1, x: 0, y: 0 });
 // Where a Unit's device and mark lie on each shield, in units of the
 // 64-unit box: the device filling the shield, and over it, as on the
 // original's Badges, the weapon across the lower right, past the rim. The
-// cavalry's horse's head stands upright in the lower right.
+// cavalry's horse's head and the elves' bow stand level in the lower right.
 const MARK = { size: 42, x: 21, y: 21 };
-const HORSE = { size: 30, x: 33, y: 31 };
+const LEVEL = { size: 30, x: 33, y: 31 };
 const SHIELD_LAYOUT = {
   heraldic: { device: { size: 36, x: 14, y: 13 }, outline: 'shield' },
   round: { device: { size: 36, x: 14, y: 15 }, outline: 'round-shield' }
@@ -135,7 +135,12 @@ export const emblemLayers = (force: Force): EmblemLayer[] => {
     whole(layout.outline),
     at(`device-${shield.nation}`, layout.device),
     ...(shield.type
-      ? [at(`mark-${shield.type}`, shield.type === 'cavalry' ? HORSE : MARK)]
+      ? [
+          at(
+            `mark-${shield.type}`,
+            shield.type === 'cavalry' || shield.type === 'elves' ? LEVEL : MARK
+          )
+        ]
       : [])
   ];
 };
