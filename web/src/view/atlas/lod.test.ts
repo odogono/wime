@@ -3,11 +3,13 @@ import { describe, expect, test } from 'bun:test';
 import {
   EMBLEM_MAP_SIZE,
   EMBLEM_MIN_SIZE,
+  ROAD_FAR_OPACITY,
   bandAt,
   clusterDots,
   emblemSize,
   placeLabels,
   rankZoom,
+  roadOpacity,
   tierFor,
   zoomRange
 } from './lod';
@@ -116,5 +118,17 @@ describe('placeLabels', () => {
     expect(placeLabels([box(0), box(20), box(100)]).map(l => l.box.x)).toEqual([
       0, 100
     ]);
+  });
+});
+
+describe('roadOpacity', () => {
+  test('keeps roads inked at the Full Map Level fit zoom', () => {
+    expect(roadOpacity(range.min, range)).toBe(ROAD_FAR_OPACITY);
+    expect(ROAD_FAR_OPACITY).toBeGreaterThan(0);
+  });
+
+  test('inks roads fully at the band boundary and above', () => {
+    expect(roadOpacity(range.boundary, range)).toBe(1);
+    expect(roadOpacity(range.campaign, range)).toBe(1);
   });
 });
