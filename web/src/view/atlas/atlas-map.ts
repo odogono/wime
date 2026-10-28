@@ -11,6 +11,7 @@ import {
   bandAt,
   clusterDots,
   emblemSize,
+  nameZoom,
   placeLabels,
   rankZoom,
   roadOpacity,
@@ -525,9 +526,9 @@ export const createAtlasMap = async (
       }
     }
     // Place names, the most important first, never overlapping each other
-    // or a Force.
+    // or a Place's picture; Forces are drawn over them.
     const labels = bundle.places
-      .filter(p => !hidden.has(p) && camera.zoom >= rankZoom(p.rank, r))
+      .filter(p => !hidden.has(p) && camera.zoom >= nameZoom(p.rank, r))
       .sort((a, b) => a.rank - b.rank)
       .map(p => {
         const px = p.rank === 0 ? 15 : 12;
@@ -546,7 +547,7 @@ export const createAtlasMap = async (
           y
         });
         return {
-          // Clear of any Force there: above the picture, then to either
+          // Clear of a neighbouring picture: above the picture, then to either
           // side.
           alternatives: area
             ? []
@@ -575,14 +576,21 @@ export const createAtlasMap = async (
           l.box.y < height() &&
           l.box.y + l.box.height > 0
       );
+    // Names keep clear of every Place's picture, inset by
+    // the labels' gap so a Place's own name can sit against its picture.
+    const pictureBoxes = pictured.map(p => {
+      const at = toScreen(p);
+      const size = pictogramSize(p.rank) - 8;
+      return {
+        height: size,
+        width: size,
+        x: at.x - size / 2,
+        y: at.y - size / 2
+      };
+    });
     const lettering = placeLabels(
       [...regionLabels, ...labels],
-      picks.map(({ box }) => ({
-        height: box.h,
-        width: box.w,
-        x: box.x,
-        y: box.y
-      }))
+      pictureBoxes
     ).flatMap(l =>
       textQuads(
         l.text,

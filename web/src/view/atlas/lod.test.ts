@@ -7,6 +7,7 @@ import {
   bandAt,
   clusterDots,
   emblemSize,
+  nameZoom,
   placeLabels,
   rankZoom,
   roadOpacity,
@@ -92,6 +93,13 @@ describe('rankZoom', () => {
     expect(rankZoom(0, range)).toBe(0);
     expect(rankZoom(1, range)).toBe(range.boundary);
     expect(rankZoom(2, range)).toBeGreaterThanOrEqual(range.boundary);
+  });
+});
+
+describe('nameZoom', () => {
+  test('names Strongholds with their pictures and lesser Places closer in', () => {
+    expect(nameZoom(0, range)).toBe(0);
+    expect(nameZoom(1, range)).toBeGreaterThan(range.campaign);
   });
 });
 

@@ -238,8 +238,10 @@ flat out float v_size;
 void main() {
   int k = int(a_kind);
   float size = a_rank > u_maxRank ? 0.0 : u_sizes[k] * (0.85 + mod(a_variant, 3.0) * 0.12);
-  // A crossing spans its water: its variant is that width in map pixels.
-  if (k >= 4) size = max(u_sizes[k], (a_variant + 8.0) * u_mapScale);
+  // A crossing spans its water, its variant that width in map pixels,
+  // with a little to spare; zoomed in, it stops growing at twice a
+  // symbol's size so it never dwarfs the river.
+  if (k >= 4) size = clamp((a_variant + 2.0) * u_mapScale, u_sizes[k], u_sizes[k] * 2.0);
   // A peak's variant is its size class times 3 plus its lean, or a
   // foothill's size class times 7 plus its shape (from 32). Its quad
   // covers the atlas cell, margin and all.
@@ -348,8 +350,8 @@ void main() {
   } else if (v_kind == 4) {
     // A bridge: a paper deck over the water between two parapets that
     // splay at either end.
-    float splay = smoothstep(0.55, 0.95, abs(p.x)) * 0.2;
-    float half_ = 0.32 + splay;
+    float splay = smoothstep(0.55, 0.95, abs(p.x)) * 0.15;
+    float half_ = 0.2 + splay;
     float deck = max(abs(p.y) - half_, abs(p.x) - 0.95);
     float parapets = max(abs(abs(p.y) - half_) - w * 0.7, abs(p.x) - 0.95);
     c = vec4(u_paper, fill(deck, aa));
