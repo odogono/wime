@@ -1164,26 +1164,85 @@ export const traceCrossings = (
   const named = places.filter(p =>
     ['bridge', 'ford'].includes(p.properties.pictogram as string)
   );
-  // A named crossing the roads miss sits on the water nearest its Place.
+  // A named crossing the roads miss is where the road nearest its Place
+  // meets its river. The roads' clearing cuts the river under them, so
+  // look across the road for water on both sides, and measure the river
+  // along the road where it resumes.
+  const BANK = 4;
+  const across = (p: Point, nx: number, ny: number): number => {
+    for (let k = 1; k <= BANK; k++) {
+      if (wetAt(p[0] + nx * k, p[1] + ny * k)) {
+        return k;
+      }
+    }
+    return 0;
+  };
   for (const place of named) {
     const [px, py] = place.geometry.coordinates as Point;
     if (crossings.some(c => Math.hypot(c.x - px, c.y - py) < FORD_REACH)) {
       continue;
     }
-    let best: Point | null = null;
-    for (let r = 0; r <= 16 && !best; r++) {
-      for (let a = 0; a < 16 && !best; a++) {
-        const q: Point = [
-          px + Math.cos((a / 16) * 2 * Math.PI) * r,
-          py + Math.sin((a / 16) * 2 * Math.PI) * r
-        ];
-        if (wetAt(q[0], q[1])) {
-          best = q;
+    let best: (typeof found)[number] | null = null;
+    let bestD = FORD_REACH;
+    for (const road of roads) {
+      const line = road.geometry.coordinates as Point[];
+      for (let i = 0; i < line.length - 1; i++) {
+        const [ax, ay] = line[i]!;
+        const [bx, by] = line[i + 1]!;
+        const len = Math.hypot(bx - ax, by - ay);
+        const dx = (bx - ax) / len;
+        const dy = (by - ay) / len;
+        for (let k = 0; k < len; k++) {
+          const p: Point = [ax + dx * k, ay + dy * k];
+          const left = across(p, -dy, dx);
+          const right = across(p, dy, -dx);
+          if (!left || !right) {
+            continue;
+          }
+          // The river's width along the road, on its narrower bank.
+          const c = [
+            [left, 1],
+            [right, -1]
+          ]
+            .map(([k0, side]) => {
+              const bank: Point = [
+                p[0] - dy * side! * k0!,
+                p[1] + dx * side! * k0!
+              ];
+              const run = (sign: number): number => {
+                let n = 0;
+                while (
+                  n < MAX_CROSSING &&
+                  wetAt(
+                    bank[0] + dx * sign * (n + 1),
+                    bank[1] + dy * sign * (n + 1)
+                  )
+                ) {
+                  n++;
+                }
+                return n;
+              };
+              const lo = run(-1);
+              const hi = run(1);
+              const mid = (hi - lo) / 2;
+              return {
+                angle: (Math.atan2(dy, dx) + Math.PI) % Math.PI,
+                span: lo + hi + 1,
+                x: p[0] + dx * mid,
+                y: p[1] + dy * mid
+              };
+            })
+            .sort((m, n) => m.span - n.span)[0]!;
+          const d = Math.hypot(c.x - px, c.y - py);
+          if (c.span <= MAX_CROSSING && d < bestD) {
+            best = c;
+            bestD = d;
+          }
         }
       }
     }
     if (best) {
-      crossings.push({ angle: 0, span: 10, x: best[0], y: best[1] });
+      crossings.push(best);
     }
   }
   // Each named ford is the crossing nearest its Place; the rest are
