@@ -11,11 +11,10 @@ test('fits a trace into its box in parchment', () => {
   );
 });
 
-test('puts a mark in the chief of a shield only', () => {
-  const shield = composeEmblem('shield', TRACE, TRACE);
-  expect(shield.match(/<svg x=/g)).toHaveLength(2);
-  expect(shield).toContain('M11.5 20 L52.5 20');
-  expect(() => composeEmblem('banner', TRACE, TRACE)).toThrow(
-    'a banner has no chief for a mark'
-  );
+test('rims a mark in ink and lays a weapon point up and to the right', () => {
+  const weapon = composeEmblem('mark', TRACE);
+  expect(weapon).toContain('<g transform="rotate(135 32 32)">');
+  expect(weapon).toContain('stroke="#3a2c1c"');
+  expect(weapon).toContain('paint-order="stroke"');
+  expect(composeEmblem('mark', TRACE, true)).not.toContain('rotate');
 });

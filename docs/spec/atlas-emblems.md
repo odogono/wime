@@ -9,9 +9,9 @@ an SVG fitted by hand to this sheet.
 
 ## Samples
 
-| Character: Aragorn                                       | Unit: Rohan cavalry                                                  |
-| -------------------------------------------------------- | -------------------------------------------------------------------- |
-| ![Aragorn](../../web/src/view/atlas/emblems/aragorn.svg) | ![Rohan cavalry](../../web/src/view/atlas/emblems/rohan-cavalry.svg) |
+| Character: Aragorn                                       | Unit: Rohan cavalry                               |
+| -------------------------------------------------------- | ------------------------------------------------- |
+| ![Aragorn](../../web/src/view/atlas/emblems/aragorn.svg) | ![Rohan cavalry](atlas-emblems/rohan-cavalry.svg) |
 
 ## Palette
 
@@ -47,8 +47,12 @@ The outline tells a Character from a Unit at every tier:
   elite troops, a **heater shield**: a gently peaked top and a pointed
   foot, 40 units wide and 56 high. A Unit is elite where its Badge in
   the original is the heraldic shield (`finding:graphics-unit-nation-only-in-campaign-icon`).
-  On either, a level ink line parts off the **chief**, the top fifth,
-  which holds the Unit Type's mark; the Nation's device fills the rest.
+  As on the original's Badges (`finding:graphics-unit-badge-weapons`),
+  the Nation's device fills the shield, centred, and the Unit Type's
+  mark crosses it at the lower right, overlapping the device: a weapon laid point up and
+  to the right, overhanging the rim, or the cavalry's horse's head
+  or the elves' bow, level in the corner. A mark is rimmed in ink, so it reads over the
+  device, the field and the map alike.
 
 Banners carry no pole, crossbar, cords or ragged edges, and shields no
 bosses or rivets. All Characters share one banner, and Units the two
@@ -60,10 +64,10 @@ Each Emblem is drawn in a 64 × 64 viewBox, meant to be shown from about
 24 to 64 CSS pixels tall.
 
 - The rim is 3 units of ink, stroked on the outline with round joins.
-- The chief line is 2 units.
+- A mark's ink rim shows 2.5 units outside it.
 - Devices are silhouettes in the device tone, drawn with the care of a
   heraldic charge: a horse is a horse at 64 pixels. Inner ink lines are
-  kept to the chief line; a device that needs inner detail shows it as a
+  kept to the rims; a device that needs inner detail shows it as a
   gap in the parchment, not as ink.
 - A device's main masses (the horse's body and legs, the tree's trunk
   and boughs) are at least 2 units across, so its silhouette still reads
@@ -122,22 +126,30 @@ Every Emblem is made the same way, so that they stay one family.
      with a walking staff, on a round-topped banner. Draw it from this
      figure:" followed by the Character's Figure in the original,
      enlarged, so the silhouette keeps its pose and outline.
-   - Unit: "A heater shield bearing a running horse (Rohan), with a
-     small cavalry mark (a horse-head or lance) in the shield's chief."
 
-2. Trace it with `bun run trace-emblem`, giving the shape and, for
-   a Unit, the crops that part the chief's mark from the Nation's
-   device, in the reference's pixels. The samples were made with:
+   A Unit's shield is not drawn whole: the map lays its Nation's device
+   and its Unit Type's mark on the round or heraldic shield. Each is
+   generated alone, as "A single heraldic charge, drawn as a bold flat
+   silhouette in parchment #f0e4c4 on a plain flat blue #2f58a8 square
+   background that fills the whole image edge to edge", then the
+   charge: "a running horse, facing left" (a device), or "a straight
+   sword, lying horizontal, point to the left" (a mark). Ask for chunky
+   shapes with no thin lines: a mark is drawn small.
+
+2. Trace it with `bun run trace-emblem`, giving the shape:
 
    ```sh
    bun run trace-emblem aragorn.png --shape banner --out aragorn.svg
-   bun run trace-emblem rohan.png --shape shield \
-     --crop 1254x620+0+360 --mark-crop 1254x230+0+120 \
-     --out rohan-cavalry.svg
+   bun run trace-emblem rohan.png --shape charge --out device-rohan.svg
+   bun run trace-emblem sword.png --shape mark --out mark-infantry.svg
+   bun run trace-emblem horse-head.png --shape mark --upright --out mark-cavalry.svg
+   bun run trace-emblem bow.png --shape mark --upright --out mark-elves.svg
    ```
 
-3. Save it in `web/src/view/atlas/emblems/`, name the Forces it is
-   drawn for in `web/src/view/atlas/emblems.ts`, and run
+3. Save it in `web/src/view/atlas/emblems/`, as `device-<nation>.svg`
+   or `mark-<unit type>.svg` for a charge. Name a Character's Forces in
+   `web/src/view/atlas/emblems.ts`; a Unit's Nation and Unit Type come
+   from `web/src/view/atlas/unit-shields.ts`. Then run
    `bun run build-emblems` to compile the atlas the map draws from.
 4. Look at the result on the map at 24 and 64 pixels. Regenerate rather than
    retouch a device that does not read; edit the SVG by hand only for
