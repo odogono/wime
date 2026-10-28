@@ -4,6 +4,23 @@ The overview of the whole of Middle Earth and the windows opened from it.
 Facts cite their Findings (ADR-0004); they were recovered by the Full Map
 RE (#28).
 
+## The Forces on the map
+
+On the Classic map, each awake Leader leading its own Force is a dot,
+red for Evil and green otherwise
+(`finding:ui-full-map-dots-for-awake-leaders`,
+`finding:ui-full-map-dot-colours`). The dots of Leaders whose
+allegiance is above 2, the player's mobilised Forces among them, blink:
+cyan, then the cream of the land, so that they seem to vanish
+(`finding:ui-full-map-dot-colours`). Each phase lasts 30 ticks, taken
+as 0.6 s (`finding:ui-full-map-dots-blink-every-30-ticks`).
+
+On the Atlas map, the Forces are drawn as Dots and Aggregates in their
+Side colours, the Ring-bearer one tier more detailed
+(docs/spec/atlas-map.md), with no Classic dots. The same Forces blink
+at the same rate: they vanish in the off phase. An Aggregate vanishes
+only when every Force in it blinks.
+
 ## Galadriel's Mirror
 
 The eye, or `S`, opens Galadriel's Mirror. A press anywhere, or `S`
