@@ -26,6 +26,7 @@
     "export:web": "bun tools/export-web.ts",
     "build-geography": "bun tools/build-geography.ts",
     "build-emblems": "bun tools/build-emblems.ts",
+    "terrain-equivalence": "bun tools/terrain-equivalence.ts",
     "trace-emblem": "bun tools/trace-emblem.ts",
     "extract-all": "bun tools/extract-all.ts",
     "fs-uae:setup": "bun tools/fs-uae/setup.ts",
