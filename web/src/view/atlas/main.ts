@@ -17,7 +17,7 @@ const hud = document.querySelector<HTMLElement>('#hud')!;
 
 const assets = await loadCampaignAssets();
 const atlas = await createAtlasMap(canvas);
-let sim: SimState = createSim(0x14_18, assets.startingState, assets.tilemap);
+let sim: SimState = createSim(0x14_18, assets.startingState, assets.terrain);
 let running = false;
 const selected = new Set<number>();
 addEventListener('resize', atlas.resize);

@@ -434,7 +434,7 @@ const run = (
   };
   const restoreGame = (): ArchiveWindow => {
     const slot = archiveSlot();
-    const result = slot ? saveSlots.load(slot.id, assets.tilemap) : null;
+    const result = slot ? saveSlots.load(slot.id, assets.terrain) : null;
     if (!result || (!result.ok && result.reason !== 'other-version')) {
       return archiveMessage(ARCHIVE_MESSAGES.noArchive);
     }
@@ -481,7 +481,7 @@ const run = (
   const placements = iconPlacements(assets.icons);
   const driver = createTickDriver();
   const newSim = (seed = NEW_GAME_SEED): SimState =>
-    createSim(seed, assets.startingState, assets.tilemap);
+    createSim(seed, assets.startingState, assets.terrain);
   let sim: SimState = newSim();
   // The Shuffled Setup the game in play started from, null for the
   // Classic Setup; saved beside it (docs/spec/shuffled-setup.md).
@@ -496,7 +496,7 @@ const run = (
         seed,
         SHUFFLED_SETUP_AXES
       ),
-      assets.tilemap
+      assets.terrain
     );
   // The Demo playing, which owns the game while it plays: `sim` is then
   // a copy of its state, for the view to show and its windows to play
@@ -2616,8 +2616,8 @@ const run = (
     }
     const result =
       choice.id === AUTOSAVE_ID
-        ? saveSlots.loadAutosave(assets.tilemap)
-        : saveSlots.load(choice.id, assets.tilemap);
+        ? saveSlots.loadAutosave(assets.terrain)
+        : saveSlots.load(choice.id, assets.terrain);
     if (!result.ok) {
       titleMenu = { kind: 'message', lines: loadFailed(result.reason) };
       return;
@@ -2847,8 +2847,8 @@ const run = (
         }
         const result =
           choice.id === AUTOSAVE_ID
-            ? saveSlots.loadAutosave(assets.tilemap)
-            : saveSlots.load(choice.id, assets.tilemap);
+            ? saveSlots.loadAutosave(assets.terrain)
+            : saveSlots.load(choice.id, assets.terrain);
         if (!result.ok) {
           gameMenu = gameMenuMessage(loadFailed(result.reason));
           return;

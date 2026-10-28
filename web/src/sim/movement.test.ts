@@ -7,8 +7,7 @@ import {
   giveOrder,
   paceFor,
   takesOrder,
-  terrainAt,
-  type Tilemap
+  terrainAt
 } from './movement';
 import { forcesOf } from './starting-state';
 import {
@@ -19,6 +18,7 @@ import {
   watchEntry,
   type SimState
 } from './state';
+import { terrainGridOf } from './terrain';
 
 // The Reference runs of docs/spec/movement.md on synthetic
 // maps: the same starting positions, destinations, speed classes
@@ -92,17 +92,11 @@ interface WorldOptions {
 const makeSim = (options: WorldOptions): SimState => {
   const width = options.width ?? 160;
   const height = options.height ?? 99;
-  const indices: number[] = [];
-  for (let ty = 0; ty < height; ty++) {
-    for (let tx = 0; tx < width; tx++) {
-      indices.push(options.tileAt(tx, ty));
-    }
-  }
-  const tilemap: Tilemap = { height, indices, width };
-  const terrainByTile: number[] = [];
-  for (const [tile, terrain] of Object.entries(options.terrainByTile)) {
-    terrainByTile[Number(tile)] = terrain;
-  }
+  const terrain = terrainGridOf(
+    width,
+    height,
+    (tx, ty) => options.terrainByTile[options.tileAt(tx, ty)] ?? 100
+  );
   const clock = options.clock ?? { day: 0, quarterHour: 64 };
   return createSim(
     options.seed ?? 1,
@@ -119,10 +113,9 @@ const makeSim = (options: WorldOptions): SimState => {
       routes: (options.routes ?? []).map((places, index) => ({
         index,
         places
-      })),
-      terrain_by_tile: terrainByTile
+      }))
     },
-    tilemap
+    terrain
   );
 };
 
@@ -207,6 +200,20 @@ describe('S4: terrain pace', () => {
     });
     expect(paceFor(sim, 4, 60, false)).toBeCloseTo((460 * 60) / 100 / 256, 5);
     expect(terrainAt(sim, { x: 0, y: 0 })).toBe(60);
+  });
+
+  test('beyond the map edge the terrain is the open sea, tile 0', () => {
+    const sim = makeSim({
+      entries: [],
+      height: 2,
+      places: [place(1, 'X', 0, 0)],
+      terrainByTile: { 1: 60 },
+      tileAt: () => 1,
+      width: 2
+    });
+    expect(terrainAt(sim, { x: -1, y: 0 })).toBe(5);
+    expect(terrainAt(sim, { x: 32, y: 16 })).toBe(5);
+    expect(terrainAt(sim, { x: 31, y: 31 })).toBe(60);
   });
 
   test('a 2-pixel step stops at a tile origin', () => {

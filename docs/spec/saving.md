@@ -29,8 +29,8 @@ keeps the original's look and messages (`finding:ui-archive-window`).
 - A save of another `SAVE_VERSION` is listed but cannot be loaded, as
   the single slot refused it before. A save whose state is damaged is
   refused too, never loaded in part. There is no migration: 0.9.0
-  wrote `SAVE_VERSION` 8, so its saves load while the version stays 8
-  and are refused with the other-version message once it changes.
+  and 1.0.0 wrote `SAVE_VERSION` 8, and version 9 (#297) refuses their
+  saves with the other-version message.
 - Storage that is full or unavailable is reported as a failure, never
   thrown; a failed save leaves the existing slots as they were.
 - Slots live in `localStorage`: an index under `wime.slots` and each

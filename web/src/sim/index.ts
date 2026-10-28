@@ -100,9 +100,7 @@ export {
   sweepMovement,
   terrainAt,
   tickMovement,
-  tileNumberAt,
-  type MovementWorld,
-  type Tilemap
+  type MovementWorld
 } from './movement';
 export {
   FULL_MAP_DOT_HEIGHT,
@@ -228,3 +226,10 @@ export {
   type SetupAxis,
   type SetupData
 } from './shuffled-setup';
+export {
+  loadTerrainRegions,
+  terrainGridFrom,
+  terrainGridOf,
+  type TerrainGrid,
+  type TerrainRegions
+} from './terrain';

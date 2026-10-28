@@ -1,17 +1,18 @@
-import type { Tilemap } from './movement';
 import type { SimState } from './state';
+import type { TerrainGrid } from './terrain';
 
 // The single saved game (finding:ui-single-save-slot): the simulation
-// state without the tilemap, which the view reattaches from the loaded
+// state without the terrain, which the view reattaches from the loaded
 // assets, plus a version. A save of any other version is refused; there
-// is no migration. 0.9.0 wrote version 8, so its saves load while
-// SAVE_VERSION stays 8 and are refused with a message once it changes
+// is no migration. 0.9.0 and 1.0.0 wrote version 8; version 9 dropped
+// the tile terrain table when the sim moved to the Terrain Regions
+// (#297), so their saves are refused with a message
 // (docs/spec/saving.md). Bump SAVE_VERSION by hand whenever the
 // saved state's shape changes; save.test.ts pins the shape of each
 // version and fails if it changes without a bump.
-export const SAVE_VERSION = 8;
+export const SAVE_VERSION = 9;
 
-export type SavedState = Omit<SimState, 'tilemap'>;
+export type SavedState = Omit<SimState, 'terrain'>;
 
 // The Shuffled Setup a game started from (docs/spec/shuffled-setup.md),
 // kept beside the state rather than in it, so the sim never reads it.
@@ -31,7 +32,7 @@ export const serialiseSave = (
   state: SimState,
   setup: SaveSetup | null = null
 ): string => {
-  const { tilemap: _tilemap, ...saved } = state;
+  const { terrain: _terrain, ...saved } = state;
   const file: SaveFile = {
     ...(setup ? { setup } : {}),
     state: saved,
@@ -70,7 +71,7 @@ export type RestoreResult =
 
 export const restoreSave = (
   data: string,
-  tilemap: Tilemap | null
+  terrain: TerrainGrid | null
 ): RestoreResult => {
   let file: Partial<SaveFile> | null;
   try {
@@ -88,5 +89,5 @@ export const restoreSave = (
   if (setup === undefined) {
     return { ok: false, reason: 'invalid' };
   }
-  return { ok: true, setup, state: { ...file.state, tilemap } };
+  return { ok: true, setup, state: { ...file.state, terrain } };
 };

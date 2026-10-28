@@ -116,9 +116,6 @@ export interface StartingState {
   // Pace in 256ths of a pixel per step by speed class
   // (finding:movement-speed-classes).
   speeds: { diagonal: number[]; straight: number[] };
-  // Terrain percentage by map tile number
-  // (finding:movement-terrain-percent-scales-pace).
-  terrainByTile: number[];
   // The event mask and event days (finding:ai-war-events-set-once).
   warEvents: WarEvents;
 }
@@ -373,9 +370,6 @@ export const loadStartingState = (json: unknown): StartingState => {
           diagonal: [...DEFAULT_SPEEDS.diagonal],
           straight: [...DEFAULT_SPEEDS.straight]
         },
-    terrainByTile: Array.isArray(json.terrain_by_tile)
-      ? json.terrain_by_tile.map((v, i) => num(v, `terrain_by_tile[${i}]`))
-      : [],
     warEvents: loadWarEvents(events)
   };
 };

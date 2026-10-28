@@ -23,10 +23,10 @@ import {
 } from './meeting-window';
 
 // A copy of the Demo's state for the view to show and play its windows
-// out on. The tilemap is shared: nothing writes it.
+// out on. The terrain is shared: nothing writes it.
 export const demoDisplay = (run: DemoRun): SimState => {
-  const { tilemap, ...rest } = run.state;
-  return { ...structuredClone(rest), tilemap };
+  const { terrain, ...rest } = run.state;
+  return { ...structuredClone(rest), terrain };
 };
 
 // One tick of the Demo: the steps that resolve what waits on the player

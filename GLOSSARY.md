@@ -94,7 +94,7 @@ _Avoid_: Activation, recruitment
 ## Map
 
 **Terrain Region**:
-An area of the map with a single kind of ground, such as forest, marsh or mountain. The kind of ground sets how fast Forces cross it, or whether they can cross it at all.
+An area of the map with a single kind of ground, such as forest, marsh or mountain. The kind of ground sets how fast Forces cross it; no ground stops a Force outright, though water and mountains slow it and turn it aside.
 _Avoid_: Tile, zone, area
 
 **Place**:

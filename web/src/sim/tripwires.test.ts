@@ -4,6 +4,7 @@ import { describe, expect, test } from 'bun:test';
 import { resolveFight } from './combat';
 import { answerMeeting } from './meetings';
 import { createSim, tickSim, type SimState } from './state';
+import { loadTerrainRegions, terrainGridFrom } from './terrain';
 
 // The Isen Ford and Mordor tripwires (docs/spec/war-events.md,
 // "Tripwires"), with the set-ups of docs/re/war-events-reference.md:
@@ -218,8 +219,8 @@ const startingStatePath = new URL(
   '../../public/assets/starting-state.json',
   import.meta.url
 );
-const tilemapPath = new URL(
-  '../../public/assets/campaign/tilemap.json',
+const terrainPath = new URL(
+  '../../public/assets/geography/terrain-regions.json',
   import.meta.url
 );
 const consumed = (before: SimState, after: SimState): number[] =>
@@ -229,14 +230,16 @@ const consumed = (before: SimState, after: SimState): number[] =>
     )
     .map(e => e.index);
 
-describe.skipIf(!existsSync(startingStatePath) || !existsSync(tilemapPath))(
+describe.skipIf(!existsSync(startingStatePath) || !existsSync(terrainPath))(
   'on the Reference Build roster',
   () => {
     test('Evil at the Isen Ford mobilises Gondor, then the 0-day Rohan musters', () => {
       const start = createSim(
         1,
         JSON.parse(readFileSync(startingStatePath, 'utf8')),
-        JSON.parse(readFileSync(tilemapPath, 'utf8'))
+        terrainGridFrom(
+          loadTerrainRegions(JSON.parse(readFileSync(terrainPath, 'utf8')))
+        )
       );
       const before: SimState = {
         ...start,

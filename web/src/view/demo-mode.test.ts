@@ -10,6 +10,7 @@ import {
   type DemoScript,
   type SimState
 } from '../sim/index';
+import { loadTerrainRegions, terrainGridFrom } from '../sim/terrain';
 import { openCombatWindow, stepCombatUi } from './combat-window';
 import {
   stepCouncilMessage,
@@ -39,7 +40,7 @@ import { createTickDriver } from './tick-driver';
 
 const PUBLIC = new URL('../../public/', import.meta.url).pathname;
 const STARTING_STATE = `${PUBLIC}assets/starting-state.json`;
-const TILEMAP = `${PUBLIC}assets/campaign/tilemap.json`;
+const TERRAIN = `${PUBLIC}assets/geography/terrain-regions.json`;
 const PLANS: DemoPlan[] = ['fellowship', 'muster', 'defensive'];
 const LEVELS = ['animation', 'campaign', 'full-map'] as const;
 type Level = (typeof LEVELS)[number];
@@ -50,7 +51,7 @@ const readJson = (path: string): unknown =>
 // Called only inside the skipped block, so CI never reads the assets.
 const assets = (): DemoAssets => ({
   startingState: readJson(STARTING_STATE),
-  tilemap: readJson(TILEMAP) as DemoAssets['tilemap']
+  terrain: terrainGridFrom(loadTerrainRegions(readJson(TERRAIN)))
 });
 
 // A seeded chooser for the view's own picks, so a failure repeats.
@@ -191,7 +192,7 @@ describe("a Demo's letter", () => {
   });
 });
 
-describe.skipIf(!existsSync(STARTING_STATE) || !existsSync(TILEMAP))(
+describe.skipIf(!existsSync(STARTING_STATE) || !existsSync(TERRAIN))(
   'Demo mode',
   () => {
     for (const plan of PLANS) {

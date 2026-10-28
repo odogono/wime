@@ -10,6 +10,7 @@ import { RING } from './objects';
 import { BARAD_DUR, MOUNT_DOOM } from './ring';
 import type { Point, RosterEntry } from './starting-state';
 import { createSim, tickSim, type SimState } from './state';
+import { loadTerrainRegions, terrainGridFrom } from './terrain';
 
 // Release acceptance (#220): from the real starting state, each of the
 // four endings is reached by playing ticks, and once it is reached the
@@ -20,8 +21,8 @@ const startingStatePath = new URL(
   '../../public/assets/starting-state.json',
   import.meta.url
 );
-const tilemapPath = new URL(
-  '../../public/assets/campaign/tilemap.json',
+const terrainPath = new URL(
+  '../../public/assets/geography/terrain-regions.json',
   import.meta.url
 );
 
@@ -29,7 +30,9 @@ const start = (): SimState =>
   createSim(
     0x2_20,
     JSON.parse(readFileSync(startingStatePath, 'utf8')),
-    JSON.parse(readFileSync(tilemapPath, 'utf8'))
+    terrainGridFrom(
+      loadTerrainRegions(JSON.parse(readFileSync(terrainPath, 'utf8')))
+    )
   );
 
 const MINAS_TIRITH_GARRISON = 33;
@@ -77,7 +80,7 @@ const expectStandsStill = (sim: SimState): void => {
 };
 
 const assetsMissing =
-  !existsSync(startingStatePath) || !existsSync(tilemapPath);
+  !existsSync(startingStatePath) || !existsSync(terrainPath);
 
 describe.skipIf(assetsMissing)(
   'the four endings, from the starting state',

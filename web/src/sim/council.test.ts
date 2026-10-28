@@ -358,7 +358,7 @@ describe('the rest of the world', () => {
     const bilbo = held.roster[BILBO]!;
     expect(bilbo.encounter!.chance).toBe(100);
     // Any roll out of 50 is within a chance of 100.
-    const met = { ...held, terrainByTile: [], tilemap: null };
+    const met = { ...held, terrain: null };
     expect(meetsEncounter(met, met.roster[7]!, bilbo)).toBe(true);
   });
 

@@ -5,9 +5,10 @@
 // meeting one changes.
 
 import type { Clock } from './clock';
-import { terrainAt, type Tilemap } from './movement';
+import { terrainAt } from './movement';
 import { nextRandom, type RngState } from './rng';
 import type { RosterEntry } from './starting-state';
+import type { TerrainGrid } from './terrain';
 
 export const FIRST_ENCOUNTER = 152;
 export const LAST_ENCOUNTER = 195;
@@ -44,8 +45,7 @@ export interface EncounterWorld {
   clock: Clock;
   rng: RngState;
   roster: RosterEntry[];
-  terrainByTile: number[];
-  tilemap: Tilemap | null;
+  terrain: TerrainGrid | null;
   // The roster entry the Animation Level watches, or null while the
   // Campaign Level is on show.
   watching: number | null;

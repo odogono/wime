@@ -242,8 +242,8 @@ export const planRoute = (
   to: Point,
   options: RouteOptions
 ): Point[] | null => {
-  const width = state.tilemap?.width ?? 0;
-  const height = state.tilemap?.height ?? 0;
+  const width = state.terrain?.width ?? 0;
+  const height = state.terrain?.height ?? 0;
   const start = destinationForClick(from);
   const goal = destinationForClick(to);
   const id = (x: number, y: number): number => y * width + x;

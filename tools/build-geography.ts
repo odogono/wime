@@ -15,6 +15,8 @@ import { join } from 'node:path';
 import earcut from 'earcut';
 import { PNG } from 'pngjs';
 
+import { pointInRing } from '../web/src/sim/terrain';
+
 export type Point = [number, number];
 export type Ring = Point[];
 
@@ -266,17 +268,7 @@ export const signedArea = (ring: Ring): number => {
   return area / 2;
 };
 
-export const pointInRing = ([x, y]: Point, ring: Ring): boolean => {
-  let inside = false;
-  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
-    const [xi, yi] = ring[i]!;
-    const [xj, yj] = ring[j]!;
-    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) {
-      inside = !inside;
-    }
-  }
-  return inside;
-};
+export { pointInRing };
 
 // Chain the arcs that border each component into closed rings and group
 // them into polygons. `shape` turns an arc's grid points into the drawn
@@ -2399,6 +2391,24 @@ const loadPatches = async (dir: string): Promise<Patch[]> =>
       )
     : [];
 
+// The Terrain Regions the sim reads (#297): each region's terrain and
+// polygons, the map's size in tiles, and the terrain beyond the map's
+// edge, which the original reads as tile 0.
+export const terrainRegionsAsset = (
+  geography: Geography,
+  source: Pick<SourceData, 'terrainByTile' | 'tilemap'>
+) => ({
+  height: source.tilemap.height,
+  off_map: source.terrainByTile[0] ?? 100,
+  regions: geography.features
+    .filter(f => f.properties.layer === 'terrain-region')
+    .map(f => ({
+      polygons: f.geometry.coordinates,
+      terrain: f.properties.terrain
+    })),
+  width: source.tilemap.width
+});
+
 export const main = async (): Promise<number> => {
   const assets = join(root, 'web/public/assets');
   if (!existsSync(join(assets, 'campaign/tilemap.json'))) {
@@ -2470,6 +2480,10 @@ export const main = async (): Promise<number> => {
   await Bun.write(join(out, 'source.geojson'), JSON.stringify(geography));
   const bundle = compileBundle(geography, bakeRelief(ground));
   await Bun.write(join(out, 'bundle.bin'), bundle);
+  await Bun.write(
+    join(out, 'terrain-regions.json'),
+    JSON.stringify(terrainRegionsAsset(geography, source))
+  );
   const pct = (n: number): string =>
     `${((n / check.samples) * 100).toFixed(1)}%`;
   console.log(

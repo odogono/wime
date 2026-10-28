@@ -87,7 +87,7 @@ describe('save slots', () => {
     const slots = createSaveSlots(fakeStorage());
     const sim = later(5);
     const saved = slots.save('One', sim, null);
-    const loaded = saved.ok && slots.load(saved.value.id, sim.tilemap);
+    const loaded = saved.ok && slots.load(saved.value.id, sim.terrain);
     expect(loaded).toEqual({ ok: true, value: { setup: null, state: sim } });
   });
 
@@ -97,7 +97,7 @@ describe('save slots', () => {
     const sim = later(5);
     const saved = slots.save('Shuffled', sim, { seed: 42 });
     expect(saved).toMatchObject({ value: { setupSeed: 42 } });
-    expect(slots.load(1, sim.tilemap)).toEqual({
+    expect(slots.load(1, sim.terrain)).toEqual({
       ok: true,
       value: { setup: { seed: 42 }, state: sim }
     });
@@ -105,7 +105,7 @@ describe('save slots', () => {
     expect(createSaveSlots(storage).autosaved()).toMatchObject({
       value: { setupSeed: 7 }
     });
-    expect(slots.loadAutosave(sim.tilemap)).toMatchObject({
+    expect(slots.loadAutosave(sim.terrain)).toMatchObject({
       value: { setup: { seed: 7 } }
     });
     // Saved over from a Classic game, the slot is Classic again.
@@ -232,7 +232,7 @@ describe('save slots', () => {
   test('reports full storage without throwing, and keeps the old slots', () => {
     const sim = createSim(7);
     // Room for two saves and their index, not three.
-    const storage = fakeStorage(serialiseSave(sim).length * 2.5);
+    const storage = fakeStorage(serialiseSave(sim).length * 2.7);
     const slots = createSaveSlots(storage);
     let result = slots.save('a', sim, null);
     expect(result.ok).toBe(true);
@@ -317,7 +317,7 @@ describe('save slots', () => {
 
   test('a failed autosave keeps the old one, without throwing', () => {
     const sim = createSim(7);
-    const storage = fakeStorage(serialiseSave(sim).length * 1.5);
+    const storage = fakeStorage(serialiseSave(sim).length * 2.7);
     const slots = createSaveSlots(storage);
     expect(slots.autosave(sim, null).ok).toBe(true);
     // A longer game no longer fits beside the old autosave.

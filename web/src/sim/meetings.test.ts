@@ -265,7 +265,7 @@ describe('answering', () => {
 describe('saving', () => {
   test('a pending meeting survives save and restore', () => {
     const met = tickSim(faramirOntoEomer());
-    const restored = restoreSave(serialiseSave(met), met.tilemap);
+    const restored = restoreSave(serialiseSave(met), met.terrain);
     expect(restored).toEqual({ ok: true, setup: null, state: met });
     if (!restored.ok) {
       return;
@@ -279,7 +279,7 @@ describe('saving', () => {
 // A save restores to the same state, and play continues the same
 // way from it.
 const roundTrip = (sim: SimState, ticks: number): SimState => {
-  const restored = restoreSave(serialiseSave(sim), sim.tilemap);
+  const restored = restoreSave(serialiseSave(sim), sim.terrain);
   expect(restored).toEqual({ ok: true, setup: null, state: sim });
   let played = sim;
   let replayed = restored.ok ? restored.state : sim;

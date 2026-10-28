@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 
 import type { Force, Place, PlaceKind, RosterEntry } from '../sim/index';
+import { terrainGridOf } from '../sim/terrain';
 import {
   assetByKind,
   assetBySource,
@@ -151,6 +152,7 @@ const fakeAssets = (draws: DrawCall[]): CampaignAssets => {
     icons: [],
     palette: [],
     startingState: null,
+    terrain: terrainGridOf(3, 2, () => 100),
     texts: new Map(),
     tilemap: {
       height: 2,

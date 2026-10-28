@@ -18,15 +18,7 @@ import {
   type Point,
   type RosterEntry
 } from './starting-state';
-
-// The map grid the sim steers over: tile numbers in row order, as the
-// view's tilemap asset carries them. A null tilemap (a clock-only
-// game) steers as if every tile were rated 100.
-export interface Tilemap {
-  height: number;
-  indices: number[];
-  width: number;
-}
+import { terrainOf, type TerrainGrid } from './terrain';
 
 export interface MovementWorld {
   clock: Clock;
@@ -35,8 +27,7 @@ export interface MovementWorld {
   roster: RosterEntry[];
   routes: number[][];
   speeds: { diagonal: number[]; straight: number[] };
-  terrainByTile: number[];
-  tilemap: Tilemap | null;
+  terrain: TerrainGrid | null;
 }
 
 // Facings 0-7 clockwise from north and their one-pixel steps
@@ -49,29 +40,11 @@ export const STEP_DY = [-1, -1, 0, 1, 1, 1, 0, -1];
 // (finding:movement-greedy-tile-steering).
 export const STEERING_WEIGHTS = [100, 69, 39, 19, 9, 19, 39, 69];
 
-export const tileNumberAt = (tilemap: Tilemap | null, point: Point): number => {
-  if (!tilemap) {
-    return 0;
-  }
-  const tile = tileOf(point);
-  if (
-    tile.x < 0 ||
-    tile.y < 0 ||
-    tile.x >= tilemap.width ||
-    tile.y >= tilemap.height
-  ) {
-    return 0;
-  }
-  return tilemap.indices[tile.y * tilemap.width + tile.x] ?? 0;
-};
-
-// The terrain percentage of the tile under a point. Tiles with no
-// entry in the table rate 100 so a world without the table still
-// moves at the speed-table pace.
+// The terrain percentage of the Terrain Region under a point.
 export const terrainAt = (
-  world: Pick<MovementWorld, 'terrainByTile' | 'tilemap'>,
+  world: Pick<MovementWorld, 'terrain'>,
   point: Point
-): number => world.terrainByTile[tileNumberAt(world.tilemap, point)] ?? 100;
+): number => terrainOf(world.terrain, point);
 
 // The facing that points from one point toward another under the
 // original's axis rule: an axis only counts when twice its distance

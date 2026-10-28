@@ -94,8 +94,10 @@ under a position is (x ÷ 16, y ÷ 16)
   Tolerance ±0.15 px/tick on sampled segments.
 - Every tile has a terrain value from 5 to 100, and the step's pace
   is the speed-class pace times that value over 100, read at the
-  tile under the entry's centre (position + 8). The table is
-  exported with the starting state (`terrain_by_tile`). Roads and
+  tile under the entry's centre (position + 8). The sim reads it
+  from the vector Terrain Regions, which carry each tile's value
+  exactly (ADR-0006), and reads the open sea's 5 beyond the map's
+  edge, as the original reads tile 0 there. Roads and
   tracks (tiles 104, 105 and their neighbours) are among the 44
   tiles rated 100; plain (33) and the Ithilien woods (229, 247)
   are rated 60, so Éomer's class-4 pace there is
