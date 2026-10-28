@@ -27,17 +27,6 @@
       "type": "Feature",
       "geometry": {
         "type": "Point",
-        "coordinates": [1604, 1214]
-      },
-      "properties": {
-        "id": "place:LOSSARNACH",
-        "op": "replace"
-      }
-    },
-    {
-      "type": "Feature",
-      "geometry": {
-        "type": "Point",
         "coordinates": [1642, 1192]
       },
       "properties": {

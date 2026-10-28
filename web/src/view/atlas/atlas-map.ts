@@ -575,14 +575,29 @@ export const createAtlasMap = async (
           l.box.y < height() &&
           l.box.y + l.box.height > 0
       );
+    // Names keep clear of Forces and of every Place's picture, inset by
+    // the labels' gap so a Place's own name can sit against its picture.
+    const pictureBoxes = pictured.map(p => {
+      const at = toScreen(p);
+      const size = pictogramSize(p.rank) - 8;
+      return {
+        height: size,
+        width: size,
+        x: at.x - size / 2,
+        y: at.y - size / 2
+      };
+    });
     const lettering = placeLabels(
       [...regionLabels, ...labels],
-      picks.map(({ box }) => ({
-        height: box.h,
-        width: box.w,
-        x: box.x,
-        y: box.y
-      }))
+      [
+        ...picks.map(({ box }) => ({
+          height: box.h,
+          width: box.w,
+          x: box.x,
+          y: box.y
+        })),
+        ...pictureBoxes
+      ]
     ).flatMap(l =>
       textQuads(
         l.text,
