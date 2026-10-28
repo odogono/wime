@@ -35,6 +35,9 @@ export interface AtlasCamera extends Point {
 }
 
 export interface DrawOptions {
+  // On the Full Map Level, the Forces Classic blinks there vanish while
+  // this is false (docs/spec/full-map.md); elsewhere it is left unset.
+  blinkOn?: boolean;
   // Active Forces flash, as on the Classic Campaign Level: they are not
   // drawn while this is false.
   flashOn: boolean;
@@ -82,6 +85,10 @@ const rgba = (hex: string, alpha = 1): [number, number, number, number] => {
 // green (GLOSSARY.md). Allegiance 0 is Evil and above 2 a mobilised Good
 // Force (finding:mobilisation-allegiance-byte).
 const RING_GOLD = '#c9a227';
+
+// The Forces Classic's Full Map Level blinks: those whose Leader's
+// allegiance is above 2 (finding:ui-full-map-dot-colours).
+export const blinks = (force: Force): boolean => force.leader.allegiance > 2;
 
 const sideColour = (force: Force): string =>
   force.leader.allegiance === 0
@@ -287,7 +294,7 @@ export const createAtlasMap = async (
     const r = range();
     band = bandAt(camera.zoom, r, band);
     const picks: typeof drawn = [];
-    const dots: { force: Force; x: number; y: number }[] = [];
+    const dots: { force: Force; hidden: boolean; x: number; y: number }[] = [];
     const emblemQuads: Quad[] = [];
     const markers: Quad[] = [];
     const selected = options.selected ?? new Set<number>();
@@ -306,6 +313,7 @@ export const createAtlasMap = async (
       if (sx < -50 || sy < -50 || sx > width() + 50 || sy > height() + 50) {
         continue;
       }
+      const hidden = options.blinkOn === false && blinks(force);
       const bearer =
         options.ringBearer != null &&
         force.members.some(m => m.index === options.ringBearer);
@@ -323,7 +331,7 @@ export const createAtlasMap = async (
           box: { h: size / dpr, w: size / dpr, x: x / dpr, y: y / dpr },
           force
         });
-        if (force.active && !options.flashOn) {
+        if (hidden || (force.active && !options.flashOn)) {
           continue;
         }
         if (selected.has(force.leader.index)) {
@@ -357,6 +365,9 @@ export const createAtlasMap = async (
           box: { h: size, w: size, x: sx - size / 2, y: sy - size / 2 },
           force
         });
+        if (hidden) {
+          continue;
+        }
         if (selected.has(force.leader.index)) {
           const ring = 4;
           markers.push({
@@ -385,7 +396,7 @@ export const createAtlasMap = async (
           markers.push(ringMark(x, y, size * dpr));
         }
       } else {
-        dots.push({ force, x: sx, y: sy });
+        dots.push({ force, hidden, x: sx, y: sy });
       }
     }
     const counters: Quad[] = [];
@@ -399,29 +410,35 @@ export const createAtlasMap = async (
       const mixed = members.some(
         m => sideColour(m.force) !== sideColour(first)
       );
-      markers.push({
-        colour: rgba(mixed ? '#7a6a52' : sideColour(first)),
-        h: size * dpr,
-        mode: QuadMode.circle,
-        w: size * dpr,
-        x: (cluster.x - size / 2) * dpr,
-        y: (cluster.y - size / 2) * dpr
-      });
+      // A dot or Aggregate vanishes in the blink only if all of it blinks.
+      const shown = members.some(m => !m.hidden);
+      if (shown) {
+        markers.push({
+          colour: rgba(mixed ? '#7a6a52' : sideColour(first)),
+          h: size * dpr,
+          mode: QuadMode.circle,
+          w: size * dpr,
+          x: (cluster.x - size / 2) * dpr,
+          y: (cluster.y - size / 2) * dpr
+        });
+      }
       if (cluster.ids.length > 1) {
         for (const m of members) {
           tiers.set(m.force.leader.index, 'aggregate');
         }
-        counters.push(
-          ...textQuads(
-            String(cluster.ids.length),
-            cluster.x + 6,
-            cluster.y - 4,
-            11,
-            INK,
-            PAPER,
-            0
-          )
-        );
+        if (shown) {
+          counters.push(
+            ...textQuads(
+              String(cluster.ids.length),
+              cluster.x + 6,
+              cluster.y - 4,
+              11,
+              INK,
+              PAPER,
+              0
+            )
+          );
+        }
       } else {
         picks.push({
           box: {

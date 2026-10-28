@@ -2901,7 +2901,14 @@ const run = (
       if (atlasOn() && atlas) {
         screen.hires.clearRect(0, 0, screen.hires.canvas.width, NATIVE_HEIGHT);
         drawFullMapIcons(screen.hires, fullMap);
-        atlas.draw(forcesOnMap(sim.roster), atlasDrawOptions(now), elapsedMs);
+        atlas.draw(
+          forcesOnMap(sim.roster),
+          {
+            ...atlasDrawOptions(now),
+            blinkOn: Math.floor(now / BLINK_PHASE_MS) % 2 === 0
+          },
+          elapsedMs
+        );
       } else {
         drawFullMapLevel(
           screen.hires,
