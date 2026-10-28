@@ -133,13 +133,21 @@ import {
 } from './council-message';
 import {
   NO_DEBUG_VIEWS,
+  anyDebugView,
+  canvasLettering,
+  classicProjection,
   debugAllowed,
   drawEncountersView,
   drawLabelsView,
   drawPathsView,
   drawPointerView,
   drawTerrainLegend,
-  drawTerrainView
+  drawTerrainView,
+  pixelLettering,
+  projectionOf,
+  terrainTiles,
+  type DebugProjection,
+  type DebugViews
 } from './debug-views';
 import {
   IDLE_DEMO_ENDING_MS,
@@ -553,6 +561,8 @@ const run = (
   let atlasLoading = false;
   let atlasFailed = false;
   const atlasCanvas = document.querySelector<HTMLCanvasElement>('#atlas-map');
+  const atlasDebugCanvas =
+    document.querySelector<HTMLCanvasElement>('#atlas-debug');
   // The pointer in page pixels: the Atlas map reads it more finely than
   // the native screen's pixels.
   let client: Camera = { x: 0, y: 0 };
@@ -835,6 +845,83 @@ const run = (
     };
   };
   const toHires = (event: PointerEvent): Camera => toNative(event, 2);
+  // A native point in the Atlas map's CSS pixels: through the page.
+  const nativeToAtlas = ({ x, y }: Camera): Camera => {
+    const rect = canvas.getBoundingClientRect();
+    const atlasRect = atlasCanvas?.getBoundingClientRect() ?? rect;
+    return {
+      x:
+        rect.left +
+        ((fit.x + x * fit.scale) * rect.width) / canvas.width -
+        atlasRect.left,
+      y:
+        rect.top +
+        ((fit.y + y * fit.scale) * rect.height) / canvas.height -
+        atlasRect.top
+    };
+  };
+  // The Debug views' projection over the Atlas map, in its CSS pixels,
+  // down to the date line.
+  const atlasDebugProjection = (map: AtlasMap): DebugProjection =>
+    projectionOf(map.toScreen, map.toMap, {
+      height: nativeToAtlas({ x: 0, y: DATE_LINE_Y }).y,
+      width: map.canvas.clientWidth || innerWidth
+    });
+  // The Debug views over the Atlas map, on a canvas of their own at the
+  // window's resolution, between the map and the game's screen so the
+  // date line and windows still cover them; cleared when unused. The
+  // terrain is not among them: the map fills it in under its Forces.
+  const drawAtlasDebug = (
+    map: AtlasMap | null,
+    debug: DebugViews,
+    forces: Force[]
+  ): void => {
+    if (!atlasDebugCanvas) {
+      return;
+    }
+    const ctx = atlasDebugCanvas.getContext('2d');
+    const ratio = window.devicePixelRatio || 1;
+    const width = atlasDebugCanvas.clientWidth;
+    const height = atlasDebugCanvas.clientHeight;
+    if (atlasDebugCanvas.width !== Math.round(width * ratio)) {
+      atlasDebugCanvas.width = Math.round(width * ratio);
+    }
+    if (atlasDebugCanvas.height !== Math.round(height * ratio)) {
+      atlasDebugCanvas.height = Math.round(height * ratio);
+    }
+    const shown = map !== null && anyDebugView(debug);
+    atlasDebugCanvas.style.display = shown ? 'block' : 'none';
+    if (!ctx || !shown) {
+      return;
+    }
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, atlasDebugCanvas.width, atlasDebugCanvas.height);
+    ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+    const view = atlasDebugProjection(map);
+    const lettering = canvasLettering(ctx);
+    if (debug.encounters) {
+      drawEncountersView(ctx, sim, view, lettering);
+    }
+    if (debug.paths) {
+      drawPathsView(ctx, sim, forces, view);
+    }
+    if (debug.labels) {
+      drawLabelsView(ctx, forces, view, lettering);
+    }
+    if (debug.terrain) {
+      drawTerrainLegend(ctx, view, lettering);
+    }
+    if (debug.pointer) {
+      drawPointerView(
+        ctx,
+        sim,
+        view,
+        pointer && nativeToAtlas(pointer),
+        lettering
+      );
+    }
+  };
+
   const inside = (
     box: { height: number; width: number; x: number; y: number },
     point: Camera
@@ -3201,42 +3288,53 @@ const run = (
     const forces = forcesOnMap(sim.roster);
     const flashOn = Math.floor(now / FLASH_INTERVAL_MS) % 2 === 0;
     // The Debug views, offered only in a dev build or with ?debug.
-    // They are drawn in the Classic view's pixels, so not over the Atlas
-    // map.
-    const debug =
-      debugAllowed() && !atlasOn() ? settings.debug : NO_DEBUG_VIEWS;
-    if (atlasOn() && atlas) {
+    const debug = debugAllowed() ? settings.debug : NO_DEBUG_VIEWS;
+    const onAtlas = atlasOn() ? atlas : null;
+    if (onAtlas) {
       screen.buffer.clearRect(0, 0, NATIVE_WIDTH, NATIVE_HEIGHT);
       drawCampaignIcons(screen.buffer, assets.icons);
-      atlas.draw(forces, atlasDrawOptions(now), elapsedMs);
+      onAtlas.draw(
+        forces,
+        {
+          ...atlasDrawOptions(now),
+          underlay: debug.terrain
+            ? terrainTiles(sim, atlasDebugProjection(onAtlas))
+            : []
+        },
+        elapsedMs
+      );
     } else {
       drawCampaignLevel(screen.buffer, assets, camera, forces, flashOn, () => {
         if (debug.terrain) {
           drawTerrainView(
             screen.buffer,
             sim,
-            clampCamera(camera, assets.tilemap)
+            classicProjection(clampCamera(camera, assets.tilemap))
           );
         }
       });
     }
+    drawAtlasDebug(onAtlas, debug, forces);
     // Keep every Debug view below the date line and message windows.
-    const ctx = screen.buffer;
-    const shown = clampCamera(camera, assets.tilemap);
-    if (debug.encounters) {
-      drawEncountersView(ctx, sim, shown, assets.window.font);
-    }
-    if (debug.paths) {
-      drawPathsView(ctx, sim, forces, shown);
-    }
-    if (debug.labels) {
-      drawLabelsView(ctx, forces, shown, assets.window.font);
-    }
-    if (debug.terrain) {
-      drawTerrainLegend(ctx, assets.window.font);
-    }
-    if (debug.pointer) {
-      drawPointerView(ctx, sim, shown, pointer, assets.window.font);
+    if (!onAtlas) {
+      const ctx = screen.buffer;
+      const view = classicProjection(clampCamera(camera, assets.tilemap));
+      const lettering = pixelLettering(assets.window.font);
+      if (debug.encounters) {
+        drawEncountersView(ctx, sim, view, lettering);
+      }
+      if (debug.paths) {
+        drawPathsView(ctx, sim, forces, view);
+      }
+      if (debug.labels) {
+        drawLabelsView(ctx, forces, view, lettering);
+      }
+      if (debug.terrain) {
+        drawTerrainLegend(ctx, view, lettering);
+      }
+      if (debug.pointer) {
+        drawPointerView(ctx, sim, view, pointer, lettering);
+      }
     }
     drawOverlay(forces);
     drawDemoLabel(screen.buffer);

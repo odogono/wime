@@ -44,6 +44,8 @@ export const QuadMode = {
   // A Force's Emblem: its field in the quad's colour, the device in
   // parchment and the ink over both.
   emblem: 0,
+  // A plain rectangle in the quad's colour.
+  fill: 6,
   glyph: 1,
   // A Place's ink picture, from the pictogram atlas.
   pictogram: 4,
@@ -418,7 +420,9 @@ uniform vec2 u_pictogramSize;
 out vec4 colour;
 
 void main() {
-  if (v_mode == 4) {
+  if (v_mode == 6) {
+    colour = v_colour;
+  } else if (v_mode == 4) {
     // A Place's picture: red is its ink, green its paper body.
     vec2 t = texture(u_pictograms, v_uv / u_pictogramSize).rg;
     float aa = max(fwidth(t.r), fwidth(t.g)) * 0.75;
@@ -730,7 +734,14 @@ export class AtlasRenderer {
     gl.clearColor(0.11, 0.1, 0.09, 1);
     gl.clear(gl.COLOR_BUFFER_BIT);
     gl.enable(gl.BLEND);
-    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    // Keep the canvas opaque: a translucent quad must not let the page
+    // show through it.
+    gl.blendFuncSeparate(
+      gl.SRC_ALPHA,
+      gl.ONE_MINUS_SRC_ALPHA,
+      gl.ONE,
+      gl.ONE_MINUS_SRC_ALPHA
+    );
 
     const scale = view.zoom * view.devicePixelRatio;
     const sx = (2 * scale) / view.width;
