@@ -79,6 +79,34 @@ it, clicking opens its window, and picking a Force for an Order takes
 the Force whose picture is under the pointer. Everywhere else the pointer
 names the Place or ground under it, as in Classic.
 
+## Ways
+
+A Force's Way is the leg it is about to walk: to the Crossing it heads
+for first, if any (docs/spec/crossing-movement.md), and on to its
+destination. The Atlas map draws the Way of a Good Force at three
+moments, and Classic draws none:
+
+- **Giving an Order:** while the player picks a destination, the Way
+  runs live from the Force to the destination under the pointer, through
+  the Crossing the sim would choose for it. Picking a Leader to follow
+  aims it at the Leader's current position. Over no valid destination,
+  no Way is drawn.
+- **Selected:** while a Force's window is open, its Way runs from where
+  it stands now, redrawn as it moves and once it is past the Crossing.
+  Closing the window clears it.
+- **After an Order:** confirming the Order fades the Way out over about
+  1.5 seconds.
+
+Only the current leg is drawn: never the later stops of Default Orders,
+nor a Crossing beyond the one the Force heads for now. Under Classic
+movement, or with no Crossing within reach, the Way is a straight line.
+A Force without a destination shows no Way, and Evil and Neutral Forces
+never show one, even with their window open, so a Way reveals nothing
+the player does not already command.
+
+A Way is a dashed line in the Force's Side colour with an ink rim, with
+a ring on the Crossing and on the destination, and no arrowheads.
+
 ## The geography
 
 The map's geography is traced from the original's tiles by

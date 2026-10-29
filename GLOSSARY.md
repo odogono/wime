@@ -143,6 +143,14 @@ _Avoid_: Original movement, legacy movement
 The Movement rule in which a Force whose way meets a river heads for a Crossing within reach, wading only when none is. The default.
 _Avoid_: Atlas movement, routed movement, smart pathing
 
+**Way**:
+The path a Force is about to walk to its destination, through the Crossing it heads for first, if any. It covers only the current leg, never the later stops of Default Orders.
+_Avoid_: Route, path, track
+
+**Selected**:
+Said of the Force whose window is open on the Campaign Level. At most one Force is Selected at a time.
+_Avoid_: Active, focused, highlighted
+
 **War Event**:
 One of the five turning points that set later stages of the war going, such as Saruman's army marching.
 _Avoid_: Trigger, stage, phase
