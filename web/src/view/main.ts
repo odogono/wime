@@ -86,6 +86,11 @@ import {
   type AtlasMap,
   type DrawOptions
 } from './atlas/atlas-map';
+import {
+  CAMPAIGN_ICON_ART,
+  FULL_MAP_ICON_ART,
+  drawIconArt
+} from './atlas/icon-art';
 import { loadGameAudio, type GameAudio } from './audio';
 import { autosaveDue, autosavePoint, type AutosaveView } from './autosave';
 import { BASE_URL } from './base-url';
@@ -101,7 +106,6 @@ import {
 import {
   clampCamera,
   dragCamera,
-  drawCampaignIcons,
   drawCampaignLevel,
   edgeScrollDirection,
   hoverTargetAt,
@@ -192,7 +196,6 @@ import {
 import {
   BLINK_PHASE_MS,
   campaignCameraFor,
-  drawFullMapIcons,
   drawFullMapLevel,
   fullMapIconAt,
   fullMapIconPlacements,
@@ -554,6 +557,10 @@ const run = (
     // A smaller window is centred, its pixels still whole.
     canvas.style.width = `${next.size * 100}vw`;
     canvas.style.height = `${next.size * 100}vh`;
+    if (atlasIconsCanvas) {
+      atlasIconsCanvas.style.width = canvas.style.width;
+      atlasIconsCanvas.style.height = canvas.style.height;
+    }
     fit = screen.resize();
     applyMapSetting(next);
     if (mapChanged && gameMenu) {
@@ -573,6 +580,8 @@ const run = (
   const atlasCanvas = document.querySelector<HTMLCanvasElement>('#atlas-map');
   const atlasDebugCanvas =
     document.querySelector<HTMLCanvasElement>('#atlas-debug');
+  const atlasIconsCanvas =
+    document.querySelector<HTMLCanvasElement>('#atlas-icons');
   // The pointer in page pixels: the Atlas map reads it more finely than
   // the native screen's pixels.
   let client: Camera = { x: 0, y: 0 };
@@ -877,6 +886,45 @@ const run = (
       height: nativeToAtlas({ x: 0, y: DATE_LINE_Y }).y,
       width: map.canvas.clientWidth || innerWidth
     });
+  // The icon columns over the Atlas map, as vector art on a canvas of
+  // their own at the window's resolution, just under the game's screen
+  // so its windows cover them; the Classic map draws the original's
+  // pixels into the screen instead. Their boxes, and so where a click
+  // lands, are the original's.
+  const drawAtlasIcons = (shown: Level | null): void => {
+    if (!atlasIconsCanvas) {
+      return;
+    }
+    const onMap = shown === 'campaign' || shown === 'full-map';
+    atlasIconsCanvas.style.display = onMap ? 'block' : 'none';
+    const ctx = atlasIconsCanvas.getContext('2d');
+    if (!ctx || !onMap) {
+      return;
+    }
+    // The same size as the screen's canvas, so its fit lines up.
+    if (atlasIconsCanvas.width !== canvas.width) {
+      atlasIconsCanvas.width = canvas.width;
+    }
+    if (atlasIconsCanvas.height !== canvas.height) {
+      atlasIconsCanvas.height = canvas.height;
+    }
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, atlasIconsCanvas.width, atlasIconsCanvas.height);
+    ctx.setTransform(fit.scale, 0, 0, fit.scale, fit.x, fit.y);
+    if (shown === 'campaign') {
+      for (const { icon, x, y } of placements) {
+        const art = CAMPAIGN_ICON_ART[icon.name];
+        if (art) {
+          drawIconArt(ctx, art, x, y);
+        }
+      }
+    } else {
+      // Hi-res boxes, a pixel half as wide.
+      for (const { icon, x, y } of fullMapPlacements) {
+        drawIconArt(ctx, FULL_MAP_ICON_ART[icon.name]!, x / 2, y);
+      }
+    }
+  };
   // The Debug views over the Atlas map, on a canvas of their own at the
   // window's resolution, between the map and the game's screen so the
   // date line and windows still cover them; cleared when unused. The
@@ -3048,6 +3096,7 @@ const run = (
         }
       }
     }
+    drawAtlasIcons(atlasOn() ? level : null);
     if (gameMenu) {
       // A map changed in Settings redraws the Campaign Level behind the
       // menu, once the Atlas map, if wanted, is made.
@@ -3060,7 +3109,6 @@ const run = (
           const forces = forcesOnMap(sim.roster);
           if (atlasOn() && atlas) {
             screen.buffer.clearRect(0, 0, NATIVE_WIDTH, NATIVE_HEIGHT);
-            drawCampaignIcons(screen.buffer, assets.icons);
             atlas.draw(forces, atlasDrawOptions(now), 0);
           } else {
             drawCampaignLevel(
@@ -3135,7 +3183,6 @@ const run = (
     if (level === 'full-map') {
       if (atlasOn() && atlas) {
         screen.hires.clearRect(0, 0, screen.hires.canvas.width, NATIVE_HEIGHT);
-        drawFullMapIcons(screen.hires, fullMap);
         atlas.draw(
           forcesOnMap(sim.roster),
           {
@@ -3377,7 +3424,6 @@ const run = (
     const onAtlas = atlasOn() ? atlas : null;
     if (onAtlas) {
       screen.buffer.clearRect(0, 0, NATIVE_WIDTH, NATIVE_HEIGHT);
-      drawCampaignIcons(screen.buffer, assets.icons);
       onAtlas.draw(
         forces,
         {

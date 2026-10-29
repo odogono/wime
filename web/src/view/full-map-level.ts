@@ -107,8 +107,8 @@ export const drawFullMapLevel = (
   drawFullMapIcons(ctx, level);
 };
 
-// The Full Map Level's icons, drawn on their own over the Atlas map.
-export const drawFullMapIcons = (
+// The Full Map Level's icons.
+const drawFullMapIcons = (
   ctx: CanvasRenderingContext2D,
   level: Pick<FullMapLevel, 'icons'>
 ): void => {

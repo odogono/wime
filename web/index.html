@@ -35,6 +35,14 @@
         image-rendering: auto;
         pointer-events: none;
       }
+      /* The icon columns' vector art over the Atlas map, just under the
+         game's canvas and sized as it is, so its windows still cover
+         them. */
+      #atlas-icons {
+        display: none;
+        image-rendering: auto;
+        pointer-events: none;
+      }
       /* Opens the in-game menu, as Escape does (docs/spec/game-menu.md). */
       #menu {
         position: fixed;
@@ -65,6 +73,7 @@
   <body>
     <canvas id="atlas-map"></canvas>
     <canvas id="atlas-debug"></canvas>
+    <canvas id="atlas-icons"></canvas>
     <canvas id="screen"></canvas>
     <pre id="status"></pre>
     <button id="menu" type="button" hidden>Menu</button>
