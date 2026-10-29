@@ -51,3 +51,26 @@ test.skipIf(skip)(
     expect(missing).toEqual([]);
   }
 );
+
+// A traced Crossing stands on a road-over-river tile, or within a tile
+// of one where the roads are traced a few pixels off it (#337).
+test.skipIf(skip)(
+  'every Crossing has a road-over-river tile within a tile',
+  async () => {
+    const waterways = await load();
+    const { tilemap } = await loadTileGrid();
+    const tiles: [number, number][] = [];
+    tilemap.indices.forEach((tile, i) => {
+      if (CROSSING_TILES.includes(tile)) {
+        tiles.push([
+          (i % tilemap.width) * TILE + TILE / 2,
+          Math.floor(i / tilemap.width) * TILE + TILE / 2
+        ]);
+      }
+    });
+    const stray = waterways.crossings
+      .filter(c => !tiles.some(([x, y]) => Math.hypot(x - c.x, y - c.y) < TILE))
+      .map(c => `${c.x},${c.y} ${c.place ?? ''}`);
+    expect(stray).toEqual([]);
+  }
+);
