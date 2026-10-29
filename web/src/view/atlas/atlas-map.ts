@@ -3,7 +3,7 @@
 // Full Map Level band into the Campaign Level band, with the game's
 // Forces at their level-of-detail tiers. Whoever owns it, the game or
 // the prototype page, moves its camera and hands it the Forces to draw.
-import type { Force } from '../../sim/index';
+import type { Force, Way } from '../../sim/index';
 import { BASE_URL } from '../base-url';
 import { loadBundle, type GeographyBundle } from './bundle';
 import { RING, emblemLayers, loadEmblemAtlas } from './emblems';
@@ -53,6 +53,16 @@ export interface DrawOptions {
   // Rectangles in map pixels, filled under the Places and Forces: the
   // Debug views' terrain.
   underlay?: readonly Underlay[];
+  // The Ways to draw, each in its Force's Side colour
+  // (docs/spec/atlas-map.md, "Ways").
+  ways?: readonly DrawnWay[];
+}
+
+export interface DrawnWay {
+  force: Force;
+  // 0 to 1, for the fade after an Order.
+  opacity: number;
+  way: Way;
 }
 
 export interface Underlay {
@@ -110,6 +120,50 @@ const sideColour = (force: Force): string =>
     : force.leader.allegiance > 2
       ? '#2f58a8'
       : '#3f7d3a';
+
+// A Way is dotted: discs of WAY_DOT CSS pixels every WAY_GAP along it,
+// and a ring of them, WAY_RING across, on the Crossing and the
+// destination.
+const WAY_DOT = 6;
+const WAY_GAP = 11;
+const WAY_RING = 26;
+
+// Where a Way's dots fall, in CSS pixels on the canvas: along each leg
+// from its start, then around each ring. `toScreen` takes a tile origin.
+export const wayDots = (way: Way, toScreen: (p: Point) => Point): Point[] => {
+  const centre = (p: Point): Point =>
+    toScreen({ x: p.x + SPRITE_SIZE / 2, y: p.y + SPRITE_SIZE / 2 });
+  const stops = [way.from, way.waypoint, way.destination]
+    .filter((p): p is Point => p !== null)
+    .map(centre);
+  const dots: Point[] = [];
+  for (let i = 1; i < stops.length; i++) {
+    const a = stops[i - 1]!;
+    const b = stops[i]!;
+    const length = Math.hypot(b.x - a.x, b.y - a.y);
+    // Each leg stops short of the ring it runs into, and the first
+    // leaves the Force's picture before its first dot.
+    const start = i === 1 ? WAY_GAP : WAY_RING / 2 + WAY_GAP / 2;
+    const end = length - WAY_RING / 2 - WAY_GAP / 2;
+    for (let d = start; d <= end; d += WAY_GAP) {
+      dots.push({
+        x: a.x + ((b.x - a.x) * d) / length,
+        y: a.y + ((b.y - a.y) * d) / length
+      });
+    }
+  }
+  const count = Math.round((Math.PI * WAY_RING) / (WAY_DOT * 1.5));
+  for (const c of stops.slice(1)) {
+    for (let k = 0; k < count; k++) {
+      const angle = (k / count) * Math.PI * 2;
+      dots.push({
+        x: c.x + (Math.cos(angle) * WAY_RING) / 2,
+        y: c.y + (Math.sin(angle) * WAY_RING) / 2
+      });
+    }
+  }
+  return dots;
+};
 
 export const createAtlasMap = async (
   canvas: HTMLCanvasElement,
@@ -632,6 +686,17 @@ export const createAtlasMap = async (
         y: at.y * dpr
       };
     });
+    // Ways run over the Places and their names, under the Forces.
+    const ways = (options.ways ?? []).flatMap(({ force, opacity, way }) =>
+      wayDots(way, toScreen).map((p): Quad => ({
+        colour: rgba(sideColour(force), opacity),
+        h: WAY_DOT * dpr,
+        mode: QuadMode.circle,
+        w: WAY_DOT * dpr,
+        x: (p.x - WAY_DOT / 2) * dpr,
+        y: (p.y - WAY_DOT / 2) * dpr
+      }))
+    );
     const topLeft = toMap({ x: 0, y: 0 });
     renderer.draw(
       {
@@ -646,6 +711,7 @@ export const createAtlasMap = async (
         ...underlay,
         ...places,
         ...lettering,
+        ...ways,
         ...markers,
         ...emblemQuads,
         ...counters

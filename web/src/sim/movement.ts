@@ -483,3 +483,86 @@ export const giveOrder = <T extends MovementWorld>(
   });
   return { ...world, roster, routes };
 };
+
+// The leg a Force is about to walk: from where it stands, through the
+// Crossing it heads for first, if any, to its destination
+// (docs/spec/atlas-map.md, "Ways"). Positions are tile origins, as the
+// roster's are.
+export interface Way {
+  destination: Point;
+  from: Point;
+  waypoint: Point | null;
+}
+
+// The Crossing a leg from `from` to `destination` heads for first:
+// none under Classic movement, the Leader's own leg when it is walking
+// this one, otherwise the one the sim would choose for it now.
+const waypointFor = (
+  world: MovementWorld,
+  leaderIndex: number,
+  from: Point,
+  destination: Point
+): Point | null => {
+  if (world.movementRule !== 'crossing' || !world.waterways) {
+    return null;
+  }
+  const leg = world.crossingLegs?.[leaderIndex];
+  if (
+    leg &&
+    leg.destination.x === destination.x &&
+    leg.destination.y === destination.y
+  ) {
+    return leg.waypoint;
+  }
+  return chooseCrossing(world.waterways, from, destination, []).waypoint;
+};
+
+// The Way of the Force that a roster entry is in, or null if its
+// Leader has nowhere to go.
+export const wayOf = (world: MovementWorld, index: number): Way | null => {
+  const entry = world.roster[index];
+  if (!entry) {
+    return null;
+  }
+  const leader = topLeader(world.roster, entry);
+  const { destination, position } = leader;
+  if (
+    !destination ||
+    destination.x === 0 ||
+    !position ||
+    (position.x === destination.x && position.y === destination.y)
+  ) {
+    return null;
+  }
+  return {
+    destination: { ...destination },
+    from: { ...position },
+    waypoint: waypointFor(world, leader.index, position, destination)
+  };
+};
+
+// The Way an Order to `click` would give a roster entry, as giveOrder
+// sets it, or null if the Order would leave it where it stands.
+export const orderedWay = (
+  world: MovementWorld,
+  memberIndex: number,
+  click: Point
+): Way | null => {
+  const entry = world.roster[memberIndex];
+  if (!entry) {
+    return null;
+  }
+  const position = topLeader(world.roster, entry).position;
+  const destination = destinationForClick(click);
+  if (
+    !position ||
+    (position.x === destination.x && position.y === destination.y)
+  ) {
+    return null;
+  }
+  return {
+    destination,
+    from: { ...position },
+    waypoint: waypointFor(world, memberIndex, position, destination)
+  };
+};

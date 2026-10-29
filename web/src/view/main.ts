@@ -9,12 +9,14 @@ import {
   glassWatches,
   listFightOnAnimationLevel,
   mirrorListing,
+  orderedWay,
   shuffleSetup,
   startDemo,
   statusLine,
   takesOrder,
   tickSim,
   watchEntry,
+  wayOf,
   type CombatRow,
   type DemoPlan,
   type DemoRun,
@@ -24,7 +26,8 @@ import {
   type SaveSetup,
   type SetupData,
   type SimOptions,
-  type SimState
+  type SimState,
+  type Way
 } from '../sim/index';
 import {
   drawBattle,
@@ -86,7 +89,8 @@ import {
 import {
   createAtlasMap,
   type AtlasMap,
-  type DrawOptions
+  type DrawOptions,
+  type DrawnWay
 } from './atlas/atlas-map';
 import {
   CAMPAIGN_ICON_ART,
@@ -352,6 +356,8 @@ const placedBox = (placed: {
 // (finding:ui-campaign-level-display). The original's rate has not
 // been traced; this is provisional.
 const FLASH_INTERVAL_MS = 500;
+// How long a Way takes to fade after an Order (docs/spec/atlas-map.md).
+const WAY_FADE_MS = 1500;
 // The original picks some combat message wordings at random; the view
 // may, since the wording changes nothing in the sim.
 const choose = (n: number): number => Math.floor(Math.random() * n);
@@ -701,6 +707,9 @@ const run = (
   let messages: Messages = { ...NO_MESSAGES };
   // The leader of the Force whose info window is open, for the arrow.
   let infoForce: number | null = null;
+  // The Way of the Force just given an Order, fading out on the Atlas
+  // map (docs/spec/atlas-map.md, "Ways").
+  let fadingWay: { index: number; startedAt: number; way: Way } | null = null;
   // Deliberately survives Archive restores, and is never saved.
   const givenTips = new Set<number>();
   // The game's ending, once a fight has ended it.
@@ -1761,6 +1770,8 @@ const run = (
     } else if (order.kind === 'pick-destination') {
       const selected = order.selected;
       sim = giveOrder(sim, selected, point);
+      const way = wayOf(sim, selected);
+      fadingWay = way && { index: selected, startedAt: viewNow(), way };
       setOrder(IDLE_ORDER);
       // The port confirms the Order in the status line's words; the
       // original shows nothing.
@@ -3114,6 +3125,41 @@ const run = (
   };
   // The Atlas map draws the Ring-bearer's Force, and the Force being
   // ordered, one tier more detailed (docs/spec/atlas-map.md).
+  // The Ways the Atlas map draws (docs/spec/atlas-map.md, "Ways"): the
+  // Way an Order to the spot under the pointer would give, or else the
+  // Selected Force's, and the one fading after an Order. Only Good
+  // Forces show theirs.
+  const atlasWays = (now: number): DrawnWay[] => {
+    const forces = forcesOnMap(sim.roster);
+    const ways: DrawnWay[] = [];
+    const add = (index: number, way: Way | null, opacity: number): void => {
+      const force = forces.find(f => f.members.some(m => m.index === index));
+      if (way && force && force.leader.allegiance > 2) {
+        ways.push({ force, opacity, way });
+      }
+    };
+    if (order.kind === 'pick-destination') {
+      const window = orderWindowFor();
+      const over =
+        pointer && !(window && isInOrderWindow(window, pointer.x, pointer.y))
+          ? mapPoint(pointer)
+          : null;
+      if (over) {
+        add(order.selected, orderedWay(sim, order.selected, over), 1);
+      }
+    } else if (messages.info && infoForce !== null) {
+      add(infoForce, wayOf(sim, infoForce), 1);
+    }
+    if (fadingWay) {
+      const t = (now - fadingWay.startedAt) / WAY_FADE_MS;
+      if (t >= 1) {
+        fadingWay = null;
+      } else {
+        add(fadingWay.index, fadingWay.way, 1 - t);
+      }
+    }
+    return ways;
+  };
   const atlasDrawOptions = (now: number): DrawOptions => ({
     flashOn: Math.floor(now / FLASH_INTERVAL_MS) % 2 === 0,
     important: (force: Force): boolean =>
@@ -3123,7 +3169,8 @@ const run = (
     ringBearer: sim.ringBearer,
     selected: new Set(
       order.kind === 'pick-destination' ? [order.leaderIndex] : []
-    )
+    ),
+    ways: atlasWays(now)
   });
   const frame = (realNow: number): void => {
     const now = realNow - menuMs;
