@@ -15,7 +15,7 @@ export const STEPS = [
   ['extract-manual', 'extracted_text/manual.txt'],
   ['extract-graphics', 'extracted_graphics/manifest.json'],
   ['export:web', 'web/public/assets/fonts/lord-10.json'],
-  ['build-geography', 'web/public/assets/geography/terrain-regions.json'],
+  ['build-geography', 'web/public/assets/geography/waterways.json'],
   ['build-emblems', 'web/public/assets/emblems/atlas.bin']
 ] as const;
 
