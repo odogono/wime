@@ -1,3 +1,5 @@
+import { setRemastered } from './remaster';
+
 // The original draws to a 320 by 200 lowres screen
 // (finding:graphics-full-screen-art-is-320-by-200).
 export const NATIVE_WIDTH = 320;
@@ -40,6 +42,11 @@ export const fitScale = (
 export interface Screen {
   // The native-resolution buffer everything is drawn into.
   buffer: CanvasRenderingContext2D;
+  // Device pixels per native pixel the buffers are drawn at: 1 for the
+  // original's pixels, or the fit's scale to remaster them over the
+  // Atlas map (remaster.ts). Changing it clears both buffers; both keep
+  // their native units.
+  readonly detail: number;
   // Draw over the presented frame in native pixels, at the device's
   // resolution, as the Debug views' lines and lettering are.
   drawOver(draw: (ctx: CanvasRenderingContext2D) => void): void;
@@ -57,6 +64,7 @@ export interface Screen {
   ): void;
   // Resize the visible canvas to the window, in device pixels.
   resize(): Fit;
+  setDetail(detail: number): void;
 }
 
 const context2d = (canvas: HTMLCanvasElement): CanvasRenderingContext2D => {
@@ -77,6 +85,27 @@ export const createScreen = (canvas: HTMLCanvasElement): Screen => {
   hiresCanvas.height = NATIVE_HEIGHT;
   const hires = context2d(hiresCanvas);
   const visible = context2d(canvas);
+  let detail = 1;
+  const setDetail = (next: number): void => {
+    if (next === detail) {
+      return;
+    }
+    detail = next;
+    bufferCanvas.width = NATIVE_WIDTH * detail;
+    bufferCanvas.height = NATIVE_HEIGHT * detail;
+    hiresCanvas.width = HIRES_WIDTH * detail;
+    hiresCanvas.height = NATIVE_HEIGHT * detail;
+    // Resizing resets each context; the hi-res buffer is twice as dense
+    // across, so its units stay hi-res pixels.
+    buffer.setTransform(detail, 0, 0, detail, 0, 0);
+    hires.setTransform(detail, 0, 0, detail, 0, 0);
+    // The original's pixels stay square-edged however large.
+    buffer.imageSmoothingEnabled = false;
+    hires.imageSmoothingEnabled = false;
+    const on = detail > 1;
+    setRemastered(buffer, on ? { unitsAcross: 1 } : null);
+    setRemastered(hires, on ? { unitsAcross: 2 } : null);
+  };
   let fit = fitScale(NATIVE_WIDTH, NATIVE_HEIGHT, NATIVE_WIDTH, NATIVE_HEIGHT);
 
   const resize = (): Fit => {
@@ -129,5 +158,15 @@ export const createScreen = (canvas: HTMLCanvasElement): Screen => {
     visible.restore();
   };
 
-  return { buffer, drawOver, hires, present, resize };
+  return {
+    buffer,
+    get detail() {
+      return detail;
+    },
+    drawOver,
+    hires,
+    present,
+    resize,
+    setDetail
+  };
 };

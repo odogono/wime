@@ -265,6 +265,7 @@ import {
   provisionsButtonAt,
   type ProvisionsWindow
 } from './provisions-window';
+import { loadLettering, remasteredAs, setRemastered } from './remaster';
 import {
   AUTOSAVE_ID,
   LEGACY_ARCHIVE_NAME,
@@ -1008,7 +1009,12 @@ const run = (
         const resolution = level === 'full-map' ? 'hires' : 'lores';
         const ctx = resolution === 'hires' ? screen.hires : screen.buffer;
         flashed = {
-          original: ctx.getImageData(area.x, area.y, area.width, area.height),
+          original: ctx.getImageData(
+            area.x * screen.detail,
+            area.y * screen.detail,
+            area.width * screen.detail,
+            area.height * screen.detail
+          ),
           resolution
         };
       }
@@ -1018,7 +1024,11 @@ const run = (
       const { original, resolution } = flashed;
       const ctx = resolution === 'hires' ? screen.hires : screen.buffer;
       if (shows === 'over') {
-        ctx.putImageData(original, area.x, area.y);
+        ctx.putImageData(
+          original,
+          area.x * screen.detail,
+          area.y * screen.detail
+        );
         flashed = null;
         return;
       }
@@ -1037,7 +1047,7 @@ const run = (
               : assets.palette
         );
       }
-      ctx.putImageData(shown, area.x, area.y);
+      ctx.putImageData(shown, area.x * screen.detail, area.y * screen.detail);
       screen.present(resolution, atlasOn());
     }
   });
@@ -2797,6 +2807,15 @@ const run = (
   backdrop.height = NATIVE_HEIGHT;
   const backdropCtx = backdrop.getContext('2d')!;
   backdropCtx.imageSmoothingEnabled = false;
+  // The backdrop keeps the screen's detail, in native units.
+  const fitBackdrop = (): void => {
+    if (backdrop.width !== NATIVE_WIDTH * screen.detail) {
+      backdrop.width = NATIVE_WIDTH * screen.detail;
+      backdrop.height = NATIVE_HEIGHT * screen.detail;
+      backdropCtx.setTransform(screen.detail, 0, 0, screen.detail, 0, 0);
+      backdropCtx.imageSmoothingEnabled = false;
+    }
+  };
   const menuButton = document.querySelector<HTMLButtonElement>('#menu');
   // Windows that Escape closes before it opens the menu.
   const otherWindowOpen = (): boolean =>
@@ -2831,6 +2850,8 @@ const run = (
   // Behind the menu, what is on screen: the Full Map Level's hi-res
   // frame squeezed to the same 320 by 200 as it is shown.
   const openMenuOver = (menu: GameMenu): void => {
+    fitBackdrop();
+    backdropCtx.clearRect(0, 0, NATIVE_WIDTH, NATIVE_HEIGHT);
     backdropCtx.drawImage(
       level === 'full-map' && !ending
         ? screen.hires.canvas
@@ -3106,6 +3127,9 @@ const run = (
       }
     }
     drawAtlasIcons(atlasOn() ? level : null);
+    // Over the Atlas map the screen is remastered at the window's
+    // resolution (remaster.ts).
+    screen.setDetail(atlasOn() ? fit.scale : 1);
     if (gameMenu) {
       // A map changed in Settings redraws the Campaign Level behind the
       // menu, once the Atlas map, if wanted, is made.
@@ -3130,8 +3154,15 @@ const run = (
             );
           }
           drawOverlay(forces);
+          fitBackdrop();
           backdropCtx.clearRect(0, 0, NATIVE_WIDTH, NATIVE_HEIGHT);
-          backdropCtx.drawImage(screen.buffer.canvas, 0, 0);
+          backdropCtx.drawImage(
+            screen.buffer.canvas,
+            0,
+            0,
+            NATIVE_WIDTH,
+            NATIVE_HEIGHT
+          );
         }
       }
       // Over the Atlas map the menu's backdrop is the overlay alone; the
@@ -3139,7 +3170,7 @@ const run = (
       if (atlasOn()) {
         screen.buffer.clearRect(0, 0, NATIVE_WIDTH, NATIVE_HEIGHT);
       }
-      screen.buffer.drawImage(backdrop, 0, 0);
+      screen.buffer.drawImage(backdrop, 0, 0, NATIVE_WIDTH, NATIVE_HEIGHT);
       drawGameMenu(screen.buffer, title.window, title.menuColours, gameMenu);
       screen.present('lores', atlasOn(), MENU_DIM);
       requestAnimationFrame(frame);
@@ -3225,13 +3256,20 @@ const run = (
       if (speedWindow) {
         // Drawn at lo-res size: each of its pixels is two hi-res wide.
         screen.hires.save();
-        screen.hires.setTransform(2, 0, 0, 1, 0, 0);
+        screen.hires.scale(2, 1);
+        const remastered = remasteredAs(screen.hires);
+        if (remastered) {
+          setRemastered(screen.hires, { unitsAcross: 1 });
+        }
         drawSpeedWindow(
           screen.hires,
           fullMap.window,
           speedWindow,
           driver.speed
         );
+        if (remastered) {
+          setRemastered(screen.hires, remastered);
+        }
         screen.hires.restore();
       }
       drawDemoLabel(screen.hires, 2);
@@ -3486,6 +3524,8 @@ const run = (
 };
 
 drawMessage(['Loading Campaign Level...']);
+// The remastered lettering's face; the game does not wait for it.
+void loadLettering();
 
 try {
   const [campaign, fullMap, animation, title, audio] = await Promise.all([

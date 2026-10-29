@@ -1,4 +1,5 @@
 import { drawText, measureLines, type Font } from './font';
+import { remasteredAs } from './remaster';
 
 // Every window is framed as the original frames its message box
 // (finding:ui-window-frame-tiles): a parchment fill in colour 15 inside
@@ -163,6 +164,73 @@ export const seededRandom = (box: Box): ((bits: number) => number) => {
   };
 };
 
+// A remastered window is a sheet of parchment torn to the frame's
+// ragged outline, inked and shadowed as the Atlas map's icons are.
+const TORN_PAPER = '#f1e6c8';
+const TORN_INK = '#3b2a1e';
+const TORN_SHADOW = '#b9ac92';
+// How far in from the fitted box the tear runs, at most, and the length
+// of each torn stretch, in native pixels.
+const TEAR_DEPTH = 2;
+const TEAR_STEP = 4;
+
+// The torn outline of a fitted box, the same each time for the same box.
+export const tornOutline = (box: Box): [number, number][] => {
+  const random = seededRandom(box);
+  const tear = (): number => 0.6 + (random(4) / 15) * (TEAR_DEPTH - 0.6);
+  const { height, width, x, y } = box;
+  const points: [number, number][] = [];
+  const side = (
+    from: [number, number],
+    to: [number, number],
+    inward: [number, number]
+  ): void => {
+    const length = Math.hypot(to[0] - from[0], to[1] - from[1]);
+    const steps = Math.max(1, Math.round(length / TEAR_STEP));
+    for (let i = 0; i < steps; i++) {
+      const t = i / steps;
+      const depth = tear();
+      points.push([
+        from[0] + (to[0] - from[0]) * t + inward[0] * depth,
+        from[1] + (to[1] - from[1]) * t + inward[1] * depth
+      ]);
+    }
+  };
+  side([x, y], [x + width, y], [0, 1]);
+  side([x + width, y], [x + width, y + height], [-1, 0]);
+  side([x + width, y + height], [x, y + height], [0, -1]);
+  side([x, y + height], [x, y], [1, 0]);
+  return points;
+};
+
+const drawTornFrame = (ctx: CanvasRenderingContext2D, fitted: Box): void => {
+  // Curved through the midpoints, so the tear is soft, not saw-toothed.
+  const points = tornOutline(fitted);
+  const mid = (i: number): [number, number] => {
+    const [ax, ay] = points[i % points.length]!;
+    const [bx, by] = points[(i + 1) % points.length]!;
+    return [(ax + bx) / 2, (ay + by) / 2];
+  };
+  const path = new Path2D();
+  path.moveTo(...mid(0));
+  for (let i = 1; i <= points.length; i++) {
+    const [cx, cy] = points[i % points.length]!;
+    path.quadraticCurveTo(cx, cy, ...mid(i));
+  }
+  path.closePath();
+  ctx.save();
+  ctx.translate(1, 1);
+  ctx.fillStyle = TORN_SHADOW;
+  ctx.fill(path);
+  ctx.restore();
+  ctx.fillStyle = TORN_PAPER;
+  ctx.fill(path);
+  ctx.strokeStyle = TORN_INK;
+  ctx.lineWidth = 0.5;
+  ctx.lineJoin = 'round';
+  ctx.stroke(path);
+};
+
 // Draw the window's frame and parchment. Returns the box as fitted to
 // the tiles.
 export const drawWindowFrame = (
@@ -171,6 +239,18 @@ export const drawWindowFrame = (
   box: Box
 ): Box => {
   const fitted = frameBox(box);
+  const remastered = remasteredAs(ctx);
+  if (remastered) {
+    ctx.save();
+    ctx.scale(remastered.unitsAcross, 1);
+    drawTornFrame(ctx, {
+      ...fitted,
+      width: fitted.width / remastered.unitsAcross,
+      x: fitted.x / remastered.unitsAcross
+    });
+    ctx.restore();
+    return fitted;
+  }
   const { height, width, x, y } = fitted;
   ctx.fillStyle = style.colours.fill;
   if (width > 2 * FRAME_TILE_WIDTH && height > 2 * FRAME_TILE_HEIGHT) {
