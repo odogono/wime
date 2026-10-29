@@ -332,9 +332,8 @@ export const drawCampaignLevel = (
   drawCampaignIcons(ctx, icons);
 };
 
-// The icon column down the right of the Campaign Level, drawn on its own
-// over the Atlas map.
-export const drawCampaignIcons = (
+// The icon column down the right of the Campaign Level.
+const drawCampaignIcons = (
   ctx: CanvasRenderingContext2D,
   icons: CampaignAssets['icons']
 ): void => {
