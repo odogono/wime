@@ -4,6 +4,6 @@ scope: view
 section: changed
 ---
 
-**The Atlas map's icon columns are redrawn as sharp vector art**, the
-original's eye, map, magnifying glass, hourglass, arrow and scroll in
-their own colours, crisp at any window size.
+**The Atlas map's icon columns are redrawn in its inked style**: the eye,
+map, magnifying glass, hourglass, arrow and scroll, drawn in brown ink on
+parchment like the map's forests and roads, sharp at any window size.
