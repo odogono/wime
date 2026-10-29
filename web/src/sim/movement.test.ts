@@ -5,9 +5,11 @@ import {
   desiredFacing,
   destinationForClick,
   giveOrder,
+  orderedWay,
   paceFor,
   takesOrder,
-  terrainAt
+  terrainAt,
+  wayOf
 } from './movement';
 import { forcesOf } from './starting-state';
 import {
@@ -868,5 +870,54 @@ describe('Crossing movement', () => {
       50
     );
     expect(sim.crossingLegs).toEqual({});
+  });
+});
+
+describe('Ways (docs/spec/atlas-map.md)', () => {
+  const EDORAS = { x: 1248, y: 992 };
+  const EAST_EMNET = { x: 1360, y: 960 };
+
+  test('an Order previews the Way giveOrder then walks, through the Crossing', () => {
+    const before = riverWithCrossing('crossing');
+    const preview = orderedWay(before, 1, { x: 1250, y: 995 });
+    expect(preview).toEqual({
+      destination: EDORAS,
+      from: EAST_EMNET,
+      waypoint: CROSSING_TILE
+    });
+    const sim = tickSim(giveOrder(before, 1, { x: 1250, y: 995 }));
+    expect(sim.crossingLegs[1]!.waypoint).toEqual(preview!.waypoint);
+    expect(wayOf(sim, 1)).toEqual({
+      ...preview!,
+      from: sim.roster[1]!.position!
+    });
+  });
+
+  test('under Classic movement the Way runs straight', () => {
+    expect(
+      orderedWay(riverWithCrossing('classic'), 1, { x: 1250, y: 995 })
+    ).toEqual({ destination: EDORAS, from: EAST_EMNET, waypoint: null });
+  });
+
+  test('past the Crossing the Way runs on to the destination', () => {
+    const at = (s: SimState): boolean =>
+      s.roster[1]!.position!.x === CROSSING_TILE.x &&
+      s.roster[1]!.position!.y === CROSSING_TILE.y;
+    const sim = tickUntil(
+      giveOrder(riverWithCrossing('crossing'), 1, { x: 1250, y: 995 }),
+      at,
+      96 * 4
+    );
+    expect(wayOf(sim, 1)).toEqual({
+      destination: EDORAS,
+      from: CROSSING_TILE,
+      waypoint: null
+    });
+  });
+
+  test('a Force with nowhere to go, or ordered where it stands, has no Way', () => {
+    const sim = riverWithCrossing('crossing');
+    expect(wayOf(sim, 1)).toBeNull();
+    expect(orderedWay(sim, 1, { x: 1365, y: 965 })).toBeNull();
   });
 });

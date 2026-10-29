@@ -88,9 +88,8 @@ moments, and Classic draws none:
 
 - **Giving an Order:** while the player picks a destination, the Way
   runs live from the Force to the destination under the pointer, through
-  the Crossing the sim would choose for it. Picking a Leader to follow
-  aims it at the Leader's current position. Over no valid destination,
-  no Way is drawn.
+  the Crossing the sim would choose for it. With the pointer over the
+  Order window, no Way is drawn.
 - **Selected:** while a Force's window is open, its Way runs from where
   it stands now, redrawn as it moves and once it is past the Crossing.
   Closing the window clears it.
@@ -104,8 +103,10 @@ A Force without a destination shows no Way, and Evil and Neutral Forces
 never show one, even with their window open, so a Way reveals nothing
 the player does not already command.
 
-A Way is a dashed line in the Force's Side colour with an ink rim, with
-a ring on the Crossing and on the destination, and no arrowheads.
+A Way is a dotted line of small discs in the Force's Side colour, each
+with an ink rim, and a ring of the same discs on the Crossing and on the
+destination; it has no arrowheads. It runs over the Places and their
+names, and under the Forces.
 
 ## The geography
 
