@@ -19,6 +19,7 @@ import {
   type SimState
 } from './state';
 import { terrainGridOf } from './terrain';
+import { loadWaterways } from './waterways';
 
 // The Reference runs of docs/spec/movement.md on synthetic
 // maps: the same starting positions, destinations, speed classes
@@ -745,5 +746,127 @@ describe('the Animation Level holds the sweep', () => {
     const ticked = tickN(still, 10);
     expect(isHeld(ticked)).toBe(false);
     expect(ticked.roster[2]!.position!.x).toBeGreaterThan(160);
+  });
+});
+
+// S3's map with a Crossing on the river: column 82 rated 5 but for a
+// road tile at (82, 64), rated 100, with the river's line down the
+// column's middle and the Crossing on it (docs/spec/crossing-movement.md).
+const CROSSING_TILE = { x: 1312, y: 1024 };
+
+const riverWithCrossing = (
+  movementRule: SimState['movementRule'],
+  route: number[] = []
+): SimState => {
+  const sim = makeSim({
+    clock: { day: 0, quarterHour: 69 },
+    entries: [
+      entry({
+        index: 1,
+        name: 'EOMER',
+        position: { x: 1360, y: 960 },
+        route: 1,
+        speed: 4
+      })
+    ],
+    places: [
+      place(42, 'EAST EMNET', 1360, 960),
+      place(40, 'EDORAS', 1248, 992)
+    ],
+    routes: [[], route],
+    seed: 7,
+    terrainByTile: { 1: 60, 2: 5, 3: 100 },
+    tileAt: (tx, ty) => (tx === 82 ? (ty === 64 ? 3 : 2) : 1)
+  });
+  return {
+    ...sim,
+    movementRule,
+    waterways: loadWaterways({
+      crossings: [{ at: [1320, 1030] }],
+      rivers: [
+        [
+          [1320, 600],
+          [1320, 1400]
+        ]
+      ]
+    })
+  };
+};
+
+describe('Crossing movement', () => {
+  test('Éomer crosses at the Crossing and arrives where Classic loops', () => {
+    const classic = giveOrder(riverWithCrossing('classic'), 1, {
+      x: 1250,
+      y: 995
+    });
+    expect(tickN(classic, 96 * 4).roster[1]!.destination).toEqual({
+      x: 1248,
+      y: 992
+    });
+    let sim = giveOrder(riverWithCrossing('crossing'), 1, {
+      x: 1250,
+      y: 995
+    });
+    let crossed = false;
+    for (let i = 0; i < 96 * 4 && sim.roster[1]!.destination; i++) {
+      sim = tickSim(sim);
+      const at = sim.roster[1]!.position!;
+      // Never on a river tile but the Crossing's.
+      if (Math.floor((at.x + 8) / 16) === 82) {
+        expect(Math.floor((at.y + 8) / 16)).toBe(64);
+      }
+      crossed ||= at.x === CROSSING_TILE.x && at.y === CROSSING_TILE.y;
+    }
+    expect(crossed).toBe(true);
+    expect(sim.roster[1]!.position).toEqual({ x: 1248, y: 992 });
+    expect(sim.roster[1]!.destination).toBeNull();
+    expect(sim.crossingLegs).toEqual({});
+  });
+
+  test('reaching the waypoint neither rests the Force nor pops its route', () => {
+    let sim = giveOrder(riverWithCrossing('crossing', [42]), 1, {
+      x: 1250,
+      y: 995
+    });
+    sim = { ...sim, routes: [[], [42]] };
+    expect(sim.crossingLegs[1]).toBeUndefined();
+    sim = tickSim(sim);
+    expect(sim.crossingLegs[1]!.waypoint).toEqual(CROSSING_TILE);
+    const at = (s: SimState): boolean =>
+      s.roster[1]!.position!.x === CROSSING_TILE.x &&
+      s.roster[1]!.position!.y === CROSSING_TILE.y;
+    sim = tickUntil(sim, at, 96 * 4);
+    expect(at(sim)).toBe(true);
+    expect(sim.roster[1]!.state).toBe(1);
+    expect(sim.roster[1]!.destination).toEqual({ x: 1248, y: 992 });
+    expect(sim.routes[1]).toEqual([42]);
+    expect(sim.crossingLegs[1]).toEqual({
+      destination: { x: 1248, y: 992 },
+      rivers: [],
+      riversCrossed: [0],
+      waypoint: null
+    });
+  });
+
+  test('a new destination drops the waypoint and chooses afresh', () => {
+    let sim = giveOrder(riverWithCrossing('crossing'), 1, {
+      x: 1250,
+      y: 995
+    });
+    sim = tickSim(sim);
+    expect(sim.crossingLegs[1]!.waypoint).toEqual(CROSSING_TILE);
+    sim = tickSim(giveOrder(sim, 1, { x: 1400, y: 900 }));
+    expect(sim.crossingLegs[1]).toMatchObject({
+      destination: { x: 1392, y: 896 },
+      waypoint: null
+    });
+  });
+
+  test('Classic movement keeps no legs', () => {
+    const sim = tickN(
+      giveOrder(riverWithCrossing('classic'), 1, { x: 1250, y: 995 }),
+      50
+    );
+    expect(sim.crossingLegs).toEqual({});
   });
 });

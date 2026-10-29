@@ -30,7 +30,9 @@ keeps the original's look and messages (`finding:ui-archive-window`).
   the single slot refused it before. A save whose state is damaged is
   refused too, never loaded in part. There is no migration: 0.9.0
   and 1.0.0 wrote `SAVE_VERSION` 8, and version 9 (#297) refuses their
-  saves with the other-version message.
+  saves with the other-version message. Version 10 added the Movement
+  rule (`docs/spec/crossing-movement.md`); a version 9 save still loads,
+  as Classic movement.
 - Storage that is full or unavailable is reported as a failure, never
   thrown; a failed save leaves the existing slots as they were.
 - Slots live in `localStorage`: an index under `wime.slots` and each
