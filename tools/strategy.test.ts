@@ -94,3 +94,20 @@ describe.skipIf(!assetsExist())('the sceptre errand under every plan', () => {
     }
   );
 });
+
+// Under Crossing movement the Ring-bearer flees the Nazgûl along his
+// bank of the Brandywine, rather than across it, which routed him back
+// to the Bridge among them, where seed 16 lost the Ring on day 2 (#346).
+describe.skipIf(!assetsExist())('Crossing movement', () => {
+  test('brings the Ring-bearer to the Council', () => {
+    const { milestones, state } = playCampaign(
+      16,
+      loadSoakAssets(),
+      policyFor('defensive'),
+      100,
+      'crossing'
+    );
+    expect(state.movementRule).toBe('crossing');
+    expect(milestones.council).not.toBeNull();
+  });
+});

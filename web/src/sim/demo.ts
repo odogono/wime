@@ -19,6 +19,7 @@ import {
   takeAnnouncement,
   takePassing,
   tickSim,
+  type SimOptions,
   type SimState
 } from './state';
 import type { TerrainGrid } from './terrain';
@@ -111,11 +112,15 @@ export const sameClock = (a: Clock, b: Clock): boolean =>
 export const sameMeeting = (a: Meeting, b: Meeting): boolean =>
   a.a === b.a && a.b === b.b && a.kind === b.kind;
 
+// Under Classic movement unless `options` choose Crossing movement. A
+// Demo always plays Classic movement, the rule its scripts were
+// recorded under.
 export const startCampaign = (
   seed: number,
-  assets: DemoAssets
+  assets: DemoAssets,
+  options: SimOptions = {}
 ): CampaignRun => {
-  const state = createSim(seed, assets.startingState, assets.terrain);
+  const state = createSim(seed, assets.startingState, assets.terrain, options);
   return {
     decided: null,
     failedActs: 0,
