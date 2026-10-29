@@ -253,14 +253,20 @@ export const FULL_MAP_ICON_ART: Record<string, Art> = {
   scroll: scroll(17.5, 16)
 };
 
-// Draw an icon with its box's top left at (x, y), in the context's
-// current units, scaled across by `scaleX`.
-export const drawIconArt = (
+// The shadow every icon casts to the lower right, as the original's
+// Full Map icons do: the map's ink thinned over its parchment, and how
+// far it falls in native pixels.
+const SHADOW = '#b9ac92';
+const SHADOW_OFFSET = 1;
+
+const drawParts = (
   ctx: CanvasRenderingContext2D,
   art: Art,
   x: number,
   y: number,
-  scaleX = 1
+  scaleX: number,
+  // One colour for every part, for the shadow.
+  tint?: string
 ): void => {
   for (const part of art) {
     ctx.save();
@@ -271,11 +277,11 @@ export const drawIconArt = (
     }
     const path = new Path2D(part.d);
     if (part.fill) {
-      ctx.fillStyle = part.fill;
+      ctx.fillStyle = tint ?? part.fill;
       ctx.fill(path);
     }
     if (part.stroke) {
-      ctx.strokeStyle = part.stroke;
+      ctx.strokeStyle = tint ?? part.stroke;
       ctx.lineWidth = part.width ?? 1;
       ctx.lineCap = part.cap ?? 'butt';
       ctx.lineJoin = 'round';
@@ -283,5 +289,25 @@ export const drawIconArt = (
       ctx.stroke(path);
     }
     ctx.restore();
+  }
+};
+
+// Draw an icon and its shadow with its box's top left at (x, y), in the
+// context's current units, scaled across by `scaleX`. A pressed icon is
+// pushed down onto its shadow, which stays put.
+export const drawIconArt = (
+  ctx: CanvasRenderingContext2D,
+  art: Art,
+  x: number,
+  y: number,
+  { pressed = false, scaleX = 1 }: { pressed?: boolean; scaleX?: number } = {}
+): void => {
+  const shadowX = x + SHADOW_OFFSET * scaleX;
+  const shadowY = y + SHADOW_OFFSET;
+  drawParts(ctx, art, shadowX, shadowY, scaleX, SHADOW);
+  if (pressed) {
+    drawParts(ctx, art, shadowX, shadowY, scaleX);
+  } else {
+    drawParts(ctx, art, x, y, scaleX);
   }
 };

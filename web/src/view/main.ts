@@ -891,6 +891,7 @@ const run = (
   // so its windows cover them; the Classic map draws the original's
   // pixels into the screen instead. Their boxes, and so where a click
   // lands, are the original's.
+  let pressedArea: { x: number; y: number } | null = null;
   const drawAtlasIcons = (shown: Level | null): void => {
     if (!atlasIconsCanvas) {
       return;
@@ -911,17 +912,22 @@ const run = (
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, atlasIconsCanvas.width, atlasIconsCanvas.height);
     ctx.setTransform(fit.scale, 0, 0, fit.scale, fit.x, fit.y);
+    // The icon being pressed is pushed down while its press flashes.
     if (shown === 'campaign') {
       for (const { icon, x, y } of placements) {
         const art = CAMPAIGN_ICON_ART[icon.name];
         if (art) {
-          drawIconArt(ctx, art, x, y);
+          drawIconArt(ctx, art, x, y, {
+            pressed: pressedArea?.x === x && pressedArea.y === y
+          });
         }
       }
     } else {
       // Hi-res boxes, a pixel half as wide.
       for (const { icon, x, y } of fullMapPlacements) {
-        drawIconArt(ctx, FULL_MAP_ICON_ART[icon.name]!, x / 2, y);
+        drawIconArt(ctx, FULL_MAP_ICON_ART[icon.name]!, x / 2, y, {
+          pressed: pressedArea?.x === x && pressedArea.y === y
+        });
       }
     }
   };
@@ -1006,6 +1012,9 @@ const run = (
           resolution
         };
       }
+      // Over the Atlas map the icons are drawn on their own canvas.
+      pressedArea = shows === 'over' ? null : area;
+      drawAtlasIcons(atlasOn() ? level : null);
       const { original, resolution } = flashed;
       const ctx = resolution === 'hires' ? screen.hires : screen.buffer;
       if (shows === 'over') {
