@@ -1027,6 +1027,10 @@ export const traceRoads = (source: SourceData): Roads => {
 };
 
 // ---------------------------------------------------------------------------
+// The tiles that draw a road across a river, each rated 100
+// (finding:map-terrain-values-of-water-and-mountains).
+export const CROSSING_TILES = [55, 60, 63, 71, 142, 222];
+
 // Crossings: where a road crosses a river or water, a bridge, or a ford
 // where the crossing is a named ford (finding:map-sarn-ford-stepping-stones,
 // finding:map-fords-of-isen-only-isen-crossing). Each is its own feature,
@@ -1237,12 +1241,27 @@ export const traceCrossings = (
       crossings.push(best);
     }
   }
+  // A road over a river is a crossing tile
+  // (finding:movement-fords-and-bridges-are-crossing-tiles), so a crossing
+  // with none within a tile is a false trace, such as the one the
+  // Bruinen's art made beside Rivendell (#337).
+  const { indices, width } = source.tilemap;
+  const onTile = (c: (typeof crossings)[number]): boolean =>
+    indices.some(
+      (tile, i) =>
+        CROSSING_TILES.includes(tile) &&
+        Math.hypot(
+          (i % width) * TILE + TILE / 2 - c.x,
+          Math.floor(i / width) * TILE + TILE / 2 - c.y
+        ) < TILE
+    );
+  const kept = crossings.filter(onTile);
   // Each named ford is the crossing nearest its Place; the rest are
   // bridges.
   const fordOf = new Map<(typeof crossings)[number], GeographyFeature>();
   for (const place of named.filter(p => p.properties.pictogram === 'ford')) {
     const [px, py] = place.geometry.coordinates as Point;
-    const nearest = crossings
+    const nearest = kept
       .map(c => ({ c, d: Math.hypot(c.x - px, c.y - py) }))
       .filter(({ d }) => d < FORD_REACH)
       .sort((m, n) => m.d - n.d)[0];
@@ -1250,7 +1269,7 @@ export const traceCrossings = (
       fordOf.set(nearest.c, place);
     }
   }
-  return crossings.map(c => {
+  return kept.map(c => {
     const ford = fordOf.get(c);
     const x = Math.round(c.x);
     const y = Math.round(c.y);
@@ -2408,10 +2427,6 @@ export const terrainRegionsAsset = (
     })),
   width: source.tilemap.width
 });
-
-// The tiles that draw a road across a river, each rated 100
-// (finding:map-terrain-values-of-water-and-mountains).
-export const CROSSING_TILES = [55, 60, 63, 71, 142, 222];
 
 const round = (v: number): number => Math.round(v * 10) / 10;
 

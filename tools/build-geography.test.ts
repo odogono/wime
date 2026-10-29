@@ -146,7 +146,10 @@ describe('traceCrossings', () => {
       kinds[y * width + x] = GROUND_KINDS.indexOf('river');
     }
   }
-  const source = { tilemap: { height: 2, indices: [], width: 4 } } as never;
+  // A road-over-river tile (55) on the river, where the crossings are.
+  const source = {
+    tilemap: { height: 2, indices: [0, 0, 55, 0, 0, 0, 0, 0], width: 4 }
+  } as never;
   const ground = { features: [], kinds, step, width };
   const road = (id: string, coordinates: [number, number][]) => ({
     geometry: { coordinates, type: 'LineString' as const },
@@ -181,6 +184,24 @@ describe('traceCrossings', () => {
     expect(crossings).toHaveLength(1);
     expect(crossings[0]!.properties.kind).toBe('bridge');
     expect(crossings[0]!.geometry.coordinates).toEqual([33, 16]);
+  });
+
+  test('drops a crossing with no road-over-river tile within a tile', () => {
+    const bare = {
+      tilemap: { height: 2, indices: [0, 0, 0, 0, 0, 0, 0, 0], width: 4 }
+    } as never;
+    const crossings = traceCrossings(
+      bare,
+      ground,
+      [
+        road('a', [
+          [2, 16],
+          [62, 16]
+        ])
+      ],
+      []
+    );
+    expect(crossings).toEqual([]);
   });
 
   test('makes the crossing nearest a ford Place that ford', () => {
