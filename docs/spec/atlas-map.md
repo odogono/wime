@@ -71,7 +71,7 @@ hysteresis so it does not flicker:
 The Ring-bearer's Force, and a Force being given an Order, are drawn one
 tier more detailed than the zoom alone gives. The Ring-bearer's Emblem and
 Compact marker carry the Ring mark. An Emblem standing on
-a Place stands beside its picture.
+a Place is drawn over its picture, as in Classic.
 
 Pointing at a Force picks it by the picture drawn for it: hovering names
 it, clicking opens its window, and picking a Force for an Order takes
