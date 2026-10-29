@@ -164,71 +164,117 @@ export const seededRandom = (box: Box): ((bits: number) => number) => {
   };
 };
 
-// A remastered window is a sheet of parchment torn to the frame's
-// ragged outline, inked and shadowed as the Atlas map's icons are.
-const TORN_PAPER = '#f1e6c8';
-const TORN_INK = '#3b2a1e';
-const TORN_SHADOW = '#b9ac92';
-// How far in from the fitted box the tear runs, at most, and the length
-// of each torn stretch, in native pixels.
-const TEAR_DEPTH = 2;
-const TEAR_STEP = 4;
+// A remastered window keeps the original's burnt parchment: its frame
+// tiles, each colour traced smoothly at SHEET_SCALE times the size and
+// recoloured in the Atlas map's inks, lightest to darkest. Colour 0
+// stays clear, so the burns still go right through.
+const SHEET_SCALE = 8;
+const SHEET_INKS = ['#f1e6c8', '#dcc39a', '#9a7a62', '#5e5249'];
 
-// The torn outline of a fitted box, the same each time for the same box.
-export const tornOutline = (box: Box): [number, number][] => {
-  const random = seededRandom(box);
-  const tear = (): number => 0.6 + (random(4) / 15) * (TEAR_DEPTH - 0.6);
-  const { height, width, x, y } = box;
-  const points: [number, number][] = [];
-  const side = (
-    from: [number, number],
-    to: [number, number],
-    inward: [number, number]
-  ): void => {
-    const length = Math.hypot(to[0] - from[0], to[1] - from[1]);
-    const steps = Math.max(1, Math.round(length / TEAR_STEP));
-    for (let i = 0; i < steps; i++) {
-      const t = i / steps;
-      const depth = tear();
-      points.push([
-        from[0] + (to[0] - from[0]) * t + inward[0] * depth,
-        from[1] + (to[1] - from[1]) * t + inward[1] * depth
-      ]);
+const smoothSheets = new WeakMap<CanvasImageSource, HTMLCanvasElement>();
+
+const luminance = (rgb: number): number =>
+  0.3 * (rgb >> 16) + 0.59 * ((rgb >> 8) & 0xff) + 0.11 * (rgb & 0xff);
+
+// How much of a hi-res pixel a mask covers: the mask blurred by a
+// Gaussian SHEET_BLUR pixels wide, within its tile so no tile bleeds
+// into the next, then cut at a soft threshold. Blurring before the cut
+// rounds the original's pixel steps into curves.
+const SHEET_BLUR = 0.65;
+
+const coverage = (
+  mask: Uint8Array,
+  width: number,
+  u: number,
+  v: number
+): number => {
+  const top =
+    Math.floor(v / (SHEET_SCALE * FRAME_TILE_HEIGHT)) * FRAME_TILE_HEIGHT;
+  const bottom = top + FRAME_TILE_HEIGHT - 1;
+  const sx = (u + 0.5) / SHEET_SCALE - 0.5;
+  const sy = (v + 0.5) / SHEET_SCALE - 0.5;
+  let sum = 0;
+  let weights = 0;
+  for (let y = Math.floor(sy) - 1; y <= Math.ceil(sy) + 1; y++) {
+    for (let x = Math.floor(sx) - 1; x <= Math.ceil(sx) + 1; x++) {
+      const weight = Math.exp(
+        -((x - sx) ** 2 + (y - sy) ** 2) / (2 * SHEET_BLUR ** 2)
+      );
+      const cx = Math.min(Math.max(x, 0), width - 1);
+      const cy = Math.min(Math.max(y, top), bottom);
+      sum += mask[cy * width + cx]! * weight;
+      weights += weight;
     }
-  };
-  side([x, y], [x + width, y], [0, 1]);
-  side([x + width, y], [x + width, y + height], [-1, 0]);
-  side([x + width, y + height], [x, y + height], [0, -1]);
-  side([x, y + height], [x, y], [1, 0]);
-  return points;
+  }
+  return Math.min(Math.max((sum / weights - 0.38) / 0.12, 0), 1);
 };
 
-const drawTornFrame = (ctx: CanvasRenderingContext2D, fitted: Box): void => {
-  // Curved through the midpoints, so the tear is soft, not saw-toothed.
-  const points = tornOutline(fitted);
-  const mid = (i: number): [number, number] => {
-    const [ax, ay] = points[i % points.length]!;
-    const [bx, by] = points[(i + 1) % points.length]!;
-    return [(ax + bx) / 2, (ay + by) / 2];
-  };
-  const path = new Path2D();
-  path.moveTo(...mid(0));
-  for (let i = 1; i <= points.length; i++) {
-    const [cx, cy] = points[i % points.length]!;
-    path.quadraticCurveTo(cx, cy, ...mid(i));
+const smoothSheet = (tiles: CanvasImageSource): HTMLCanvasElement => {
+  const cached = smoothSheets.get(tiles);
+  if (cached) {
+    return cached;
   }
-  path.closePath();
-  ctx.save();
-  ctx.translate(1, 1);
-  ctx.fillStyle = TORN_SHADOW;
-  ctx.fill(path);
-  ctx.restore();
-  ctx.fillStyle = TORN_PAPER;
-  ctx.fill(path);
-  ctx.strokeStyle = TORN_INK;
-  ctx.lineWidth = 0.5;
-  ctx.lineJoin = 'round';
-  ctx.stroke(path);
+  const width = FRAME_TILE_WIDTH;
+  const height = Number((tiles as { height: number }).height);
+  const source = document.createElement('canvas');
+  source.width = width;
+  source.height = height;
+  const sourceCtx = source.getContext('2d')!;
+  sourceCtx.drawImage(tiles, 0, 0);
+  const pixels = sourceCtx.getImageData(0, 0, width, height).data;
+  const colourAt = (i: number): number | null =>
+    pixels[i * 4 + 3]! < 128
+      ? null
+      : (pixels[i * 4]! << 16) | (pixels[i * 4 + 1]! << 8) | pixels[i * 4 + 2]!;
+  const colours = [
+    ...new Set(
+      Array.from({ length: width * height }, (_, i) => colourAt(i)).filter(
+        (c): c is number => c !== null
+      )
+    )
+  ].sort((a, b) => luminance(b) - luminance(a));
+  // Each layer covers its colour and every darker one, so they stack.
+  const masks = colours.map((_, rank) =>
+    Uint8Array.from({ length: width * height }, (_, i) => {
+      const c = colourAt(i);
+      return c !== null && colours.indexOf(c) >= rank ? 1 : 0;
+    })
+  );
+  const sheet = document.createElement('canvas');
+  sheet.width = width * SHEET_SCALE;
+  sheet.height = height * SHEET_SCALE;
+  const sheetCtx = sheet.getContext('2d')!;
+  const out = sheetCtx.createImageData(sheet.width, sheet.height);
+  const inks = colours.map((_, rank) => {
+    const hex = SHEET_INKS[Math.min(rank, SHEET_INKS.length - 1)]!;
+    return [1, 3, 5].map(i => Number.parseInt(hex.slice(i, i + 2), 16));
+  });
+  for (let v = 0; v < sheet.height; v++) {
+    for (let u = 0; u < sheet.width; u++) {
+      let r = 0;
+      let g = 0;
+      let b = 0;
+      let a = 0;
+      for (const [rank, mask] of masks.entries()) {
+        const cover = coverage(mask, width, u, v);
+        if (cover > 0) {
+          const [ir, ig, ib] = inks[rank]!;
+          r = r * (1 - cover) + ir! * cover;
+          g = g * (1 - cover) + ig! * cover;
+          b = b * (1 - cover) + ib! * cover;
+          a = rank === 0 ? cover : a;
+        }
+      }
+      const o = (v * sheet.width + u) * 4;
+      out.data[o] = r;
+      out.data[o + 1] = g;
+      out.data[o + 2] = b;
+      out.data[o + 3] = a * 255;
+    }
+  }
+  sheetCtx.putImageData(out, 0, 0);
+  smoothSheets.set(tiles, sheet);
+  return sheet;
 };
 
 // Draw the window's frame and parchment. Returns the box as fitted to
@@ -239,20 +285,15 @@ export const drawWindowFrame = (
   box: Box
 ): Box => {
   const fitted = frameBox(box);
-  const remastered = remasteredAs(ctx);
-  if (remastered) {
-    ctx.save();
-    ctx.scale(remastered.unitsAcross, 1);
-    drawTornFrame(ctx, {
-      ...fitted,
-      width: fitted.width / remastered.unitsAcross,
-      x: fitted.x / remastered.unitsAcross
-    });
-    ctx.restore();
-    return fitted;
-  }
+  const remastered = remasteredAs(ctx) !== undefined;
+  const tiles = remastered ? smoothSheet(style.tiles) : style.tiles;
+  const tileScale = remastered ? SHEET_SCALE : 1;
+  const fill = remastered ? SHEET_INKS[0]! : style.colours.fill;
+  const line = remastered ? SHEET_INKS[2]! : style.colours.line;
+  ctx.save();
+  ctx.imageSmoothingEnabled = remastered;
   const { height, width, x, y } = fitted;
-  ctx.fillStyle = style.colours.fill;
+  ctx.fillStyle = fill;
   if (width > 2 * FRAME_TILE_WIDTH && height > 2 * FRAME_TILE_HEIGHT) {
     ctx.fillRect(
       x + FRAME_TILE_WIDTH,
@@ -265,9 +306,9 @@ export const drawWindowFrame = (
     const px = x + piece.x;
     const py = y + piece.y;
     if (piece.kind === 'plain') {
-      ctx.fillStyle = style.colours.fill;
+      ctx.fillStyle = fill;
       ctx.fillRect(px, py, FRAME_TILE_WIDTH, FRAME_TILE_HEIGHT);
-      ctx.fillStyle = style.colours.line;
+      ctx.fillStyle = line;
       ctx.fillRect(px, py + piece.lineY, FRAME_TILE_WIDTH, 1);
       continue;
     }
@@ -277,11 +318,11 @@ export const drawWindowFrame = (
       ctx.scale(-1, 1);
     }
     ctx.drawImage(
-      style.tiles,
+      tiles,
       0,
-      piece.tile * FRAME_TILE_HEIGHT,
-      FRAME_TILE_WIDTH,
-      FRAME_TILE_HEIGHT,
+      piece.tile * FRAME_TILE_HEIGHT * tileScale,
+      FRAME_TILE_WIDTH * tileScale,
+      FRAME_TILE_HEIGHT * tileScale,
       0,
       0,
       FRAME_TILE_WIDTH,
@@ -289,6 +330,7 @@ export const drawWindowFrame = (
     );
     ctx.restore();
   }
+  ctx.restore();
   return fitted;
 };
 
