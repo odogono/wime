@@ -160,6 +160,9 @@ under a position is (x ÷ 16, y ÷ 16)
   eventually blunder across where the observed run did not; the
   Reference run's expected result is the looping, not a guarantee.
   (`finding:movement-greedy-tile-steering`)
+- Under Crossing movement, the default, a Force heads for a Crossing
+  instead (`docs/spec/crossing-movement.md`). This section and the
+  Reference runs describe Classic movement.
 
 ## Reference runs
 
