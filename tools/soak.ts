@@ -6,11 +6,14 @@
 // restoring at every day boundary gives back an identical state.
 //
 //   bun tools/soak.ts [--seeds N] [--from SEED] [--days CAP]
+//     [--movement classic|crossing]
 //
 // The Evil side moves on its own (its Default Orders and triggers). The
 // stand-in gives one Good Force a random Order each day, answers
 // meetings at random and lets every fight be resolved as ignored.
-// Animation Level play is view-side and not soaked.
+// Animation Level play is view-side and not soaked. --movement plays
+// under that Movement rule (docs/spec/crossing-movement.md), Classic
+// movement by default.
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
@@ -24,6 +27,7 @@ import {
   createSim,
   giveOrder,
   loadTerrainRegions,
+  loadWaterways,
   nextRandom,
   resolveFight,
   restoreSave,
@@ -35,15 +39,18 @@ import {
   tickSim,
   type Command,
   type MeetingAnswer,
+  type MovementRule,
   type Player,
   type RngState,
   type SimState,
-  type TerrainGrid
+  type TerrainGrid,
+  type Waterways
 } from '../web/src/sim';
 
 export interface SoakAssets {
   startingState: unknown;
   terrain: TerrainGrid;
+  waterways: Waterways;
 }
 
 export type SoakOutcome =
@@ -68,19 +75,18 @@ const ASSETS_DIR = new URL('../web/public/assets/', import.meta.url).pathname;
 
 export const assetsExist = (): boolean =>
   existsSync(join(ASSETS_DIR, 'starting-state.json')) &&
-  existsSync(join(ASSETS_DIR, 'geography/terrain-regions.json'));
+  existsSync(join(ASSETS_DIR, 'geography/terrain-regions.json')) &&
+  existsSync(join(ASSETS_DIR, 'geography/waterways.json'));
+
+const readAsset = (path: string): unknown =>
+  JSON.parse(readFileSync(join(ASSETS_DIR, path), 'utf8'));
 
 export const loadSoakAssets = (): SoakAssets => ({
-  startingState: JSON.parse(
-    readFileSync(join(ASSETS_DIR, 'starting-state.json'), 'utf8')
-  ),
+  startingState: readAsset('starting-state.json'),
   terrain: terrainGridFrom(
-    loadTerrainRegions(
-      JSON.parse(
-        readFileSync(join(ASSETS_DIR, 'geography/terrain-regions.json'), 'utf8')
-      )
-    )
-  )
+    loadTerrainRegions(readAsset('geography/terrain-regions.json'))
+  ),
+  waterways: loadWaterways(readAsset('geography/waterways.json'))
 });
 
 // The stand-in player's own RNG, kept apart from the sim's so that it
@@ -157,10 +163,10 @@ const settle = (state: SimState, rng: { state: RngState }): SimState => {
 // Save and restore, as the save slots do, and report any difference.
 const saveRoundTrip = (
   state: SimState,
-  terrain: TerrainGrid
+  assets: SoakAssets
 ): { message: string | null; state: SimState } => {
   const data = serialiseSave(state);
-  const restored = restoreSave(data, terrain);
+  const restored = restoreSave(data, assets.terrain, assets.waterways);
   if (!restored.ok) {
     return { message: `restore refused: ${restored.reason}`, state };
   }
@@ -205,7 +211,8 @@ const firstDifference = (a: unknown, b: unknown, path = 'state'): string => {
 export const soakRun = (
   seed: number,
   assets: SoakAssets,
-  dayCap: number
+  dayCap: number,
+  movementRule: MovementRule = 'classic'
 ): SoakResult => {
   const rng = { state: createRng(seed ^ 0x5a_5a_5a_5a) };
   let state: SimState | null = null;
@@ -217,7 +224,10 @@ export const soakRun = (
     ticks
   });
   try {
-    state = createSim(seed, assets.startingState, assets.terrain);
+    state = createSim(seed, assets.startingState, assets.terrain, {
+      movementRule,
+      waterways: assets.waterways
+    });
     const lastDay = state.clock.day + dayCap;
     let day = state.clock.day;
     let stalled = 0;
@@ -231,7 +241,7 @@ export const soakRun = (
       }
       if (state.clock.day !== day) {
         day = state.clock.day;
-        const trip = saveRoundTrip(state, assets.terrain);
+        const trip = saveRoundTrip(state, assets);
         if (trip.message) {
           return result({ kind: 'save-divergence', message: trip.message });
         }
@@ -290,6 +300,7 @@ if (import.meta.main) {
     options: {
       days: { default: '400', type: 'string' },
       from: { default: '1', type: 'string' },
+      movement: { default: 'classic', type: 'string' },
       seeds: { default: '50', type: 'string' }
     }
   });
@@ -297,11 +308,16 @@ if (import.meta.main) {
     console.error('web/public/assets/ is missing: run `bun run extract-all`');
     process.exit(2);
   }
+  const { movement } = values;
+  if (movement !== 'classic' && movement !== 'crossing') {
+    console.error('--movement must be classic or crossing');
+    process.exit(2);
+  }
   const assets = loadSoakAssets();
   const from = Number(values.from);
   const results: SoakResult[] = [];
   for (let seed = from; seed < from + Number(values.seeds); seed++) {
-    const run = soakRun(seed, assets, Number(values.days));
+    const run = soakRun(seed, assets, Number(values.days), movement);
     results.push(run);
     console.log(
       `seed ${seed}: ${run.outcome.kind === 'ending' ? run.outcome.ending : run.outcome.kind} (day ${run.day}, ${run.ticks} ticks)`
