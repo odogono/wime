@@ -18,11 +18,11 @@ const memory = (initial: Record<string, string> = {}) => {
 };
 
 describe('settings', () => {
-  test('start with sound on, the full window and the glass as in the original', () => {
+  test('start with sound on, the full window, the glass as in the original and the Atlas map', () => {
     expect(loadSettings(memory())).toEqual({
       debug: NO_DEBUG_VIEWS,
       glassShowsEvil: false,
-      map: 'classic',
+      map: 'atlas',
       size: 1,
       sound: true
     });
@@ -49,13 +49,13 @@ describe('settings', () => {
     });
   });
 
-  test('keep the map Atlas once chosen, and Classic otherwise', () => {
+  test('keep the map chosen, and the Atlas map otherwise', () => {
     expect(
-      loadSettings(memory({ [SETTINGS_KEY]: '{"map":"atlas"}' })).map
-    ).toBe('atlas');
+      loadSettings(memory({ [SETTINGS_KEY]: '{"map":"classic"}' })).map
+    ).toBe('classic');
     expect(
       loadSettings(memory({ [SETTINGS_KEY]: '{"map":"sepia"}' })).map
-    ).toBe('classic');
+    ).toBe('atlas');
   });
 
   test('keep the Debug views, and drop what is not one', () => {
@@ -81,7 +81,7 @@ describe('settings', () => {
     ).toEqual({
       debug: NO_DEBUG_VIEWS,
       glassShowsEvil: false,
-      map: 'classic',
+      map: 'atlas',
       size: 1,
       sound: false
     });

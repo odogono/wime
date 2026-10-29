@@ -172,6 +172,7 @@ const fakeAssets = (draws: DrawCall[]): CampaignAssets => {
       tile_width: 16,
       width: 32
     },
+    waterways: null,
     window: windowStyle(atlas, Array<string>(16).fill('#000'), fixedFont())
   };
 };

@@ -32,7 +32,7 @@ export interface Settings {
 export const DEFAULT_SETTINGS: Settings = {
   debug: NO_DEBUG_VIEWS,
   glassShowsEvil: false,
-  map: 'classic',
+  map: 'atlas',
   size: 1,
   sound: true
 };
@@ -67,7 +67,7 @@ export const loadSettings = (
         typeof glassShowsEvil === 'boolean'
           ? glassShowsEvil
           : DEFAULT_SETTINGS.glassShowsEvil,
-      map: map === 'atlas' ? 'atlas' : 'classic',
+      map: map === 'classic' || map === 'atlas' ? map : DEFAULT_SETTINGS.map,
       size: WINDOW_SIZES.find(s => s === size) ?? DEFAULT_SETTINGS.size,
       sound: typeof sound === 'boolean' ? sound : DEFAULT_SETTINGS.sound
     };

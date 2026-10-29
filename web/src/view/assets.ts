@@ -3,6 +3,7 @@ import {
   terrainGridFrom,
   type TerrainGrid
 } from '../sim/terrain';
+import { loadWaterways, type Waterways } from '../sim/waterways';
 import type { AnimationTables } from './animation-scene';
 import { BASE_URL } from './base-url';
 import type { Font, FontMetrics } from './font';
@@ -87,6 +88,9 @@ export interface CampaignAssets {
   texts: Map<string, string>;
   tilemap: Tilemap;
   tiles: TilesMeta;
+  // The rivers and Crossings Crossing movement routes by, or null when
+  // they failed to load: new games then offer only Classic movement.
+  waterways: Waterways | null;
   // How windows look on the Campaign Level
   // (finding:ui-window-frame-tiles).
   window: WindowStyle;
@@ -311,7 +315,8 @@ export const loadCampaignAssets = async (
     palette,
     frame,
     font,
-    terrainRegions
+    terrainRegions,
+    waterways
   ] = await Promise.all([
     loadImage(base + atlasAsset.path),
     fetchJson<Tilemap>(base + tilemapAsset.path),
@@ -323,7 +328,12 @@ export const loadCampaignAssets = async (
     loadImage(base + frameAsset.path),
     loadFont(manifest, base),
     // build-geography writes it after the manifest, so it is not listed.
-    fetchJson<unknown>(`${base}geography/terrain-regions.json`)
+    fetchJson<unknown>(`${base}geography/terrain-regions.json`),
+    // Optional: without it the game still plays, and the New Game
+    // screen says Crossing movement is unavailable.
+    fetchJson<unknown>(`${base}geography/waterways.json`)
+      .then(loadWaterways)
+      .catch(() => null)
   ]);
 
   const icons: CampaignIcon[] = [];
@@ -347,6 +357,7 @@ export const loadCampaignAssets = async (
     texts: textsByKey(texts),
     tilemap,
     tiles,
+    waterways,
     window: windowStyle(blackToTransparent(frame), palette.hex, font)
   };
 };
