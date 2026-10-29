@@ -21,7 +21,7 @@ A detailed view of a single place, where each individual is animated against a b
 _Avoid_: Scene, close-up
 
 **Classic map**:
-The map drawn as the original draws it, from its tiles and its full-map picture, with its own sprites and dots for Forces. The default.
+The map drawn as the original draws it, from its tiles and its full-map picture, with its own sprites and dots for Forces.
 _Avoid_: Retro mode, pixel map
 
 **Figure**:
@@ -33,7 +33,7 @@ One of the original's Campaign Level icons that draws a shield or device, such a
 _Avoid_: Crest, logo
 
 **Atlas map**:
-The port's own drawing of the map, one ink-on-parchment map in the manner of Tolkien's, with Forces drawn in their own style. It changes how the world is shown, never the rules.
+The port's own drawing of the map, one ink-on-parchment map in the manner of Tolkien's, with Forces drawn in their own style. The default. It changes how the world is shown, never the rules.
 _Avoid_: Vector map, HD mode, Tolkien map
 
 **Emblem**:
@@ -101,6 +101,10 @@ _Avoid_: Tile, zone, area
 A named point on the map, such as Hobbiton or Cirith Ungol. Every Place has a kind, such as a small town, a ruin or a fortress.
 _Avoid_: Location, site, town
 
+**Crossing**:
+A place where a road crosses a river, such as a ford or a bridge, whether or not it is a Place.
+_Avoid_: Ford, bridge point, pass
+
 **Stronghold**:
 One of the five major Good Places (the Hornburg, Edoras, Minas Tirith, Lórien and Thranduil's Palace). Each stands or falls with one named Garrison, and losing any three loses the game.
 _Avoid_: Capital, base
@@ -126,6 +130,18 @@ _Avoid_: Key item, quest item
 **Default Orders**:
 The course of action each Character starts with, which the Character follows until given an Order.
 _Avoid_: Script, AI path
+
+**Movement rule**:
+How Forces find their way across the map, chosen when a game starts and fixed for that game: Crossing movement or Classic movement.
+_Avoid_: Movement mode, pathing option
+
+**Classic movement**:
+The Movement rule the original plays by: a Force steers towards its destination step by step and uses a Crossing only if one lies in its way.
+_Avoid_: Original movement, legacy movement
+
+**Crossing movement**:
+The Movement rule in which a Force whose way meets a river heads for a Crossing within reach, wading only when none is. The default.
+_Avoid_: Atlas movement, routed movement, smart pathing
 
 **War Event**:
 One of the five turning points that set later stages of the war going, such as Saruman's army marching.
