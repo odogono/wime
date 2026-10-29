@@ -2,6 +2,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { expect, test } from 'bun:test';
 
+import type { Point } from '../web/src/sim/starting-state';
 import { crossingsNear, loadWaterways } from '../web/src/sim/waterways';
 import { CROSSING_TILES } from './build-geography';
 import { ASSETS, hasAssets, loadTileGrid } from './terrain-equivalence';
@@ -72,5 +73,36 @@ test.skipIf(skip)(
       .filter(c => !tiles.some(([x, y]) => Math.hypot(x - c.x, y - c.y) < TILE))
       .map(c => `${c.x},${c.y} ${c.place ?? ''}`);
     expect(stray).toEqual([]);
+  }
+);
+
+// How far a point lies from the segment ab.
+const fromSegment = (p: Point, a: Point, b: Point): number => {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const t = Math.max(
+    0,
+    Math.min(
+      1,
+      ((p.x - a.x) * dx + (p.y - a.y) * dy) / (dx * dx + dy * dy || 1)
+    )
+  );
+  return Math.hypot(a.x + t * dx - p.x, a.y + t * dy - p.y);
+};
+
+// Crossing movement looks for the river a Crossing spans (#338).
+test.skipIf(skip)(
+  'every Crossing lies within a tile of a river line',
+  async () => {
+    const { crossings, rivers } = await load();
+    const far = crossings.filter(
+      c =>
+        !rivers.some(river =>
+          river.some(
+            (p, i) => i > 0 && fromSegment(c, river[i - 1]!, p) <= TILE
+          )
+        )
+    );
+    expect(far).toEqual([]);
   }
 );
