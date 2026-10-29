@@ -265,18 +265,6 @@ export const createAtlasMap = async (
   // size in CSS pixels; Strongholds are drawn larger.
   const pictogramSize = (rank: number): number =>
     Math.min(48, Math.max(18, 20 * camera.zoom)) * (rank === 0 ? 1.25 : 1);
-  // The pictured Place a Force stands on, if any: Places are a tile apart
-  // at least, so within half a tile is on it.
-  const pictureUnder = (
-    force: Force
-  ): GeographyBundle['places'][number] | undefined =>
-    bundle.places.find(
-      p =>
-        p.pictogram !== AREA &&
-        !CROSSINGS.has(p.pictogram) &&
-        Math.abs(p.x - force.position.x - SPRITE_SIZE / 2) <= 8 &&
-        Math.abs(p.y - force.position.y - SPRITE_SIZE / 2) <= 8
-    );
 
   const stepFlight = (elapsedMs: number): void => {
     if (!flight) {
@@ -333,13 +321,7 @@ export const createAtlasMap = async (
         force.members.some(m => m.index === options.ringBearer);
       if (tier === 'emblem') {
         const size = emblemSize(camera.zoom) * dpr;
-        // A Force standing on a pictured Place stands beside its
-        // picture, so the picture stays in view.
-        const place = pictureUnder(force);
-        const beside = place
-          ? (pictogramSize(place.rank) * dpr) / 2 + size / 2
-          : 0;
-        const x = sx * dpr - size / 2 + beside;
+        const x = sx * dpr - size / 2;
         const y = sy * dpr - size / 2;
         picks.push({
           box: { h: size / dpr, w: size / dpr, x: x / dpr, y: y / dpr },
