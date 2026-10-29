@@ -233,3 +233,10 @@ export {
   type TerrainGrid,
   type TerrainRegions
 } from './terrain';
+export {
+  crossesRiver,
+  crossingsNear,
+  loadWaterways,
+  type Crossing,
+  type Waterways
+} from './waterways';

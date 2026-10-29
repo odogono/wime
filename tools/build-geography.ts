@@ -2409,6 +2409,56 @@ export const terrainRegionsAsset = (
   width: source.tilemap.width
 });
 
+// The tiles that draw a road across a river, each rated 100
+// (finding:map-terrain-values-of-water-and-mountains).
+export const CROSSING_TILES = [55, 60, 63, 71, 142, 222];
+
+const round = (v: number): number => Math.round(v * 10) / 10;
+
+// The rivers and Crossings the sim reads (#330): each river line, and
+// each Crossing with the Place standing on it. The roads are traced a
+// few pixels off some crossing tiles, so their crossings are missed;
+// those come from the tile grid instead, at the tile's centre.
+export const waterwaysAsset = (
+  geography: Geography,
+  source: Pick<SourceData, 'tilemap'>
+) => {
+  const traced = geography.features
+    .filter(f => f.properties.layer === 'crossing')
+    .map(f => f.geometry.coordinates as Point);
+  const { indices, width } = source.tilemap;
+  const fromTiles = indices.flatMap((tile, i): Point[] => {
+    const at: Point = [
+      (i % width) * TILE + TILE / 2,
+      Math.floor(i / width) * TILE + TILE / 2
+    ];
+    return CROSSING_TILES.includes(tile) &&
+      !traced.some(c => Math.hypot(c[0] - at[0], c[1] - at[1]) < TILE)
+      ? [at]
+      : [];
+  });
+  const places = geography.features.filter(f => f.properties.layer === 'place');
+  const placeAt = ([x, y]: Point): string | undefined =>
+    places.find(p => {
+      const [px, py] = p.geometry.coordinates as Point;
+      return Math.hypot(px - x, py - y) < TILE / 2;
+    })?.properties.name as string | undefined;
+  return {
+    crossings: [...traced, ...fromTiles].map(at => ({
+      at: [round(at[0]), round(at[1])],
+      ...(placeAt(at) ? { place: placeAt(at) } : {})
+    })),
+    rivers: geography.features
+      .filter(f => f.properties.layer === 'river-line')
+      .map(f =>
+        (f.geometry.coordinates as Point[]).map(([x, y]) => [
+          round(x),
+          round(y)
+        ])
+      )
+  };
+};
+
 export const main = async (): Promise<number> => {
   const assets = join(root, 'web/public/assets');
   if (!existsSync(join(assets, 'campaign/tilemap.json'))) {
@@ -2483,6 +2533,10 @@ export const main = async (): Promise<number> => {
   await Bun.write(
     join(out, 'terrain-regions.json'),
     JSON.stringify(terrainRegionsAsset(geography, source))
+  );
+  await Bun.write(
+    join(out, 'waterways.json'),
+    JSON.stringify(waterwaysAsset(geography, source))
   );
   const pct = (n: number): string =>
     `${((n / check.samples) * 100).toFixed(1)}%`;
