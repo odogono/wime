@@ -156,7 +156,7 @@ const drawBookText = (
 
 // The book face's size to the pixel font's baseline, so their capitals
 // stand about as tall.
-const BOOK_SIZE_PER_BASELINE = 1.5;
+const BOOK_SIZE_PER_BASELINE = 1.3;
 
 // Draw text with its top left at (x, y), as the original's text routine
 // is called: each line break moves down by the font's height. Returns the
