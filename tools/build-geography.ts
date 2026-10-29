@@ -1428,6 +1428,33 @@ export const joinPieces = (pieces: Point[][]): Point[][] => {
 // The widest a river line is drawn, in map pixels.
 const MAX_RIVER_WIDTH = 4;
 
+// A river that runs into the sea or a lake is part of that water in the
+// ground, so it is no river there. Water farther than this many map
+// pixels from the deep water is such a river: only broad water is
+// deeper than a river (MAX_RIVER_DEPTH), and the coasts lie within this
+// of it.
+const RIVER_ARM_REACH = 24;
+
+// The ground's sea and lake cells too narrow to be anything but a river
+// running into them (#338): those far from any water deeper than a river.
+const narrowWater = (ground: Ground): Uint8Array => {
+  const { kinds, step, width } = ground;
+  const height = kinds.length / width;
+  const wet = Uint8Array.from(kinds, k =>
+    Number(k === GROUND_KINDS.indexOf('water'))
+  );
+  const depth = insideDistance(wet, width, height, step);
+  const fromDeep = insideDistance(
+    Uint8Array.from(depth, d => Number(d <= MAX_RIVER_DEPTH)),
+    width,
+    height,
+    step
+  );
+  return Uint8Array.from(wet, (w, i) =>
+    Number(w === 1 && fromDeep[i]! > RIVER_ARM_REACH)
+  );
+};
+
 export const traceRiverLines = (
   source: SourceData,
   ground: Ground
@@ -1439,16 +1466,17 @@ export const traceRiverLines = (
   const step = 1;
   const colourAt = pixelReader(source);
   const river = GROUND_KINDS.indexOf('river');
+  const narrow = narrowWater(ground);
   const mask = new Uint8Array(width * height);
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
-      const kind =
-        ground.kinds[
-          Math.floor(y / ground.step) * ground.width +
-            Math.floor(x / ground.step)
-        ];
+      const cell =
+        Math.floor(y / ground.step) * ground.width +
+        Math.floor(x / ground.step);
+      const kind = ground.kinds[cell];
       mask[y * width + x] = Number(
         kind === river ||
+          narrow[cell] === 1 ||
           (kind !== GROUND_KINDS.indexOf('water') &&
             kind !== GROUND_KINDS.indexOf('marsh') &&
             DEEP_COLOURS.has(colourAt(x, y)))
