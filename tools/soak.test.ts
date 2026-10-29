@@ -10,6 +10,13 @@ describe.skipIf(!assetsExist())('soak runner', () => {
     expect(soakRun(1, assets, 400)).toEqual(run);
   });
 
+  test('plays under Crossing movement, saving every day', () => {
+    const assets = loadSoakAssets();
+    const run = soakRun(1, assets, 400, 'crossing');
+    expect(run.outcome.kind).toBe('ending');
+    expect(soakRun(1, assets, 400, 'crossing')).toEqual(run);
+  });
+
   test('reports a run that outlasts the day cap as a possible softlock', () => {
     const run = soakRun(1, loadSoakAssets(), 1);
     expect(run.outcome.kind).toBe('softlock');
