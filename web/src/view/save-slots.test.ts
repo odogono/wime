@@ -180,12 +180,12 @@ describe('save slots', () => {
     };
     storage.items.set(
       'wime.slot.1',
-      JSON.stringify({ ...data, version: SAVE_VERSION - 1 })
+      JSON.stringify({ ...data, version: SAVE_VERSION - 2 })
     );
     const index = JSON.parse(storage.items.get(INDEX_KEY)!) as {
       slots: { version: number }[];
     };
-    index.slots[0]!.version = SAVE_VERSION - 1;
+    index.slots[0]!.version = SAVE_VERSION - 2;
     storage.items.set(INDEX_KEY, JSON.stringify(index));
     expect(slots.list()).toMatchObject({ value: [{ loadable: false }] });
     expect(slots.load(1, null)).toEqual({

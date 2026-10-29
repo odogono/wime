@@ -10,6 +10,7 @@ import {
   type Fight
 } from './combat';
 import { RIVENDELL, closeCouncil, type CouncilMessage } from './council';
+import type { CrossingLeg } from './crossing-movement';
 import { isEncounter, type Passing } from './encounters';
 import { answerMeeting, type Meeting } from './meetings';
 import { giveOrder } from './movement';
@@ -29,6 +30,7 @@ import {
   type TerrainGrid
 } from './terrain';
 import type { WarEventAnnouncement, WarEvents } from './war-events';
+import { loadWaterways } from './waterways';
 
 // Every field of the saved state, nested types included. Adding a field
 // to any of these types breaks the typecheck here until it is listed,
@@ -55,6 +57,12 @@ const SHAPE = {
     strength: true
   } satisfies Fields<CombatRow>,
   council: { ringBearer: true } satisfies Fields<CouncilMessage>,
+  crossingLeg: {
+    destination: true,
+    rivers: true,
+    riversCrossed: true,
+    waypoint: true
+  } satisfies Fields<CrossingLeg>,
   fight: {
     events: true,
     evil: true,
@@ -120,9 +128,11 @@ const SHAPE = {
     clock: true,
     council: true,
     councilPending: true,
+    crossingLegs: true,
     ending: true,
     fight: true,
     meeting: true,
+    movementRule: true,
     objectPlacements: true,
     passings: true,
     placeKinds: true,
@@ -135,7 +145,8 @@ const SHAPE = {
     sweepFrom: true,
     terrain: true,
     warEvents: true,
-    watching: true
+    watching: true,
+    waterways: true
   } satisfies Fields<SimState>,
   warEvents: { days: true, mask: true } satisfies Fields<WarEvents>
 };
@@ -150,6 +161,7 @@ const shapeOf = (shape: Record<string, Record<string, true>>): string =>
 // when the shape changes, bump SAVE_VERSION and add a new one.
 const PINNED_SHAPES: Record<number, string> = {
   1: 'clock(day,quarterHour) place(announcesAttacks,gridByte,gridReference,index,name,position,tile,tileKind) placeKind(index,name,tile) point(x,y) roster(allegiance,destination,encounter,facing,fighting,figure,fraction,health,icon,index,isUnit,leader,maxHealth,maxStamina,name,objects,position,route,speed,stamina,startingStrength,state,strength,ticked,trigger,triggerByte,unknown) state(clock,placeKinds,places,ringBearer,rng,roster,routes,speeds,terrainByTile,tilemap)',
+  10: 'announcement(day,event) clock(day,quarterHour) combatEvent(blow,killed,row,wounded) combatRow(entries,follower,option,side,startStrength,strength) council(ringBearer) crossingLeg(destination,rivers,riversCrossed,waypoint) fight(events,evil,good,position,round,rows,winner) meeting(a,b,kind) objectPlacement(object,position) passing(a,b) place(announcesAttacks,gridByte,gridReference,index,name,position,tile,tileKind) placeKind(index,name,tile) point(x,y) roster(allegiance,destination,encounter,facing,fighting,figure,fraction,health,icon,index,isUnit,leader,maxHealth,maxStamina,name,objects,position,route,speed,stamina,startingStrength,state,strength,ticked,trigger,triggerByte,unknown) state(announcements,clock,council,councilPending,crossingLegs,ending,fight,meeting,movementRule,objectPlacements,passings,placeKinds,places,ringBearer,rng,roster,routes,speeds,sweepFrom,terrain,warEvents,watching,waterways) warEvents(days,mask)',
   2: 'clock(day,quarterHour) combatEvent(blow,killed,row,wounded) combatRow(entries,follower,option,side,startStrength,strength) fight(events,evil,good,position,round,rows,winner) place(announcesAttacks,gridByte,gridReference,index,name,position,tile,tileKind) placeKind(index,name,tile) point(x,y) roster(allegiance,destination,encounter,facing,fighting,figure,fraction,health,icon,index,isUnit,leader,maxHealth,maxStamina,name,objects,position,route,speed,stamina,startingStrength,state,strength,ticked,trigger,triggerByte,unknown) state(clock,fight,placeKinds,places,ringBearer,rng,roster,routes,speeds,sweepFrom,terrainByTile,tilemap)',
   3: 'clock(day,quarterHour) combatEvent(blow,killed,row,wounded) combatRow(entries,follower,option,side,startStrength,strength) fight(events,evil,good,position,round,rows,winner) place(announcesAttacks,gridByte,gridReference,index,name,position,tile,tileKind) placeKind(index,name,tile) point(x,y) roster(allegiance,destination,encounter,facing,fighting,figure,fraction,health,icon,index,isUnit,leader,maxHealth,maxStamina,name,objects,position,route,speed,stamina,startingStrength,state,strength,ticked,trigger,triggerByte,unknown) state(clock,ending,fight,placeKinds,places,ringBearer,rng,roster,routes,speeds,sweepFrom,terrainByTile,tilemap)',
   4: 'announcement(day,event) clock(day,quarterHour) combatEvent(blow,killed,row,wounded) combatRow(entries,follower,option,side,startStrength,strength) fight(events,evil,good,position,round,rows,winner) place(announcesAttacks,gridByte,gridReference,index,name,position,tile,tileKind) placeKind(index,name,tile) point(x,y) roster(allegiance,destination,encounter,facing,fighting,figure,fraction,health,icon,index,isUnit,leader,maxHealth,maxStamina,name,objects,position,route,speed,stamina,startingStrength,state,strength,ticked,trigger,triggerByte,unknown) state(announcements,clock,ending,fight,placeKinds,places,ringBearer,rng,roster,routes,speeds,sweepFrom,terrainByTile,tilemap,warEvents) warEvents(days,mask)',
@@ -203,6 +215,54 @@ describe('save', () => {
       state
     });
     expect(JSON.parse(serialiseSave(state))).not.toHaveProperty('setup');
+  });
+
+  test('round-trips the Movement rule and a waypoint, leaving the waterways out', () => {
+    const waterways = loadWaterways({
+      crossings: [{ at: [8, 8] }],
+      rivers: [
+        [
+          [8, 0],
+          [8, 16]
+        ]
+      ]
+    });
+    const state: SimState = {
+      ...createSim(7, undefined, terrain, {
+        movementRule: 'crossing',
+        waterways
+      }),
+      crossingLegs: {
+        3: {
+          destination: { x: 32, y: 0 },
+          rivers: [0],
+          riversCrossed: [],
+          waypoint: { x: 0, y: 0 }
+        }
+      }
+    };
+    const data = serialiseSave(state);
+    expect(data).not.toContain('"waterways"');
+    expect(restoreSave(data, terrain, waterways)).toEqual({
+      ok: true,
+      setup: null,
+      state
+    });
+  });
+
+  test('loads a version 9 save as Classic movement', () => {
+    const file = JSON.parse(serialiseSave(createSim(7))) as {
+      state: Record<string, unknown>;
+      version: number;
+    };
+    delete file.state.crossingLegs;
+    delete file.state.movementRule;
+    file.version = 9;
+    const restored = restoreSave(JSON.stringify(file), terrain);
+    expect(restored).toMatchObject({
+      ok: true,
+      state: { crossingLegs: {}, movementRule: 'classic' }
+    });
   });
 
   test('refuses a damaged Setup', () => {

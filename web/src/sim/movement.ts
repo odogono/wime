@@ -9,6 +9,11 @@
 // (finding:movement-terrain-percent-scales-pace).
 
 import type { Clock } from './clock';
+import {
+  chooseCrossing,
+  type CrossingLeg,
+  type MovementRule
+} from './crossing-movement';
 import { nextRandom, type RngState } from './rng';
 import {
   TILE_SIZE,
@@ -19,15 +24,22 @@ import {
   type RosterEntry
 } from './starting-state';
 import { terrainOf, type TerrainGrid } from './terrain';
+import type { Waterways } from './waterways';
 
 export interface MovementWorld {
   clock: Clock;
+  // Each Leader's leg under Crossing movement, by roster index
+  // (docs/spec/crossing-movement.md). Absent, as are the rule and the
+  // waterways, for Classic movement.
+  crossingLegs?: Record<number, CrossingLeg>;
+  movementRule?: MovementRule;
   places: Place[];
   rng: RngState;
   roster: RosterEntry[];
   routes: number[][];
   speeds: { diagonal: number[]; straight: number[] };
   terrain: TerrainGrid | null;
+  waterways?: Waterways | null;
 }
 
 // Facings 0-7 clockwise from north and their one-pixel steps
@@ -75,8 +87,9 @@ export const paceFor = (
 const tileAligned = (point: Point): boolean =>
   point.x % TILE_SIZE === 0 && point.y % TILE_SIZE === 0;
 
-// Pick a new facing at a tile origin. One time in ten the desired
-// facing is taken directly when the tile ahead rates at least 10;
+// Pick a new facing at a tile origin, towards `target`. One time in
+// ten the desired facing is taken directly when the tile ahead rates
+// at least 10, unless the straight step is off;
 // otherwise the eight neighbours are scored and the first strict
 // maximum wins. A reverse candidate's score is divided by 8, but
 // only when the current facing is 0-3 (the original compares
@@ -84,15 +97,17 @@ const tileAligned = (point: Point): boolean =>
 const steer = (
   world: MovementWorld,
   entry: RosterEntry,
-  roll100: number
+  roll100: number,
+  target: Point,
+  straightStep: boolean
 ): number => {
   const position = entry.position!;
-  const desired = desiredFacing(position, entry.destination!);
+  const desired = desiredFacing(position, target);
   const ahead = {
     x: position.x + TILE_SIZE * STEP_DX[desired]!,
     y: position.y + TILE_SIZE * STEP_DY[desired]!
   };
-  if (roll100 >= 90 && terrainAt(world, ahead) >= 10) {
+  if (straightStep && roll100 >= 90 && terrainAt(world, ahead) >= 10) {
     return desired;
   }
   let best = 0;
@@ -169,6 +184,35 @@ const arrive = (world: MovementWorld, entry: RosterEntry): RosterEntry => {
   };
 };
 
+// A moving Leader's leg under Crossing movement, chosen afresh when
+// its destination has changed since the last one, by an Order or the
+// next route stop; null under Classic movement.
+const crossingLeg = (
+  world: MovementWorld,
+  entry: RosterEntry
+): CrossingLeg | null => {
+  if (world.movementRule !== 'crossing' || !world.waterways) {
+    return null;
+  }
+  const destination = entry.destination!;
+  const leg = world.crossingLegs?.[entry.index];
+  if (
+    leg &&
+    leg.destination.x === destination.x &&
+    leg.destination.y === destination.y
+  ) {
+    return leg;
+  }
+  const chosen = chooseCrossing(
+    world.waterways,
+    entry.position!,
+    destination,
+    []
+  );
+  world.crossingLegs = { ...world.crossingLegs, [entry.index]: chosen };
+  return chosen;
+};
+
 // One entry's movement for a tick, with the RNG rolls it needs drawn
 // from the world. Followers never move: the tick skips entries with
 // a leader (finding:movement-arrival-pops-next-route-stop).
@@ -207,11 +251,19 @@ const tickEntry = (world: MovementWorld, entry: RosterEntry): RosterEntry => {
     // (finding:movement-rest-when-leader-stamina-empty).
     return { ...entry, state: 3 };
   }
+  const leg = crossingLeg(world, entry);
+  const waypoint = leg?.waypoint ?? null;
   let facing = entry.facing;
   if (tileAligned(entry.position)) {
     const roll = nextRandom(world.rng);
     world.rng = roll.state;
-    facing = steer(world, entry, Math.floor(roll.value * 100));
+    facing = steer(
+      world,
+      entry,
+      Math.floor(roll.value * 100),
+      waypoint ?? entry.destination,
+      waypoint === null
+    );
   }
   const diagonal = facing % 2 === 1;
   const row = diagonal ? world.speeds.diagonal : world.speeds.straight;
@@ -252,7 +304,30 @@ const tickEntry = (world: MovementWorld, entry: RosterEntry): RosterEntry => {
     position.x === entry.destination.x &&
     position.y === entry.destination.y
   ) {
+    if (leg) {
+      const { [entry.index]: _done, ...legs } = world.crossingLegs!;
+      world.crossingLegs = legs;
+    }
     return arrive(world, stepped);
+  }
+  if (
+    leg &&
+    waypoint &&
+    tileAligned(position) &&
+    position.x === waypoint.x &&
+    position.y === waypoint.y
+  ) {
+    // Reaching the waypoint is not an arrival: the Force records the
+    // rivers crossed and chooses again from where it stands.
+    world.crossingLegs = {
+      ...world.crossingLegs,
+      [entry.index]: chooseCrossing(
+        world.waterways!,
+        position,
+        entry.destination,
+        [...leg.riversCrossed, ...leg.rivers]
+      )
+    };
   }
   return stepped;
 };
@@ -285,6 +360,7 @@ export const sweepMovement = <T extends MovementWorld>(
     const entry = next.roster[i]!;
     // A held step must leave no trace, so what it draws is kept.
     const rng = next.rng;
+    const legs = next.crossingLegs;
     const route = next.routes[entry.route];
     const stepped = tickEntry(next, entry);
     const moved =
@@ -294,6 +370,9 @@ export const sweepMovement = <T extends MovementWorld>(
         stepped.position.y !== entry.position.y);
     if (moved && i === holdAt) {
       next.rng = rng;
+      if (legs !== next.crossingLegs) {
+        next.crossingLegs = legs ?? {};
+      }
       if (route) {
         next.routes[entry.route] = route;
       }

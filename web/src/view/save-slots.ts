@@ -1,6 +1,7 @@
 import {
   SAVE_VERSION,
   formatClock,
+  loadsSaveVersion,
   readSaveSetup,
   restoreSave,
   serialiseSave,
@@ -21,8 +22,9 @@ export interface SlotSummary {
   // In-game date (formatClock), or null when the save could not be read.
   gameDate: string | null;
   id: number;
-  // Whether this build can load it: saves of another SAVE_VERSION are
-  // listed but refused, as restoreSave refuses them.
+  // Whether this build can load it: saves of a version it cannot load
+  // (loadsSaveVersion) are listed but refused, as restoreSave refuses
+  // them.
   loadable: boolean;
   name: string;
   // When it was saved, in ms since the epoch; null for an imported
@@ -97,7 +99,7 @@ const cleanName = (name: string, id: number): string =>
 const summary = (entry: SlotEntry): SlotSummary => ({
   gameDate: entry.gameDate,
   id: entry.id,
-  loadable: entry.version === SAVE_VERSION,
+  loadable: entry.version !== null && loadsSaveVersion(entry.version),
   name: entry.name,
   savedAt: entry.savedAt,
   setupSeed: entry.setupSeed ?? null

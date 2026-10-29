@@ -1,6 +1,12 @@
 import { describe, expect, test } from 'bun:test';
 
-import { crossesRiver, crossingsNear, loadWaterways } from './waterways';
+import {
+  crossesRiver,
+  crossingsNear,
+  firstRiverMet,
+  loadWaterways,
+  riverWithinSquare
+} from './waterways';
 
 // One river running down x = 10 from y = 0 to y = 20, with a ford on it
 // and an unnamed crossing further off.
@@ -58,5 +64,42 @@ describe('crossingsNear', () => {
       { place: 'SARN FORD', x: 10, y: 10 }
     ]);
     expect(crossingsNear(waterways, { x: 100, y: 100 }, 15)).toEqual([]);
+  });
+});
+
+describe('firstRiverMet', () => {
+  // Rivers down x = 30 and x = 10, listed far one first.
+  const two = loadWaterways({
+    crossings: [],
+    rivers: [
+      [
+        [30, 0],
+        [30, 20]
+      ],
+      [
+        [10, 0],
+        [10, 20]
+      ]
+    ]
+  });
+
+  test('is the river met first from the start of the way', () => {
+    expect(firstRiverMet(two, { x: 0, y: 5 }, { x: 40, y: 5 })).toBe(1);
+    expect(firstRiverMet(two, { x: 40, y: 5 }, { x: 0, y: 5 })).toBe(0);
+    expect(firstRiverMet(two, { x: 0, y: 5 }, { x: 5, y: 5 })).toBeNull();
+  });
+
+  test('passes over the rivers it is told to skip', () => {
+    expect(firstRiverMet(two, { x: 0, y: 5 }, { x: 40, y: 5 }, [1])).toBe(0);
+  });
+});
+
+describe('riverWithinSquare', () => {
+  test('is true when the line passes through the square around a point', () => {
+    const line = waterways.rivers[0]!;
+    expect(riverWithinSquare(line, { x: 25, y: 10 }, 15)).toBe(true);
+    expect(riverWithinSquare(line, { x: 26, y: 10 }, 15)).toBe(false);
+    expect(riverWithinSquare(line, { x: 20, y: 34 }, 15)).toBe(true);
+    expect(riverWithinSquare(line, { x: 20, y: 36 }, 15)).toBe(false);
   });
 });

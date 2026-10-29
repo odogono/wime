@@ -170,6 +170,7 @@ export {
   type Trigger
 } from './starting-state';
 export {
+  loadsSaveVersion,
   readSaveSetup,
   restoreSave,
   SAVE_VERSION,
@@ -181,6 +182,7 @@ export {
 export {
   createSim,
   deserializeSim,
+  type SimOptions,
   serializeSim,
   takeAnnouncement,
   takePassing,
@@ -234,8 +236,16 @@ export {
   type TerrainRegions
 } from './terrain';
 export {
+  chooseCrossing,
+  CROSSING_DETOUR_RATIO,
+  CROSSING_NEAR_LINE,
+  type CrossingLeg,
+  type MovementRule
+} from './crossing-movement';
+export {
   crossesRiver,
   crossingsNear,
+  firstRiverMet,
   loadWaterways,
   type Crossing,
   type Waterways

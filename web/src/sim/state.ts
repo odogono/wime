@@ -6,6 +6,7 @@ import {
 } from './clock';
 import { findMatch, startFight, type Fight } from './combat';
 import { councilDue, holdCouncil, type CouncilMessage } from './council';
+import type { CrossingLeg, MovementRule } from './crossing-movement';
 import type { Passing } from './encounters';
 import type { Ending } from './endings';
 import { startMeeting, type Meeting } from './meetings';
@@ -31,6 +32,7 @@ import {
   type WarEventAnnouncement,
   type WarEvents
 } from './war-events';
+import type { Waterways } from './waterways';
 
 // All simulation state, kept serialisable at all times (ADR-0002):
 // plain data only, so JSON round-trips it exactly. The roster, Places
@@ -49,6 +51,11 @@ export interface SimState {
   // Whether the Council of Elrond is still to come
   // (finding:ai-council-of-elrond-trigger).
   councilPending: boolean;
+  // Each Leader's leg under Crossing movement, by roster index: its
+  // waypoint and the rivers it has crossed at a Crossing
+  // (docs/spec/crossing-movement.md). Always empty under Classic
+  // movement.
+  crossingLegs: Record<number, CrossingLeg>;
   // How the game ended, or null while it goes on. Nothing moves once
   // it has ended (docs/spec/combat.md, "Endings").
   ending: Ending | null;
@@ -58,6 +65,9 @@ export interface SimState {
   // The meeting waiting for the player's answer, or null. Game time
   // stands still while one is (finding:ui-meeting-window).
   meeting: Meeting | null;
+  // The game's Movement rule, fixed for the game
+  // (docs/spec/crossing-movement.md).
+  movementRule: MovementRule;
   // The 30 slots of objects lying on the map, null where free
   // (docs/spec/objects.md).
   objectPlacements: (ObjectPlacement | null)[];
@@ -87,23 +97,39 @@ export interface SimState {
   // Campaign Level is on show. The Encounter search depends on it
   // (docs/spec/encounters.md); the view sets it (watchEntry).
   watching: number | null;
+  // The rivers and Crossings Crossing movement routes by, or null
+  // without a map. Never saved, as the terrain is not.
+  waterways: Waterways | null;
 }
 
 // Start a game. With no starting state the world is empty and only the
 // clock runs, which is all the clock tests need; a real game passes
 // the parsed starting-state.json, whose clock is the opening date and
-// time (docs/spec/starting-state.md).
+// time (docs/spec/starting-state.md). A game is played under Classic
+// movement unless `options` choose Crossing movement.
+export interface SimOptions {
+  movementRule?: MovementRule;
+  waterways?: Waterways | null;
+}
+
 export const createSim = (
   seed: number,
   startingState?: unknown,
-  terrain?: TerrainGrid | null
+  terrain?: TerrainGrid | null,
+  options: SimOptions = {}
 ): SimState => {
+  const movement = {
+    crossingLegs: {},
+    movementRule: options.movementRule ?? 'classic',
+    waterways: options.waterways ?? null
+  } as const;
   if (startingState === undefined) {
     return {
       announcements: [],
       clock: { ...INITIAL_CLOCK },
       council: null,
       councilPending: true,
+      ...movement,
       ending: null,
       fight: null,
       meeting: null,
@@ -134,6 +160,7 @@ export const createSim = (
     },
     council: null,
     councilPending: true,
+    ...movement,
     ending: null,
     fight: null,
     meeting: null,
@@ -312,9 +339,11 @@ export const deserializeSim = (text: string): SimState => {
     announcements: legacy.announcements ?? [],
     council: legacy.council ?? null,
     councilPending: legacy.councilPending ?? true,
+    crossingLegs: legacy.crossingLegs ?? {},
     ending: legacy.ending ?? null,
     fight: legacy.fight ?? null,
     meeting: legacy.meeting ?? null,
+    movementRule: legacy.movementRule ?? 'classic',
     objectPlacements: legacy.objectPlacements ?? emptyObjectPlacements(),
     passings: legacy.passings ?? [],
     roster: parsed.roster.map(entry => ({
@@ -332,6 +361,7 @@ export const deserializeSim = (text: string): SimState => {
       ...INITIAL_WAR_EVENTS,
       days: [...INITIAL_WAR_EVENTS.days]
     },
-    watching: legacy.watching ?? null
+    watching: legacy.watching ?? null,
+    waterways: legacy.waterways ?? null
   };
 };
