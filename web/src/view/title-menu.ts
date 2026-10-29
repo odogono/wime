@@ -1,3 +1,4 @@
+import type { MovementRule } from '../sim/index';
 import {
   NARROW_WIDTH,
   WIDE_WIDTH,
@@ -17,7 +18,8 @@ import type { WindowStyle } from './window-frame';
 
 // The title menu over the title screen once the boot sequence is over
 // (docs/spec/title-menu.md): Resume, New Game, Demo and Load. New Game
-// then offers the Classic Setup or a Shuffled Setup. The original
+// then offers the Classic Setup or a Shuffled Setup, under the Movement
+// rule chosen beside them (docs/spec/crossing-movement.md). The original
 // has none, so this is the port's own, framed as the game's windows
 // are (menu-window.ts). A pure state machine over keys and clicks;
 // main.ts carries out what it chooses.
@@ -25,7 +27,7 @@ import type { WindowStyle } from './window-frame';
 export type TitleChoice =
   | { id: number; kind: 'load' }
   | { kind: 'demo' }
-  | { kind: 'new-game'; shuffled: boolean }
+  | { kind: 'new-game'; movementRule: MovementRule; shuffled: boolean }
   | { id: number; kind: 'resume' };
 
 type MainItem = 'demo' | 'load' | 'new-game' | 'resume';
@@ -34,8 +36,9 @@ export type TitleMenu =
   | { items: MainItem[]; kind: 'main'; selected: number }
   // Asked before a new game when there is a save to resume.
   | { kind: 'confirm'; selected: number }
-  // Which Setup a new game starts from.
-  | { kind: 'setup'; selected: number }
+  // Which Setup a new game starts from, and under which Movement rule;
+  // null when Crossing movement cannot be had, as without the waterways.
+  | { kind: 'setup'; movementRule: MovementRule | null; selected: number }
   | { kind: 'load'; selected: number; slots: SlotSummary[] }
   // A load that failed; any key or click goes back.
   | { kind: 'message'; lines: string[] };
@@ -43,6 +46,9 @@ export type TitleMenu =
 export interface TitleSaves {
   // The autosave slot, or null.
   autosave: SlotSummary | null;
+  // Whether Crossing movement can be chosen: not when the waterways it
+  // routes by failed to load. Absent counts as true.
+  crossingMovement?: boolean;
   // The named slots.
   slots: SlotSummary[];
 }
@@ -81,8 +87,19 @@ export const CONFIRM_LINES = [
   'written over when it next runs.'
 ];
 const CONFIRM_ITEMS = ['Start a new game', 'Go back'];
-const SETUP_ITEMS = ['Classic Setup', 'Shuffled Setup', 'Back'];
-const SETUP_PAGE: TitleMenu = { kind: 'setup', selected: 0 };
+// The Setup page's rows: the two Setups, the Movement rule, which a
+// choice toggles, and Back.
+const RULE_ROW = 2;
+const setupPage = (saves: TitleSaves): TitleMenu => ({
+  kind: 'setup',
+  movementRule: saves.crossingMovement === false ? null : 'crossing',
+  selected: 0
+});
+export const RULE_LABELS: Record<MovementRule, string> = {
+  classic: 'Classic movement',
+  crossing: 'Crossing movement'
+};
+export const CROSSING_UNAVAILABLE = 'Crossing movement is unavailable.';
 
 export const LOAD_FAILED: Record<'other-version' | 'other', string[]> = {
   other: ['That save could not be loaded.'],
@@ -122,10 +139,19 @@ export const titleMenuView = (menu: TitleMenu): MenuView => {
     }
     case 'setup': {
       return {
-        lines: [],
-        rows: SETUP_ITEMS.map(label => ({ label })),
+        lines: menu.movementRule === null ? [CROSSING_UNAVAILABLE] : [],
+        rows: [
+          { label: 'Classic Setup' },
+          { label: 'Shuffled Setup' },
+          {
+            dim: menu.movementRule === null,
+            label: 'Movement',
+            note: RULE_LABELS[menu.movementRule ?? 'classic']
+          },
+          { label: 'Back' }
+        ],
         selected: menu.selected,
-        width: NARROW_WIDTH
+        width: WIDE_WIDTH
       };
     }
     case 'load': {
@@ -159,7 +185,7 @@ const choose = (menu: TitleMenu, saves: TitleSaves): TitleStep => {
       if (item === 'new-game') {
         return latestSave(saves)
           ? { menu: { kind: 'confirm', selected: 1 } }
-          : { menu: SETUP_PAGE };
+          : { menu: setupPage(saves) };
       }
       if (item === 'demo') {
         return { choice: { kind: 'demo' }, menu };
@@ -168,12 +194,30 @@ const choose = (menu: TitleMenu, saves: TitleSaves): TitleStep => {
     }
     case 'confirm': {
       return menu.selected === 0
-        ? { menu: SETUP_PAGE }
+        ? { menu: setupPage(saves) }
         : { menu: openTitleMenu(saves) };
     }
     case 'setup': {
-      return menu.selected < 2
-        ? { choice: { kind: 'new-game', shuffled: menu.selected === 1 }, menu }
+      const rule = menu.movementRule;
+      if (menu.selected === RULE_ROW) {
+        return rule === null
+          ? { menu }
+          : {
+              menu: {
+                ...menu,
+                movementRule: rule === 'crossing' ? 'classic' : 'crossing'
+              }
+            };
+      }
+      return menu.selected < RULE_ROW
+        ? {
+            choice: {
+              kind: 'new-game',
+              movementRule: rule ?? 'classic',
+              shuffled: menu.selected === 1
+            },
+            menu
+          }
         : { menu: openTitleMenu(saves) };
     }
     case 'load': {

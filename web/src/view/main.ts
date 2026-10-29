@@ -20,8 +20,10 @@ import {
   type DemoRun,
   type DemoScript,
   type Force,
+  type MovementRule,
   type SaveSetup,
   type SetupData,
+  type SimOptions,
   type SimState
 } from '../sim/index';
 import {
@@ -271,6 +273,7 @@ import {
   LEGACY_ARCHIVE_NAME,
   browserStorage,
   createSaveSlots,
+  type SaveWorld,
   type SlotSummary
 } from './save-slots';
 import { NATIVE_HEIGHT, NATIVE_WIDTH, createScreen, type Fit } from './screen';
@@ -443,7 +446,7 @@ const run = (
   };
   const restoreGame = (): ArchiveWindow => {
     const slot = archiveSlot();
-    const result = slot ? saveSlots.load(slot.id, assets.terrain) : null;
+    const result = slot ? saveSlots.load(slot.id, world) : null;
     if (!result || (!result.ok && result.reason !== 'other-version')) {
       return archiveMessage(ARCHIVE_MESSAGES.noArchive);
     }
@@ -489,15 +492,27 @@ const run = (
   );
   const placements = iconPlacements(assets.icons);
   const driver = createTickDriver();
+  // What a loaded save is given back.
+  const world: SaveWorld = {
+    terrain: assets.terrain,
+    waterways: assets.waterways
+  };
+  // A game under Classic movement, as the Demo and the title's backdrop
+  // are.
   const newSim = (seed = NEW_GAME_SEED): SimState =>
     createSim(seed, assets.startingState, assets.terrain);
+  // A New Game's options: the Movement rule chosen, with the waterways.
+  const newGameOptions = (movementRule: MovementRule): SimOptions => ({
+    movementRule,
+    waterways: assets.waterways
+  });
   let sim: SimState = newSim();
   // The Shuffled Setup the game in play started from, null for the
   // Classic Setup; saved beside it (docs/spec/shuffled-setup.md).
   let setup: SaveSetup | null = null;
   // A New Game from a fresh Shuffled Setup, with the same sim seed as
   // any New Game.
-  const newShuffledSim = (seed: number): SimState =>
+  const newShuffledSim = (seed: number, options: SimOptions): SimState =>
     createSim(
       NEW_GAME_SEED,
       shuffleSetup(
@@ -505,7 +520,8 @@ const run = (
         seed,
         SHUFFLED_SETUP_AXES
       ),
-      assets.terrain
+      assets.terrain,
+      options
     );
   // The Demo playing, which owns the game while it plays: `sim` is then
   // a copy of its state, for the view to show and its windows to play
@@ -738,6 +754,7 @@ const run = (
     const slots = saveSlots.list();
     return {
       autosave: autosave.ok ? autosave.value : null,
+      crossingMovement: assets.waterways !== null,
       slots: slots.ok ? slots.value : []
     };
   };
@@ -2689,9 +2706,17 @@ const run = (
       return;
     }
     if (choice.kind === 'new-game') {
+      const options = newGameOptions(choice.movementRule);
       if (choice.shuffled) {
         setup = { seed: randomSetupSeed() };
-        sim = newShuffledSim(setup.seed);
+        sim = newShuffledSim(setup.seed, options);
+      } else {
+        sim = createSim(
+          NEW_GAME_SEED,
+          assets.startingState,
+          assets.terrain,
+          options
+        );
       }
       startGame(true);
       return;
@@ -2702,8 +2727,8 @@ const run = (
     }
     const result =
       choice.id === AUTOSAVE_ID
-        ? saveSlots.loadAutosave(assets.terrain)
-        : saveSlots.load(choice.id, assets.terrain);
+        ? saveSlots.loadAutosave(world)
+        : saveSlots.load(choice.id, world);
     if (!result.ok) {
       titleMenu = { kind: 'message', lines: loadFailed(result.reason) };
       return;
@@ -2725,7 +2750,7 @@ const run = (
     if (!pending) {
       return;
     }
-    const result = saveSlots.loadAutosave(assets.terrain);
+    const result = saveSlots.loadAutosave(world);
     if (!result.ok) {
       return;
     }
@@ -2981,8 +3006,8 @@ const run = (
         }
         const result =
           choice.id === AUTOSAVE_ID
-            ? saveSlots.loadAutosave(assets.terrain)
-            : saveSlots.load(choice.id, assets.terrain);
+            ? saveSlots.loadAutosave(world)
+            : saveSlots.load(choice.id, world);
         if (!result.ok) {
           gameMenu = gameMenuMessage(loadFailed(result.reason));
           return;

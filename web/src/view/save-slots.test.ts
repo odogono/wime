@@ -16,6 +16,8 @@ import {
 } from './save-slots';
 
 // An in-memory Storage, optionally full after a number of characters.
+const NO_WORLD = { terrain: null, waterways: null };
+
 const fakeStorage = (
   limit = Infinity
 ): SlotStorage & { items: Map<string, string> } => {
@@ -67,6 +69,7 @@ describe('save slots', () => {
           gameDate: formatClock(first.clock),
           id: 1,
           loadable: true,
+          movementRule: 'classic',
           name: 'Before Bree',
           savedAt: 1000,
           setupSeed: null
@@ -75,6 +78,7 @@ describe('save slots', () => {
           gameDate: formatClock(second.clock),
           id: 2,
           loadable: true,
+          movementRule: 'classic',
           name: 'At Bree',
           savedAt: 2000,
           setupSeed: null
@@ -87,8 +91,23 @@ describe('save slots', () => {
     const slots = createSaveSlots(fakeStorage());
     const sim = later(5);
     const saved = slots.save('One', sim, null);
-    const loaded = saved.ok && slots.load(saved.value.id, sim.terrain);
+    const loaded = saved.ok && slots.load(saved.value.id, sim);
     expect(loaded).toEqual({ ok: true, value: { setup: null, state: sim } });
+  });
+
+  test('lists the Movement rule a game is played under', () => {
+    const storage = fakeStorage();
+    const slots = createSaveSlots(storage);
+    const sim = { ...later(5), movementRule: 'crossing' as const };
+    expect(slots.save('Crossing', sim, null)).toMatchObject({
+      value: { movementRule: 'crossing' }
+    });
+    expect(createSaveSlots(storage).list()).toMatchObject({
+      value: [{ movementRule: 'crossing' }]
+    });
+    expect(slots.load(1, sim)).toMatchObject({
+      value: { state: { movementRule: 'crossing' } }
+    });
   });
 
   test('keeps the Setup a game started from', () => {
@@ -97,7 +116,7 @@ describe('save slots', () => {
     const sim = later(5);
     const saved = slots.save('Shuffled', sim, { seed: 42 });
     expect(saved).toMatchObject({ value: { setupSeed: 42 } });
-    expect(slots.load(1, sim.terrain)).toEqual({
+    expect(slots.load(1, sim)).toEqual({
       ok: true,
       value: { setup: { seed: 42 }, state: sim }
     });
@@ -105,7 +124,7 @@ describe('save slots', () => {
     expect(createSaveSlots(storage).autosaved()).toMatchObject({
       value: { setupSeed: 7 }
     });
-    expect(slots.loadAutosave(sim.terrain)).toMatchObject({
+    expect(slots.loadAutosave(sim)).toMatchObject({
       value: { setup: { seed: 7 } }
     });
     // Saved over from a Classic game, the slot is Classic again.
@@ -125,12 +144,13 @@ describe('save slots', () => {
         gameDate: formatClock(sim.clock),
         id: 1,
         loadable: true,
+        movementRule: 'classic',
         name: 'Mine',
         savedAt: 2,
         setupSeed: null
       }
     });
-    expect(slots.load(1, null)).toEqual({
+    expect(slots.load(1, NO_WORLD)).toEqual({
       ok: true,
       value: { setup: null, state: sim }
     });
@@ -162,7 +182,7 @@ describe('save slots', () => {
 
   test('reports a missing slot', () => {
     const slots = createSaveSlots(fakeStorage());
-    expect(slots.load(9, null)).toEqual({ ok: false, reason: 'missing' });
+    expect(slots.load(9, NO_WORLD)).toEqual({ ok: false, reason: 'missing' });
     expect(slots.rename(9, 'x')).toEqual({ ok: false, reason: 'missing' });
     expect(slots.remove(9)).toEqual({ ok: false, reason: 'missing' });
     expect(slots.saveOver(9, createSim(7), null)).toEqual({
@@ -188,7 +208,7 @@ describe('save slots', () => {
     index.slots[0]!.version = SAVE_VERSION - 2;
     storage.items.set(INDEX_KEY, JSON.stringify(index));
     expect(slots.list()).toMatchObject({ value: [{ loadable: false }] });
-    expect(slots.load(1, null)).toEqual({
+    expect(slots.load(1, NO_WORLD)).toEqual({
       ok: false,
       reason: 'other-version'
     });
@@ -206,6 +226,7 @@ describe('save slots', () => {
       gameDate: formatClock(sim.clock),
       id: 1,
       loadable: true,
+      movementRule: 'classic' as const,
       name: 'Archive',
       savedAt: null,
       setupSeed: null
@@ -213,7 +234,7 @@ describe('save slots', () => {
     expect(slots.list()).toEqual({ ok: true, value: [expected] });
     expect(fresh.items.has(LEGACY_ARCHIVE_KEY)).toBe(false);
     expect(slots.list()).toEqual({ ok: true, value: [expected] });
-    expect(slots.load(1, null)).toEqual({
+    expect(slots.load(1, NO_WORLD)).toEqual({
       ok: true,
       value: { setup: null, state: sim }
     });
@@ -226,7 +247,7 @@ describe('save slots', () => {
     expect(slots.list()).toMatchObject({
       value: [{ gameDate: null, loadable: false, name: 'Archive' }]
     });
-    expect(slots.load(1, null)).toEqual({ ok: false, reason: 'invalid' });
+    expect(slots.load(1, NO_WORLD)).toEqual({ ok: false, reason: 'invalid' });
   });
 
   test('reports full storage without throwing, and keeps the old slots', () => {
@@ -244,7 +265,7 @@ describe('save slots', () => {
     expect(listed.ok && listed.value.length).toBe(2);
     const ids = listed.ok ? listed.value.map(slot => slot.id) : [];
     for (const id of ids) {
-      expect(slots.load(id, null).ok).toBe(true);
+      expect(slots.load(id, NO_WORLD).ok).toBe(true);
     }
   });
 
@@ -263,7 +284,7 @@ describe('save slots', () => {
       setItem: () => {}
     });
     expect(throwing.list()).toEqual({ ok: false, reason: 'unavailable' });
-    expect(throwing.load(1, null)).toEqual({
+    expect(throwing.load(1, NO_WORLD)).toEqual({
       ok: false,
       reason: 'unavailable'
     });
@@ -274,7 +295,10 @@ describe('save slots', () => {
     const storage = fakeStorage();
     const slots = createSaveSlots(storage, () => time);
     expect(slots.autosaved()).toEqual({ ok: true, value: null });
-    expect(slots.loadAutosave(null)).toEqual({ ok: false, reason: 'missing' });
+    expect(slots.loadAutosave(NO_WORLD)).toEqual({
+      ok: false,
+      reason: 'missing'
+    });
     slots.save('Named', createSim(7), null);
     const first = later(4);
     slots.autosave(first, null);
@@ -287,6 +311,7 @@ describe('save slots', () => {
         gameDate: formatClock(second.clock),
         id: AUTOSAVE_ID,
         loadable: true,
+        movementRule: 'classic',
         name: 'Autosave',
         savedAt: 2000,
         setupSeed: null
@@ -294,7 +319,7 @@ describe('save slots', () => {
     });
     expect(slots.list()).toMatchObject({ value: [{ id: 1, name: 'Named' }] });
     expect(slots.save('Next', first, null)).toMatchObject({ value: { id: 2 } });
-    expect(createSaveSlots(storage).loadAutosave(null)).toEqual({
+    expect(createSaveSlots(storage).loadAutosave(NO_WORLD)).toEqual({
       ok: true,
       value: { setup: null, state: second }
     });
@@ -307,7 +332,7 @@ describe('save slots', () => {
     slots.autosave(later(4), null);
     expect(slots.clearAutosave()).toEqual({ ok: true, value: undefined });
     expect(slots.autosaved()).toEqual({ ok: true, value: null });
-    expect(createSaveSlots(storage).loadAutosave(null)).toEqual({
+    expect(createSaveSlots(storage).loadAutosave(NO_WORLD)).toEqual({
       ok: false,
       reason: 'missing'
     });
@@ -323,7 +348,7 @@ describe('save slots', () => {
     // A longer game no longer fits beside the old autosave.
     const longer = { ...later(4), routes: Array(500).fill([1, 2, 3]) };
     expect(slots.autosave(longer, null)).toEqual({ ok: false, reason: 'full' });
-    expect(slots.loadAutosave(null)).toEqual({
+    expect(slots.loadAutosave(NO_WORLD)).toEqual({
       ok: true,
       value: { setup: null, state: sim }
     });

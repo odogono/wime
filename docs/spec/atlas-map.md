@@ -13,7 +13,8 @@ same world is shown and pointed at.
 
 - The in-game menu's Settings shows the setting, **Map: Classic** or
   **Map: Atlas**, and choosing it switches between them at once
-  (docs/spec/game-menu.md). Classic is the default.
+  (docs/spec/game-menu.md). The Atlas map is the default, for a
+  player with no stored choice; a stored choice is kept.
 - The setting is kept with the other settings in the browser, not in
   saved games; a game loaded or started keeps it.
 - Switching keeps the map on the same spot.

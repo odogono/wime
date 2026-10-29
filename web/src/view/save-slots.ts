@@ -5,6 +5,7 @@ import {
   readSaveSetup,
   restoreSave,
   serialiseSave,
+  type MovementRule,
   type SaveSetup,
   type SimState
 } from '../sim/index';
@@ -26,6 +27,8 @@ export interface SlotSummary {
   // (loadsSaveVersion) are listed but refused, as restoreSave refuses
   // them.
   loadable: boolean;
+  // The Movement rule its game is played under.
+  movementRule: MovementRule;
   name: string;
   // When it was saved, in ms since the epoch; null for an imported
   // Archive save, whose time was never recorded.
@@ -33,6 +36,10 @@ export interface SlotSummary {
   // The Shuffled Setup's seed, or null for the Classic Setup.
   setupSeed: number | null;
 }
+
+// The static data a loaded game is given back, as the save leaves it
+// out: the terrain and the waterways.
+export type SaveWorld = Pick<SimState, 'terrain' | 'waterways'>;
 
 // A loaded game: its state and the Setup it started from.
 export interface LoadedGame {
@@ -49,6 +56,9 @@ export type SlotResult<T> =
 interface SlotEntry {
   gameDate: string | null;
   id: number;
+  // Absent from entries written before the Movement rule: Classic
+  // movement.
+  movementRule?: MovementRule;
   name: string;
   savedAt: number | null;
   // Absent from entries written before Shuffled Setups: the Classic Setup.
@@ -100,17 +110,20 @@ const summary = (entry: SlotEntry): SlotSummary => ({
   gameDate: entry.gameDate,
   id: entry.id,
   loadable: entry.version !== null && loadsSaveVersion(entry.version),
+  movementRule: entry.movementRule ?? 'classic',
   name: entry.name,
   savedAt: entry.savedAt,
   setupSeed: entry.setupSeed ?? null
 });
 
-// The version, in-game date and Setup seed of a serialised save, read
-// without restoring it; nulls where the save is not one.
+// The version, in-game date, Movement rule and Setup seed of a
+// serialised save, read without restoring it; nulls and Classic
+// movement where the save is not one.
 const describeSave = (
   data: string
 ): {
   gameDate: string | null;
+  movementRule: MovementRule;
   setupSeed: number | null;
   version: number | null;
 } => {
@@ -125,9 +138,16 @@ const describeSave = (
     const gameDate =
       clock && typeof clock.day === 'number' ? formatClock(clock) : null;
     const setupSeed = readSaveSetup(file?.setup)?.seed ?? null;
-    return { gameDate, setupSeed, version };
+    const movementRule =
+      file?.state?.movementRule === 'crossing' ? 'crossing' : 'classic';
+    return { gameDate, movementRule, setupSeed, version };
   } catch {
-    return { gameDate: null, setupSeed: null, version: null };
+    return {
+      gameDate: null,
+      movementRule: 'classic',
+      setupSeed: null,
+      version: null
+    };
   }
 };
 
@@ -144,8 +164,8 @@ export interface SaveSlots {
   // Drops the autosave, as for a game that has ended.
   clearAutosave: () => SlotResult<void>;
   list: () => SlotResult<SlotSummary[]>;
-  load: (id: number, terrain: SimState['terrain']) => SlotResult<LoadedGame>;
-  loadAutosave: (terrain: SimState['terrain']) => SlotResult<LoadedGame>;
+  load: (id: number, world: SaveWorld) => SlotResult<LoadedGame>;
+  loadAutosave: (world: SaveWorld) => SlotResult<LoadedGame>;
   remove: (id: number) => SlotResult<void>;
   rename: (id: number, name: string) => SlotResult<SlotSummary>;
   // Into a new slot.
@@ -266,6 +286,7 @@ export const createSaveSlots = (
     entry: {
       gameDate: formatClock(state.clock),
       id,
+      movementRule: state.movementRule,
       name,
       savedAt: now(),
       setupSeed: setup?.seed ?? null,
@@ -288,7 +309,7 @@ export const createSaveSlots = (
 
   const loadFrom = (
     key: string,
-    terrain: SimState['terrain']
+    { terrain, waterways }: SaveWorld
   ): SlotResult<LoadedGame> => {
     let data: string | null;
     try {
@@ -299,7 +320,7 @@ export const createSaveSlots = (
     if (data === null) {
       return { ok: false, reason: 'missing' };
     }
-    const result = restoreSave(data, terrain);
+    const result = restoreSave(data, terrain, waterways);
     return result.ok
       ? { ok: true, value: { setup: result.setup, state: result.state } }
       : { ok: false, reason: result.reason };
@@ -367,18 +388,18 @@ export const createSaveSlots = (
         : index;
     },
 
-    load: (id, terrain) => {
+    load: (id, world) => {
       const found = find(id);
-      return found.ok ? loadFrom(slotKey(id), terrain) : found;
+      return found.ok ? loadFrom(slotKey(id), world) : found;
     },
 
-    loadAutosave: terrain => {
+    loadAutosave: world => {
       const index = readIndex();
       if (!index.ok) {
         return index;
       }
       return index.value.autosave
-        ? loadFrom(AUTOSAVE_KEY, terrain)
+        ? loadFrom(AUTOSAVE_KEY, world)
         : { ok: false, reason: 'missing' };
     },
 

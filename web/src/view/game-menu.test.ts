@@ -25,6 +25,7 @@ const slot = (
   gameDate: 'Day 1',
   id,
   loadable,
+  movementRule: 'classic',
   name: id === AUTOSAVE_ID ? 'Autosave' : `Save ${id}`,
   savedAt,
   setupSeed: null
@@ -89,6 +90,18 @@ describe('the in-game menu', () => {
     expect(gameMenuView(load(mixed, 0)).lines).toEqual(['Shuffled Setup 99']);
     // The line stays, blank, so the window keeps its height.
     expect(gameMenuView(load(mixed, 1)).lines).toEqual(['']);
+  });
+
+  test('the Load list names a Crossing movement save’s rule', () => {
+    const crossing = { ...slot(4, 900), movementRule: 'crossing' as const };
+    const mixed = [crossing, ...loadList(SAVES)];
+    expect(gameMenuView(load(mixed, 0)).lines).toEqual(['Crossing movement']);
+    expect(gameMenuView(load(mixed, 1)).lines).toEqual(['']);
+    const both = [{ ...crossing, setupSeed: 99 }, ...loadList(SAVES)];
+    expect(gameMenuView(load(both, 0)).lines).toEqual([
+      'Shuffled Setup 99',
+      'Crossing movement'
+    ]);
   });
 
   test('Escape or Close closes it', () => {

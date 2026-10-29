@@ -25,6 +25,7 @@ const slot = (
   gameDate: 'Day 1',
   id,
   loadable,
+  movementRule: 'classic',
   name: id === AUTOSAVE_ID ? 'Autosave' : `Save ${id}`,
   savedAt,
   setupSeed: null
@@ -50,6 +51,12 @@ const keys = (menu: TitleMenu, saves: TitleSaves, ...pressed: string[]) => {
 const centre = (menu: TitleMenu, row: number) => {
   const r = layoutTitleMenu(menu).rows[row]!;
   return { x: r.x + 4, y: r.y + r.height / 2 };
+};
+
+const SETUP: TitleMenu = {
+  kind: 'setup',
+  movementRule: 'crossing',
+  selected: 0
 };
 
 describe('latestSave', () => {
@@ -95,26 +102,56 @@ describe('the title menu', () => {
   test('New Game offers the Classic or a Shuffled Setup with no save', () => {
     const page = keys(openTitleMenu(NONE), NONE, 'Enter');
     expect(page.choice).toBeUndefined();
-    expect(page.menu).toEqual({ kind: 'setup', selected: 0 });
+    expect(page.menu).toEqual(SETUP);
     expect(titleMenuView(page.menu).rows.map(row => row.label)).toEqual([
       'Classic Setup',
       'Shuffled Setup',
+      'Movement',
       'Back'
     ]);
     expect(keys(page.menu, NONE, 'Enter').choice).toEqual({
       kind: 'new-game',
+      movementRule: 'crossing',
       shuffled: false
     });
     expect(keys(page.menu, NONE, 'ArrowDown', 'Enter').choice).toEqual({
       kind: 'new-game',
+      movementRule: 'crossing',
       shuffled: true
     });
     expect(keys(page.menu, NONE, 'ArrowUp', 'Enter').menu.kind).toBe('main');
     expect(keys(page.menu, NONE, 'Escape').menu.kind).toBe('main');
   });
 
+  test('the Movement rule defaults to Crossing movement and toggles', () => {
+    const page = keys(openTitleMenu(NONE), NONE, 'Enter').menu;
+    expect(titleMenuView(page).rows[2]?.note).toBe('Crossing movement');
+    const toggled = keys(page, NONE, 'ArrowDown', 'ArrowDown', 'Enter').menu;
+    expect(titleMenuView(toggled).rows[2]?.note).toBe('Classic movement');
+    expect(keys(toggled, NONE, 'ArrowUp', 'ArrowUp', 'Enter').choice).toEqual({
+      kind: 'new-game',
+      movementRule: 'classic',
+      shuffled: false
+    });
+    const back = keys(toggled, NONE, 'Enter').menu;
+    expect(titleMenuView(back).rows[2]?.note).toBe('Crossing movement');
+  });
+
+  test('without the waterways only Classic movement is offered', () => {
+    const saves = { ...NONE, crossingMovement: false };
+    const page = keys(openTitleMenu(saves), saves, 'Enter').menu;
+    const view = titleMenuView(page);
+    expect(view.lines).toEqual(['Crossing movement is unavailable.']);
+    expect(view.rows[2]).toMatchObject({ dim: true, note: 'Classic movement' });
+    const stays = keys(page, saves, 'ArrowDown', 'ArrowDown', 'Enter').menu;
+    expect(stays).toMatchObject({ movementRule: null, selected: 2 });
+    expect(keys(page, saves, 'Enter').choice).toMatchObject({
+      movementRule: 'classic'
+    });
+  });
+
   test('the Setup page pauses the idle Demo', () => {
-    expect(stepTitleIdle(0, { kind: 'setup', selected: 0 }, 1000)).toBe(0);
+    expect(stepTitleIdle(0, SETUP, 1000)).toBe(0);
   });
 
   test('New Game asks first when there is a save, defaulting to no', () => {
@@ -122,10 +159,7 @@ describe('the title menu', () => {
     expect(asked.choice).toBeUndefined();
     expect(asked.menu.kind).toBe('confirm');
     expect(keys(asked.menu, SOME, 'Enter').menu.kind).toBe('main');
-    expect(keys(asked.menu, SOME, 'ArrowUp', 'Enter').menu).toEqual({
-      kind: 'setup',
-      selected: 0
-    });
+    expect(keys(asked.menu, SOME, 'ArrowUp', 'Enter').menu).toEqual(SETUP);
     expect(keys(asked.menu, SOME, 'Escape').menu.kind).toBe('main');
   });
 

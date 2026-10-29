@@ -148,9 +148,15 @@ export const slotRow = (slot: SlotSummary): MenuRowSpec => ({
 // (docs/spec/shuffled-setup.md); a Classic Setup has none.
 export const setupLabel = (seed: number): string => `Shuffled Setup ${seed}`;
 
-// The line over a Load list naming the selected save's Setup, shown
-// only when some save listed has a Shuffled Setup, so the window keeps
-// its height as the selection moves.
+// The label of a game played under Crossing movement
+// (docs/spec/crossing-movement.md); Classic movement, as the Classic
+// Setup, has none.
+export const CROSSING_LABEL = 'Crossing movement';
+
+// The lines over a Load list naming the selected save's Setup and
+// Movement rule. Each is shown only when some save listed has a
+// Shuffled Setup or Crossing movement, so the window keeps its height
+// as the selection moves.
 export const loadListLines = (
   slots: readonly SlotSummary[],
   selected: number
@@ -158,11 +164,16 @@ export const loadListLines = (
   if (slots.length === 0) {
     return ['There are no saves to load.'];
   }
-  if (!slots.some(slot => slot.setupSeed !== null)) {
-    return [];
-  }
-  const seed = slots[selected]?.setupSeed ?? null;
-  return [seed === null ? '' : setupLabel(seed)];
+  const slot = slots[selected];
+  const seed = slot?.setupSeed ?? null;
+  return [
+    ...(slots.some(s => s.setupSeed !== null)
+      ? [seed === null ? '' : setupLabel(seed)]
+      : []),
+    ...(slots.some(s => s.movementRule === 'crossing')
+      ? [slot?.movementRule === 'crossing' ? CROSSING_LABEL : '']
+      : [])
+  ];
 };
 
 // Saves newest first; an imported Archive, never timed, last.
