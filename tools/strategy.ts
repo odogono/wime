@@ -7,6 +7,7 @@
 //   bun tools/strategy.ts [--plan fellowship|muster|defensive] [--seeds N]
 //                         [--from SEED] [--open-war on|off]
 //                         [--tokens on|off] [--avoid on|off] [--write]
+//                         [--movement classic|crossing]
 //
 // --open-war overrides the muster plan's openWar setting, --tokens
 // whether the plan carries the sceptre to Denethor (sceptreErrand), and
@@ -61,6 +62,7 @@ import {
   QUARTER_HOURS_PER_DAY,
   canOrder,
   destinationForClick,
+  firstRiverMet,
   hasWarEvent,
   isGoodVictory,
   replayDemo,
@@ -76,6 +78,7 @@ import {
   type DemoScript,
   type Meeting,
   type MeetingAnswer,
+  type MovementRule,
   type Player,
   type Point,
   type RosterEntry,
@@ -561,13 +564,35 @@ const placeWalker = (
     return toward(
       state,
       leader.index,
-      {
-        x: Math.round(at.x + (vx / n) * 48),
-        y: Math.round(at.y + (vy / n) * 48)
-      },
+      fleeTarget(state, at, Math.atan2(vy / n, vx / n)),
       true
     );
   };
+};
+
+// Turns tried, in order, when fleeing straight away would cross a river.
+const FLEE_TURNS = [0, 1, -1, 2, -2, 3, -3].map(step => (step * Math.PI) / 6);
+
+// Where a Leader at `at` flees to, 48 pixels away at `angle`. Under
+// Crossing movement a flight across a river heads first for its
+// Crossing (docs/spec/crossing-movement.md), and near the Brandywine
+// Bridge that held the Ring-bearer among the Nazgûl, ordered there
+// again and again (#346). So the flight turns, by up to a quarter
+// circle each way, to keep to the bank it is on. A player reads the
+// rivers from the map.
+const fleeTarget = (state: SimState, at: Point, angle: number): Point => {
+  const target = (turn: number): Point => ({
+    x: Math.round(at.x + Math.cos(angle + turn) * 48),
+    y: Math.round(at.y + Math.sin(angle + turn) * 48)
+  });
+  const { waterways } = state;
+  if (state.movementRule !== 'crossing' || !waterways) {
+    return target(0);
+  }
+  const dry = FLEE_TURNS.map(target).find(
+    to => firstRiverMet(waterways, at, destinationForClick(to)) === null
+  );
+  return dry ?? target(0);
 };
 
 // Before the Council: Frodo by Buckland and Bree, where Merry and
@@ -1162,12 +1187,16 @@ export const playCampaign = (
   seed: number,
   assets: SoakAssets,
   policy: Policy,
-  dayCap = 400
+  dayCap = 400,
+  movementRule: MovementRule = 'classic'
 ): CampaignResult => {
   const inputs: DemoInput[] = [];
   const player = recording(policy, inputs);
   const { milestones, state } = runToEnd(
-    startCampaign(seed, assets),
+    startCampaign(seed, assets, {
+      movementRule,
+      waterways: assets.waterways
+    }),
     run => stepCampaign(run, player),
     dayCap
   );
@@ -1210,6 +1239,7 @@ if (import.meta.main) {
     options: {
       avoid: { type: 'string' },
       from: { default: '1', type: 'string' },
+      movement: { default: 'classic', type: 'string' },
       'open-war': { type: 'string' },
       plan: { default: 'fellowship', type: 'string' },
       seeds: { default: '40', type: 'string' },
@@ -1245,13 +1275,24 @@ if (import.meta.main) {
   }
   const avoidEncounters =
     avoidFlag === undefined ? undefined : avoidFlag === 'on';
+  const { movement } = values;
+  if (movement !== 'classic' && movement !== 'crossing') {
+    console.error('--movement must be classic or crossing');
+    process.exit(2);
+  }
+  if (values.write && movement !== 'classic') {
+    console.error('--write records Classic movement only');
+    process.exit(2);
+  }
   const assets = loadSoakAssets();
   const from = Number(values.from);
   for (let seed = from; seed < from + Number(values.seeds); seed++) {
     const result = playCampaign(
       seed,
       assets,
-      policyFor(plan, { avoidEncounters, openWar, tokens })
+      policyFor(plan, { avoidEncounters, openWar, tokens }),
+      400,
+      movement
     );
     console.log(describeRun(seed, result));
     if (values.write && isGoodVictory(result.state.ending)) {
