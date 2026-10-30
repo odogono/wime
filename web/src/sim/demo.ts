@@ -9,6 +9,7 @@
 import { type Clock } from './clock';
 import { LAST_GOOD_ENTRY, resolveFight } from './combat';
 import { closeCouncil } from './council';
+import type { MovementRule } from './crossing-movement';
 import { type Ending } from './endings';
 import { answerMeeting, type Meeting, type MeetingAnswer } from './meetings';
 import { giveOrder, takesOrder } from './movement';
@@ -25,8 +26,10 @@ import {
 import type { TerrainGrid } from './terrain';
 import { applyObject } from './use';
 import { INITIAL_WAR_EVENTS } from './war-events';
+import type { Waterways } from './waterways';
 
-export const DEMO_VERSION = 1;
+// Version 2 added the Movement rule (#352).
+export const DEMO_VERSION = 2;
 
 export type DemoPlan = 'defensive' | 'fellowship' | 'muster';
 
@@ -65,6 +68,8 @@ export interface DemoScript {
   finalDay: number;
   inputs: DemoInput[];
   milestones: Milestones;
+  // The Movement rule the script was recorded and replays under.
+  movementRule: MovementRule;
   plan: DemoPlan;
   seed: number;
   version: number;
@@ -73,6 +78,8 @@ export interface DemoScript {
 export interface DemoAssets {
   startingState: unknown;
   terrain: TerrainGrid;
+  // Needed by a Demo under Crossing movement.
+  waterways?: Waterways | null;
 }
 
 // What plays the campaign: answers meetings, and once per quarter-hour,
@@ -113,8 +120,7 @@ export const sameMeeting = (a: Meeting, b: Meeting): boolean =>
   a.a === b.a && a.b === b.b && a.kind === b.kind;
 
 // Under Classic movement unless `options` choose Crossing movement. A
-// Demo always plays Classic movement, the rule its scripts were
-// recorded under.
+// Demo plays the Movement rule its script was recorded under.
 export const startCampaign = (
   seed: number,
   assets: DemoAssets,
@@ -245,11 +251,22 @@ export const campaignMilestones = (run: CampaignRun): Milestones =>
 
 // --- Demos ----------------------------------------------------------------
 
-export const startDemo = (script: DemoScript, assets: DemoAssets): DemoRun => ({
-  ...startCampaign(script.seed, assets),
-  next: 0,
-  script
-});
+// Throws for a Demo under Crossing movement without the waterways,
+// which would not replay to its ending.
+export const startDemo = (script: DemoScript, assets: DemoAssets): DemoRun => {
+  const waterways = assets.waterways ?? null;
+  if (script.movementRule === 'crossing' && !waterways) {
+    throw new Error('a Demo under Crossing movement needs the waterways');
+  }
+  return {
+    ...startCampaign(script.seed, assets, {
+      movementRule: script.movementRule,
+      waterways
+    }),
+    next: 0,
+    script
+  };
+};
 
 // One step of the Demo, its Player reading the script's inputs.
 export const stepDemo = (run: DemoRun): DemoRun => {

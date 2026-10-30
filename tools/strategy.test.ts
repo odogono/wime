@@ -25,6 +25,7 @@ describe.skipIf(!assetsExist())('demo scripts', () => {
     test(`${plan} replays to ${ending}`, () => {
       const script = loadDemo(plan);
       expect(script.version).toBe(DEMO_VERSION);
+      expect(script.movementRule).toBe('crossing');
       expect(script.ending).toBe(ending);
       const { milestones, state } = replayDemo(script, loadSoakAssets());
       expect(state.ending).toBe(script.ending);
@@ -37,7 +38,9 @@ describe.skipIf(!assetsExist())('demo scripts', () => {
       const played = playCampaign(
         script.seed,
         loadSoakAssets(),
-        policyFor(plan)
+        policyFor(plan),
+        400,
+        script.movementRule
       );
       expect(played.inputs).toEqual(script.inputs);
       expect(played.state.ending).toBe(script.ending);

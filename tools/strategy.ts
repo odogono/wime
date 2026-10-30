@@ -1224,6 +1224,7 @@ export const demoScript = (
   finalDay: result.state.clock.day,
   inputs: result.inputs,
   milestones: result.milestones,
+  movementRule: result.state.movementRule,
   plan,
   seed,
   version: DEMO_VERSION
@@ -1290,10 +1291,6 @@ if (import.meta.main) {
   const { movement } = values;
   if (movement !== 'classic' && movement !== 'crossing') {
     console.error('--movement must be classic or crossing');
-    process.exit(2);
-  }
-  if (values.write && movement !== 'classic') {
-    console.error('--write records Classic movement only');
     process.exit(2);
   }
   const assets = loadSoakAssets();
