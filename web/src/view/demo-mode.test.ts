@@ -11,6 +11,7 @@ import {
   type SimState
 } from '../sim/index';
 import { loadTerrainRegions, terrainGridFrom } from '../sim/terrain';
+import { loadWaterways } from '../sim/waterways';
 import { openCombatWindow, stepCombatUi } from './combat-window';
 import {
   stepCouncilMessage,
@@ -41,6 +42,7 @@ import { createTickDriver } from './tick-driver';
 const PUBLIC = new URL('../../public/', import.meta.url).pathname;
 const STARTING_STATE = `${PUBLIC}assets/starting-state.json`;
 const TERRAIN = `${PUBLIC}assets/geography/terrain-regions.json`;
+const WATERWAYS = `${PUBLIC}assets/geography/waterways.json`;
 const PLANS: DemoPlan[] = ['fellowship', 'muster', 'defensive'];
 const LEVELS = ['animation', 'campaign', 'full-map'] as const;
 type Level = (typeof LEVELS)[number];
@@ -51,7 +53,8 @@ const readJson = (path: string): unknown =>
 // Called only inside the skipped block, so CI never reads the assets.
 const assets = (): DemoAssets => ({
   startingState: readJson(STARTING_STATE),
-  terrain: terrainGridFrom(loadTerrainRegions(readJson(TERRAIN)))
+  terrain: terrainGridFrom(loadTerrainRegions(readJson(TERRAIN))),
+  waterways: loadWaterways(readJson(WATERWAYS))
 });
 
 // A seeded chooser for the view's own picks, so a failure repeats.
@@ -192,48 +195,47 @@ describe("a Demo's letter", () => {
   });
 });
 
-describe.skipIf(!existsSync(STARTING_STATE) || !existsSync(TERRAIN))(
-  'Demo mode',
-  () => {
-    for (const plan of PLANS) {
-      test(`the ${plan} Demo plays through the view as it replays headless`, () => {
-        const loaded = assets();
-        const script = readJson(`${PUBLIC}demos/${plan}.json`) as DemoScript;
-        const replayed = replayDemo(script, loaded);
-        const { milestones, state } = playThroughView(script, loaded, 7);
-        expect(state.ending).toBe(replayed.state.ending);
-        expect(state.ending).toBe(script.ending);
-        expect(state.clock.day).toBe(replayed.state.clock.day);
-        expect(milestones).toEqual(replayed.milestones);
-      }, 120_000);
-    }
-
-    test('a tick resolves what waits first, and the view shows a copy', () => {
+describe.skipIf(
+  !existsSync(STARTING_STATE) || !existsSync(TERRAIN) || !existsSync(WATERWAYS)
+)('Demo mode', () => {
+  for (const plan of PLANS) {
+    test(`the ${plan} Demo plays through the view as it replays headless`, () => {
       const loaded = assets();
-      const script = readJson(`${PUBLIC}demos/fellowship.json`) as DemoScript;
-      let run = startDemo(script, loaded);
-      while (!run.state.fight && !run.state.ending) {
-        run = tickDemo(run);
-      }
-      const shown = demoDisplay(run);
-      expect(shown).toEqual(run.state);
-      expect(shown.roster).not.toBe(run.state.roster);
-      const held = holdsDemo({
-        battle: false,
-        combat: null,
-        council: false,
-        other: false,
-        sim: shown,
-        talk: false,
-        waiting: false
-      });
-      expect(held).toBe(true);
-      // The fight is resolved in no sim time, and the tick after it runs.
-      const after = tickDemo(run);
-      expect(
-        after.state.fight === null || after.state.fight !== run.state.fight
-      ).toBe(true);
-      expect(demoAnswer(after, demoDisplay(after))).toBe('continue-on');
-    });
+      const script = readJson(`${PUBLIC}demos/${plan}.json`) as DemoScript;
+      const replayed = replayDemo(script, loaded);
+      const { milestones, state } = playThroughView(script, loaded, 7);
+      expect(state.ending).toBe(replayed.state.ending);
+      expect(state.ending).toBe(script.ending);
+      expect(state.clock.day).toBe(replayed.state.clock.day);
+      expect(milestones).toEqual(replayed.milestones);
+    }, 120_000);
   }
-);
+
+  test('a tick resolves what waits first, and the view shows a copy', () => {
+    const loaded = assets();
+    const script = readJson(`${PUBLIC}demos/fellowship.json`) as DemoScript;
+    let run = startDemo(script, loaded);
+    while (!run.state.fight && !run.state.ending) {
+      run = tickDemo(run);
+    }
+    const shown = demoDisplay(run);
+    expect(shown).toEqual(run.state);
+    expect(shown.roster).not.toBe(run.state.roster);
+    const held = holdsDemo({
+      battle: false,
+      combat: null,
+      council: false,
+      other: false,
+      sim: shown,
+      talk: false,
+      waiting: false
+    });
+    expect(held).toBe(true);
+    // The fight is resolved in no sim time, and the tick after it runs.
+    const after = tickDemo(run);
+    expect(
+      after.state.fight === null || after.state.fight !== run.state.fight
+    ).toBe(true);
+    expect(demoAnswer(after, demoDisplay(after))).toBe('continue-on');
+  });
+});

@@ -29,6 +29,11 @@ the Demo driver in `web/src/sim/demo.ts`, which the headless replay in
 
 ## How a Demo plays
 
+- A Demo plays under Crossing movement, the default rule of a New Game
+  (docs/spec/crossing-movement.md, ADR-0008), so it shows the game a
+  player starts. Its script records the Movement rule it was recorded
+  under, and replays under that rule. Without the waterways, a Demo
+  under Crossing movement does not start, and the title menu stays.
 - The Demo's run owns the game. Each tick is the headless replay's
   step: its Orders, its answers to meetings and its fights. The view
   shows a copy, and its fight, meeting and Council windows play out at

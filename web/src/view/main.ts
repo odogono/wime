@@ -503,8 +503,7 @@ const run = (
     terrain: assets.terrain,
     waterways: assets.waterways
   };
-  // A game under Classic movement, as the Demo and the title's backdrop
-  // are.
+  // A game under Classic movement, as the title's backdrop is.
   const newSim = (seed = NEW_GAME_SEED): SimState =>
     createSim(seed, assets.startingState, assets.terrain);
   // A New Game's options: the Movement rule chosen, with the waterways.
