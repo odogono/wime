@@ -564,7 +564,7 @@ const placeWalker = (
     return toward(
       state,
       leader.index,
-      fleeTarget(state, at, Math.atan2(vy / n, vx / n)),
+      fleeTarget(state, at, Math.atan2(vy / n, vx / n), repel),
       true
     );
   };
@@ -580,7 +580,12 @@ const FLEE_TURNS = [0, 1, -1, 2, -2, 3, -3].map(step => (step * Math.PI) / 6);
 // again and again (#346). So the flight turns, by up to a quarter
 // circle each way, to keep to the bank it is on. A player reads the
 // rivers from the map.
-const fleeTarget = (state: SimState, at: Point, angle: number): Point => {
+const fleeTarget = (
+  state: SimState,
+  at: Point,
+  angle: number,
+  threats: readonly Point[]
+): Point => {
   const target = (turn: number): Point => ({
     x: Math.round(at.x + Math.cos(angle + turn) * 48),
     y: Math.round(at.y + Math.sin(angle + turn) * 48)
@@ -589,10 +594,17 @@ const fleeTarget = (state: SimState, at: Point, angle: number): Point => {
   if (state.movementRule !== 'crossing' || !waterways) {
     return target(0);
   }
-  const dry = FLEE_TURNS.map(target).find(
+  const clearance = (to: Point): number =>
+    Math.min(...threats.map(threat => chebyshev(threat, to)));
+  const dry = FLEE_TURNS.map(target).filter(
     to => firstRiverMet(waterways, at, destinationForClick(to)) === null
   );
-  return dry ?? target(0);
+  const best = dry.reduce<Point | null>(
+    (kept, to) =>
+      kept === null || clearance(to) > clearance(kept) ? to : kept,
+    null
+  );
+  return best ?? target(0);
 };
 
 // Before the Council: Frodo by Buckland and Bree, where Merry and
