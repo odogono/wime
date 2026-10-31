@@ -18,10 +18,13 @@ export const SWEEP = talk`
   script variable speeds = nothing
   script variable waterways = nothing
   -- Each river's bounding box, so the geometry skips the rivers a line
-  -- can't reach.
+  -- can't reach, and each river's runs of RUN segments with their
+  -- boxes, so it skips the stretches of a long river a line can't reach.
   script variable riverBoxes = []
+  script variable riverRuns = []
 
   constant TILE = 16
+  constant POWERS = [1, 2, 4, 8, 16, 32, 64, 128]
   constant STEP_DX = [0, 1, 1, 1, 0, -1, -1, -1]
   constant STEP_DY = [-1, -1, 0, 1, 1, 1, 0, -1]
   constant STEERING_WEIGHTS = [100, 69, 39, 19, 9, 19, 39, 69]
@@ -67,15 +70,19 @@ export const SWEEP = talk`
 
   constant CROSSING_DETOUR_RATIO = 1.5
   constant CROSSING_NEAR_LINE = 64
+  -- The segments in each of a river's runs.
+  constant RUN = 16
 
   on load data
     put the placeAt of data into placeAt
     put the speeds of data into speeds
     put the waterways of data into waterways
     put [] into riverBoxes
+    put [] into riverRuns
     if waterways is not nothing then
       repeat for each river in the rivers of waterways
         put boxOf(river) after riverBoxes
+        put runsOf(river) after riverRuns
       end repeat
     end if
     return true
@@ -84,22 +91,22 @@ export const SWEEP = talk`
   -- The sweep from entry from, held before entry holdAt if it would move.
   on sweep w, fromEntry, holdAt
     repeat for each i in fromEntry..(the length of the roster of w - 1)
+      -- An entry that isn't ticked neither wakes nor moves.
+      if the ticked of item (i + 1) of the roster of w is not true then next repeat
       put wakeEntry(w, i) into w
       put item (i + 1) of the roster of w into entry
-      ask engine to mark into rng
-      put the crossingLegs of w into legs
-      put item (the route of entry + 1) of the routes of w into route
+      if not mayTick(entry) then next repeat
+      -- A held step must leave no trace: it ends with the world as it
+      -- was before the step, which only changes the entry, its route and
+      -- the Crossing legs, and what it drew is put back.
+      if i = holdAt then ask engine to mark into rng
+      put w into before
       put tickEntry(w, i) into w
       put item (i + 1) of the roster of w into stepped
       put the position of stepped is not nothing and the position of entry is not nothing and the position of stepped <> the position of entry into moved
       if moved and i = holdAt then
         ask engine to reset rng
-        put legs into the crossingLegs of w
-        if route is not nothing then
-          put route into item (the route of entry + 1) of the routes of w
-        end if
-        put entry into item (i + 1) of the roster of w
-        return {heldAt: i, stoppedAt: nothing, world: w}
+        return {heldAt: i, stoppedAt: nothing, world: before}
       end if
       if moved then
         put afterStep(w, i) into outcome
@@ -124,7 +131,7 @@ export const SWEEP = talk`
   end byteOf
 
   function bitSet byte, bit
-    return (byte div (2 ^ bit)) mod 2 = 1
+    return (byte div item (bit + 1) of POWERS) mod 2 = 1
   end bitSet
 
   function tileAligned p
@@ -261,11 +268,17 @@ export const SWEEP = talk`
     return w
   end crossingLeg
 
+  -- Whether a tick can change the entry: a sleeping, held or led entry,
+  -- or one with nowhere to go, is left alone.
+  function mayTick e
+    if the ticked of e is not true or the state of e = 0 or the state of e = 2 or the leader of e is not nothing then return false
+    if the destination of e is nothing or the position of e is nothing or the strength of e = 0 then return false
+    return the x of the destination of e <> 0
+  end mayTick
+
   function tickEntry w, i
     put entryAt(w, i) into e
-    if the ticked of e is not true or the state of e = 0 or the state of e = 2 or the leader of e is not nothing then return w
-    if the destination of e is nothing or the position of e is nothing or the strength of e = 0 then return w
-    if the x of the destination of e = 0 then return w
+    if not mayTick(e) then return w
     if the state of e = 3 then
       if the stamina of e < the maxStamina of e then
         put min(255, the stamina of e + 2) into the stamina of e
@@ -339,21 +352,23 @@ export const SWEEP = talk`
     return the position of e otherwise {x: 0, y: 0}
   end standsAt
 
+  -- Whether the byte names a War Event that has happened, in its low four
+  -- bits or, past 15, its high four. Few events have happened, so they
+  -- are what's searched.
   function liveTrigger w, byte
     put 0 into firstBit
     if byte > 15 then put 4 into firstBit
-    repeat for each bit in firstBit..(firstBit + 3)
-      if bitSet(byte, bit) and hasWarEvent(w, bit) then return true
+    repeat for each bit in the events of the warEvents of w
+      if bit >= firstBit and bit <= firstBit + 3 and bitSet(byte, bit) then return true
     end repeat
     return false
   end liveTrigger
 
   function highestBit byte
-    put -1 into bit
-    repeat for each b in 0..7
-      if bitSet(byte, b) then put b into bit
+    repeat for each bit in [7, 6, 5, 4, 3, 2, 1, 0]
+      if byte >= item (bit + 1) of POWERS then return bit
     end repeat
-    return bit
+    return -1
   end highestBit
 
   function triggerMet w, e

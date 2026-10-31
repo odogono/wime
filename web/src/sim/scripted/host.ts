@@ -1,10 +1,10 @@
 import {
   ScriptError,
   createCore,
-  defineCapability,
   num,
   shape,
   text,
+  type Core,
   type Value
 } from '@northtalk/ts';
 
@@ -45,60 +45,69 @@ export const setTextTable = (table: Record<string, string>): void => {
   textTable = table;
 };
 
-const engine = defineCapability<Primitives>()('engine', {
-  draw: {
-    args: [shape.number],
-    cost: { fuel: 2 },
-    do: (call, n) => {
-      const next = nextRandom(call.binding.rng);
-      call.binding.rng = next.state;
-      return num(Math.floor(next.value * Number(n)));
+// The Engine Primitives, defined on the Core that runs the scripts.
+export const engineOn = (on: Core) =>
+  on.defineCapability<Primitives>()('engine', {
+    draw: {
+      args: [shape.number],
+      cost: { fuel: 2 },
+      do: (call, n) => {
+        const next = nextRandom(call.binding.rng);
+        call.binding.rng = next.state;
+        return num(Math.floor(next.value * Number(n)));
+      },
+      mode: 'immediate',
+      result: shape.number
     },
-    mode: 'immediate',
-    result: shape.number
-  },
-  mark: {
-    args: [],
-    cost: { fuel: 1 },
-    do: call => num(call.binding.rng),
-    mode: 'immediate',
-    result: shape.number
-  },
-  reset: {
-    args: [shape.number],
-    cost: { fuel: 1 },
-    do: (call, state) => {
-      call.binding.rng = Number(state);
-      return num(0);
+    mark: {
+      args: [],
+      cost: { fuel: 1 },
+      do: call => num(call.binding.rng),
+      mode: 'immediate',
+      result: shape.number
     },
-    mode: 'immediate',
-    result: shape.number
-  },
-  terrain: {
-    args: [shape.number, shape.number],
-    cost: { fuel: 2 },
-    do: (call, x, y) =>
-      num(terrainOf(call.binding.terrain, { x: Number(x), y: Number(y) })),
-    mode: 'immediate',
-    result: shape.number
-  },
-  text: {
-    args: [shape.text],
-    cost: { fuel: 2 },
-    do: (_call, id) => {
-      const found = textTable[id];
-      if (found === undefined) {
-        throw new ScriptError('unknown text', `No text ${id}`);
-      }
-      return text(found);
+    reset: {
+      args: [shape.number],
+      cost: { fuel: 1 },
+      do: (call, state) => {
+        call.binding.rng = Number(state);
+        return num(0);
+      },
+      mode: 'immediate',
+      result: shape.number
     },
-    errors: [{ code: 'unknown text' }],
-    mode: 'immediate',
-    result: shape.text
-  }
-});
+    terrain: {
+      args: [shape.number, shape.number],
+      cost: { fuel: 2 },
+      do: (call, x, y) =>
+        num(terrainOf(call.binding.terrain, { x: Number(x), y: Number(y) })),
+      mode: 'immediate',
+      result: shape.number
+    },
+    text: {
+      args: [shape.text],
+      cost: { fuel: 2 },
+      do: (_call, id) => {
+        const found = textTable[id];
+        if (found === undefined) {
+          throw new ScriptError('unknown text', `No text ${id}`);
+        }
+        return text(found);
+      },
+      errors: [{ code: 'unknown text' }],
+      mode: 'immediate',
+      result: shape.text
+    }
+  });
 
-const core = createCore();
+// The Core that runs the scripts: the TS Core unless a benchmark hands
+// the host the WASM Core (#194, step 5).
+let core: Core = createCore();
+
+export const setScriptCore = (next: Core): void => {
+  core = next;
+  host = null;
+};
 
 // The War Events cross as a set of event numbers (#194, decision 11).
 const eventsToSet = (events: WarEvents): number[] =>
@@ -149,6 +158,8 @@ const jsonOf = (data: object): string => {
   return json;
 };
 
+const queryRosters = new WeakMap<readonly RosterEntry[], object[]>();
+
 export class ScriptedHost {
   readonly #primitives: Primitives = { rng: 0, terrain: null };
   readonly #group;
@@ -162,7 +173,7 @@ export class ScriptedHost {
     this.#group = core.newGroup({ name: 'scenario' });
     this.#script = this.#group.load({
       grants: {
-        engine: engine.grant(
+        engine: engineOn(core).grant(
           ['draw', 'mark', 'reset', 'terrain', 'text'],
           this.#primitives
         )
@@ -293,17 +304,23 @@ export class ScriptedHost {
   }
 
   // The world a Query of a Way reads: the roster's leader chains and
-  // positions, and the Crossing legs.
+  // positions, and the Crossing legs. Remembered per roster, so the
+  // hovers of one frame and the next cross the same Values.
   #queryWorld(state: SimState) {
-    return {
-      crossingLegs: scenarioOf(state).crossingLegs,
-      movementRule: state.movementRule,
-      roster: state.roster.map(({ destination, index, leader, position }) => ({
+    let roster = queryRosters.get(state.roster);
+    if (!roster) {
+      roster = state.roster.map(({ destination, index, leader, position }) => ({
         destination,
         index,
         leader,
         position
-      }))
+      }));
+      queryRosters.set(state.roster, roster);
+    }
+    return {
+      crossingLegs: scenarioOf(state).crossingLegs,
+      movementRule: state.movementRule,
+      roster
     };
   }
 

@@ -18,11 +18,50 @@ export const CROSSING = talk`
     return box
   end boxOf
 
+  -- A river's points as runs of at most RUN segments, each
+  -- with its box. Neighbouring runs share their end point.
+  function runsOf river
+    put [] into runs
+    put 1 into start
+    repeat while start < the length of river
+      put min(start + RUN, the length of river) into stop
+      put item start of river into p
+      put {left: the x of p, right: the x of p, top: the y of p, bottom: the y of p} into box
+      repeat for each i in (start + 1)..stop
+        put item i of river into p
+        put min(the left of box, the x of p) into the left of box
+        put max(the right of box, the x of p) into the right of box
+        put min(the top of box, the y of p) into the top of box
+        put max(the bottom of box, the y of p) into the bottom of box
+      end repeat
+      put {box: box, start: start, stop: stop} after runs
+      put stop into start
+    end repeat
+    return runs
+  end runsOf
+
   -- Whether two boxes overlap or touch: a line can only meet or come
   -- within reach of a river inside its box.
   function boxesMeet a, b
     return the left of a <= the right of b and the left of b <= the right of a and the top of a <= the bottom of b and the top of b <= the bottom of a
   end boxesMeet
+
+  -- Whether the line through a and b can pass through the box: not when
+  -- all four corners lie strictly on one side of it. Only products, so
+  -- it is exact, and it only rules out what the line can't meet.
+  function lineMeetsBox a, b, box
+    put the x of b - the x of a into dx
+    put the y of b - the y of a into dy
+    put 0 into above
+    put 0 into below
+    repeat for each corner in [[the left of box, the top of box], [the right of box, the top of box], [the left of box, the bottom of box], [the right of box, the bottom of box]]
+      let [x, y] be corner
+      put dx * (y - the y of a) - dy * (x - the x of a) into side
+      if side >= 0 then add 1 to above
+      if side <= 0 then add 1 to below
+    end repeat
+    return above > 0 and below > 0
+  end lineMeetsBox
 
   function squareBox p, reach
     return {left: the x of p - reach, right: the x of p + reach, top: the y of p - reach, bottom: the y of p + reach}
@@ -79,15 +118,20 @@ export const CROSSING = talk`
     repeat for each index in 0..(the length of rivers - 1)
       if index is in skip then next repeat
       if not boxesMeet(wayBox, item (index + 1) of riverBoxes) then next repeat
+      if not lineMeetsBox(a, b, item (index + 1) of riverBoxes) then next repeat
       put item (index + 1) of rivers into river
-      repeat for each i in 2..(the length of river)
-        put meetsAt(a, b, item (i - 1) of river, item i of river) into at
-        if at is not nothing then
-          if firstAt is nothing or at < firstAt then
-            put index into firstRiver
-            put at into firstAt
+      repeat for each run in item (index + 1) of riverRuns
+        if not boxesMeet(wayBox, the box of run) then next repeat
+        if not lineMeetsBox(a, b, the box of run) then next repeat
+        repeat for each i in (the start of run + 1)..(the stop of run)
+          put meetsAt(a, b, item (i - 1) of river, item i of river) into at
+          if at is not nothing then
+            if firstAt is nothing or at < firstAt then
+              put index into firstRiver
+              put at into firstAt
+            end if
           end if
-        end if
+        end repeat
       end repeat
     end repeat
     return firstRiver
@@ -125,9 +169,14 @@ export const CROSSING = talk`
     return true
   end clipsSquare
 
-  function riverWithinSquare river, p, reach
-    repeat for each i in 2..(the length of river)
-      if clipsSquare(item (i - 1) of river, item i of river, p, reach) then return true
+  function riverWithinSquare index, p, reach
+    put item (index + 1) of the rivers of waterways into river
+    put squareBox(p, reach) into square
+    repeat for each run in item (index + 1) of riverRuns
+      if not boxesMeet(square, the box of run) then next repeat
+      repeat for each i in (the start of run + 1)..(the stop of run)
+        if clipsSquare(item (i - 1) of river, item i of river, p, reach) then return true
+      end repeat
     end repeat
     return false
   end riverWithinSquare
@@ -136,13 +185,12 @@ export const CROSSING = talk`
     put {destination: destination, rivers: [], riversCrossed: riversCrossed, waypoint: nothing} into leg
     put firstRiverMet(origin, destination, riversCrossed) into river
     if river is nothing then return leg
-    put item (river + 1) of the rivers of waterways into riverLine
     put hypot(the x of destination - the x of origin, the y of destination - the y of origin) into direct
     put nothing into best
     put nothing into bestWay
     repeat for each crossing in the crossings of waterways
       if not boxesMeet(squareBox(crossing, TILE), item (river + 1) of riverBoxes) then next repeat
-      if not riverWithinSquare(riverLine, crossing, TILE) then next repeat
+      if not riverWithinSquare(river, crossing, TILE) then next repeat
       put hypot(the x of crossing - the x of origin, the y of crossing - the y of origin) + hypot(the x of destination - the x of crossing, the y of destination - the y of crossing) into way
       put way <= CROSSING_DETOUR_RATIO * direct into inReach
       if not inReach then put distanceToSegment(crossing, origin, destination) <= CROSSING_NEAR_LINE into inReach
@@ -156,7 +204,7 @@ export const CROSSING = talk`
     put the rivers of waterways into all
     repeat for each index in 0..(the length of all - 1)
       if not boxesMeet(squareBox(best, TILE), item (index + 1) of riverBoxes) then next repeat
-      if riverWithinSquare(item (index + 1) of all, best, TILE) then put index after rivers
+      if riverWithinSquare(index, best, TILE) then put index after rivers
     end repeat
     put rivers into the rivers of leg
     put {x: floor(the x of best / TILE) * TILE, y: floor(the y of best / TILE) * TILE} into the waypoint of leg

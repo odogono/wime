@@ -1,9 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 
-import { resolveFight } from '../web/src/sim/combat';
-import { closeCouncil } from '../web/src/sim/council';
 import type { MovementRule } from '../web/src/sim/crossing-movement';
-import { answerMeeting } from '../web/src/sim/meetings';
 import {
   hostFor,
   scenarioOf,
@@ -11,22 +8,12 @@ import {
 } from '../web/src/sim/scripted/host';
 import {
   SHUFFLED_SETUP_AXES,
-  shuffleSetup,
-  type SetupData
+  shuffleSetup
 } from '../web/src/sim/shuffled-setup';
-import {
-  createSim,
-  setSimRules,
-  tickSim,
-  type SimRules,
-  type SimState
-} from '../web/src/sim/state';
-import {
-  loadTerrainRegions,
-  terrainGridFrom,
-  type TerrainGrid
-} from '../web/src/sim/terrain';
-import { loadWaterways, type Waterways } from '../web/src/sim/waterways';
+import { createSim, type SimState } from '../web/src/sim/state';
+import { assetsFrom, step, type Assets } from './scripted-play';
+
+export { step, type Assets } from './scripted-play';
 
 setHostClock(() => performance.now());
 
@@ -39,12 +26,6 @@ const asset = (path: string): URL =>
 
 const readJson = (path: URL): unknown => JSON.parse(readFileSync(path, 'utf8'));
 
-export interface Assets {
-  startingState: SetupData;
-  terrain: TerrainGrid;
-  waterways: Waterways;
-}
-
 // The exported assets, or null where they are absent, as in CI.
 export const loadAssets = (): Assets | null => {
   const paths = {
@@ -55,11 +36,11 @@ export const loadAssets = (): Assets | null => {
   if (!Object.values(paths).every(path => existsSync(path))) {
     return null;
   }
-  return {
-    startingState: readJson(paths.startingState) as SetupData,
-    terrain: terrainGridFrom(loadTerrainRegions(readJson(paths.terrain))),
-    waterways: loadWaterways(readJson(paths.waterways))
-  };
+  return assetsFrom({
+    startingState: readJson(paths.startingState),
+    terrain: readJson(paths.terrain),
+    waterways: readJson(paths.waterways)
+  });
 };
 
 export interface Game {
@@ -78,26 +59,6 @@ export const startGame = (assets: Assets, game: Game): SimState =>
     assets.terrain,
     { movementRule: game.movementRule, waterways: assets.waterways }
   );
-
-// One step as the view would take it: a fight resolves, a meeting is
-// passed by, the Council's message is closed, or the clock ticks.
-export const step = (sim: SimState, rules: SimRules): SimState => {
-  setSimRules(rules);
-  try {
-    if (sim.fight) {
-      return resolveFight(sim);
-    }
-    if (sim.meeting) {
-      return answerMeeting(sim, 'continue-on').world;
-    }
-    if (sim.council) {
-      return closeCouncil(sim);
-    }
-    return tickSim(sim);
-  } finally {
-    setSimRules('typescript');
-  }
-};
 
 // The state to compare: the core state, with the Crossing legs wherever
 // each sim keeps them.
