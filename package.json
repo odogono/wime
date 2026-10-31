@@ -24,6 +24,7 @@
     "strategy": "bun tools/strategy.ts",
     "survey": "bun tools/survey.ts",
     "export:web": "bun tools/export-web.ts",
+    "export:text-table": "bun tools/export-text-table.ts",
     "build-geography": "bun tools/build-geography.ts",
     "build-emblems": "bun tools/build-emblems.ts",
     "terrain-equivalence": "bun tools/terrain-equivalence.ts",

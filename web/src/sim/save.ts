@@ -13,12 +13,16 @@ import type { Waterways } from './waterways';
 // save loads as Classic movement, the rule it was played under. Bump SAVE_VERSION by hand whenever the
 // saved state's shape changes; save.test.ts pins the shape of each
 // version and fails if it changes without a bump.
-export const SAVE_VERSION = 10;
+// 11 adds the Scenario Scripts' own state (#194, spike only).
+export const SAVE_VERSION = 11;
+const BEFORE_SCENARIO = 10;
 const BEFORE_MOVEMENT_RULE = 9;
 
 // Whether this build loads a save of `version`.
 export const loadsSaveVersion = (version: number): boolean =>
-  version === SAVE_VERSION || version === BEFORE_MOVEMENT_RULE;
+  version === SAVE_VERSION ||
+  version === BEFORE_SCENARIO ||
+  version === BEFORE_MOVEMENT_RULE;
 
 export type SavedState = Omit<SimState, 'terrain' | 'waterways'>;
 

@@ -13,6 +13,8 @@ import { startMeeting, type Meeting } from './meetings';
 import { sweepMovement } from './movement';
 import { ringAtBaradDur, ringAtMountDoom } from './ring';
 import { createRng, type RngState } from './rng';
+import { hostFor, type ScenarioState } from './scripted/host';
+import { getSimRules } from './scripted/rules';
 import {
   DEFAULT_SPEEDS,
   emptyObjectPlacements,
@@ -84,6 +86,9 @@ export interface SimState {
   // Default Orders queues, popped on arrival
   // (finding:movement-arrival-pops-next-route-stop).
   routes: number[][];
+  // What the Scenario Scripts keep for themselves, which the view never
+  // reads: absent under the TypeScript rules (#194, spike only).
+  scenario?: ScenarioState;
   speeds: { diagonal: number[]; straight: number[] };
   // The roster entry the next tick's sweep starts from: 0, or the
   // entry after the one whose step started a fight.
@@ -221,7 +226,28 @@ const sweep = (state: SimState, holdAt: number | null): SimState => {
   if (holdAt !== null && isHeld(state)) {
     return state;
   }
-  const { heldAt, stoppedAt, world } = sweepMovement(
+  const { heldAt, stoppedAt, world } =
+    getSimRules() === 'scripted'
+      ? hostFor(state).sweep(state, holdAt)
+      : typescriptSweep(state, holdAt);
+  if (heldAt !== undefined) {
+    return { ...world, sweepFrom: heldAt };
+  }
+  if (stoppedAt !== null) {
+    return { ...world, sweepFrom: stoppedAt + 1 };
+  }
+  const stepped = { ...world, clock: tickClock(world.clock), sweepFrom: 0 };
+  const council = councilDue(stepped) ? holdCouncil(stepped) : stepped;
+  const won = onTheHour(council)
+    ? ringAtMountDoom(council.roster, council.ringBearer)
+    : null;
+  return won ? { ...council, ending: won } : dailyChecks(council);
+};
+
+export { getSimRules, setSimRules, type SimRules } from './scripted/rules';
+
+const typescriptSweep = (state: SimState, holdAt: number | null) =>
+  sweepMovement(
     state,
     state.sweepFrom,
     (moved, index) => {
@@ -249,19 +275,6 @@ const sweep = (state: SimState, holdAt: number | null): SimState => {
     wakeEntry,
     holdAt
   );
-  if (heldAt !== undefined) {
-    return { ...world, sweepFrom: heldAt };
-  }
-  if (stoppedAt !== null) {
-    return { ...world, sweepFrom: stoppedAt + 1 };
-  }
-  const stepped = { ...world, clock: tickClock(world.clock), sweepFrom: 0 };
-  const council = councilDue(stepped) ? holdCouncil(stepped) : stepped;
-  const won = onTheHour(council)
-    ? ringAtMountDoom(council.roster, council.ringBearer)
-    : null;
-  return won ? { ...council, ending: won } : dailyChecks(council);
-};
 
 // The hourly tests on the Campaign Level, after the Council's
 // (finding:objects-ring-at-mount-doom-checked-hourly).
@@ -276,11 +289,10 @@ const dailyChecks = (state: SimState): SimState => {
   if (state.watching !== null || !isDailyCheck(state.clock)) {
     return state;
   }
-  const { announcements, events } = dailyWarEvents(
-    state.warEvents,
-    state.roster,
-    state.clock.day
-  );
+  const { announcements, events } =
+    getSimRules() === 'scripted'
+      ? hostFor(state).dailyWarEvents(state)
+      : dailyWarEvents(state.warEvents, state.roster, state.clock.day);
   return {
     ...state,
     announcements: [...state.announcements, ...announcements],

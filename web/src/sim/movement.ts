@@ -15,6 +15,8 @@ import {
   type MovementRule
 } from './crossing-movement';
 import { nextRandom, type RngState } from './rng';
+import { hostFor } from './scripted/host';
+import { getSimRules } from './scripted/rules';
 import {
   TILE_SIZE,
   tileOf,
@@ -23,6 +25,7 @@ import {
   type Point,
   type RosterEntry
 } from './starting-state';
+import type { SimState } from './state';
 import { terrainOf, type TerrainGrid } from './terrain';
 import type { Waterways } from './waterways';
 
@@ -520,6 +523,9 @@ const waypointFor = (
 // The Way of the Force that a roster entry is in, or null if its
 // Leader has nowhere to go.
 export const wayOf = (world: MovementWorld, index: number): Way | null => {
+  if (getSimRules() === 'scripted') {
+    return hostFor(world as SimState).wayOf(world as SimState, index);
+  }
   const entry = world.roster[index];
   if (!entry) {
     return null;
@@ -548,6 +554,13 @@ export const orderedWay = (
   memberIndex: number,
   click: Point
 ): Way | null => {
+  if (getSimRules() === 'scripted') {
+    return hostFor(world as SimState).orderedWay(
+      world as SimState,
+      memberIndex,
+      click
+    );
+  }
   const entry = world.roster[memberIndex];
   if (!entry) {
     return null;
